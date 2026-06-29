@@ -2,10 +2,28 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { DatabaseManager, Report, BoundingBox, User } from './database/db';
+import dotenv from 'dotenv';
+import rateLimit from 'express-rate-limit';
+import mongoose from 'mongoose';
+import { DatabaseManager, Report, BoundingBox, User, connectDB } from './database/db';
+import { ReportModel } from './database/models/Report';
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 8000;
+
+// Rate limiting for Auth endpoints to mitigate brute force attacks
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // Limit each IP to 20 requests per windowMs
+  message: { error: 'Terlalu banyak percobaan masuk/daftar, silakan coba lagi nanti.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
 
 // In-memory Session Store (Session Token -> User ID)
 const sessions = new Map<string, number>();
@@ -37,7 +55,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // --- SESSION HELPER ---
-function getLoggedInUser(req: express.Request): User | null {
+async function getLoggedInUser(req: express.Request): Promise<User | null> {
   const cookieHeader = req.headers.cookie || '';
   const cookies = cookieHeader.split(';').reduce((acc, c) => {
     const [key, val] = c.trim().split('=');
@@ -51,13 +69,27 @@ function getLoggedInUser(req: express.Request): User | null {
   const userId = sessions.get(token);
   if (userId === undefined) return null;
   
-  return DatabaseManager.getUserById(userId) || null;
+  try {
+    return (await DatabaseManager.getUserById(userId)) || null;
+  } catch (err) {
+    console.error('[SERVER ERROR] Failed to fetch session user:', err);
+    return null;
+  }
 }
+
+// --- HEALTH CHECK ENDPOINT ---
+app.get('/health', (req, res) => {
+  const isConnected = mongoose.connection.readyState === 1;
+  res.status(isConnected ? 200 : 503).json({
+    status: isConnected ? 'UP' : 'DOWN',
+    database: isConnected ? 'connected' : 'disconnected'
+  });
+});
 
 // --- AUTH API ENDPOINTS ---
 
 // Register API
-app.post('/api/auth/register', (req, res) => {
+app.post('/api/auth/register', async (req, res) => {
   const { username, password, role } = req.body;
 
   if (!username || !password || !role) {
@@ -72,34 +104,44 @@ app.post('/api/auth/register', (req, res) => {
     return res.status(400).json({ error: 'Role tidak valid' });
   }
 
-  const newUser = DatabaseManager.createUser(username, password, role as 'admin' | 'user');
-  if (!newUser) {
-    return res.status(400).json({ error: 'Username sudah digunakan' });
-  }
+  try {
+    const newUser = await DatabaseManager.createUser(username, password, role as 'admin' | 'user');
+    if (!newUser) {
+      return res.status(400).json({ error: 'Username sudah digunakan' });
+    }
 
-  res.status(201).json({ id: newUser.id, username: newUser.username, role: newUser.role });
+    res.status(201).json({ id: newUser.id, username: newUser.username, role: newUser.role });
+  } catch (err) {
+    console.error('[SERVER ERROR] Registration failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
 
 // Login API
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password) {
     return res.status(400).json({ error: 'Username dan password harus diisi' });
   }
 
-  const user = DatabaseManager.authenticateUser(username, password);
-  if (!user) {
-    return res.status(401).json({ error: 'Username atau password salah' });
+  try {
+    const user = await DatabaseManager.authenticateUser(username, password);
+    if (!user) {
+      return res.status(401).json({ error: 'Username atau password salah' });
+    }
+
+    // Create session
+    const token = 'sess_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    sessions.set(token, user.id);
+
+    // Set Cookie
+    res.setHeader('Set-Cookie', `session_token=${token}; Path=/; HttpOnly; SameSite=Lax`);
+    res.json({ id: user.id, username: user.username, role: user.role });
+  } catch (err) {
+    console.error('[SERVER ERROR] Login failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
-
-  // Create session
-  const token = 'sess_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-  sessions.set(token, user.id);
-
-  // Set Cookie
-  res.setHeader('Set-Cookie', `session_token=${token}; Path=/; HttpOnly; SameSite=Lax`);
-  res.json({ id: user.id, username: user.username, role: user.role });
 });
 
 // Logout API
@@ -121,163 +163,214 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 // Get Current User API
-app.get('/api/auth/me', (req, res) => {
-  const user = getLoggedInUser(req);
-  if (!user) {
-    return res.status(401).json({ error: 'Belum masuk' });
+app.get('/api/auth/me', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Belum masuk' });
+    }
+    res.json({ id: user.id, username: user.username, role: user.role });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal Server Error' });
   }
-  res.json({ id: user.id, username: user.username, role: user.role });
 });
 
 
 // --- VIEW ROUTING & GUARDS ---
 
-app.get('/login', (req, res) => {
-  const user = getLoggedInUser(req);
-  if (user) {
-    return res.redirect(user.role === 'admin' ? '/dashboard' : '/dashboard/upload');
+app.get('/login', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (user) {
+      return res.redirect(user.role === 'admin' ? '/dashboard' : '/dashboard/upload');
+    }
+    res.sendFile(path.join(__dirname, '../public/views/login.html'));
+  } catch (err) {
+    res.redirect('/login');
   }
-  res.sendFile(path.join(__dirname, '../public/views/login.html'));
 });
 
-app.get('/register', (req, res) => {
-  const user = getLoggedInUser(req);
-  if (user) {
-    return res.redirect(user.role === 'admin' ? '/dashboard' : '/dashboard/upload');
+app.get('/register', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (user) {
+      return res.redirect(user.role === 'admin' ? '/dashboard' : '/dashboard/upload');
+    }
+    res.sendFile(path.join(__dirname, '../public/views/register.html'));
+  } catch (err) {
+    res.redirect('/login');
   }
-  res.sendFile(path.join(__dirname, '../public/views/register.html'));
 });
 
-app.get('/', (req, res) => {
-  const user = getLoggedInUser(req);
-  if (!user) return res.redirect('/login');
-  res.redirect(user.role === 'admin' ? '/dashboard' : '/dashboard/upload');
+app.get('/', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.redirect('/login');
+    res.redirect(user.role === 'admin' ? '/dashboard' : '/dashboard/upload');
+  } catch (err) {
+    res.redirect('/login');
+  }
 });
 
-app.get('/dashboard', (req, res) => {
-  const user = getLoggedInUser(req);
-  if (!user) return res.redirect('/login');
-  if (user.role !== 'admin') return res.redirect('/dashboard/upload');
-  
-  res.sendFile(path.join(__dirname, '../public/views/dashboard.html'));
+app.get('/dashboard', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.redirect('/login');
+    if (user.role !== 'admin') return res.redirect('/dashboard/upload');
+    
+    res.sendFile(path.join(__dirname, '../public/views/dashboard.html'));
+  } catch (err) {
+    res.redirect('/login');
+  }
 });
 
-app.get('/dashboard/upload', (req, res) => {
-  const user = getLoggedInUser(req);
-  if (!user) return res.redirect('/login');
-  
-  res.sendFile(path.join(__dirname, '../public/views/upload.html'));
+app.get('/dashboard/upload', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.redirect('/login');
+    
+    res.sendFile(path.join(__dirname, '../public/views/upload.html'));
+  } catch (err) {
+    res.redirect('/login');
+  }
 });
 
-app.get('/dashboard/detections/:id', (req, res) => {
-  const user = getLoggedInUser(req);
-  if (!user) return res.redirect('/login');
-  if (user.role !== 'admin') return res.redirect('/dashboard/upload');
-  
-  res.sendFile(path.join(__dirname, '../public/views/detail.html'));
+app.get('/dashboard/detections/:id', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.redirect('/login');
+    if (user.role !== 'admin') return res.redirect('/dashboard/upload');
+    
+    res.sendFile(path.join(__dirname, '../public/views/detail.html'));
+  } catch (err) {
+    res.redirect('/login');
+  }
 });
 
 
 // --- SECURE DATA API ENDPOINTS ---
 
-// API: Get Filtered & Paginated Reports
-app.get('/api/detections', (req, res) => {
-  const user = getLoggedInUser(req);
-  if (!user) {
-    return res.status(401).json({ error: 'Unauthorized' });
+// API: Get Filtered & Paginated Reports (Database-Level pagination optimized)
+app.get('/api/detections', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 5;
+
+    const filters = {
+      timeRange: req.query.timeRange as string,
+      date: req.query.date as string,
+      aiStatus: req.query.aiStatus as string,
+      adminStatus: req.query.adminStatus as string,
+      location: req.query.location as string,
+    };
+
+    const userContext = { id: user.id, role: user.role };
+    
+    // Call database-level paginated query
+    const result = await DatabaseManager.getFiltered(filters, userContext, page, limit);
+
+    if (result && 'reports' in result) {
+      const { reports: paginatedReports, total: totalReports } = result;
+      const totalPages = Math.ceil(totalReports / limit) || 1;
+
+      res.json({
+        reports: paginatedReports,
+        pagination: {
+          page,
+          limit,
+          totalReports,
+          totalPages,
+          hasPrev: page > 1,
+          hasNext: page < totalPages,
+        },
+      });
+    } else {
+      res.status(500).json({ error: 'Gagal memproses data laporan' });
+    }
+  } catch (err) {
+    console.error('[SERVER ERROR] Get reports list failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
-
-  const page = parseInt(req.query.page as string) || 1;
-  const limit = parseInt(req.query.limit as string) || 5;
-
-  const filters = {
-    timeRange: req.query.timeRange as string,
-    date: req.query.date as string,
-    aiStatus: req.query.aiStatus as string,
-    adminStatus: req.query.adminStatus as string,
-    location: req.query.location as string,
-  };
-
-  const userContext = { id: user.id, role: user.role };
-  const allFilteredReports = DatabaseManager.getFiltered(filters, userContext);
-  
-  // Paginate
-  const totalReports = allFilteredReports.length;
-  const totalPages = Math.ceil(totalReports / limit) || 1;
-  const offset = (page - 1) * limit;
-  const paginatedReports = allFilteredReports.slice(offset, offset + limit);
-
-  res.json({
-    reports: paginatedReports,
-    pagination: {
-      page,
-      limit,
-      totalReports,
-      totalPages,
-      hasPrev: page > 1,
-      hasNext: page < totalPages,
-    },
-  });
 });
 
 // API: Get Single Report by ID
-app.get('/api/detections/:id', (req, res) => {
-  const user = getLoggedInUser(req);
-  if (!user) {
-    return res.status(401).json({ error: 'Unauthorized' });
+app.get('/api/detections/:id', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const id = parseInt(req.params.id);
+    const report = await DatabaseManager.getById(id);
+
+    if (!report) {
+      return res.status(404).json({ error: 'Laporan tidak ditemukan' });
+    }
+
+    // Access check: normal user can only view their own report
+    if (user.role === 'user' && report.userId !== user.id) {
+      return res.status(403).json({ error: 'Akses ditolak' });
+    }
+
+    res.json(report);
+  } catch (err) {
+    console.error('[SERVER ERROR] Get single report failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
-
-  const id = parseInt(req.params.id);
-  const report = DatabaseManager.getById(id);
-
-  if (!report) {
-    return res.status(404).json({ error: 'Laporan tidak ditemukan' });
-  }
-
-  // Access check: normal user can only view their own report
-  if (user.role === 'user' && report.userId !== user.id) {
-    return res.status(403).json({ error: 'Akses ditolak' });
-  }
-
-  res.json(report);
 });
 
 // API: Update Admin Verification Status
-app.post('/api/detections/:id/verify', (req, res) => {
-  const user = getLoggedInUser(req);
-  if (!user) {
-    return res.status(401).json({ error: 'Unauthorized' });
+app.post('/api/detections/:id/verify', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: 'Hanya Admin yang dapat memvalidasi laporan' });
+    }
+
+    const id = parseInt(req.params.id);
+    const { status, notes } = req.body;
+
+    if (!status || !['VALID', 'DIABAIKAN', 'MENUNGGU'].includes(status)) {
+      return res.status(400).json({ error: 'Status tidak valid' });
+    }
+
+    const updatedReport = await DatabaseManager.updateVerification(id, status, notes || '');
+    if (!updatedReport) {
+      return res.status(404).json({ error: 'Laporan tidak ditemukan' });
+    }
+
+    res.json(updatedReport);
+  } catch (err) {
+    console.error('[SERVER ERROR] Verify report failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
-
-  if (user.role !== 'admin') {
-    return res.status(403).json({ error: 'Hanya Admin yang dapat memvalidasi laporan' });
-  }
-
-  const id = parseInt(req.params.id);
-  const { status, notes } = req.body;
-
-  if (!status || !['VALID', 'DIABAIKAN', 'MENUNGGU'].includes(status)) {
-    return res.status(400).json({ error: 'Status tidak valid' });
-  }
-
-  const updatedReport = DatabaseManager.updateVerification(id, status, notes || '');
-  if (!updatedReport) {
-    return res.status(404).json({ error: 'Laporan tidak ditemukan' });
-  }
-
-  res.json(updatedReport);
 });
 
-// API: Get Stats & Charts data
-app.get('/api/stats', (req, res) => {
-  const user = getLoggedInUser(req);
-  if (!user) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+// API: Get Stats & Charts data (Aggregation Pipeline optimized)
+app.get('/api/stats', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
 
-  const userContext = { id: user.id, role: user.role };
-  const stats = DatabaseManager.getStats(userContext);
-  res.json(stats);
+    const userContext = { id: user.id, role: user.role };
+    const stats = await DatabaseManager.getStats(userContext);
+    res.json(stats);
+  } catch (err) {
+    console.error('[SERVER ERROR] Get stats failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
 
 // Helper: Run simulated AI YOLO detector on uploaded images
@@ -287,7 +380,6 @@ function runSimulatedAI(location: string, notes: string): {
   boxes: BoundingBox[];
 } {
   const boxes: BoundingBox[] = [];
-  
   const notesLower = notes.toLowerCase();
   
   let hasPerson = Math.random() > 0.3;
@@ -357,80 +449,111 @@ function runSimulatedAI(location: string, notes: string): {
 }
 
 // API: Create new report (upload)
-app.post('/api/detections', upload.single('file'), (req, res) => {
-  const user = getLoggedInUser(req);
-  if (!user) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  if (!req.file) {
-    return res.status(400).json({ error: 'File media wajib diupload' });
-  }
-
-  const { location, identity, sourceType, additionalNotes } = req.body;
-
-  // Run AI processing simulation
-  const aiResults = runSimulatedAI(location || '', additionalNotes || '');
-
-  // Create report entry linked to user.id
-  const newReport = DatabaseManager.create({
-    location: location || 'Lokasi tidak diketahui',
-    aiStatus: aiResults.status,
-    aiConfidence: aiResults.confidence,
-    image: `/uploads/${req.file.filename}`,
-    identity: identity || 'Belum diketahui',
-    sourceType: sourceType || 'Gambar',
-    additionalNotes: additionalNotes || 'Tidak ada catatan tambahan.',
-    boundingBoxes: aiResults.boxes,
-  }, user.id);
-
-  // Also copy this uploaded file as the last capture image for the dashboard
+app.post('/api/detections', upload.single('file'), async (req, res) => {
   try {
-    const uploadDir = path.join(__dirname, '../public/uploads');
-    const sourcePath = path.join(uploadDir, req.file.filename);
-    const destPath = path.join(uploadDir, 'last_capture.jpg');
-    fs.copyFileSync(sourcePath, destPath);
+    const user = await getLoggedInUser(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'File media wajib diupload' });
+    }
+
+    const { location, identity, sourceType, additionalNotes } = req.body;
+
+    // Run AI processing simulation
+    const aiResults = runSimulatedAI(location || '', additionalNotes || '');
+
+    // Create report entry linked to user.id
+    const newReport = await DatabaseManager.create({
+      location: location || 'Lokasi tidak diketahui',
+      aiStatus: aiResults.status,
+      aiConfidence: aiResults.confidence,
+      image: `/uploads/${req.file.filename}`,
+      identity: identity || 'Belum diketahui',
+      sourceType: sourceType || 'Gambar',
+      additionalNotes: additionalNotes || 'Tidak ada catatan tambahan.',
+      boundingBoxes: aiResults.boxes,
+    }, user.id);
+
+    // Also copy this uploaded file as the last capture image for the dashboard
+    try {
+      const uploadDir = path.join(__dirname, '../public/uploads');
+      const sourcePath = path.join(uploadDir, req.file.filename);
+      const destPath = path.join(uploadDir, 'last_capture.jpg');
+      fs.copyFileSync(sourcePath, destPath);
+    } catch (err) {
+      console.error('[SERVER ERROR] Error copying last capture image:', err);
+    }
+
+    res.status(201).json(newReport);
   } catch (err) {
-    console.error('Error copying last capture image:', err);
+    console.error('[SERVER ERROR] Create report failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
-
-  res.status(201).json(newReport);
 });
 
-// API: Export all reports to CSV (Admins only)
-app.get('/api/export', (req, res) => {
-  const user = getLoggedInUser(req);
-  if (!user || user.role !== 'admin') {
-    return res.status(403).send('Forbidden: Hanya Admin yang dapat mengekspor laporan');
+// API: Export all reports to CSV (Admins only) - Streaming optimized using MongoDB query cursor
+app.get('/api/export', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).send('Forbidden: Hanya Admin yang dapat mengekspor laporan');
+    }
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="eyeco_report_export.csv"');
+    
+    // Write Header
+    res.write('ID,User ID,Lokasi,Waktu Kejadian,Status AI,Keyakinan AI (%),Status Admin,Sumber,Identitas/Kiri,Catatan Admin\n');
+
+    const cursor = ReportModel.find().sort({ id: 1 }).cursor();
+
+    cursor.on('data', (doc) => {
+      const timestampStr = doc.timestamp instanceof Date ? doc.timestamp.toISOString() : doc.timestamp;
+      const row = [
+        doc.id,
+        doc.userId,
+        `"${doc.location.replace(/"/g, '""')}"`,
+        timestampStr,
+        doc.aiStatus,
+        doc.aiConfidence !== null ? doc.aiConfidence : 'N/A',
+        doc.adminStatus,
+        doc.sourceType,
+        `"${(doc.identity || '').replace(/"/g, '""')}"`,
+        `"${(doc.adminNotes || '').replace(/"/g, '""')}"`,
+      ];
+      res.write(row.join(',') + '\n');
+    });
+
+    cursor.on('end', () => {
+      res.end();
+    });
+
+    cursor.on('error', (err) => {
+      console.error('[SERVER ERROR] Export cursor error:', err);
+      if (!res.headersSent) {
+        res.status(500).send('Internal Server Error during export streaming');
+      } else {
+        res.end();
+      }
+    });
+
+  } catch (err) {
+    console.error('[SERVER ERROR] Export failed:', err);
+    if (!res.headersSent) {
+      res.status(500).send('Internal Server Error');
+    }
   }
+});
 
-  const reports = DatabaseManager.getAll();
-
-  // CSV headers
-  let csvContent = 'ID,User ID,Lokasi,Waktu Kejadian,Status AI,Keyakinan AI (%),Status Admin,Sumber,Identitas/Kiri,Catatan Admin\n';
-
-  reports.forEach((r) => {
-    const row = [
-      r.id,
-      r.userId,
-      `"${r.location.replace(/"/g, '""')}"`,
-      r.timestamp,
-      r.aiStatus,
-      r.aiConfidence || 'N/A',
-      r.adminStatus,
-      r.sourceType,
-      `"${(r.identity || '').replace(/"/g, '""')}"`,
-      `"${(r.adminNotes || '').replace(/"/g, '""')}"`,
-    ];
-    csvContent += row.join(',') + '\n';
+// Start Server after Database connection is established
+connectDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server EYECO berjalan di http://localhost:${PORT}`);
   });
-
-  res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="simbahrang_report_export.csv"');
-  res.status(200).send(csvContent);
-});
-
-// Start Server
-app.listen(PORT, () => {
-  console.log(`Server Simbahrang berjalan di http://localhost:${PORT}`);
+}).catch((err) => {
+  console.error('[SERVER CRITICAL] Failed to connect to database. Server not started.', err);
+  process.exit(1);
 });
