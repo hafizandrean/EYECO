@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registrasi - Simbahrang</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+</head>
+<body style="display: flex; align-items: center; justify-content: center; height: 100vh; padding: 20px;">
+  
+  <main class="glass-card" style="width: 100%; max-width: 420px; padding: 35px 30px;">
+    
+    <div style="text-align: center; margin-bottom: 24px;">
+      <div style="background: var(--success); display: inline-flex; align-items: center; justify-content: center; width: 60px; height: 60px; border-radius: 50%; color: white; margin-bottom: 12px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);">
+        <i data-feather="user-plus" style="width: 28px; height: 28px;"></i>
+      </div>
+      <h2 style="font-weight: 800; font-size: 1.8rem; letter-spacing: -0.5px;">Registrasi Akun</h2>
+      <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; font-weight: 550;">Buat akun pelapor atau pemantau sungai</p>
+    </div>
+
+    <!-- Error message alert -->
+    <div id="error-alert" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: var(--danger); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; margin-bottom: 16px; align-items: center; gap: 8px;">
+      <i data-feather="alert-circle" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
+      <span id="error-text">Terjadi kesalahan</span>
+    </div>
+
+    <!-- Success message alert -->
+    <div id="success-alert" style="display: none; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: var(--success); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; margin-bottom: 16px; align-items: center; gap: 8px;">
+      <i data-feather="check-circle" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
+      <span>Registrasi berhasil! Mengalihkan ke login...</span>
+    </div>
+
+    <form id="register-form">
+      <div class="form-group">
+        <label class="form-label" for="reg-username">Username</label>
+        <div style="position: relative;">
+          <input type="text" class="form-control" id="reg-username" placeholder="Buat username baru" required style="width: 100%; padding-left: 40px;">
+          <i data-feather="user" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted);"></i>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="reg-password">Password</label>
+        <div style="position: relative;">
+          <input type="password" class="form-control" id="reg-password" placeholder="Buat password minimal 6 karakter" required style="width: 100%; padding-left: 40px;" minlength="6">
+          <i data-feather="key" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted);"></i>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="reg-role">Pilih Role Akun</label>
+        <div style="position: relative;">
+          <select class="form-control" id="reg-role" required style="width: 100%; padding-left: 40px; -webkit-appearance: none; -moz-appearance: none; appearance: none;">
+            <option value="user">User (Hanya Membuat Laporan Sungai)</option>
+            <option value="admin">Admin (Memantau Dashboard & Validasi)</option>
+          </select>
+          <i data-feather="shield" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted);"></i>
+          <i data-feather="chevron-down" style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted); pointer-events: none;"></i>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; margin-top: 8px; background-color: var(--success); box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);">
+        Daftar Akun <i data-feather="user-check" style="width: 16px; height: 16px; margin-left: 4px;"></i>
+      </button>
+    </form>
+
+    <div style="text-align: center; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 15px;">
+      <p style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 550;">
+        Sudah punya akun? <a href="/login" style="color: var(--primary); text-decoration: none; font-weight: 700;">Masuk di sini</a>
+      </p>
+    </div>
+
+  </main>
+
+  <script>
+    const form = document.getElementById('register-form');
+    const errorAlert = document.getElementById('error-alert');
+    const successAlert = document.getElementById('success-alert');
+    const errorText = document.getElementById('error-text');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorAlert.style.display = 'none';
+      successAlert.style.display = 'none';
+
+      const username = document.getElementById('reg-username').value;
+      const password = document.getElementById('reg-password').value;
+      const role = document.getElementById('reg-role').value;
+
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password, role })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          successAlert.style.display = 'flex';
+          form.reset();
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 1500);
+        } else {
+          errorText.innerText = data.error || 'Gagal mendaftarkan akun.';
+          errorAlert.style.display = 'flex';
+        }
+      } catch (err) {
+        console.error('Error registering:', err);
+        errorText.innerText = 'Koneksi ke server gagal.';
+        errorAlert.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      feather.replace();
+    });
+  </script>
+</body>
+</html>

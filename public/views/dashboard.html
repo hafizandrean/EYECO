@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simbahrang - Sistem Monitoring Aktivitas Mencurigakan Sungai</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    
+    <!-- Header Section -->
+    <header class="glass-card header-card">
+      <div class="header-left">
+        <h1>Simbahrang</h1>
+        <p>Sistem Monitoring Aktivitas Mencurigakan Sungai</p>
+        <div style="margin-top: 8px; font-size: 0.85rem; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 6px;">
+          <i data-feather="user" style="width: 14px; height: 14px;"></i> Logged in as: <span id="current-user-display">Loading...</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="status-pills">
+          <div class="pill">
+            <span class="pill-dot active"></span>
+            AI Aktif
+          </div>
+          <div class="pill">
+            <span class="pill-dot blue"></span>
+            Telegram
+          </div>
+          <div class="pill">
+            <span class="pill-dot normal"></span>
+            DB Normal
+          </div>
+        </div>
+        <div class="update-time" id="update-time-text">
+          Update terakhir: 24 May 2026 • 16:10 WIB
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-glass" id="btn-export">
+            <i data-feather="download"></i> Export
+          </button>
+          <a href="/dashboard/upload" class="btn btn-primary">
+            <i data-feather="plus"></i> Upload Bukti
+          </a>
+          <button class="btn btn-glass" id="btn-logout" style="color: var(--danger); border-color: rgba(239, 68, 68, 0.3);">
+            <i data-feather="log-out"></i> Logout
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Stats Grid -->
+    <section class="stats-grid">
+      <div class="glass-card stat-card yellow">
+        <div class="stat-label">Total Laporan</div>
+        <div class="stat-value" id="stat-total">0</div>
+      </div>
+      <div class="glass-card stat-card blue">
+        <div class="stat-label">Titik Paling Rawan</div>
+        <div class="stat-value" id="stat-rawan">-</div>
+      </div>
+      <div class="glass-card stat-card green">
+        <div class="stat-label">Validasi Selesai</div>
+        <div class="stat-value" id="stat-valid">0</div>
+      </div>
+      <div class="glass-card stat-card red">
+        <div class="stat-label">Dibatalkan</div>
+        <div class="stat-value" id="stat-cancelled">0</div>
+      </div>
+    </section>
+
+    <!-- Content Layout -->
+    <div class="content-layout">
+      
+      <!-- Main Content Area -->
+      <main class="glass-card main-card">
+        <div class="card-title">
+          <i data-feather="database"></i> Data Pantauan AI
+        </div>
+        
+        <!-- Filters Row -->
+        <div class="filters-row">
+          <select class="filter-control" id="filter-time">
+            <option value="semua">Semua Waktu</option>
+            <option value="hari_ini">Hari Ini</option>
+            <option value="minggu_ini">Minggu Ini</option>
+          </select>
+          
+          <input type="date" class="filter-control" id="filter-date">
+          
+          <select class="filter-control" id="filter-ai">
+            <option value="semua">Semua Indikasi</option>
+            <option value="TINGGI">Tinggi</option>
+            <option value="SEDANG">Sedang</option>
+            <option value="RENDAH">Rendah</option>
+            <option value="Tidak Terindikasi">Tidak Terindikasi</option>
+          </select>
+          
+          <select class="filter-control" id="filter-admin">
+            <option value="semua">Status Admin</option>
+            <option value="MENUNGGU">Menunggu</option>
+            <option value="VALID">Valid</option>
+            <option value="DIABAIKAN">Abaikan</option>
+          </select>
+          
+          <input type="text" class="filter-control" id="search-location" placeholder="Cari Lokasi... (Enter)">
+          
+          <button class="btn btn-glass btn-sm" id="btn-reset">Reset</button>
+        </div>
+
+        <!-- Table Container -->
+        <div class="table-container">
+          <table class="custom-table" id="reports-table">
+            <thead>
+              <tr>
+                <th>Bukti</th>
+                <th>Lokasi & Waktu</th>
+                <th>Hasil AI</th>
+                <th>Status Admin</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="table-body">
+              <!-- Dynamically populated -->
+              <tr>
+                <td colspan="5" style="text-align: center; padding: 30px; color: var(--text-muted);">
+                  Memuat data...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination">
+          <button class="btn btn-glass btn-sm" id="btn-prev" disabled>Sebelumnya</button>
+          <span class="page-info" id="page-info-text">Halaman 1 dari 1</span>
+          <button class="btn btn-glass btn-sm" id="btn-next" disabled>Selanjutnya</button>
+        </div>
+      </main>
+
+      <!-- Sidebar -->
+      <aside class="sidebar-layout">
+        
+        <!-- Validation Chart Card -->
+        <div class="glass-card">
+          <div class="card-title">
+            <i data-feather="bar-chart-2"></i> Grafik Validasi
+          </div>
+          <div class="chart-container">
+            <div class="chart-bar-wrapper">
+              <span class="chart-value" id="val-pending-count">0</span>
+              <div class="chart-bar pending" id="bar-pending" style="height: 0%;"></div>
+              <span class="chart-label">Menunggu</span>
+            </div>
+            <div class="chart-bar-wrapper">
+              <span class="chart-value" id="val-valid-count">0</span>
+              <div class="chart-bar valid" id="bar-valid" style="height: 0%;"></div>
+              <span class="chart-label">Valid</span>
+            </div>
+            <div class="chart-bar-wrapper">
+              <span class="chart-value" id="val-ignored-count">0</span>
+              <div class="chart-bar ignored" id="bar-ignored" style="height: 0%;"></div>
+              <span class="chart-label">Dibatalkan</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Last Capture Card -->
+        <div class="glass-card">
+          <div class="card-title">
+            <i data-feather="camera"></i> Tangkapan Terakhir
+          </div>
+          <div class="last-capture-container">
+            <img src="/uploads/last_capture.jpg" alt="Tangkapan Terakhir CCTV">
+            <div class="yolo-preview-box" style="top: 25%; left: 30%; width: 40%; height: 50%; border-color: #3b82f6;">
+              <span style="position: absolute; top: -18px; left: -2px; background: #3b82f6; color: white; font-size: 0.6rem; padding: 2px 4px; border-radius: 2px;">
+                person 0.89
+              </span>
+            </div>
+          </div>
+        </div>
+
+      </aside>
+
+    </div>
+  </div>
+
+  <script>
+    // State management
+    let currentPage = 1;
+    const limit = 5;
+    let filters = {
+      timeRange: 'semua',
+      date: '',
+      aiStatus: 'semua',
+      adminStatus: 'semua',
+      location: ''
+    };
+
+    // DOM Elements
+    const tableBody = document.getElementById('table-body');
+    const pageInfoText = document.getElementById('page-info-text');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const btnReset = document.getElementById('btn-reset');
+    const btnExport = document.getElementById('btn-export');
+    
+    const filterTime = document.getElementById('filter-time');
+    const filterDate = document.getElementById('filter-date');
+    const filterAi = document.getElementById('filter-ai');
+    const filterAdmin = document.getElementById('filter-admin');
+    const searchLocation = document.getElementById('search-location');
+
+    const statTotal = document.getElementById('stat-total');
+    const statRawan = document.getElementById('stat-rawan');
+    const statValid = document.getElementById('stat-valid');
+    const statCancelled = document.getElementById('stat-cancelled');
+
+    const barPending = document.getElementById('bar-pending');
+    const barValid = document.getElementById('bar-valid');
+    const barIgnored = document.getElementById('bar-ignored');
+
+    const valPendingCount = document.getElementById('val-pending-count');
+    const valValidCount = document.getElementById('val-valid-count');
+    const valIgnoredCount = document.getElementById('val-ignored-count');
+    const updateTimeText = document.getElementById('update-time-text');
+
+    // Helper to format date
+    function formatDate(isoString) {
+      const date = new Date(isoString);
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const day = date.getDate();
+      const month = months[date.getMonth()];
+      const year = date.getFullYear();
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${day} ${month} ${year}, ${hours}:${minutes} WIB`;
+    }
+
+    // Set update time to current time
+    function setUpdateTime() {
+      const now = new Date();
+      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      const day = now.getDate();
+      const month = months[now.getMonth()];
+      const year = now.getFullYear();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      updateTimeText.innerText = `Update terakhir: ${day} ${month} ${year} • ${hours}:${minutes} WIB`;
+    }
+
+    // Fetch Stats
+    async function loadStats() {
+      try {
+        const res = await fetch('/api/stats');
+        const stats = await res.json();
+        
+        statTotal.innerText = stats.total;
+        statRawan.innerText = stats.mostVulnerable;
+        statValid.innerText = stats.valid;
+        statCancelled.innerText = stats.cancelled;
+
+        valPendingCount.innerText = stats.pending;
+        valValidCount.innerText = stats.valid;
+        valIgnoredCount.innerText = stats.cancelled;
+
+        // Calculate heights for bars (max height 80%)
+        const maxVal = Math.max(stats.pending, stats.valid, stats.cancelled, 1);
+        barPending.style.height = `${(stats.pending / maxVal) * 80}%`;
+        barValid.style.height = `${(stats.valid / maxVal) * 80}%`;
+        barIgnored.style.height = `${(stats.cancelled / maxVal) * 80}%`;
+      } catch (err) {
+        console.error('Error fetching stats:', err);
+      }
+    }
+
+    // Fetch Reports
+    async function loadReports() {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="5" style="text-align: center; padding: 30px; color: var(--text-muted);">
+            Memuat data...
+          </td>
+        </tr>
+      `;
+
+      try {
+        const queryParams = new URLSearchParams({
+          page: currentPage,
+          limit: limit,
+          timeRange: filters.timeRange,
+          date: filters.date,
+          aiStatus: filters.aiStatus,
+          adminStatus: filters.adminStatus,
+          location: filters.location
+        });
+
+        const res = await fetch(`/api/detections?${queryParams.toString()}`);
+        const data = await res.json();
+
+        tableBody.innerHTML = '';
+        
+        if (data.reports.length === 0) {
+          tableBody.innerHTML = `
+            <tr>
+              <td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted); font-weight: 600;">
+                <i data-feather="inbox" style="margin-bottom: 8px; width: 32px; height: 32px;"></i><br>
+                Tidak ada data laporan ditemukan
+              </td>
+            </tr>
+          `;
+          feather.replace();
+          btnPrev.disabled = true;
+          btnNext.disabled = true;
+          pageInfoText.innerText = `Halaman 1 dari 1`;
+          return;
+        }
+
+        data.reports.forEach(report => {
+          // AI Status Badge
+          let aiBadgeClass = 'badge-none';
+          if (report.aiStatus === 'TINGGI') aiBadgeClass = 'badge-high';
+          else if (report.aiStatus === 'SEDANG') aiBadgeClass = 'badge-medium';
+          else if (report.aiStatus === 'RENDAH') aiBadgeClass = 'badge-low';
+
+          const aiConfidenceText = report.aiConfidence ? `<br><span style="font-size:0.75rem; color:var(--text-muted); font-weight:550;">Keyakinan AI: ${report.aiConfidence}%</span>` : '';
+
+          // Admin Status Badge
+          let adminBadgeClass = 'status-pending';
+          if (report.adminStatus === 'VALID') adminBadgeClass = 'status-valid';
+          else if (report.adminStatus === 'DIABAIKAN') adminBadgeClass = 'status-ignored';
+
+          // Action Buttons
+          let actionButtons = '';
+          if (report.adminStatus === 'MENUNGGU') {
+            actionButtons = `
+              <button class="btn btn-glass btn-sm" onclick="verifyReport(${report.id}, 'VALID')">Valid</button>
+              <button class="btn btn-glass btn-sm" onclick="verifyReport(${report.id}, 'DIABAIKAN')">Abaikan</button>
+            `;
+          }
+          actionButtons += `<a href="/dashboard/detections/${report.id}" class="btn btn-primary btn-sm">Detail Data</a>`;
+
+          // Generate YOLO preview bounding boxes for thumbnail
+          let boxesHtml = '';
+          if (report.boundingBoxes && report.boundingBoxes.length > 0) {
+            report.boundingBoxes.forEach(box => {
+              boxesHtml += `
+                <div class="yolo-preview-box" style="
+                  top: ${box.y}%; 
+                  left: ${box.x}%; 
+                  width: ${box.w}%; 
+                  height: ${box.h}%;
+                  border-width: 1px;
+                "></div>
+              `;
+            });
+          }
+
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>
+              <div class="thumbnail-cell">
+                <img src="${report.image}" alt="Bukti AI">
+                ${boxesHtml}
+              </div>
+            </td>
+            <td>
+              <div class="location-cell">
+                <div class="location-name"><i data-feather="map-pin" style="width: 14px; height: 14px; color: var(--primary);"></i> ${report.location}</div>
+                <div class="location-time">${formatDate(report.timestamp)}</div>
+              </div>
+            </td>
+            <td>
+              <span class="badge ${aiBadgeClass}">
+                <span class="pill-dot" style="background-color: currentColor;"></span>
+                ${report.aiStatus}
+              </span>
+              ${aiConfidenceText}
+            </td>
+            <td>
+              <span class="status-badge ${adminBadgeClass}">${report.adminStatus}</span>
+            </td>
+            <td>
+              <div class="action-group">
+                ${actionButtons}
+              </div>
+            </td>
+          `;
+          tableBody.appendChild(tr);
+        });
+
+        feather.replace();
+
+        // Update Pagination controls
+        btnPrev.disabled = !data.pagination.hasPrev;
+        btnNext.disabled = !data.pagination.hasNext;
+        pageInfoText.innerText = `Halaman ${data.pagination.page} dari ${data.pagination.totalPages}`;
+        
+      } catch (err) {
+        console.error('Error fetching reports:', err);
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="5" style="text-align: center; padding: 30px; color: var(--danger); font-weight: bold;">
+              Gagal memuat data laporan dari server.
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    // Verify report
+    async function verifyReport(id, status) {
+      if (!confirm(`Apakah Anda yakin ingin menetapkan laporan #${id} menjadi ${status}?`)) return;
+      try {
+        const res = await fetch(`/api/detections/${id}/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: status,
+            notes: `Diverifikasi cepat dari Dashboard Utama.`
+          })
+        });
+
+        if (res.ok) {
+          loadStats();
+          loadReports();
+        } else {
+          alert('Gagal memperbarui verifikasi laporan.');
+        }
+      } catch (err) {
+        console.error('Error verifying report:', err);
+        alert('Gagal menghubungi server.');
+      }
+    }
+
+    // Apply Filter values and Reload
+    function applyFilters() {
+      filters.timeRange = filterTime.value;
+      filters.date = filterDate.value;
+      filters.aiStatus = filterAi.value;
+      filters.adminStatus = filterAdmin.value;
+      filters.location = searchLocation.value;
+      currentPage = 1;
+      
+      // If date is chosen, clear timeRange dropdown selection to prevent conflict
+      if (filters.date) {
+        filterTime.value = 'semua';
+        filters.timeRange = 'semua';
+      }
+      
+      loadReports();
+    }
+
+    // Reset Filters
+    function resetFilters() {
+      filterTime.value = 'semua';
+      filterDate.value = '';
+      filterAi.value = 'semua';
+      filterAdmin.value = 'semua';
+      searchLocation.value = '';
+      
+      filters = {
+        timeRange: 'semua',
+        date: '',
+        aiStatus: 'semua',
+        adminStatus: 'semua',
+        location: ''
+      };
+      currentPage = 1;
+      loadReports();
+    }
+
+    // Event listeners
+    filterTime.addEventListener('change', () => {
+      if (filterTime.value !== 'semua') {
+        filterDate.value = ''; // clear specific date if range is selected
+      }
+      applyFilters();
+    });
+    filterDate.addEventListener('change', () => {
+      applyFilters();
+    });
+    filterAi.addEventListener('change', applyFilters);
+    filterAdmin.addEventListener('change', applyFilters);
+    
+    searchLocation.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        applyFilters();
+      }
+    });
+
+    btnReset.addEventListener('click', resetFilters);
+
+    btnPrev.addEventListener('click', () => {
+      if (currentPage > 1) {
+        currentPage--;
+        loadReports();
+      }
+    });
+
+    btnNext.addEventListener('click', () => {
+      currentPage++;
+      loadReports();
+    });
+
+    btnExport.addEventListener('click', () => {
+      window.open('/api/export', '_blank');
+    });
+
+    // Auth validation
+    async function checkAuth() {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (!res.ok) {
+          window.location.href = '/login';
+          return;
+        }
+        const user = await res.json();
+        document.getElementById('current-user-display').innerText = `${user.username} (${user.role.toUpperCase()})`;
+        
+        if (user.role !== 'admin') {
+          window.location.href = '/dashboard/upload';
+        }
+      } catch (err) {
+        console.error('Auth check failed:', err);
+        window.location.href = '/login';
+      }
+    }
+
+    // Logout handler
+    document.getElementById('btn-logout').addEventListener('click', async () => {
+      if (!confirm('Apakah Anda yakin ingin keluar?')) return;
+      try {
+        const res = await fetch('/api/auth/logout', { method: 'POST' });
+        if (res.ok) {
+          window.location.href = '/login';
+        }
+      } catch (err) {
+        console.error('Logout failed:', err);
+      }
+    });
+
+    // Initialize Page
+    document.addEventListener('DOMContentLoaded', async () => {
+      await checkAuth();
+
+      // Parse query params if any
+      const urlParams = new URLSearchParams(window.location.search);
+      const pageParam = urlParams.get('page');
+      if (pageParam) {
+        currentPage = parseInt(pageParam) || 1;
+      }
+
+      setUpdateTime();
+      loadStats();
+      loadReports();
+      
+      // Update feather icons initially
+      feather.replace();
+
+      // Refresh stats every 30 seconds
+      setInterval(loadStats, 30000);
+    });
+  </script>
+</body>
+</html>
