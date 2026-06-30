@@ -2,23 +2,33 @@ import mongoose, { Document, Schema, Model } from 'mongoose';
 import crypto from 'crypto';
 
 export interface User {
-  id: string; // Used to return string instead of ObjectId for frontend
+  id: string;
   username: string;
   passwordHash: string;
-  role: 'admin' | 'user';
+  role: 'superadmin' | 'admin' | 'user';
+  kodeDesa?: string;
+  namaDesa?: string;
 }
 
 export interface UserDocument extends Document {
   username: string;
   passwordHash: string;
-  role: 'admin' | 'user';
+  role: 'superadmin' | 'admin' | 'user';
+  kodeDesa?: string;
+  namaDesa?: string;
 }
 
+// Dibikin unique majemuk (compound index) agar username yang sama bisa ada di desa yang berbeda
 const UserSchema = new Schema<UserDocument>({
-  username: { type: String, required: true, unique: true },
+  username: { type: String, required: true },
   passwordHash: { type: String, required: true },
-  role: { type: String, enum: ['admin', 'user'], required: true }
+  role: { type: String, enum: ['superadmin', 'admin', 'user'], required: true },
+  kodeDesa: { type: String, default: null },
+  namaDesa: { type: String, default: null }
 });
+
+// Memastikan username + kodeDesa bersifat unik secara kombinasi
+UserSchema.index({ username: 1, kodeDesa: 1 }, { unique: true });
 
 const UserModel: Model<UserDocument> = mongoose.models.User || mongoose.model<UserDocument>('User', UserSchema);
 
@@ -45,6 +55,7 @@ export interface Report {
   additionalNotes: string;
   adminNotes: string;
   boundingBoxes: BoundingBox[];
+  kodeDesa?: string;
 }
 
 export interface ReportDocument extends Document {
@@ -60,6 +71,7 @@ export interface ReportDocument extends Document {
   additionalNotes: string;
   adminNotes: string;
   boundingBoxes: BoundingBox[];
+  kodeDesa?: string;
 }
 
 const ReportSchema = new Schema<ReportDocument>({
@@ -81,24 +93,25 @@ const ReportSchema = new Schema<ReportDocument>({
     y: Number,
     w: Number,
     h: Number
-  }]
+  }],
+  kodeDesa: { type: String, default: null }
 });
 
 const ReportModel: Model<ReportDocument> = mongoose.models.Report || mongoose.model<ReportDocument>('Report', ReportSchema);
 
 export class DatabaseManager {
-  // --- HASHING UTILITY ---
   public static hashPassword(password: string): string {
     return crypto.createHash('sha256').update(password).digest('hex');
   }
 
-  // --- MAPPER HELPERS ---
   private static mapUser(doc: UserDocument): User {
     return {
       id: doc._id.toString(),
       username: doc.username,
       passwordHash: doc.passwordHash,
-      role: doc.role
+      role: doc.role,
+      kodeDesa: doc.kodeDesa,
+      namaDesa: doc.namaDesa
     };
   }
 
@@ -123,14 +136,17 @@ export class DatabaseManager {
         y: b.y,
         w: b.w,
         h: b.h
-      }))
+      })),
+      kodeDesa: doc.kodeDesa
     };
   }
 
-  // --- USER METHODS ---
-  public static async findUserByUsername(username: string): Promise<User | undefined> {
-    // Regex for case-insensitive exact match
-    const doc = await UserModel.findOne({ username: { $regex: new RegExp('^' + username + '$', 'i') } });
+  // Cari user berdasarkan username di lingkungan desa yang spesifik
+  public static async findUserInDesa(username: string, kodeDesa: string | undefined): Promise<User | undefined> {
+    const doc = await UserModel.findOne({ 
+      username: { $regex: new RegExp('^' + username + '$', 'i') },
+      kodeDesa: kodeDesa || null
+    });
     return doc ? this.mapUser(doc) : undefined;
   }
 
@@ -143,21 +159,29 @@ export class DatabaseManager {
     }
   }
 
-  public static async createUser(username: string, passwordPlain: string, role: 'admin' | 'user'): Promise<User | null> {
-    const existing = await this.findUserByUsername(username);
+  public static async createUser(
+    username: string, 
+    passwordPlain: string, 
+    role: 'superadmin' | 'admin' | 'user', 
+    kodeDesa?: string, 
+    namaDesa?: string
+  ): Promise<User | null> {
+    const existing = await this.findUserInDesa(username, kodeDesa);
     if (existing) return null;
 
     const doc = new UserModel({
-      username: username,
+      username,
       passwordHash: this.hashPassword(passwordPlain),
-      role: role
+      role,
+      kodeDesa: kodeDesa || null,
+      namaDesa: namaDesa || null
     });
     await doc.save();
     return this.mapUser(doc);
   }
 
-  public static async authenticateUser(username: string, passwordPlain: string): Promise<User | null> {
-    const user = await this.findUserByUsername(username);
+  public static async authenticateUser(username: string, passwordPlain: string, kodeDesa?: string): Promise<User | null> {
+    const user = await this.findUserInDesa(username, kodeDesa);
     if (!user) return null;
 
     const inputHash = this.hashPassword(passwordPlain);
@@ -167,9 +191,31 @@ export class DatabaseManager {
     return null;
   }
 
-  // --- REPORT METHODS ---
-  public static async getAll(): Promise<Report[]> {
-    const docs = await ReportModel.find().sort({ timestamp: -1 });
+  // Cek apakah admin di desa ini sudah terdaftar atau belum
+  public static async checkAdminExistsInDesa(kodeDesa: string): Promise<User | null> {
+    const doc = await UserModel.findOne({ role: 'admin', kodeDesa });
+    return doc ? this.mapUser(doc) : null;
+  }
+
+  public static async updateProfile(id: string, newUsername: string, newPasswordPlain?: string): Promise<User | null> {
+    try {
+      const doc = await UserModel.findById(id);
+      if (!doc) return null;
+      
+      doc.username = newUsername;
+      if (newPasswordPlain) {
+        doc.passwordHash = this.hashPassword(newPasswordPlain);
+      }
+      await doc.save();
+      return this.mapUser(doc);
+    } catch {
+      return null;
+    }
+  }
+
+  public static async getAll(kodeDesa?: string): Promise<Report[]> {
+    const query = kodeDesa ? { kodeDesa } : {};
+    const docs = await ReportModel.find(query).sort({ timestamp: -1 });
     return docs.map(d => this.mapReport(d));
   }
 
@@ -184,7 +230,8 @@ export class DatabaseManager {
 
   public static async create(
     report: Omit<Report, 'id' | 'timestamp' | 'adminStatus' | 'adminNotes' | 'userId'>, 
-    creatorId: string
+    creatorId: string,
+    kodeDesa?: string
   ): Promise<Report> {
     const doc = new ReportModel({
       ...report,
@@ -192,6 +239,7 @@ export class DatabaseManager {
       timestamp: new Date().toISOString(),
       adminStatus: 'MENUNGGU',
       adminNotes: '',
+      kodeDesa: kodeDesa || null
     });
     await doc.save();
     return this.mapReport(doc);
@@ -213,18 +261,18 @@ export class DatabaseManager {
 
   public static async getFiltered(
     filters: {
-      timeRange?: string; // 'hari_ini', 'minggu_ini', 'semua'
-      date?: string; // YYYY-MM-DD
-      aiStatus?: string; // 'TINGGI', 'SEDANG', 'RENDAH', 'Tidak Terindikasi', 'semua'
-      adminStatus?: string; // 'MENUNGGU', 'VALID', 'DIABAIKAN', 'semua'
+      timeRange?: string; 
+      date?: string; 
+      aiStatus?: string; 
+      adminStatus?: string; 
       location?: string;
     },
-    userContext: { id: string; role: 'admin' | 'user' }
+    userContext: { id: string; role: string; kodeDesa?: string }
   ): Promise<Report[]> {
     let query: any = {};
 
-    if (userContext.role === 'user') {
-      query.userId = userContext.id;
+    if (userContext.kodeDesa) {
+      query.kodeDesa = userContext.kodeDesa;
     }
 
     if (filters.aiStatus && filters.aiStatus !== 'semua') {
@@ -243,8 +291,6 @@ export class DatabaseManager {
       ];
     }
 
-    // Since timestamp is ISO string, we can do range queries, but filtering in memory might be easier for 'hari_ini', etc.
-    // For performance, let's do it via DB query
     if (filters.date) {
       const targetDate = new Date(filters.date);
       const nextDate = new Date(targetDate);
@@ -270,10 +316,10 @@ export class DatabaseManager {
     return docs.map(d => this.mapReport(d));
   }
 
-  public static async getStats(userContext?: { id: string; role: 'admin' | 'user' }) {
+  public static async getStats(userContext?: { id: string; role: string; kodeDesa?: string }) {
     let query: any = {};
-    if (userContext && userContext.role === 'user') {
-      query.userId = userContext.id;
+    if (userContext && userContext.kodeDesa) {
+      query.kodeDesa = userContext.kodeDesa;
     }
 
     const docs = await ReportModel.find(query);
@@ -298,20 +344,6 @@ export class DatabaseManager {
         mostVulnerableLocation = loc;
       }
     });
-
-    if (totalReports > 0 && mostVulnerableLocation === '-') {
-      const allLocationCounts: Record<string, number> = {};
-      docs.forEach((r) => {
-        allLocationCounts[r.location] = (allLocationCounts[r.location] || 0) + 1;
-      });
-      let maxAllCount = 0;
-      Object.entries(allLocationCounts).forEach(([loc, count]) => {
-        if (count > maxAllCount) {
-          maxAllCount = count;
-          mostVulnerableLocation = loc;
-        }
-      });
-    }
 
     return {
       total: totalReports,
