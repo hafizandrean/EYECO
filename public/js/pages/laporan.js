@@ -5,6 +5,7 @@ import { Router } from '../core/router.js';
 import { Formatter } from '../utils/formatter.js';
 import { CONFIG } from '../core/config.js';
 import { EventBus } from '../core/eventBus.js';
+import { AppState } from '../core/state.js';
 
 export class LaporanPage {
   constructor() {
@@ -367,7 +368,9 @@ export class LaporanPage {
 
       // Quick admin verification actions (Only for admin)
       let actionButtons = '';
-      if (report.adminStatus === 'MENUNGGU') {
+      const currentUser = AppState.get('user');
+      const isAdmin = currentUser?.role === 'admin';
+      if (isAdmin && report.adminStatus === 'MENUNGGU') {
         actionButtons = `
           <button class="btn btn-glass btn-sm btn-quick-verify" data-id="${report.id}" data-action="VALID" title="Verifikasi Valid">Valid</button>
           <button class="btn btn-glass btn-sm btn-quick-verify" data-id="${report.id}" data-action="DIABAIKAN" title="Abaikan Laporan">Abaikan</button>

@@ -3,10 +3,10 @@ import dotenv from 'dotenv';
 import crypto from 'crypto';
 import { runMigration } from './migration';
 import { UserModel, IUser } from './models/User';
-import { ReportModel, IReport, IBoundingBox } from './models/Report';
+import { ReportModel, IReport, IBoundingBox, IComment } from './models/Report';
 
 // Re-export types for legacy compatibility in server.ts
-export { IUser as User, IReport as Report, IBoundingBox as BoundingBox };
+export { IUser as User, IReport as Report, IBoundingBox as BoundingBox, IComment as Comment };
 
 dotenv.config();
 
@@ -224,11 +224,6 @@ export class DatabaseManager {
     try {
       const query: any = {};
 
-      // Role restriction: normal user can ONLY see their own reports
-      if (userContext.role === 'user') {
-        query.userId = userContext.id;
-      }
-
       // Filter by date
       if (filters.date) {
         const start = new Date(filters.date);
@@ -290,9 +285,6 @@ export class DatabaseManager {
   public static async getStats(userContext?: { id: number; role: 'admin' | 'user' }) {
     try {
       const matchQuery: any = {};
-      if (userContext && userContext.role === 'user') {
-        matchQuery.userId = userContext.id;
-      }
 
       // Execute counts concurrently
       const [total, valid, cancelled, pending] = await Promise.all([
@@ -334,6 +326,117 @@ export class DatabaseManager {
       };
     } catch (err) {
       console.error('[DATABASE ERROR] getStats failed:', err);
+      throw err;
+    }
+  }
+
+  // --- COMMENT METHODS ---
+
+  public static async addComment(
+    reportId: number,
+    userId: number,
+    text: string
+  ): Promise<IComment> {
+    try {
+      // 1. Sanitize HTML
+      const sanitized = text.replace(/<[^>]*>/g, '').trim();
+
+      // 2. Validate length
+      if (sanitized.length < 2 || sanitized.length > 500) {
+        throw new Error('Komentar harus terdiri dari 2 hingga 500 karakter.');
+      }
+
+      const report = await ReportModel.findOne({ id: reportId });
+      if (!report) {
+        throw new Error('Laporan tidak ditemukan.');
+      }
+
+      // Create comment document object
+      const commentData = {
+        userId,
+        text: sanitized,
+        likedBy: [],
+        isDeleted: false,
+        parentCommentId: null
+      };
+
+      report.comments.push(commentData as any);
+      await report.save();
+
+      // Return the newly created comment (the last one in the array)
+      return report.comments[report.comments.length - 1];
+    } catch (err) {
+      console.error('[DATABASE ERROR] addComment failed:', err);
+      throw err;
+    }
+  }
+
+  public static async deleteComment(
+    reportId: number,
+    commentId: string,
+    userId: number,
+    isAdmin: boolean
+  ): Promise<IComment> {
+    try {
+      const report = await ReportModel.findOne({ id: reportId });
+      if (!report) {
+        throw new Error('Laporan tidak ditemukan.');
+      }
+
+      const comment = report.comments.id(commentId);
+      if (!comment) {
+        throw new Error('Komentar tidak ditemukan.');
+      }
+
+      // Authorization check: owner or admin
+      if (comment.userId !== userId && !isAdmin) {
+        throw new Error('Anda tidak memiliki akses untuk menghapus komentar ini.');
+      }
+
+      // Soft delete
+      comment.isDeleted = true;
+      await report.save();
+
+      return comment;
+    } catch (err) {
+      console.error('[DATABASE ERROR] deleteComment failed:', err);
+      throw err;
+    }
+  }
+
+  public static async toggleLikeComment(
+    reportId: number,
+    commentId: string,
+    userId: number
+  ): Promise<IComment> {
+    try {
+      const report = await ReportModel.findOne({ id: reportId });
+      if (!report) {
+        throw new Error('Laporan tidak ditemukan.');
+      }
+
+      const comment = report.comments.id(commentId);
+      if (!comment) {
+        throw new Error('Komentar tidak ditemukan.');
+      }
+
+      if (comment.isDeleted) {
+        throw new Error('Komentar telah dihapus.');
+      }
+
+      const index = comment.likedBy.indexOf(userId);
+      if (index > -1) {
+        // Unlike: remove userId
+        comment.likedBy.splice(index, 1);
+      } else {
+        // Like: add userId
+        comment.likedBy.push(userId);
+      }
+
+      await report.save();
+      return comment;
+    } catch (err) {
+      console.error('[DATABASE ERROR] toggleLikeComment failed:', err);
       throw err;
     }
   }

@@ -2340,3 +2340,88 @@ body.dark-mode .skeleton-detail-form { background-color: rgba(255,255,255,0.02);
 .stats-vertical-grid .stat-card {
   padding: var(--space-16) var(--space-20);
 }
+
+/* --- COMMENTS & DISCUSSION SYSTEM --- */
+
+.comments-section-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  margin-top: var(--space-8);
+}
+
+.comments-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.comments-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+.comments-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.comments-list::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+.comment-item {
+  animation: commentSlideIn 0.25s ease-out;
+}
+
+@keyframes commentSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.comment-deleted {
+  opacity: 0.65;
+  border-style: dashed !important;
+}
+
+.btn-like-comment:hover {
+  color: var(--primary) !important;
+  transform: scale(1.05);
+}
+
+.btn-delete-comment:hover {
+  color: var(--danger-hover) !important;
+  text-decoration: underline;
+}
+
+.mention-tag {
+  transition: background-color 0.2s ease;
+}
+
+.mention-tag:hover {
+  background-color: rgba(59, 130, 246, 0.25) !important;
+}
+
+#comments-sort-select {
+  border-color: var(--border);
+  color: var(--text-secondary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#comments-sort-select:hover {
+  border-color: var(--text-muted);
+}
+
+#comment-input-text {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#comment-input-text:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}

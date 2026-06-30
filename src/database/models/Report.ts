@@ -9,6 +9,17 @@ export interface IBoundingBox {
   h: number;
 }
 
+export interface IComment {
+  _id: mongoose.Types.ObjectId;
+  userId: number;
+  text: string;
+  likedBy: number[];
+  isDeleted: boolean;
+  parentCommentId?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface IReport extends Document {
   id: number;
   userId: number;
@@ -23,6 +34,7 @@ export interface IReport extends Document {
   additionalNotes: string;
   adminNotes: string;
   boundingBoxes: IBoundingBox[];
+  comments: IComment[];
 }
 
 const BoundingBoxSchema = new Schema<IBoundingBox>({
@@ -32,6 +44,16 @@ const BoundingBoxSchema = new Schema<IBoundingBox>({
   y: { type: Number, required: true, min: 0, max: 100 },
   w: { type: Number, required: true, min: 0, max: 100 },
   h: { type: Number, required: true, min: 0, max: 100 }
+});
+
+const CommentSchema = new Schema<IComment>({
+  userId: { type: Number, required: true },
+  text: { type: String, required: true, trim: true },
+  likedBy: { type: [Number], default: [] },
+  isDeleted: { type: Boolean, default: false },
+  parentCommentId: { type: String, default: null }
+}, {
+  timestamps: true
 });
 
 const ReportSchema = new Schema<IReport>({
@@ -58,7 +80,8 @@ const ReportSchema = new Schema<IReport>({
   sourceType: { type: String, required: true, trim: true },
   additionalNotes: { type: String, default: 'Tidak ada catatan tambahan.', trim: true },
   adminNotes: { type: String, default: '', trim: true },
-  boundingBoxes: [BoundingBoxSchema]
+  boundingBoxes: [BoundingBoxSchema],
+  comments: [CommentSchema]
 }, {
   timestamps: true
 });

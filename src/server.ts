@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 import mongoose from 'mongoose';
 import { DatabaseManager, Report, BoundingBox, User, connectDB } from './database/db';
 import { ReportModel } from './database/models/Report';
+import { UserModel } from './database/models/User';
 
 dotenv.config();
 
@@ -218,9 +219,12 @@ app.get(['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/de
     const user = await getLoggedInUser(req);
     if (!user) return res.redirect('/login');
     
-    // Normal user can only access /dashboard/upload.
+    // Normal user can only access /dashboard/upload, /dashboard/laporan, and /dashboard/detections/:id.
     // If they try to access other admin dashboard pages, redirect them to /dashboard/upload
-    if (user.role !== 'admin' && req.path !== '/dashboard/upload') {
+    if (user.role !== 'admin' && 
+        req.path !== '/dashboard/upload' && 
+        req.path !== '/dashboard/laporan' && 
+        !req.path.startsWith('/dashboard/detections/')) {
       return res.redirect('/dashboard/upload');
     }
     
@@ -297,10 +301,7 @@ app.get('/api/detections/:id', async (req, res) => {
       return res.status(404).json({ error: 'Laporan tidak ditemukan' });
     }
 
-    // Access check: normal user can only view their own report
-    if (user.role === 'user' && report.userId !== user.id) {
-      return res.status(403).json({ error: 'Akses ditolak' });
-    }
+
 
     res.json(report);
   } catch (err) {
@@ -337,6 +338,175 @@ app.post('/api/detections/:id/verify', async (req, res) => {
   } catch (err) {
     console.error('[SERVER ERROR] Verify report failed:', err);
     res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Helper functions for standard API responses
+function sendSuccess(res: express.Response, data: any, status = 200) {
+  return res.status(status).json({ success: true, data });
+}
+
+function sendError(res: express.Response, message: string, status = 400) {
+  return res.status(status).json({ success: false, message });
+}
+
+// Rate limiters for commenting and liking
+const commentLimiter = rateLimit({
+  windowMs: 30 * 1000, // 30 seconds
+  max: 5, // Limit each IP to 5 comments per windowMs
+  message: { success: false, message: 'Terlalu banyak mengirim komentar, silakan tunggu 30 detik.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const likeLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // Limit each IP to 30 likes per windowMs
+  message: { success: false, message: 'Terlalu banyak menekan tombol suka, silakan tunggu 1 menit.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// GET /api/detections/:id/comments - Fetch paginated, sorted comments with resolved usernames
+app.get('/api/detections/:id/comments', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) {
+      return sendError(res, 'Unauthorized', 401);
+    }
+
+    const reportId = parseInt(req.params.id);
+    const report = await ReportModel.findOne({ id: reportId }).lean();
+    if (!report) {
+      return sendError(res, 'Laporan tidak ditemukan', 404);
+    }
+
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const sortBy = (req.query.sortBy as string) || 'newest';
+
+    // Filter out deleted comments
+    let activeComments = (report.comments || []).filter(c => !c.isDeleted);
+
+    // Sort comments
+    if (sortBy === 'newest') {
+      activeComments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else if (sortBy === 'oldest') {
+      activeComments.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    } else if (sortBy === 'most_liked') {
+      activeComments.sort((a, b) => (b.likedBy || []).length - (a.likedBy || []).length);
+    }
+
+    // Paginate in memory
+    const total = activeComments.length;
+    const totalPages = Math.ceil(total / limit) || 1;
+    const skip = (page - 1) * limit;
+    const paginatedComments = activeComments.slice(skip, skip + limit);
+
+    // Resolve usernames in a single query (avoid N+1)
+    const uniqueUserIds = Array.from(new Set(paginatedComments.map(c => c.userId)));
+    const users = await UserModel.find({ id: { $in: uniqueUserIds } }).select('id username role').lean();
+    const userMap = new Map(users.map(u => [u.id, { username: u.username, role: u.role }]));
+
+    const commentsWithUser = paginatedComments.map(c => {
+      const uInfo = userMap.get(c.userId);
+      return {
+        ...c,
+        username: uInfo ? uInfo.username : 'Pengguna tidak dikenal',
+        role: uInfo ? uInfo.role : 'user'
+      };
+    });
+
+    return sendSuccess(res, {
+      comments: commentsWithUser,
+      pagination: {
+        page,
+        limit,
+        totalComments: total,
+        totalPages,
+        hasPrev: page > 1,
+        hasNext: page < totalPages
+      }
+    });
+  } catch (err) {
+    console.error('[SERVER ERROR] Get comments failed:', err);
+    return sendError(res, 'Internal Server Error', 500);
+  }
+});
+
+// POST /api/detections/:id/comments - Add a comment (rate-limited)
+app.post('/api/detections/:id/comments', commentLimiter, async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) {
+      return sendError(res, 'Unauthorized', 401);
+    }
+
+    const reportId = parseInt(req.params.id);
+    const { text } = req.body;
+
+    if (!text || typeof text !== 'string') {
+      return sendError(res, 'Konten komentar harus diisi.', 400);
+    }
+
+    const comment = await DatabaseManager.addComment(reportId, user.id, text);
+    
+    // Resolve comment author details for direct frontend integration
+    return sendSuccess(res, {
+      ...comment.toJSON(),
+      username: user.username,
+      role: user.role
+    }, 201);
+  } catch (err: any) {
+    console.error('[SERVER ERROR] Create comment failed:', err);
+    return sendError(res, err.message || 'Internal Server Error', 500);
+  }
+});
+
+// DELETE /api/detections/:id/comments/:commentId - Delete a comment (soft delete)
+app.delete('/api/detections/:id/comments/:commentId', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) {
+      return sendError(res, 'Unauthorized', 401);
+    }
+
+    const reportId = parseInt(req.params.id);
+    const commentId = req.params.commentId;
+    const isAdmin = user.role === 'admin';
+
+    // soft delete comment
+    await DatabaseManager.deleteComment(reportId, commentId, user.id, isAdmin);
+    return sendSuccess(res, { success: true });
+  } catch (err: any) {
+    console.error('[SERVER ERROR] Delete comment failed:', err);
+    return sendError(res, err.message || 'Internal Server Error', 500);
+  }
+});
+
+// POST /api/detections/:id/comments/:commentId/like - Toggle like on a comment (rate-limited)
+app.post('/api/detections/:id/comments/:commentId/like', likeLimiter, async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) {
+      return sendError(res, 'Unauthorized', 401);
+    }
+
+    const reportId = parseInt(req.params.id);
+    const commentId = req.params.commentId;
+
+    const comment = await DatabaseManager.toggleLikeComment(reportId, commentId, user.id);
+    const isLiked = comment.likedBy.includes(user.id);
+
+    return sendSuccess(res, {
+      commentId,
+      likedBy: comment.likedBy,
+      likeCount: comment.likedBy.length,
+      isLiked
+    });
+  } catch (err: any) {
+    console.error('[SERVER ERROR] Like comment failed:', err);
+    return sendError(res, err.message || 'Internal Server Error', 500);
   }
 });
 

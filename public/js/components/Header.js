@@ -102,13 +102,12 @@ export class HeaderComponent {
     const isAdmin = user?.role === 'admin';
     const exportBtn = document.getElementById('btn-header-export');
 
-    // Role Guard Tab: sembunyikan Dashboard & Laporan tab untuk non-admin
+    // Role Guard Tab: sembunyikan Dashboard untuk non-admin, tapi tampilkan Laporan
     const navCapsule = this.container.querySelector('.nav-tabs');
     if (user && !isAdmin) {
       if (this.tabs.dashboard) this.tabs.dashboard.style.display = 'none';
-      if (this.tabs.laporan) this.tabs.laporan.style.display = 'none';
-      if (navCapsule) navCapsule.style.border = 'none'; // Sederhanakan capsule
-      if (this.indicator) this.indicator.style.display = 'none';
+      if (this.tabs.laporan) this.tabs.laporan.style.display = 'inline-flex';
+      if (this.indicator) this.indicator.style.display = 'block';
     } else {
       if (this.tabs.dashboard) this.tabs.dashboard.style.display = 'inline-flex';
       if (this.tabs.laporan) this.tabs.laporan.style.display = 'inline-flex';

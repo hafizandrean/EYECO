@@ -85,12 +85,16 @@ export class NotificationCenter {
       if (alert.aiStatus === 'SEDANG') levelClass = 'medium';
       if (alert.aiStatus === 'RENDAH') levelClass = 'low';
 
+      const messageText = alert.isComment 
+        ? alert.message 
+        : `Terdeteksi indikasi ${alert.aiStatus} (${alert.aiConfidence || 0}%)`;
+
       item.className = `notification-item threat-${levelClass}`;
       item.innerHTML = `
         <div class="notification-item-dot"></div>
         <div class="notification-item-body">
           <div class="notification-item-title">${alert.location}</div>
-          <div class="notification-item-text">Terdeteksi indikasi ${alert.aiStatus} (${alert.aiConfidence || 0}%)</div>
+          <div class="notification-item-text">${messageText}</div>
           <div class="notification-item-time">${Formatter.formatDate(alert.timestamp)}</div>
         </div>
       `;
