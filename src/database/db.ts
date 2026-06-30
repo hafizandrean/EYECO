@@ -157,7 +157,16 @@ export class DatabaseManager {
   }
 
   public static async create(
-    report: Omit<IReport, 'id' | 'timestamp' | 'adminStatus' | 'adminNotes' | 'userId'>, 
+    report: {
+      location: string;
+      aiStatus: 'TINGGI' | 'SEDANG' | 'RENDAH' | 'Tidak Terindikasi';
+      aiConfidence: number | null;
+      image: string;
+      identity?: string;
+      sourceType: string;
+      additionalNotes?: string;
+      boundingBoxes?: IBoundingBox[];
+    }, 
     creatorId: number
   ): Promise<IReport> {
     try {

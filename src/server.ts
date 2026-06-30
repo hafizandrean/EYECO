@@ -32,8 +32,9 @@ const sessions = new Map<string, number>();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static CSS files directly
+// Serve static CSS and JS files directly
 app.use('/css', express.static(path.join(__dirname, '../public/css')));
+app.use('/js', express.static(path.join(__dirname, '../public/js')));
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
 // Configure Multer for file uploads
@@ -212,37 +213,20 @@ app.get('/', async (req, res) => {
   }
 });
 
-app.get('/dashboard', async (req, res) => {
+app.get(['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/detections/:id'], async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
     if (!user) return res.redirect('/login');
-    if (user.role !== 'admin') return res.redirect('/dashboard/upload');
+    
+    // Normal user can only access /dashboard/upload.
+    // If they try to access other admin dashboard pages, redirect them to /dashboard/upload
+    if (user.role !== 'admin' && req.path !== '/dashboard/upload') {
+      return res.redirect('/dashboard/upload');
+    }
     
     res.sendFile(path.join(__dirname, '../public/views/dashboard.html'));
   } catch (err) {
-    res.redirect('/login');
-  }
-});
-
-app.get('/dashboard/upload', async (req, res) => {
-  try {
-    const user = await getLoggedInUser(req);
-    if (!user) return res.redirect('/login');
-    
-    res.sendFile(path.join(__dirname, '../public/views/upload.html'));
-  } catch (err) {
-    res.redirect('/login');
-  }
-});
-
-app.get('/dashboard/detections/:id', async (req, res) => {
-  try {
-    const user = await getLoggedInUser(req);
-    if (!user) return res.redirect('/login');
-    if (user.role !== 'admin') return res.redirect('/dashboard/upload');
-    
-    res.sendFile(path.join(__dirname, '../public/views/detail.html'));
-  } catch (err) {
+    console.error('[SERVER ERROR] Dashboard view routing failed:', err);
     res.redirect('/login');
   }
 });
