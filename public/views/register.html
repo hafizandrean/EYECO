@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Registrasi - Simbahrang</title>
+  <title>Registrasi - Eyeco</title>
   <link rel="stylesheet" href="/css/style.css">
   <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
 </head>
@@ -35,33 +35,32 @@
       <div class="form-group">
         <label class="form-label" for="reg-username">Username</label>
         <div style="position: relative;">
-          <input type="text" class="form-control" id="reg-username" placeholder="Buat username baru" required style="width: 100%; padding-left: 40px;">
-          <i data-feather="user" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted);"></i>
+          <input type="text" class="form-control" id="reg-username" placeholder="Buat username baru" required style="width: 100%;">
         </div>
       </div>
 
       <div class="form-group">
         <label class="form-label" for="reg-password">Password</label>
         <div style="position: relative;">
-          <input type="password" class="form-control" id="reg-password" placeholder="Buat password minimal 6 karakter" required style="width: 100%; padding-left: 40px;" minlength="6">
-          <i data-feather="key" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted);"></i>
+          <input type="password" class="form-control" id="reg-password" placeholder="Buat password minimal 6 karakter" required style="width: 100%; padding-right: 40px;" minlength="6">
+          <span id="toggle-reg-password" style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-muted); display: flex; align-items: center;">
+            <i data-feather="eye" style="width: 18px; height: 18px;"></i>
+          </span>
         </div>
       </div>
 
       <div class="form-group">
-        <label class="form-label" for="reg-role">Pilih Role Akun</label>
+        <label class="form-label" for="reg-confirm-password">Konfirmasi Password</label>
         <div style="position: relative;">
-          <select class="form-control" id="reg-role" required style="width: 100%; padding-left: 40px; -webkit-appearance: none; -moz-appearance: none; appearance: none;">
-            <option value="user">User (Hanya Membuat Laporan Sungai)</option>
-            <option value="admin">Admin (Memantau Dashboard & Validasi)</option>
-          </select>
-          <i data-feather="shield" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted);"></i>
-          <i data-feather="chevron-down" style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted); pointer-events: none;"></i>
+          <input type="password" class="form-control" id="reg-confirm-password" placeholder="Ulangi password" required style="width: 100%; padding-right: 40px;" minlength="6">
+          <span id="toggle-reg-confirm-password" style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-muted); display: flex; align-items: center;">
+            <i data-feather="eye" style="width: 18px; height: 18px;"></i>
+          </span>
         </div>
       </div>
 
       <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; margin-top: 8px; background-color: var(--success); box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);">
-        Daftar Akun <i data-feather="user-check" style="width: 16px; height: 16px; margin-left: 4px;"></i>
+        Daftar Akun
       </button>
     </form>
 
@@ -86,7 +85,20 @@
 
       const username = document.getElementById('reg-username').value;
       const password = document.getElementById('reg-password').value;
-      const role = document.getElementById('reg-role').value;
+      const confirmPassword = document.getElementById('reg-confirm-password').value;
+      const role = 'user';
+
+      if (!username || !password || !confirmPassword) {
+        errorText.innerText = 'Semua kolom harus diisi.';
+        errorAlert.style.display = 'flex';
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        errorText.innerText = 'Password dan konfirmasi password tidak cocok.';
+        errorAlert.style.display = 'flex';
+        return;
+      }
 
       try {
         const res = await fetch('/api/auth/register', {
@@ -116,6 +128,36 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       feather.replace();
+      
+      const togglePassword = document.getElementById('toggle-reg-password');
+      if (togglePassword) {
+        togglePassword.addEventListener('click', function () {
+          const passwordInput = document.getElementById('reg-password');
+          if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            this.innerHTML = '<i data-feather="eye-off" style="width: 18px; height: 18px;"></i>';
+          } else {
+            passwordInput.type = 'password';
+            this.innerHTML = '<i data-feather="eye" style="width: 18px; height: 18px;"></i>';
+          }
+          feather.replace();
+        });
+      }
+
+      const toggleConfirmPassword = document.getElementById('toggle-reg-confirm-password');
+      if (toggleConfirmPassword) {
+        toggleConfirmPassword.addEventListener('click', function () {
+          const passwordInput = document.getElementById('reg-confirm-password');
+          if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            this.innerHTML = '<i data-feather="eye-off" style="width: 18px; height: 18px;"></i>';
+          } else {
+            passwordInput.type = 'password';
+            this.innerHTML = '<i data-feather="eye" style="width: 18px; height: 18px;"></i>';
+          }
+          feather.replace();
+        });
+      }
     });
   </script>
 </body>

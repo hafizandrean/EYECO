@@ -337,8 +337,8 @@
           let actionButtons = '';
           if (report.adminStatus === 'MENUNGGU') {
             actionButtons = `
-              <button class="btn btn-glass btn-sm" onclick="verifyReport(${report.id}, 'VALID')">Valid</button>
-              <button class="btn btn-glass btn-sm" onclick="verifyReport(${report.id}, 'DIABAIKAN')">Abaikan</button>
+              <button class="btn btn-glass btn-sm" onclick="verifyReport('${report.id}', 'VALID')">Valid</button>
+              <button class="btn btn-glass btn-sm" onclick="verifyReport('${report.id}', 'DIABAIKAN')">Abaikan</button>
             `;
           }
           actionButtons += `<a href="/dashboard/detections/${report.id}" class="btn btn-primary btn-sm">Detail Data</a>`;

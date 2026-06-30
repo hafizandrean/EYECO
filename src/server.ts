@@ -2,13 +2,22 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
 import { DatabaseManager, Report, BoundingBox, User } from './database/db';
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 8000;
 
+// Connect to MongoDB
+mongoose.connect(process.env.MONGODB_URI as string)
+  .then(() => console.log('Connected to MongoDB'))
+  .catch((err) => console.error('MongoDB connection error:', err));
+
 // In-memory Session Store (Session Token -> User ID)
-const sessions = new Map<string, number>();
+const sessions = new Map<string, string>();
 
 // Setup middleware
 app.use(express.json());
@@ -37,7 +46,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // --- SESSION HELPER ---
-function getLoggedInUser(req: express.Request): User | null {
+async function getLoggedInUser(req: express.Request): Promise<User | null> {
   const cookieHeader = req.headers.cookie || '';
   const cookies = cookieHeader.split(';').reduce((acc, c) => {
     const [key, val] = c.trim().split('=');
@@ -49,57 +58,67 @@ function getLoggedInUser(req: express.Request): User | null {
   if (!token) return null;
   
   const userId = sessions.get(token);
-  if (userId === undefined) return null;
+  if (!userId) return null;
   
-  return DatabaseManager.getUserById(userId) || null;
+  return (await DatabaseManager.getUserById(userId)) || null;
 }
 
 // --- AUTH API ENDPOINTS ---
 
 // Register API
-app.post('/api/auth/register', (req, res) => {
-  const { username, password, role } = req.body;
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { username, password, role } = req.body;
 
-  if (!username || !password || !role) {
-    return res.status(400).json({ error: 'Username, password, dan role harus diisi' });
+    if (!username || !password || !role) {
+      return res.status(400).json({ error: 'Username, password, dan role harus diisi' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password minimal 6 karakter' });
+    }
+
+    if (!['admin', 'user'].includes(role)) {
+      return res.status(400).json({ error: 'Role tidak valid' });
+    }
+
+    const newUser = await DatabaseManager.createUser(username, password, role as 'admin' | 'user');
+    if (!newUser) {
+      return res.status(400).json({ error: 'Username sudah digunakan' });
+    }
+
+    res.status(201).json({ id: newUser.id, username: newUser.username, role: newUser.role });
+  } catch (err) {
+    console.error('Register API Error:', err);
+    res.status(500).json({ error: 'Terjadi kesalahan pada server saat pendaftaran' });
   }
-
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'Password minimal 6 karakter' });
-  }
-
-  if (!['admin', 'user'].includes(role)) {
-    return res.status(400).json({ error: 'Role tidak valid' });
-  }
-
-  const newUser = DatabaseManager.createUser(username, password, role as 'admin' | 'user');
-  if (!newUser) {
-    return res.status(400).json({ error: 'Username sudah digunakan' });
-  }
-
-  res.status(201).json({ id: newUser.id, username: newUser.username, role: newUser.role });
 });
 
 // Login API
-app.post('/api/auth/login', (req, res) => {
-  const { username, password } = req.body;
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
 
-  if (!username || !password) {
-    return res.status(400).json({ error: 'Username dan password harus diisi' });
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username dan password harus diisi' });
+    }
+
+    const user = await DatabaseManager.authenticateUser(username, password);
+    if (!user) {
+      return res.status(401).json({ error: 'Username atau password salah' });
+    }
+
+    // Create session
+    const token = 'sess_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    sessions.set(token, user.id);
+
+    // Set Cookie
+    res.setHeader('Set-Cookie', `session_token=${token}; Path=/; HttpOnly; SameSite=Lax`);
+    res.json({ id: user.id, username: user.username, role: user.role });
+  } catch (err) {
+    console.error('Login API Error:', err);
+    res.status(500).json({ error: 'Terjadi kesalahan pada server saat login' });
   }
-
-  const user = DatabaseManager.authenticateUser(username, password);
-  if (!user) {
-    return res.status(401).json({ error: 'Username atau password salah' });
-  }
-
-  // Create session
-  const token = 'sess_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-  sessions.set(token, user.id);
-
-  // Set Cookie
-  res.setHeader('Set-Cookie', `session_token=${token}; Path=/; HttpOnly; SameSite=Lax`);
-  res.json({ id: user.id, username: user.username, role: user.role });
 });
 
 // Logout API
@@ -121,8 +140,8 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 // Get Current User API
-app.get('/api/auth/me', (req, res) => {
-  const user = getLoggedInUser(req);
+app.get('/api/auth/me', async (req, res) => {
+  const user = await getLoggedInUser(req);
   if (!user) {
     return res.status(401).json({ error: 'Belum masuk' });
   }
@@ -132,45 +151,53 @@ app.get('/api/auth/me', (req, res) => {
 
 // --- VIEW ROUTING & GUARDS ---
 
-app.get('/login', (req, res) => {
-  const user = getLoggedInUser(req);
+app.get('/login', async (req, res) => {
+  const user = await getLoggedInUser(req);
   if (user) {
     return res.redirect(user.role === 'admin' ? '/dashboard' : '/dashboard/upload');
   }
   res.sendFile(path.join(__dirname, '../public/views/login.html'));
 });
 
-app.get('/register', (req, res) => {
-  const user = getLoggedInUser(req);
+app.get('/register', async (req, res) => {
+  const user = await getLoggedInUser(req);
   if (user) {
     return res.redirect(user.role === 'admin' ? '/dashboard' : '/dashboard/upload');
   }
   res.sendFile(path.join(__dirname, '../public/views/register.html'));
 });
 
-app.get('/', (req, res) => {
-  const user = getLoggedInUser(req);
+app.get('/admin-register', async (req, res) => {
+  const user = await getLoggedInUser(req);
+  if (!user || user.username !== 'admin') {
+    return res.redirect('/login');
+  }
+  res.sendFile(path.join(__dirname, '../public/views/admin-register.html'));
+});
+
+app.get('/', async (req, res) => {
+  const user = await getLoggedInUser(req);
   if (!user) return res.redirect('/login');
   res.redirect(user.role === 'admin' ? '/dashboard' : '/dashboard/upload');
 });
 
-app.get('/dashboard', (req, res) => {
-  const user = getLoggedInUser(req);
+app.get('/dashboard', async (req, res) => {
+  const user = await getLoggedInUser(req);
   if (!user) return res.redirect('/login');
   if (user.role !== 'admin') return res.redirect('/dashboard/upload');
   
   res.sendFile(path.join(__dirname, '../public/views/dashboard.html'));
 });
 
-app.get('/dashboard/upload', (req, res) => {
-  const user = getLoggedInUser(req);
+app.get('/dashboard/upload', async (req, res) => {
+  const user = await getLoggedInUser(req);
   if (!user) return res.redirect('/login');
   
   res.sendFile(path.join(__dirname, '../public/views/upload.html'));
 });
 
-app.get('/dashboard/detections/:id', (req, res) => {
-  const user = getLoggedInUser(req);
+app.get('/dashboard/detections/:id', async (req, res) => {
+  const user = await getLoggedInUser(req);
   if (!user) return res.redirect('/login');
   if (user.role !== 'admin') return res.redirect('/dashboard/upload');
   
@@ -181,8 +208,8 @@ app.get('/dashboard/detections/:id', (req, res) => {
 // --- SECURE DATA API ENDPOINTS ---
 
 // API: Get Filtered & Paginated Reports
-app.get('/api/detections', (req, res) => {
-  const user = getLoggedInUser(req);
+app.get('/api/detections', async (req, res) => {
+  const user = await getLoggedInUser(req);
   if (!user) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
@@ -199,7 +226,7 @@ app.get('/api/detections', (req, res) => {
   };
 
   const userContext = { id: user.id, role: user.role };
-  const allFilteredReports = DatabaseManager.getFiltered(filters, userContext);
+  const allFilteredReports = await DatabaseManager.getFiltered(filters, userContext);
   
   // Paginate
   const totalReports = allFilteredReports.length;
@@ -221,14 +248,14 @@ app.get('/api/detections', (req, res) => {
 });
 
 // API: Get Single Report by ID
-app.get('/api/detections/:id', (req, res) => {
-  const user = getLoggedInUser(req);
+app.get('/api/detections/:id', async (req, res) => {
+  const user = await getLoggedInUser(req);
   if (!user) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const id = parseInt(req.params.id);
-  const report = DatabaseManager.getById(id);
+  const id = req.params.id; // Now a string (ObjectId)
+  const report = await DatabaseManager.getById(id);
 
   if (!report) {
     return res.status(404).json({ error: 'Laporan tidak ditemukan' });
@@ -243,8 +270,8 @@ app.get('/api/detections/:id', (req, res) => {
 });
 
 // API: Update Admin Verification Status
-app.post('/api/detections/:id/verify', (req, res) => {
-  const user = getLoggedInUser(req);
+app.post('/api/detections/:id/verify', async (req, res) => {
+  const user = await getLoggedInUser(req);
   if (!user) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
@@ -253,14 +280,14 @@ app.post('/api/detections/:id/verify', (req, res) => {
     return res.status(403).json({ error: 'Hanya Admin yang dapat memvalidasi laporan' });
   }
 
-  const id = parseInt(req.params.id);
+  const id = req.params.id;
   const { status, notes } = req.body;
 
   if (!status || !['VALID', 'DIABAIKAN', 'MENUNGGU'].includes(status)) {
     return res.status(400).json({ error: 'Status tidak valid' });
   }
 
-  const updatedReport = DatabaseManager.updateVerification(id, status, notes || '');
+  const updatedReport = await DatabaseManager.updateVerification(id, status, notes || '');
   if (!updatedReport) {
     return res.status(404).json({ error: 'Laporan tidak ditemukan' });
   }
@@ -269,14 +296,14 @@ app.post('/api/detections/:id/verify', (req, res) => {
 });
 
 // API: Get Stats & Charts data
-app.get('/api/stats', (req, res) => {
-  const user = getLoggedInUser(req);
+app.get('/api/stats', async (req, res) => {
+  const user = await getLoggedInUser(req);
   if (!user) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
   const userContext = { id: user.id, role: user.role };
-  const stats = DatabaseManager.getStats(userContext);
+  const stats = await DatabaseManager.getStats(userContext);
   res.json(stats);
 });
 
@@ -357,8 +384,8 @@ function runSimulatedAI(location: string, notes: string): {
 }
 
 // API: Create new report (upload)
-app.post('/api/detections', upload.single('file'), (req, res) => {
-  const user = getLoggedInUser(req);
+app.post('/api/detections', upload.single('file'), async (req, res) => {
+  const user = await getLoggedInUser(req);
   if (!user) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
@@ -373,7 +400,7 @@ app.post('/api/detections', upload.single('file'), (req, res) => {
   const aiResults = runSimulatedAI(location || '', additionalNotes || '');
 
   // Create report entry linked to user.id
-  const newReport = DatabaseManager.create({
+  const newReport = await DatabaseManager.create({
     location: location || 'Lokasi tidak diketahui',
     aiStatus: aiResults.status,
     aiConfidence: aiResults.confidence,
@@ -398,13 +425,13 @@ app.post('/api/detections', upload.single('file'), (req, res) => {
 });
 
 // API: Export all reports to CSV (Admins only)
-app.get('/api/export', (req, res) => {
-  const user = getLoggedInUser(req);
+app.get('/api/export', async (req, res) => {
+  const user = await getLoggedInUser(req);
   if (!user || user.role !== 'admin') {
     return res.status(403).send('Forbidden: Hanya Admin yang dapat mengekspor laporan');
   }
 
-  const reports = DatabaseManager.getAll();
+  const reports = await DatabaseManager.getAll();
 
   // CSV headers
   let csvContent = 'ID,User ID,Lokasi,Waktu Kejadian,Status AI,Keyakinan AI (%),Status Admin,Sumber,Identitas/Kiri,Catatan Admin\n';

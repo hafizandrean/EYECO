@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login - Simbahrang</title>
+  <title>Login - Eyeco</title>
   <link rel="stylesheet" href="/css/style.css">
   <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
 </head>
@@ -15,7 +15,7 @@
       <div style="background: var(--primary); display: inline-flex; align-items: center; justify-content: center; width: 60px; height: 60px; border-radius: 50%; color: white; margin-bottom: 12px; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);">
         <i data-feather="lock" style="width: 28px; height: 28px;"></i>
       </div>
-      <h2 style="font-weight: 800; font-size: 1.8rem; letter-spacing: -0.5px;">Simbahrang Login</h2>
+      <h2 style="font-weight: 800; font-size: 1.8rem; letter-spacing: -0.5px;">Eyeco Login</h2>
       <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; font-weight: 550;">Masuk untuk mengakses monitoring sungai</p>
     </div>
 
@@ -29,21 +29,22 @@
       <div class="form-group">
         <label class="form-label" for="login-username">Username</label>
         <div style="position: relative;">
-          <input type="text" class="form-control" id="login-username" placeholder="Masukkan username" required style="width: 100%; padding-left: 40px;">
-          <i data-feather="user" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted);"></i>
+          <input type="text" class="form-control" id="login-username" placeholder="Masukkan username" required style="width: 100%;">
         </div>
       </div>
 
       <div class="form-group">
         <label class="form-label" for="login-password">Password</label>
         <div style="position: relative;">
-          <input type="password" class="form-control" id="login-password" placeholder="Masukkan password" required style="width: 100%; padding-left: 40px;">
-          <i data-feather="key" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted);"></i>
+          <input type="password" class="form-control" id="login-password" placeholder="Masukkan password" required style="width: 100%; padding-right: 40px;">
+          <span id="toggle-login-password" style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-muted); display: flex; align-items: center;">
+            <i data-feather="eye" style="width: 18px; height: 18px;"></i>
+          </span>
         </div>
       </div>
 
       <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; margin-top: 8px;">
-        Masuk <i data-feather="log-in" style="width: 16px; height: 16px; margin-left: 4px;"></i>
+        Masuk
       </button>
     </form>
 
@@ -67,6 +68,12 @@
       const username = document.getElementById('login-username').value;
       const password = document.getElementById('login-password').value;
 
+      if (!username || !password) {
+        errorText.innerText = 'Semua kolom harus diisi.';
+        errorAlert.style.display = 'flex';
+        return;
+      }
+
       try {
         const res = await fetch('/api/auth/login', {
           method: 'POST',
@@ -77,8 +84,10 @@
         const data = await res.json();
 
         if (res.ok) {
-          // Redirect based on role
-          if (data.role === 'admin') {
+          // Redirect based on role and username
+          if (data.username === 'admin') {
+            window.location.href = '/admin-register';
+          } else if (data.role === 'admin') {
             window.location.href = '/dashboard';
           } else {
             window.location.href = '/dashboard/upload';
@@ -96,6 +105,21 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       feather.replace();
+      
+      const togglePassword = document.getElementById('toggle-login-password');
+      if (togglePassword) {
+        togglePassword.addEventListener('click', function () {
+          const passwordInput = document.getElementById('login-password');
+          if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            this.innerHTML = '<i data-feather="eye-off" style="width: 18px; height: 18px;"></i>';
+          } else {
+            passwordInput.type = 'password';
+            this.innerHTML = '<i data-feather="eye" style="width: 18px; height: 18px;"></i>';
+          }
+          feather.replace();
+        });
+      }
     });
   </script>
 </body>
