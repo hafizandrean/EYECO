@@ -3,73 +3,419 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<<<<<<< Updated upstream
   <title>Registrasi - Eyeco</title>
   <link rel="stylesheet" href="/css/style.css">
   <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+=======
+  <title>Registrasi - EYECO</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0a1628 0%, #0f172a 45%, #1e3a5f 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      color: #f1f5f9;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .bg-glow {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(90px);
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    .bg-glow-1 {
+      top: -12%;
+      left: -8%;
+      width: 400px;
+      height: 400px;
+      background: #059669;
+    }
+
+    .bg-glow-2 {
+      bottom: -12%;
+      right: -8%;
+      width: 400px;
+      height: 400px;
+      background: #2563eb;
+    }
+
+    .glass-container {
+      background: rgba(255, 255, 255, 0.07);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 440px;
+      padding: 40px 36px;
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
+      position: relative;
+      z-index: 10;
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .auth-header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .auth-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid rgba(52, 211, 153, 0.25);
+      color: #6ee7b7;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 20px rgba(16, 185, 129, 0.2);
+    }
+
+    .auth-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+
+    .auth-subtitle {
+      font-size: 0.9rem;
+      color: #cbd5e1;
+      font-weight: 500;
+      line-height: 1.5;
+    }
+
+    .alert {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 18px;
+    }
+
+    .alert-error {
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      color: #fca5a5;
+    }
+
+    .alert-success {
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      color: #6ee7b7;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #e2e8f0;
+      margin-bottom: 8px;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+
+    .input-wrapper {
+      position: relative;
+    }
+
+    .input-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 13px 44px 13px 42px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      color: #f8fafc;
+      font-size: 0.95rem;
+      font-family: inherit;
+      font-weight: 500;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .form-input::placeholder {
+      color: #64748b;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: rgba(59, 130, 246, 0.6);
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    .form-input.input-invalid {
+      border-color: rgba(239, 68, 68, 0.5);
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+    }
+
+    .field-hint {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-top: 6px;
+    }
+
+    .field-hint.error {
+      color: #fca5a5;
+    }
+
+    .eye-toggle {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      padding: 4px;
+      transition: color 0.2s ease;
+    }
+
+    .eye-toggle:hover {
+      color: #e2e8f0;
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 13px;
+      margin-top: 6px;
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+      border: none;
+      border-radius: 12px;
+      color: #ffffff;
+      font-size: 0.95rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-submit:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+    }
+
+    .btn-submit:active {
+      transform: translateY(0);
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .auth-footer {
+      text-align: center;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .auth-footer p {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+
+    .auth-footer a {
+      color: #60a5fa;
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    .auth-footer a:hover {
+      color: #93c5fd;
+    }
+  </style>
+>>>>>>> Stashed changes
 </head>
-<body style="display: flex; align-items: center; justify-content: center; height: 100vh; padding: 20px;">
-  
-  <main class="glass-card" style="width: 100%; max-width: 420px; padding: 35px 30px;">
-    
-    <div style="text-align: center; margin-bottom: 24px;">
-      <div style="background: var(--success); display: inline-flex; align-items: center; justify-content: center; width: 60px; height: 60px; border-radius: 50%; color: white; margin-bottom: 12px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);">
-        <i data-feather="user-plus" style="width: 28px; height: 28px;"></i>
+<body>
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+
+  <main class="glass-container">
+    <div class="auth-header">
+      <div class="auth-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="8.5" cy="7" r="4"></circle>
+          <line x1="20" y1="8" x2="20" y2="14"></line>
+          <line x1="23" y1="11" x2="17" y2="11"></line>
+        </svg>
       </div>
-      <h2 style="font-weight: 800; font-size: 1.8rem; letter-spacing: -0.5px;">Registrasi Akun</h2>
-      <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; font-weight: 550;">Buat akun pelapor atau pemantau sungai</p>
+      <h1 class="auth-title">Registrasi Akun</h1>
+      <p class="auth-subtitle">Buat akun pelapor untuk monitoring sungai</p>
     </div>
 
-    <!-- Error message alert -->
-    <div id="error-alert" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: var(--danger); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; margin-bottom: 16px; align-items: center; gap: 8px;">
-      <i data-feather="alert-circle" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
+    <div id="error-alert" class="alert alert-error">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
       <span id="error-text">Terjadi kesalahan</span>
     </div>
 
-    <!-- Success message alert -->
-    <div id="success-alert" style="display: none; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: var(--success); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; margin-bottom: 16px; align-items: center; gap: 8px;">
-      <i data-feather="check-circle" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
+    <div id="success-alert" class="alert alert-success">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+      </svg>
       <span>Registrasi berhasil! Mengalihkan ke login...</span>
     </div>
 
     <form id="register-form">
       <div class="form-group">
         <label class="form-label" for="reg-username">Username</label>
+<<<<<<< Updated upstream
         <div style="position: relative;">
           <input type="text" class="form-control" id="reg-username" placeholder="Buat username baru" required style="width: 100%;">
+=======
+        <div class="input-wrapper">
+          <span class="input-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </span>
+          <input type="text" class="form-input" id="reg-username" placeholder="Buat username baru" required minlength="3" maxlength="30" autocomplete="username">
+>>>>>>> Stashed changes
         </div>
       </div>
 
       <div class="form-group">
         <label class="form-label" for="reg-password">Password</label>
+<<<<<<< Updated upstream
         <div style="position: relative;">
           <input type="password" class="form-control" id="reg-password" placeholder="Buat password minimal 6 karakter" required style="width: 100%; padding-right: 40px;" minlength="6">
           <span id="toggle-reg-password" style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-muted); display: flex; align-items: center;">
             <i data-feather="eye" style="width: 18px; height: 18px;"></i>
           </span>
+=======
+        <div class="input-wrapper">
+          <span class="input-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
+            </svg>
+          </span>
+          <input type="password" class="form-input" id="reg-password" placeholder="Minimal 6 karakter" required minlength="6" autocomplete="new-password">
+          <button type="button" class="eye-toggle" id="toggle-password" aria-label="Tampilkan password">
+            <svg class="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            <svg class="eye-closed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path>
+              <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"></path>
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+            </svg>
+          </button>
+>>>>>>> Stashed changes
         </div>
       </div>
 
       <div class="form-group">
         <label class="form-label" for="reg-confirm-password">Konfirmasi Password</label>
+<<<<<<< Updated upstream
         <div style="position: relative;">
           <input type="password" class="form-control" id="reg-confirm-password" placeholder="Ulangi password" required style="width: 100%; padding-right: 40px;" minlength="6">
           <span id="toggle-reg-confirm-password" style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-muted); display: flex; align-items: center;">
             <i data-feather="eye" style="width: 18px; height: 18px;"></i>
           </span>
+=======
+        <div class="input-wrapper">
+          <span class="input-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </span>
+          <input type="password" class="form-input" id="reg-confirm-password" placeholder="Ulangi password" required minlength="6" autocomplete="new-password">
+          <button type="button" class="eye-toggle" id="toggle-confirm-password" aria-label="Tampilkan konfirmasi password">
+            <svg class="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            <svg class="eye-closed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path>
+              <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"></path>
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+            </svg>
+          </button>
+>>>>>>> Stashed changes
         </div>
+        <p id="confirm-hint" class="field-hint" style="display:none;"></p>
       </div>
 
+<<<<<<< Updated upstream
       <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; margin-top: 8px; background-color: var(--success); box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);">
         Daftar Akun
+=======
+      <button type="submit" class="btn-submit" id="submit-btn">
+        Daftar Akun
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="8.5" cy="7" r="4"></circle>
+          <polyline points="17 11 19 13 23 9"></polyline>
+        </svg>
+>>>>>>> Stashed changes
       </button>
     </form>
 
-    <div style="text-align: center; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 15px;">
-      <p style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 550;">
-        Sudah punya akun? <a href="/login" style="color: var(--primary); text-decoration: none; font-weight: 700;">Masuk di sini</a>
-      </p>
+    <div class="auth-footer">
+      <p>Sudah punya akun? <a href="/login">Masuk di sini</a></p>
     </div>
-
   </main>
 
   <script>
@@ -77,12 +423,61 @@
     const errorAlert = document.getElementById('error-alert');
     const successAlert = document.getElementById('success-alert');
     const errorText = document.getElementById('error-text');
+    const passwordInput = document.getElementById('reg-password');
+    const confirmInput = document.getElementById('reg-confirm-password');
+    const confirmHint = document.getElementById('confirm-hint');
+    const submitBtn = document.getElementById('submit-btn');
+
+    function setupPasswordToggle(toggleBtn, inputEl) {
+      const eyeOpen = toggleBtn.querySelector('.eye-open');
+      const eyeClosed = toggleBtn.querySelector('.eye-closed');
+
+      toggleBtn.addEventListener('click', () => {
+        const isPassword = inputEl.type === 'password';
+        inputEl.type = isPassword ? 'text' : 'password';
+        eyeOpen.style.display = isPassword ? 'none' : 'block';
+        eyeClosed.style.display = isPassword ? 'block' : 'none';
+      });
+    }
+
+    setupPasswordToggle(document.getElementById('toggle-password'), passwordInput);
+    setupPasswordToggle(document.getElementById('toggle-confirm-password'), confirmInput);
+
+    function validatePasswordMatch() {
+      const password = passwordInput.value;
+      const confirm = confirmInput.value;
+
+      if (!confirm) {
+        confirmInput.classList.remove('input-invalid');
+        confirmHint.style.display = 'none';
+        return true;
+      }
+
+      if (password !== confirm) {
+        confirmInput.classList.add('input-invalid');
+        confirmHint.textContent = 'Password dan konfirmasi password tidak cocok.';
+        confirmHint.className = 'field-hint error';
+        confirmHint.style.display = 'block';
+        return false;
+      }
+
+      confirmInput.classList.remove('input-invalid');
+      confirmHint.textContent = 'Password cocok.';
+      confirmHint.className = 'field-hint';
+      confirmHint.style.color = '#6ee7b7';
+      confirmHint.style.display = 'block';
+      return true;
+    }
+
+    confirmInput.addEventListener('input', validatePasswordMatch);
+    passwordInput.addEventListener('input', validatePasswordMatch);
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       errorAlert.style.display = 'none';
       successAlert.style.display = 'none';
 
+<<<<<<< Updated upstream
       const username = document.getElementById('reg-username').value;
       const password = document.getElementById('reg-password').value;
       const confirmPassword = document.getElementById('reg-confirm-password').value;
@@ -90,21 +485,39 @@
 
       if (!username || !password || !confirmPassword) {
         errorText.innerText = 'Semua kolom harus diisi.';
+=======
+      const username = document.getElementById('reg-username').value.trim();
+      const password = passwordInput.value;
+      const confirmPassword = confirmInput.value;
+
+      if (password.length < 6) {
+        errorText.textContent = 'Password minimal 6 karakter.';
+>>>>>>> Stashed changes
         errorAlert.style.display = 'flex';
         return;
       }
 
       if (password !== confirmPassword) {
+<<<<<<< Updated upstream
         errorText.innerText = 'Password dan konfirmasi password tidak cocok.';
         errorAlert.style.display = 'flex';
         return;
       }
+=======
+        errorText.textContent = 'Password dan konfirmasi password tidak cocok.';
+        errorAlert.style.display = 'flex';
+        confirmInput.classList.add('input-invalid');
+        return;
+      }
+
+      submitBtn.disabled = true;
+>>>>>>> Stashed changes
 
       try {
         const res = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password, role })
+          body: JSON.stringify({ username, password })
         });
 
         const data = await res.json();
@@ -112,19 +525,24 @@
         if (res.ok) {
           successAlert.style.display = 'flex';
           form.reset();
+          confirmHint.style.display = 'none';
+          confirmInput.classList.remove('input-invalid');
           setTimeout(() => {
             window.location.href = '/login';
           }, 1500);
         } else {
-          errorText.innerText = data.error || 'Gagal mendaftarkan akun.';
+          errorText.textContent = data.error || 'Gagal mendaftarkan akun.';
           errorAlert.style.display = 'flex';
+          submitBtn.disabled = false;
         }
       } catch (err) {
         console.error('Error registering:', err);
-        errorText.innerText = 'Koneksi ke server gagal.';
+        errorText.textContent = 'Koneksi ke server gagal.';
         errorAlert.style.display = 'flex';
+        submitBtn.disabled = false;
       }
     });
+<<<<<<< Updated upstream
 
     document.addEventListener('DOMContentLoaded', () => {
       feather.replace();
@@ -159,6 +577,8 @@
         });
       }
     });
+=======
+>>>>>>> Stashed changes
   </script>
 </body>
 </html>

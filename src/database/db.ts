@@ -1,5 +1,6 @@
 import mongoose, { Document, Schema, Model } from 'mongoose';
 import crypto from 'crypto';
+<<<<<<< Updated upstream
 
 // --- DESA (WORKSPACE) INTERFACE & SCHEMA ---
 export interface Desa {
@@ -11,6 +12,64 @@ export interface Desa {
 export interface DesaDocument extends Document {
   namaDesa: string;
   kodeDesa: string;
+=======
+import { verify } from 'otplib';
+import { runMigration } from './migration';
+import { UserModel, IUser } from './models/User';
+import { ReportModel, IReport, IBoundingBox, IComment } from './models/Report';
+import { DesaModel, IDesa } from './models/Desa';
+
+// Re-export types for legacy compatibility in server.ts
+export { IUser as User, IReport as Report, IBoundingBox as BoundingBox, IComment as Comment, IDesa as Desa };
+
+export const DEFAULT_DESA_NAME = 'Desa EYECO';
+export const DEFAULT_ADMIN_USERNAME = 'admin_eyeco';
+export const DEFAULT_ADMIN_PASSWORD = 'admin123';
+
+
+dotenv.config();
+
+// Validate Environment Variables
+if (!process.env.MONGODB_URI) {
+  console.error('CRITICAL ERROR: MONGODB_URI is not defined in environment variables.');
+  process.exit(1);
+}
+if (!process.env.PORT) {
+  console.warn('[WARNING] PORT is not defined in environment variables. Defaulting to 8000.');
+}
+
+export async function connectDB() {
+  const uri = process.env.MONGODB_URI!;
+  const maxRetries = 3;
+  let attempt = 1;
+
+  while (attempt <= maxRetries) {
+    try {
+      console.log(`[DATABASE INFO] Connecting to MongoDB (Attempt ${attempt}/${maxRetries})...`);
+      await mongoose.connect(uri, {
+        serverSelectionTimeoutMS: 5000,
+      });
+      console.log('[DATABASE SUCCESS] MongoDB connected successfully.');
+      
+      // Run automatic migration from db.json
+      await runMigration();
+
+      // Seed default desa & admin account for development/testing
+      await seedDefaultAdmin();
+
+      return;
+    } catch (err) {
+      console.error(`[DATABASE ERROR] MongoDB connection attempt ${attempt} failed:`, err);
+      if (attempt === maxRetries) {
+        console.error('[DATABASE CRITICAL] Could not connect to MongoDB after maximum retries. Exiting.');
+        process.exit(1);
+      }
+      attempt++;
+      // Wait 2 seconds before retrying
+      await new Promise((res) => setTimeout(res, 2000));
+    }
+  }
+>>>>>>> Stashed changes
 }
 
 const DesaSchema = new Schema<DesaDocument>({
@@ -20,6 +79,7 @@ const DesaSchema = new Schema<DesaDocument>({
 
 const DesaModel: Model<DesaDocument> = mongoose.models.Desa || mongoose.model<DesaDocument>('Desa', DesaSchema);
 
+<<<<<<< Updated upstream
 // --- USER INTERFACE & SCHEMA ---
 export interface User {
   id: string;
@@ -119,11 +179,47 @@ const ReportSchema = new Schema<ReportDocument>({
 const ReportModel: Model<ReportDocument> = mongoose.models.Report || mongoose.model<ReportDocument>('Report', ReportSchema);
 
 // --- DATABASE MANAGER ---
+=======
+export async function seedDefaultAdmin(): Promise<void> {
+  try {
+    let desa = await DesaModel.findOne({ nama: DEFAULT_DESA_NAME }).exec();
+    if (!desa) {
+      desa = await DesaModel.create({ nama: DEFAULT_DESA_NAME });
+      console.log(`[DATABASE INFO] Default desa "${DEFAULT_DESA_NAME}" created.`);
+    }
+
+    const existingAdmin = await UserModel.findOne({ username: DEFAULT_ADMIN_USERNAME }).lean();
+    if (existingAdmin) {
+      console.log(`[DATABASE INFO] Default admin "${DEFAULT_ADMIN_USERNAME}" already exists, skipping seed.`);
+      return;
+    }
+
+    const lastUser = await UserModel.findOne().sort({ id: -1 }).exec();
+    const nextId = lastUser ? lastUser.id + 1 : 1;
+
+    await UserModel.create({
+      id: nextId,
+      username: DEFAULT_ADMIN_USERNAME,
+      passwordHash: DatabaseManager.hashPassword(DEFAULT_ADMIN_PASSWORD),
+      role: 'admin',
+      desaId: desa._id,
+      twoFactorSecret: '',
+      is2faEnabled: false,
+    });
+
+    console.log(`[DATABASE INFO] Default admin seeded → username: "${DEFAULT_ADMIN_USERNAME}", password: "${DEFAULT_ADMIN_PASSWORD}", role: admin`);
+  } catch (err) {
+    console.error('[DATABASE ERROR] seedDefaultAdmin failed:', err);
+  }
+}
+
+>>>>>>> Stashed changes
 export class DatabaseManager {
   public static hashPassword(password: string): string {
     return crypto.createHash('sha256').update(password).digest('hex');
   }
 
+<<<<<<< Updated upstream
   private static mapUser(doc: UserDocument): User {
     return {
       id: doc._id.toString(),
@@ -168,6 +264,34 @@ export class DatabaseManager {
 
   public static async findDesaByKode(kodeDesa: string): Promise<DesaDocument | null> {
     return await DesaModel.findOne({ kodeDesa });
+=======
+  // --- DESA METHODS ---
+  public static async createDesa(nama: string): Promise<IDesa> {
+    try {
+      return await DesaModel.create({ nama });
+    } catch (err) {
+      console.error('[DATABASE ERROR] createDesa failed:', err);
+      throw err;
+    }
+  }
+
+  public static async findDesaByName(nama: string): Promise<IDesa | null> {
+    try {
+      return await DesaModel.findOne({ nama: new RegExp(`^${nama}$`, 'i') }).exec();
+    } catch (err) {
+      console.error('[DATABASE ERROR] findDesaByName failed:', err);
+      throw err;
+    }
+  }
+
+  public static async getAllDesa(): Promise<IDesa[]> {
+    try {
+      return await DesaModel.find().lean().exec() as IDesa[];
+    } catch (err) {
+      console.error('[DATABASE ERROR] getAllDesa failed:', err);
+      throw err;
+    }
+>>>>>>> Stashed changes
   }
 
   // --- USER METHODS ---
@@ -199,6 +323,7 @@ export class DatabaseManager {
     return this.mapUser(doc);
   }
 
+<<<<<<< Updated upstream
   public static async authenticateUser(username: string, passwordPlain: string, kodeDesa?: string): Promise<User | null> {
     const user = await this.findUserInDesa(username, kodeDesa);
     if (!user) return null;
@@ -206,8 +331,86 @@ export class DatabaseManager {
     const inputHash = this.hashPassword(passwordPlain);
     if (user.passwordHash === inputHash) {
       return user;
+=======
+  public static async createUser(
+    username: string, 
+    passwordPlain: string, 
+    role: 'superadmin' | 'admin' | 'user',
+    desaId: string | mongoose.Types.ObjectId
+  ): Promise<IUser | null> {
+    try {
+      // Case-insensitive duplicate check (username is stored in lowercase)
+      const lowercaseUsername = username.toLowerCase();
+      const exists = await UserModel.findOne({ username: lowercaseUsername }).lean();
+      if (exists) return null;
+
+      // Find max integer id for legacy auto-increment compatibility
+      const lastUser = await UserModel.findOne().sort({ id: -1 }).exec();
+      const nextId = lastUser ? lastUser.id + 1 : 1;
+
+      const newUser = await UserModel.create({
+        id: nextId,
+        username: lowercaseUsername,
+        passwordHash: this.hashPassword(passwordPlain),
+        role: role,
+        desaId: new mongoose.Types.ObjectId(desaId)
+      });
+
+      return newUser.toJSON(); // Automatically strips passwordHash via schema toJSON transform
+    } catch (err) {
+      console.error('[DATABASE ERROR] createUser failed:', err);
+      throw err;
+    }
+  }
+
+
+  public static async authenticateUser(username: string, passwordPlain: string): Promise<IUser | null> {
+    try {
+      // Query user and explicitly select passwordHash since it is select: false
+      const user = await UserModel.findOne({ username: username.toLowerCase() }).select('+passwordHash').exec();
+      if (!user) return null;
+
+      const inputHash = this.hashPassword(passwordPlain);
+      if (user.passwordHash === inputHash) {
+        const safeUser = user.toObject();
+        delete (safeUser as { passwordHash?: string }).passwordHash;
+        delete (safeUser as { twoFactorSecret?: string }).twoFactorSecret;
+        return safeUser as IUser;
+      }
+      return null;
+    } catch (err) {
+      console.error('[DATABASE ERROR] authenticateUser failed:', err);
+      throw err;
+>>>>>>> Stashed changes
     }
     return null;
+  }
+
+  public static async getUserWith2FASecret(userId: number): Promise<IUser | null> {
+    try {
+      return await UserModel.findOne({ id: userId })
+        .select('+twoFactorSecret')
+        .lean()
+        .exec() as IUser | null;
+    } catch (err) {
+      console.error('[DATABASE ERROR] getUserWith2FASecret failed:', err);
+      throw err;
+    }
+  }
+
+  public static async verify2FAToken(userId: number, token: string): Promise<boolean> {
+    try {
+      const user = await this.getUserWith2FASecret(userId);
+      if (!user || !user.is2faEnabled || !user.twoFactorSecret) {
+        return false;
+      }
+
+      const result = await verify({ secret: user.twoFactorSecret, token });
+      return result.valid;
+    } catch (err) {
+      console.error('[DATABASE ERROR] verify2FAToken failed:', err);
+      throw err;
+    }
   }
 
   // --- REPORT METHODS ---
@@ -226,6 +429,7 @@ export class DatabaseManager {
   }
 
   public static async create(
+<<<<<<< Updated upstream
     report: Omit<Report, 'id' | 'timestamp' | 'adminStatus' | 'adminNotes' | 'userId'>, 
     creatorId: string
   ): Promise<Report> {
@@ -253,6 +457,40 @@ export class DatabaseManager {
       return this.mapReport(doc);
     } catch {
       return undefined;
+=======
+    report: {
+      location: string;
+      aiStatus: 'TINGGI' | 'SEDANG' | 'RENDAH' | 'Tidak Terindikasi';
+      aiConfidence: number | null;
+      image: string;
+      identity?: string;
+      sourceType: string;
+      additionalNotes?: string;
+      boundingBoxes?: IBoundingBox[];
+    }, 
+    creatorId: number,
+    desaId: string | mongoose.Types.ObjectId
+  ): Promise<IReport> {
+    try {
+      // Find max integer id for legacy auto-increment compatibility
+      const lastReport = await ReportModel.findOne().sort({ id: -1 }).exec();
+      const nextId = lastReport ? lastReport.id + 1 : 1;
+
+      const newReport = await ReportModel.create({
+        ...report,
+        id: nextId,
+        userId: creatorId,
+        desaId: new mongoose.Types.ObjectId(desaId),
+        timestamp: new Date(),
+        adminStatus: 'MENUNGGU',
+        adminNotes: '',
+      });
+
+      return newReport.toJSON();
+    } catch (err) {
+      console.error('[DATABASE ERROR] create report failed:', err);
+      throw err;
+>>>>>>> Stashed changes
     }
   }
 
@@ -264,20 +502,64 @@ export class DatabaseManager {
       adminStatus?: string; // 'MENUNGGU', 'VALID', 'DIABAIKAN', 'semua'
       location?: string;
     },
+<<<<<<< Updated upstream
     userContext: { id: string; role: 'admin' | 'user' }
   ): Promise<Report[]> {
     let query: any = {};
 
     // Kunci utama Multi-Tenancy: Semua user/admin hanya bisa melihat data desanya sendiri
     query.desaId = new mongoose.Types.ObjectId(userContext.desaId);
+=======
+    userContext: { id: number; role: 'superadmin' | 'admin' | 'user'; desaId: string | mongoose.Types.ObjectId },
+    page?: number,
+    limit?: number
+  ): Promise<{ reports: IReport[]; total: number } | IReport[]> {
+    try {
+      const query: any = {};
+
+      // Filter by desaId for multi-tenancy
+      query.desaId = new mongoose.Types.ObjectId(userContext.desaId);
+
+      // Filter by date
+      if (filters.date) {
+        const start = new Date(filters.date);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(filters.date);
+        end.setHours(23, 59, 59, 999);
+        query.timestamp = { $gte: start, $lte: end };
+      } else if (filters.timeRange && filters.timeRange !== 'semua') {
+        const now = new Date();
+        if (filters.timeRange === 'hari_ini') {
+          const start = new Date(now);
+          start.setHours(0, 0, 0, 0);
+          query.timestamp = { $gte: start };
+        } else if (filters.timeRange === 'minggu_ini') {
+          const oneWeekAgo = new Date();
+          oneWeekAgo.setDate(now.getDate() - 7);
+          query.timestamp = { $gte: oneWeekAgo };
+        }
+      }
+>>>>>>> Stashed changes
 
     if (userContext.kodeDesa) {
       query.kodeDesa = userContext.kodeDesa;
     }
 
+<<<<<<< Updated upstream
     if (filters.aiStatus && filters.aiStatus !== 'semua') {
       query.aiStatus = filters.aiStatus;
     }
+=======
+
+  // Optimize statistics queries using MongoDB aggregation pipeline
+  public static async getStats(userContext?: { id: number; role: 'superadmin' | 'admin' | 'user'; desaId: string | mongoose.Types.ObjectId }) {
+    try {
+      const matchQuery: any = {};
+      if (userContext && userContext.desaId) {
+        matchQuery.desaId = new mongoose.Types.ObjectId(userContext.desaId);
+      }
+
+>>>>>>> Stashed changes
 
     if (filters.adminStatus && filters.adminStatus !== 'semua') {
       query.adminStatus = filters.adminStatus;
@@ -353,4 +635,79 @@ export class DatabaseManager {
       pending: pendingCount,
     };
   }
+<<<<<<< Updated upstream
 }
+=======
+
+  public static async deleteComment(
+    reportId: number,
+    commentId: string,
+    userId: number,
+    isAdmin: boolean
+  ): Promise<IComment> {
+    try {
+      const report = await ReportModel.findOne({ id: reportId });
+      if (!report) {
+        throw new Error('Laporan tidak ditemukan.');
+      }
+
+      const comment = (report.comments as any).id(commentId);
+      if (!comment) {
+        throw new Error('Komentar tidak ditemukan.');
+      }
+
+      // Authorization check: owner or admin
+      if (comment.userId !== userId && !isAdmin) {
+        throw new Error('Anda tidak memiliki akses untuk menghapus komentar ini.');
+      }
+
+      // Soft delete
+      comment.isDeleted = true;
+      await report.save();
+
+      return comment;
+    } catch (err) {
+      console.error('[DATABASE ERROR] deleteComment failed:', err);
+      throw err;
+    }
+  }
+
+  public static async toggleLikeComment(
+    reportId: number,
+    commentId: string,
+    userId: number
+  ): Promise<IComment> {
+    try {
+      const report = await ReportModel.findOne({ id: reportId });
+      if (!report) {
+        throw new Error('Laporan tidak ditemukan.');
+      }
+
+      const comment = (report.comments as any).id(commentId);
+      if (!comment) {
+        throw new Error('Komentar tidak ditemukan.');
+      }
+
+
+      if (comment.isDeleted) {
+        throw new Error('Komentar telah dihapus.');
+      }
+
+      const index = comment.likedBy.indexOf(userId);
+      if (index > -1) {
+        // Unlike: remove userId
+        comment.likedBy.splice(index, 1);
+      } else {
+        // Like: add userId
+        comment.likedBy.push(userId);
+      }
+
+      await report.save();
+      return comment;
+    } catch (err) {
+      console.error('[DATABASE ERROR] toggleLikeComment failed:', err);
+      throw err;
+    }
+  }
+}
+>>>>>>> Stashed changes
