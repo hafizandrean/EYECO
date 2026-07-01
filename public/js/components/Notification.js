@@ -78,24 +78,40 @@ export class NotificationCenter {
     // Render up to 10 alerts
     notifications.slice(0, 10).forEach(alert => {
       const item = document.createElement('div');
-      
-      // Class color based on threat level
-      let levelClass = 'info';
-      if (alert.aiStatus === 'TINGGI') levelClass = 'high';
-      if (alert.aiStatus === 'SEDANG') levelClass = 'medium';
-      if (alert.aiStatus === 'RENDAH') levelClass = 'low';
+      item.className = 'notification-item';
 
-      const messageText = alert.isComment 
+      let level = alert.level || 'info';
+      if (!alert.isCustom) {
+        // Fallback for default notifications (like notifications set in other components)
+        if (alert.aiStatus === 'TINGGI') level = 'high';
+        else if (alert.aiStatus === 'SEDANG') level = 'medium';
+        else if (alert.aiStatus === 'RENDAH') level = 'low';
+        else if (alert.isComment) level = 'comment';
+      }
+
+      let icon = 'info';
+      if (level === 'high') icon = 'alert-triangle';
+      else if (level === 'medium') icon = 'alert-circle';
+      else if (level === 'low') icon = 'eye';
+      else if (level === 'success') icon = 'shield-check';
+      else if (level === 'comment') icon = 'message-square';
+      else icon = 'video';
+
+      const titleText = alert.location || 'Notifikasi Baru';
+      const messageText = alert.message || (alert.isComment 
         ? alert.message 
-        : `Terdeteksi indikasi ${alert.aiStatus} (${alert.aiConfidence || 0}%)`;
+        : `Terdeteksi indikasi ${alert.aiStatus || 'Aktif'} (${alert.aiConfidence || 0}%)`);
 
-      item.className = `notification-item threat-${levelClass}`;
       item.innerHTML = `
-        <div class="notification-item-dot"></div>
+        <div class="notif-icon-wrapper ${level}">
+          <i data-lucide="${icon}"></i>
+        </div>
         <div class="notification-item-body">
-          <div class="notification-item-title">${alert.location}</div>
+          <div class="notification-item-title">${titleText}</div>
           <div class="notification-item-text">${messageText}</div>
-          <div class="notification-item-time">${Formatter.formatDate(alert.timestamp)}</div>
+        </div>
+        <div class="notification-item-time">
+          ${Formatter.formatTime ? Formatter.formatTime(alert.timestamp) : Formatter.formatDate(alert.timestamp)}
         </div>
       `;
 

@@ -8,6 +8,9 @@ import mongoose from 'mongoose';
 import { DatabaseManager, Report, BoundingBox, User, connectDB } from './database/db';
 import { ReportModel } from './database/models/Report';
 import { UserModel } from './database/models/User';
+import { CctvHealthEngine } from './cctv/CctvHealthEngine';
+import { CctvScanner } from './cctv/CctvScanner';
+import { CctvAdapter } from './cctv/CctvAdapter';
 
 dotenv.config();
 
@@ -702,8 +705,237 @@ app.get('/api/export', async (req, res) => {
   }
 });
 
+// --- CCTV API ENDPOINTS ---
+
+// GET /api/cctv - List all CCTV channels
+app.get('/api/cctv', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Belum masuk' });
+    }
+
+    const cctvs = await DatabaseManager.getAllCctv();
+    
+    // Decrypt / enrich each CCTV config with playUrl dynamically
+    const processed = cctvs.map(c => {
+      const playTarget = CctvAdapter.getPlayTarget(c as any);
+      return {
+        ...c,
+        playUrl: playTarget.playUrl,
+        mediaType: playTarget.playType,
+        // Hide password in listing
+        password: c.password ? '••••••••' : ''
+      };
+    });
+
+    res.json({ success: true, data: processed });
+  } catch (err) {
+    console.error('[SERVER ERROR] GET /api/cctv failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// GET /api/cctv/:id - Fetch single CCTV detail
+app.get('/api/cctv/:id', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Belum masuk' });
+    }
+
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'ID tidak valid' });
+    }
+
+    const c = await DatabaseManager.getCctvById(id);
+    if (!c) {
+      return res.status(404).json({ error: 'CCTV tidak ditemukan' });
+    }
+
+    // Expose password decrypted to admin only for editing
+    const decryptedPassword = user.role === 'admin' && c.password
+      ? DatabaseManager.decryptCctvPassword(c.password)
+      : '';
+
+    const playTarget = CctvAdapter.getPlayTarget(c as any);
+
+    res.json({
+      success: true,
+      data: {
+        ...c,
+        playUrl: playTarget.playUrl,
+        mediaType: playTarget.playType,
+        password: decryptedPassword
+      }
+    });
+  } catch (err) {
+    console.error('[SERVER ERROR] GET /api/cctv/:id failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// POST /api/cctv/scan - Capability Discovery Scan
+app.post('/api/cctv/scan', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Belum masuk' });
+    }
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
+    }
+
+    const { ipOrHost, username, password, vendorHint, port, connectionMode } = req.body;
+    if (!ipOrHost) {
+      return res.status(400).json({ error: 'IP Address / Host wajib diisi.' });
+    }
+
+    console.log(`[CctvScanner] Probing camera at: ${ipOrHost} (Vendor: ${vendorHint || 'GENERIC'}, Mode: ${connectionMode || 'AUTO'})...`);
+    const scanResult = await CctvScanner.scan(
+      ipOrHost,
+      username,
+      password,
+      vendorHint,
+      port ? parseInt(port) : undefined,
+      connectionMode
+    );
+    
+    res.json({ success: true, data: scanResult });
+  } catch (err) {
+    console.error('[SERVER ERROR] POST /api/cctv/scan failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// POST /api/cctv - Connect CCTV (admin-only)
+app.post('/api/cctv', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Belum masuk' });
+    }
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
+    }
+
+    const newCctv = await DatabaseManager.addCctv(req.body, user.id);
+    
+    // Instantly check camera health upon connection
+    CctvHealthEngine.checkCameraHealth(newCctv.id);
+
+    res.json({ success: true, data: newCctv });
+  } catch (err: any) {
+    console.error('[SERVER ERROR] POST /api/cctv failed:', err);
+    res.status(400).json({ error: err.message || 'Gagal menambahkan CCTV' });
+  }
+});
+
+// PUT /api/cctv/:id - Update CCTV (admin-only)
+app.put('/api/cctv/:id', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Belum masuk' });
+    }
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
+    }
+
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'ID tidak valid' });
+    }
+
+    const updated = await DatabaseManager.updateCctv(id, req.body);
+    
+    // Instantly trigger health check to update status
+    CctvHealthEngine.checkCameraHealth(id);
+
+    res.json({ success: true, data: updated });
+  } catch (err: any) {
+    console.error('[SERVER ERROR] PUT /api/cctv/:id failed:', err);
+    res.status(400).json({ error: err.message || 'Gagal mengubah CCTV' });
+  }
+});
+
+// DELETE /api/cctv/:id - Disconnect CCTV (admin-only)
+app.delete('/api/cctv/:id', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Belum masuk' });
+    }
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
+    }
+
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'ID tidak valid' });
+    }
+
+    await DatabaseManager.deleteCctv(id);
+    res.json({ success: true, message: 'CCTV berhasil diputuskan' });
+  } catch (err: any) {
+    console.error('[SERVER ERROR] DELETE /api/cctv/:id failed:', err);
+    res.status(400).json({ error: err.message || 'Gagal menghapus CCTV' });
+  }
+});
+
+// POST /api/cctv/:id/reconnect - Trigger manual reconnect
+app.post('/api/cctv/:id/reconnect', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Belum masuk' });
+    }
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
+    }
+
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'ID tidak valid' });
+    }
+
+    const success = await CctvHealthEngine.manualReconnect(id);
+    if (success) {
+      res.json({ success: true, message: 'Reconnection triggered' });
+    } else {
+      res.status(400).json({ error: 'Failed to trigger reconnect' });
+    }
+  } catch (err) {
+    console.error('[SERVER ERROR] POST /api/cctv/:id/reconnect failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// GET /api/cctv/:id/snapshot - Snapshot image proxy fallback
+app.get('/api/cctv/:id/snapshot', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const camera = await DatabaseManager.getCctvById(id);
+    if (!camera) {
+      return res.status(404).send('Camera not found');
+    }
+
+    // Proxy the snapshot, or fallback to the static asset image
+    if (camera.isDefault || camera.protocol === 'HTTP Image') {
+      res.redirect(camera.streamUrl);
+    } else {
+      // Return default camera 1 image as fallback
+      res.redirect('/uploads/detection_1.jpg');
+    }
+  } catch (err) {
+    res.status(500).send('Internal Server Error');
+  }
+});
+
 // Start Server after Database connection is established
 connectDB().then(() => {
+  CctvHealthEngine.start();
   app.listen(PORT, () => {
     console.log(`Server EYECO berjalan di http://localhost:${PORT}`);
   });

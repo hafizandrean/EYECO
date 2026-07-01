@@ -135,7 +135,7 @@ export class HeaderComponent {
       }
     });
 
-    if (!activeKey || !this.tabs[activeKey] || (user && !isAdmin)) {
+    if (!activeKey || !this.tabs[activeKey]) {
       if (this.indicator) this.indicator.style.width = '0px';
       return;
     }
@@ -143,14 +143,11 @@ export class HeaderComponent {
     const activeTab = this.tabs[activeKey];
     activeTab.classList.add('active');
 
-    // Geser bubble secara spring
-    setTimeout(() => {
-      if (this.indicator) {
-        this.indicator.style.left = `${activeTab.offsetLeft}px`;
-        this.indicator.style.width = `${activeTab.offsetWidth}px`;
-        this.indicator.style.height = `${activeTab.offsetHeight}px`;
-      }
-    }, 100);
+    // Geser bubble secara instan (agar selaras dengan perubahan warna teks!)
+    if (this.indicator) {
+      this.indicator.style.left = `${activeTab.offsetLeft}px`;
+      this.indicator.style.width = `${activeTab.offsetWidth}px`;
+    }
   }
 
   // Render info user login di dropdown profile
