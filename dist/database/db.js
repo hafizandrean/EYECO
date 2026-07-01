@@ -11,6 +11,7 @@ const crypto_1 = __importDefault(require("crypto"));
 const migration_1 = require("./migration");
 const User_1 = require("./models/User");
 const Report_1 = require("./models/Report");
+const Cctv_1 = require("./models/Cctv");
 dotenv_1.default.config();
 // Validate Environment Variables
 if (!process.env.MONGODB_URI) {
@@ -165,9 +166,24 @@ class DatabaseManager {
             throw err;
         }
     }
-    static async updateVerification(id, status, notes) {
+    static async updateVerification(id, status, notes, assignedOfficer, progressStatus) {
         try {
-            const updated = await Report_1.ReportModel.findOneAndUpdate({ id }, { adminStatus: status, adminNotes: notes }, { new: true }).lean();
+            const updateFields = { adminStatus: status, adminNotes: notes };
+            if (assignedOfficer !== undefined) {
+                updateFields.assignedOfficer = assignedOfficer;
+            }
+            if (progressStatus !== undefined) {
+                updateFields.status = progressStatus;
+            }
+            else {
+                if (status === 'VALID') {
+                    updateFields.status = 'PROSES';
+                }
+                else if (status === 'DIABAIKAN') {
+                    updateFields.status = 'DITOLAK';
+                }
+            }
+            const updated = await Report_1.ReportModel.findOneAndUpdate({ id }, updateFields, { new: true }).lean();
             return updated;
         }
         catch (err) {
@@ -179,10 +195,6 @@ class DatabaseManager {
     static async getFiltered(filters, userContext, page, limit) {
         try {
             const query = {};
-            // Role restriction: normal user can ONLY see their own reports
-            if (userContext.role === 'user') {
-                query.userId = userContext.id;
-            }
             // Filter by date
             if (filters.date) {
                 const start = new Date(filters.date);
@@ -242,9 +254,6 @@ class DatabaseManager {
     static async getStats(userContext) {
         try {
             const matchQuery = {};
-            if (userContext && userContext.role === 'user') {
-                matchQuery.userId = userContext.id;
-            }
             // Execute counts concurrently
             const [total, valid, cancelled, pending] = await Promise.all([
                 Report_1.ReportModel.countDocuments(matchQuery),
@@ -283,6 +292,414 @@ class DatabaseManager {
         catch (err) {
             console.error('[DATABASE ERROR] getStats failed:', err);
             throw err;
+        }
+    }
+    // --- COMMENT METHODS ---
+    static async addComment(reportId, userId, text) {
+        try {
+            // 1. Sanitize HTML
+            const sanitized = text.replace(/<[^>]*>/g, '').trim();
+            // 2. Validate length
+            if (sanitized.length < 2 || sanitized.length > 500) {
+                throw new Error('Komentar harus terdiri dari 2 hingga 500 karakter.');
+            }
+            const report = await Report_1.ReportModel.findOne({ id: reportId });
+            if (!report) {
+                throw new Error('Laporan tidak ditemukan.');
+            }
+            // Create comment document object
+            const commentData = {
+                userId,
+                text: sanitized,
+                likedBy: [],
+                isDeleted: false,
+                parentCommentId: null
+            };
+            report.comments.push(commentData);
+            await report.save();
+            // Return the newly created comment (the last one in the array)
+            return report.comments[report.comments.length - 1];
+        }
+        catch (err) {
+            console.error('[DATABASE ERROR] addComment failed:', err);
+            throw err;
+        }
+    }
+    static async deleteComment(reportId, commentId, userId, isAdmin) {
+        try {
+            const report = await Report_1.ReportModel.findOne({ id: reportId });
+            if (!report) {
+                throw new Error('Laporan tidak ditemukan.');
+            }
+            const comment = report.comments.id(commentId);
+            if (!comment) {
+                throw new Error('Komentar tidak ditemukan.');
+            }
+            // Authorization check: owner or admin
+            if (comment.userId !== userId && !isAdmin) {
+                throw new Error('Anda tidak memiliki akses untuk menghapus komentar ini.');
+            }
+            // Soft delete
+            comment.isDeleted = true;
+            await report.save();
+            return comment;
+        }
+        catch (err) {
+            console.error('[DATABASE ERROR] deleteComment failed:', err);
+            throw err;
+        }
+    }
+    static async toggleLikeComment(reportId, commentId, userId) {
+        try {
+            const report = await Report_1.ReportModel.findOne({ id: reportId });
+            if (!report) {
+                throw new Error('Laporan tidak ditemukan.');
+            }
+            const comment = report.comments.id(commentId);
+            if (!comment) {
+                throw new Error('Komentar tidak ditemukan.');
+            }
+            if (comment.isDeleted) {
+                throw new Error('Komentar telah dihapus.');
+            }
+            const index = comment.likedBy.indexOf(userId);
+            if (index > -1) {
+                // Unlike: remove userId
+                comment.likedBy.splice(index, 1);
+            }
+            else {
+                // Like: add userId
+                comment.likedBy.push(userId);
+            }
+            await report.save();
+            return comment;
+        }
+        catch (err) {
+            console.error('[DATABASE ERROR] toggleLikeComment failed:', err);
+            throw err;
+        }
+    }
+    // --- CCTV METHODS ---
+    static async getAllCctv() {
+        try {
+            let count = await Cctv_1.CctvModel.countDocuments();
+            if (count === 0) {
+                console.log('[DATABASE INFO] CCTV collection is empty. Seeding default 8 cameras...');
+                const defaultCameras = [
+                    {
+                        id: 1,
+                        name: 'Jembatan Merah',
+                        location: 'Jembatan Merah',
+                        description: 'Pemantauan hulu sungai Jembatan Merah',
+                        vendor: 'GENERIC',
+                        model: 'CCTV-G1',
+                        protocol: 'HTTP Image',
+                        mediaType: 'Image',
+                        streamUrl: '/uploads/detection_1.jpg',
+                        playUrl: '/uploads/detection_1.jpg',
+                        capabilities: { rtsp: false, hls: false, snapshot: true, mjpeg: false, onvif: false, cloud: false },
+                        isDefault: true,
+                        status: 'ONLINE',
+                        health: { latency: 45, fps: 0, resolution: '1280x720' },
+                        createdBy: 1
+                    },
+                    {
+                        id: 2,
+                        name: 'Sektor 7 Hulu',
+                        location: 'Sektor 7 Hulu',
+                        description: 'Pemantauan tanggul Sektor 7 Hulu',
+                        vendor: 'GENERIC',
+                        model: 'CCTV-G2',
+                        protocol: 'HTTP Image',
+                        mediaType: 'Image',
+                        streamUrl: '/uploads/detection_2.jpg',
+                        playUrl: '/uploads/detection_2.jpg',
+                        capabilities: { rtsp: false, hls: false, snapshot: true, mjpeg: false, onvif: false, cloud: false },
+                        isDefault: true,
+                        status: 'ONLINE',
+                        health: { latency: 50, fps: 0, resolution: '1280x720' },
+                        createdBy: 1
+                    },
+                    {
+                        id: 3,
+                        name: 'Pintu Air Manggarai',
+                        location: 'Pintu Air Manggarai',
+                        description: 'Pemantauan debit air Pintu Air Manggarai',
+                        vendor: 'GENERIC',
+                        model: 'CCTV-G3',
+                        protocol: 'HTTP Image',
+                        mediaType: 'Image',
+                        streamUrl: '/uploads/detection_3.jpg',
+                        playUrl: '/uploads/detection_3.jpg',
+                        capabilities: { rtsp: false, hls: false, snapshot: true, mjpeg: false, onvif: false, cloud: false },
+                        isDefault: true,
+                        status: 'ONLINE',
+                        health: { latency: 60, fps: 0, resolution: '1280x720' },
+                        createdBy: 1
+                    },
+                    {
+                        id: 4,
+                        name: 'Aliran Kampung Melayu',
+                        location: 'Aliran Kampung Melayu',
+                        description: 'Aliran padat penduduk Kampung Melayu',
+                        vendor: 'GENERIC',
+                        model: 'CCTV-G4',
+                        protocol: 'HTTP Image',
+                        mediaType: 'Image',
+                        streamUrl: '/uploads/detection_4.jpg',
+                        playUrl: '/uploads/detection_4.jpg',
+                        capabilities: { rtsp: false, hls: false, snapshot: true, mjpeg: false, onvif: false, cloud: false },
+                        isDefault: true,
+                        status: 'ONLINE',
+                        health: { latency: 55, fps: 0, resolution: '1280x720' },
+                        createdBy: 1
+                    },
+                    {
+                        id: 5,
+                        name: 'Bendungan Katulampa',
+                        location: 'Bendungan Katulampa',
+                        description: 'Pemantauan volume air Bendungan Katulampa',
+                        vendor: 'GENERIC',
+                        model: 'CCTV-G5',
+                        protocol: 'HTTP Image',
+                        mediaType: 'Image',
+                        streamUrl: '/uploads/detection_5.jpg',
+                        playUrl: '/uploads/detection_5.jpg',
+                        capabilities: { rtsp: false, hls: false, snapshot: true, mjpeg: false, onvif: false, cloud: false },
+                        isDefault: true,
+                        status: 'ONLINE',
+                        health: { latency: 80, fps: 0, resolution: '1280x720' },
+                        createdBy: 1
+                    },
+                    {
+                        id: 6,
+                        name: 'Kali Ciliwung Depok',
+                        location: 'Kali Ciliwung Depok',
+                        description: 'Aliran tengah Kali Ciliwung Depok',
+                        vendor: 'GENERIC',
+                        model: 'CCTV-G6',
+                        protocol: 'HTTP Image',
+                        mediaType: 'Image',
+                        streamUrl: '/uploads/detection_6.jpg',
+                        playUrl: '/uploads/detection_6.jpg',
+                        capabilities: { rtsp: false, hls: false, snapshot: true, mjpeg: false, onvif: false, cloud: false },
+                        isDefault: true,
+                        status: 'ONLINE',
+                        health: { latency: 65, fps: 0, resolution: '1280x720' },
+                        createdBy: 1
+                    },
+                    {
+                        id: 7,
+                        name: 'Pintu Air Karet',
+                        location: 'Pintu Air Karet',
+                        description: 'Pemantauan aliran Pintu Air Karet',
+                        vendor: 'GENERIC',
+                        model: 'CCTV-G7',
+                        protocol: 'HTTP Image',
+                        mediaType: 'Image',
+                        streamUrl: '/uploads/detection_7.jpg',
+                        playUrl: '/uploads/detection_7.jpg',
+                        capabilities: { rtsp: false, hls: false, snapshot: true, mjpeg: false, onvif: false, cloud: false },
+                        isDefault: true,
+                        status: 'ONLINE',
+                        health: { latency: 70, fps: 0, resolution: '1280x720' },
+                        createdBy: 1
+                    },
+                    {
+                        id: 8,
+                        name: 'Sektor 12 Hilir',
+                        location: 'Sektor 12 Hilir',
+                        description: 'Sektor 12 Hilir penyaringan sampah',
+                        vendor: 'GENERIC',
+                        model: 'CCTV-G8',
+                        protocol: 'HTTP Image',
+                        mediaType: 'Image',
+                        streamUrl: '/uploads/detection_8.jpg',
+                        playUrl: '/uploads/detection_8.jpg',
+                        capabilities: { rtsp: false, hls: false, snapshot: true, mjpeg: false, onvif: false, cloud: false },
+                        isDefault: true,
+                        status: 'ONLINE',
+                        health: { latency: 90, fps: 0, resolution: '1280x720' },
+                        createdBy: 1
+                    }
+                ];
+                await Cctv_1.CctvModel.insertMany(defaultCameras);
+            }
+            return await Cctv_1.CctvModel.find({}).sort({ id: 1 }).lean();
+        }
+        catch (err) {
+            console.error('[DATABASE ERROR] getAllCctv failed:', err);
+            throw err;
+        }
+    }
+    static async getCctvById(id) {
+        try {
+            return await Cctv_1.CctvModel.findOne({ id }).lean();
+        }
+        catch (err) {
+            console.error('[DATABASE ERROR] getCctvById failed:', err);
+            throw err;
+        }
+    }
+    static async addCctv(payload, userId) {
+        try {
+            if (!payload.name || !payload.location || !payload.protocol || !payload.streamUrl) {
+                throw new Error('Semua field wajib diisi.');
+            }
+            // Generate Auto-increment ID
+            const maxCctv = await Cctv_1.CctvModel.findOne({}).sort({ id: -1 });
+            const nextId = maxCctv ? maxCctv.id + 1 : 1;
+            // Encrypt password if provided
+            let encryptedPassword = '';
+            if (payload.password) {
+                encryptedPassword = DatabaseManager.encryptCctvPassword(payload.password);
+            }
+            const newCctv = new Cctv_1.CctvModel({
+                id: nextId,
+                name: payload.name,
+                location: payload.location,
+                description: payload.description || '',
+                vendor: payload.vendor || 'GENERIC',
+                model: payload.model || '',
+                protocol: payload.protocol,
+                mediaType: payload.mediaType || 'Video',
+                streamUrl: payload.streamUrl,
+                playUrl: payload.playUrl || payload.streamUrl,
+                username: payload.username || '',
+                password: encryptedPassword,
+                capabilities: payload.capabilities || {
+                    rtsp: payload.protocol === 'RTSP',
+                    hls: payload.protocol === 'HLS',
+                    snapshot: payload.protocol === 'HTTP Image',
+                    mjpeg: payload.protocol === 'MJPEG',
+                    onvif: false,
+                    cloud: payload.protocol === 'CLOUD_VIEWER'
+                },
+                status: 'CONNECTING',
+                health: {
+                    latency: 0,
+                    fps: 0,
+                    resolution: '1280x720'
+                },
+                isDefault: false,
+                isActive: true,
+                createdBy: userId
+            });
+            await newCctv.save();
+            return newCctv;
+        }
+        catch (err) {
+            console.error('[DATABASE ERROR] addCctv failed:', err);
+            throw err;
+        }
+    }
+    static async updateCctv(id, payload) {
+        try {
+            const cctv = await Cctv_1.CctvModel.findOne({ id });
+            if (!cctv) {
+                throw new Error('CCTV tidak ditemukan.');
+            }
+            if (payload.name)
+                cctv.name = payload.name;
+            if (payload.location)
+                cctv.location = payload.location;
+            if (payload.description !== undefined)
+                cctv.description = payload.description;
+            if (payload.vendor)
+                cctv.vendor = payload.vendor;
+            if (payload.model !== undefined)
+                cctv.model = payload.model;
+            if (payload.protocol)
+                cctv.protocol = payload.protocol;
+            if (payload.mediaType)
+                cctv.mediaType = payload.mediaType;
+            if (payload.streamUrl) {
+                cctv.streamUrl = payload.streamUrl;
+                cctv.playUrl = payload.playUrl || payload.streamUrl;
+            }
+            if (payload.username !== undefined)
+                cctv.username = payload.username;
+            if (payload.password) {
+                cctv.password = DatabaseManager.encryptCctvPassword(payload.password);
+            }
+            if (payload.capabilities)
+                cctv.capabilities = payload.capabilities;
+            if (payload.isActive !== undefined)
+                cctv.isActive = payload.isActive;
+            await cctv.save();
+            return cctv;
+        }
+        catch (err) {
+            console.error('[DATABASE ERROR] updateCctv failed:', err);
+            throw err;
+        }
+    }
+    static async deleteCctv(id) {
+        try {
+            const cctv = await Cctv_1.CctvModel.findOne({ id });
+            if (!cctv) {
+                throw new Error('CCTV tidak ditemukan.');
+            }
+            if (cctv.isDefault) {
+                throw new Error('Kamera bawaan sistem tidak boleh dihapus.');
+            }
+            await Cctv_1.CctvModel.deleteOne({ id });
+            return true;
+        }
+        catch (err) {
+            console.error('[DATABASE ERROR] deleteCctv failed:', err);
+            throw err;
+        }
+    }
+    static async updateCctvStatus(id, status, health) {
+        try {
+            const updatePayload = {
+                status,
+                lastHeartbeat: new Date()
+            };
+            if (status === 'ONLINE') {
+                updatePayload.lastConnected = new Date();
+            }
+            if (health) {
+                updatePayload.health = health;
+            }
+            await Cctv_1.CctvModel.updateOne({ id }, { $set: updatePayload });
+        }
+        catch (err) {
+            console.error('[DATABASE ERROR] updateCctvStatus failed:', err);
+        }
+    }
+    // --- ENCRYPTION HELPERS ---
+    static encryptCctvPassword(text) {
+        try {
+            const encryptionKey = crypto_1.default.scryptSync(process.env.JWT_SECRET || 'eyeco-secret-key', 'salt', 32);
+            const iv = crypto_1.default.randomBytes(16);
+            const cipher = crypto_1.default.createCipheriv('aes-256-cbc', encryptionKey, iv);
+            let encrypted = cipher.update(text, 'utf8', 'hex');
+            encrypted += cipher.final('hex');
+            return iv.toString('hex') + ':' + encrypted;
+        }
+        catch (err) {
+            console.error('[DATABASE ERROR] Encryption failed:', err);
+            return '';
+        }
+    }
+    static decryptCctvPassword(text) {
+        try {
+            if (!text)
+                return '';
+            const encryptionKey = crypto_1.default.scryptSync(process.env.JWT_SECRET || 'eyeco-secret-key', 'salt', 32);
+            const parts = text.split(':');
+            const iv = Buffer.from(parts.shift(), 'hex');
+            const encryptedText = Buffer.from(parts.join(':'), 'hex');
+            const decipher = crypto_1.default.createDecipheriv('aes-256-cbc', encryptionKey, iv);
+            let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
+            decrypted += decipher.final('utf8');
+            return decrypted;
+        }
+        catch (err) {
+            console.error('[DATABASE ERROR] Decryption failed:', err);
+            return '';
         }
     }
 }

@@ -121,10 +121,10 @@ class ReportServiceClass {
   }
 
   // Simpan verifikasi keputusan admin
-  async verifyReport(id, status, notes) {
+  async verifyReport(id, status, notes, assignedOfficer, progressStatus) {
     try {
-      const response = await API.post(`/api/detections/${id}/verify`, { status, notes });
-      EventBus.emit('toast:show', { message: `Laporan #${id} berhasil diupdate menjadi ${status}`, type: 'success' });
+      const response = await API.post(`/api/detections/${id}/verify`, { status, notes, assignedOfficer, progressStatus });
+      EventBus.emit('toast:show', { message: `Laporan #${id} berhasil diperbarui.`, type: 'success' });
       EventBus.emit('report:updated', response);
       return response;
     } catch (err) {

@@ -12,6 +12,7 @@ import { Dashboard } from '../pages/dashboard.js';
 import { Laporan } from '../pages/laporan.js';
 import { Upload } from '../pages/upload.js';
 import { Detail } from '../pages/detail.js';
+import { Home } from '../pages/home.js';
 
 class AppInitializer {
   constructor() {
@@ -66,9 +67,17 @@ class AppInitializer {
     // Router matching
     setTimeout(async () => {
       try {
+        const user = AppState.get('user');
+        const isAdmin = user?.role === 'admin';
+
         if (path === '/dashboard') {
-          this.currentPageInstance = Dashboard;
-          await Dashboard.render(this.viewport);
+          if (isAdmin) {
+            this.currentPageInstance = Dashboard;
+            await Dashboard.render(this.viewport);
+          } else {
+            this.currentPageInstance = Home;
+            await Home.render(this.viewport);
+          }
         } else if (path === '/dashboard/laporan') {
           this.currentPageInstance = Laporan;
           await Laporan.render(this.viewport);
@@ -97,23 +106,27 @@ class AppInitializer {
 
   renderPageSkeleton() {
     this.viewport.innerHTML = `
-      <div style="display:flex; flex-direction:column; gap: 24px; width:100%; max-width:1400px; margin: 0 auto;">
-        <div class="glass-card skeleton-cctv" style="height: 100px; width:100%;">
-          <div class="skeleton skeleton-title" style="width: 25%;"></div>
-          <div class="skeleton skeleton-line-short" style="width: 50%; margin-top: 12px;"></div>
+      <div style="display:flex; flex-direction:column; gap: 24px; width:100%; max-width:1400px; margin: 0 auto; animation: pageFadeIn 0.3s ease;">
+        <div class="shimmer-card" style="min-height: 80px; width:100%; justify-content: center; gap: 8px;">
+          <div class="shimmer-line title" style="width: 20%; height: 20px;"></div>
+          <div class="shimmer-line subtitle" style="width: 45%;"></div>
         </div>
         <div class="stats-grid">
           ${Array(4).fill(0).map(() => `
-            <div class="glass-card stat-card skeleton-cctv" style="height: 120px;">
-              <div class="skeleton skeleton-circle" style="width:48px; height:48px; border-radius:50%;"></div>
-              <div class="skeleton skeleton-line" style="margin-top:12px; width:70%;"></div>
+            <div class="shimmer-card" style="min-height: 120px; gap: 12px; padding: 20px;">
+              <div style="display:flex; justify-content:space-between; width:100%;">
+                <div class="shimmer-line" style="width: 50%; height: 14px;"></div>
+                <div class="shimmer-line" style="width: 16px; height: 16px; border-radius: 50%;"></div>
+              </div>
+              <div class="shimmer-line" style="width: 30%; height: 24px; margin-top: 4px;"></div>
+              <div class="shimmer-line" style="width: 80%; height: 6px;"></div>
             </div>
           `).join('')}
         </div>
-        <div class="glass-card skeleton-cctv" style="height: 400px; width: 100%;">
-          <div class="skeleton skeleton-media" style="height: 250px;"></div>
-          <div class="skeleton skeleton-line" style="margin-top:20px; width:40%;"></div>
-          <div class="skeleton skeleton-line-short" style="margin-top:12px; width:20%;"></div>
+        <div class="shimmer-card" style="min-height: 380px; width: 100%;">
+          <div class="shimmer-line paragraph" style="flex: 1;"></div>
+          <div class="shimmer-line title"></div>
+          <div class="shimmer-line subtitle"></div>
         </div>
       </div>
     `;

@@ -31,19 +31,19 @@
   --motion-skeleton: 1.5s ease-in-out infinite alternate;
 
   /* TEMA TERANG (Light Mode) - default */
-  --background: #f8fafc;
-  --bg-gradient: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-  --surface: rgba(255, 255, 255, 0.55);
-  --surface-hover: rgba(255, 255, 255, 0.85);
-  --border: rgba(226, 232, 240, 0.8);
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --success: #10b981;
-  --success-bg: rgba(16, 185, 129, 0.15);
-  --danger: #ef4444;
-  --danger-bg: rgba(239, 68, 68, 0.15);
-  --warning: #f59e0b;
-  --warning-bg: rgba(245, 158, 11, 0.15);
+  --background: #F5F8FD;
+  --bg-gradient: linear-gradient(135deg, #F5F8FD 0%, #EBF1FC 100%);
+  --surface: rgba(255, 255, 255, 0.7);
+  --surface-hover: rgba(255, 255, 255, 0.9);
+  --border: rgba(47, 107, 255, 0.08);
+  --primary: #2F6BFF;
+  --primary-hover: #1e52db;
+  --success: #22C55E;
+  --success-bg: rgba(34, 197, 94, 0.12);
+  --danger: #EF4444;
+  --danger-bg: rgba(239, 68, 68, 0.12);
+  --warning: #F59E0B;
+  --warning-bg: rgba(245, 158, 11, 0.12);
   --info: #06b6d4;
   --info-bg: rgba(6, 182, 212, 0.15);
   
@@ -702,7 +702,293 @@ body.dark-mode .dropdown-item-btn:hover {
 .glow-red:hover { box-shadow: 0 0 24px rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); }
 .glow-green:hover { box-shadow: 0 0 24px rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3); }
 
-/* Main Dashboard Grid CCTV Layout */
+/* Command Center Layout */
+.cc-hud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-16);
+  padding: var(--space-16) var(--space-24);
+  margin-bottom: var(--space-16);
+  border-radius: var(--radius-card);
+}
+
+.cc-hud-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.cc-hud-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-16);
+  flex: 1;
+}
+
+.cc-hud-metric {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.cc-hud-metric strong {
+  color: var(--text-primary);
+}
+
+.cc-hud-date {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.command-center-primary {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-20);
+  margin-bottom: var(--space-24);
+}
+
+@media (min-width: 1100px) {
+  .command-center-primary {
+    grid-template-columns: 1fr 260px;
+    align-items: stretch;
+  }
+}
+
+@media (min-width: 1400px) {
+  .command-center-primary {
+    grid-template-columns: 1fr 280px;
+  }
+}
+
+.incident-queue-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+  padding: var(--space-20) var(--space-24);
+  border: 1.5px solid rgba(239, 68, 68, 0.12);
+  background: rgba(239, 68, 68, 0.015);
+}
+
+@media (min-width: 1100px) {
+  .incident-queue-panel {
+    min-height: 480px;
+  }
+}
+
+#dashboard-active-incidents-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 520px;
+  padding-right: 4px;
+}
+
+.incident-filter-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-8);
+  margin-bottom: var(--space-12);
+}
+
+@media (min-width: 768px) {
+  .incident-filter-row {
+    grid-template-columns: 1.5fr repeat(4, minmax(0, 1fr));
+  }
+}
+
+.incident-filter-input {
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 0.75rem;
+  border-radius: var(--radius-button);
+  border: 1.5px solid var(--border);
+  outline: none;
+  background: #ffffff;
+  color: var(--text-primary);
+}
+
+.incident-queue-item {
+  padding: var(--space-12) var(--space-16);
+  border-radius: var(--radius-button);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  border: 1px solid var(--border);
+  background: #ffffff;
+  cursor: pointer;
+  transition: border-color var(--motion-hover), box-shadow var(--motion-hover);
+}
+
+.incident-queue-item:hover {
+  border-color: rgba(47, 107, 255, 0.25);
+  box-shadow: 0 4px 16px rgba(47, 107, 255, 0.06);
+}
+
+.incident-priority-high { border-left: 3px solid var(--danger); }
+.incident-priority-medium { border-left: 3px solid var(--warning); }
+.incident-priority-low { border-left: 3px solid var(--info); }
+
+.waiting-time-chip {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--warning);
+  background: rgba(245, 158, 11, 0.08);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.officer-status-chip {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-top: 4px;
+  display: inline-block;
+}
+
+.officer-status-chip.on-site {
+  color: var(--success);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.officer-status-chip.assigned {
+  color: var(--primary);
+  background: rgba(47, 107, 255, 0.08);
+}
+
+.officer-status-chip.done {
+  color: var(--text-secondary);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.operational-summary-panel {
+  padding: var(--space-20);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+
+.ops-metric-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-10);
+}
+
+.ops-metric-card {
+  background: rgba(0, 0, 0, 0.015);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  padding: var(--space-12);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.ops-metric-value {
+  font-size: 1.35rem;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.ops-metric-label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-top: 4px;
+  letter-spacing: 0.3px;
+}
+
+.officer-live-panel {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-12);
+}
+
+.officer-live-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+  font-size: 0.75rem;
+}
+
+.command-center-secondary {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-20);
+}
+
+@media (min-width: 1024px) {
+  .command-center-secondary {
+    grid-template-columns: 1.6fr 1fr;
+  }
+}
+
+.cctv-section-compact .cctv-grid {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+@media (min-width: 1400px) {
+  .cctv-section-compact .cctv-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.camera-network-card {
+  padding: var(--space-12) var(--space-16);
+  border-radius: var(--radius-button);
+  border: 1px solid var(--border);
+  background: #ffffff;
+  cursor: pointer;
+  transition: border-color var(--motion-hover);
+}
+
+.camera-network-card:hover {
+  border-color: rgba(47, 107, 255, 0.2);
+}
+
+.camera-network-card .cam-id {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.camera-network-card .cam-location {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.camera-network-card .cam-meta {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+  font-weight: 600;
+}
+
+.camera-network-card .cam-status-pill {
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+/* Main Dashboard Grid CCTV Layout (legacy) */
 .dashboard-layout {
   display: grid;
   grid-template-columns: 1fr;
@@ -2922,21 +3208,76 @@ body.dark-mode .scanner-hud-box {
 /* Single CCTV View Mode Grid layout */
 .cctv-grid.single-channel-active {
   grid-template-columns: 1fr !important;
-  max-width: 900px;
-  margin: 0 auto;
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
 }
 
 .cctv-grid.single-channel-active .cctv-card {
-  max-width: 100%;
+  max-width: 100% !important;
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
 }
 
 .cctv-grid.single-channel-active .cctv-media-container {
-  height: 480px;
+  padding-top: 0 !important;
+  height: auto !important;
+  aspect-ratio: 16/9 !important;
+  max-height: 52vh !important; /* Cap vertical height to 52% of viewport to prevent page scrolling */
+  width: 100% !important;
+  background: #000000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-@media (max-width: 768px) {
-  .cctv-grid.single-channel-active .cctv-media-container {
-    height: 280px;
+.cctv-grid.single-channel-active .cctv-feed-img,
+.cctv-grid.single-channel-active video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important; /* Keep aspect ratio and prevent cropping */
+}
+
+/* Compact stats grid for Single view to save vertical space & prevent scrolling */
+.stats-grid.single-view-compact {
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: var(--space-12) !important;
+}
+
+.stats-grid.single-view-compact .stat-card {
+  padding: var(--space-12) var(--space-16) !important;
+  border-radius: var(--radius-button) !important;
+}
+
+.stats-grid.single-view-compact .stat-icon-wrapper {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 8px !important;
+}
+
+.stats-grid.single-view-compact .stat-icon-wrapper i {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.stats-grid.single-view-compact .stat-value {
+  font-size: 1.15rem !important;
+  margin-top: 2px !important;
+}
+
+.stats-grid.single-view-compact .stat-label {
+  font-size: 0.65rem !important;
+}
+
+.stats-grid.single-view-compact .stat-subtext {
+  display: none !important; /* Hide subtext to save height */
+}
+
+@media (max-width: 1024px) {
+  .stats-grid.single-view-compact {
+    grid-template-columns: repeat(2, 1fr) !important;
   }
 }
 
@@ -3419,4 +3760,102 @@ body.dark-mode .vms-fs-event-row:hover {
 .vms-fs-event-btn-play:hover {
   background: var(--primary);
   color: white;
+}
+
+/* ==========================================================================
+   MILESTONE 1 - DESIGN SYSTEM TOKENS & VISUAL EFFECTS
+   ========================================================================== */
+
+/* Page Transitions */
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Card Hover Lifts */
+.hover-lift {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px) scale(1.01) !important;
+  box-shadow: 0 16px 36px rgba(47, 107, 255, 0.08), 0 2px 8px rgba(47, 107, 255, 0.02) !important;
+  border-color: rgba(47, 107, 255, 0.15) !important;
+}
+
+/* Skeleton Loading Shimmer */
+.shimmer-card {
+  position: relative;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: var(--space-24);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-height: 200px;
+}
+
+.shimmer-line {
+  height: 16px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmerAnim 1.6s infinite linear;
+  border-radius: 4px;
+}
+
+.shimmer-line.title {
+  width: 60%;
+  height: 24px;
+}
+
+.shimmer-line.subtitle {
+  width: 40%;
+}
+
+.shimmer-line.paragraph {
+  width: 100%;
+  height: 80px;
+  border-radius: 12px;
+}
+
+@keyframes shimmerAnim {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Pulse Animation for Emergency States */
+@keyframes pulse-cloud {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.15);
+  }
+}
+
+/* Flat Progress Bar Transitions */
+.progress-bar-flat div {
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease;
+}
+
+/* Card Hover Overlay Visibility */
+.cctv-card:hover .cctv-hover-overlay {
+  opacity: 1 !important;
+}
+.hover-action-btn:hover {
+  transform: scale(1.15) !important;
 }

@@ -4,7 +4,10 @@ export interface IUser extends Document {
   id: number; // Keep for compatibility with legacy database/UI
   username: string;
   passwordHash: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'operator' | 'supervisor' | 'officer';
+  name: string;
+  email: string;
+  agency: string;
 }
 
 const UserSchema = new Schema<IUser>({
@@ -19,7 +22,14 @@ const UserSchema = new Schema<IUser>({
     maxlength: [30, 'Username maksimal 30 karakter']
   },
   passwordHash: { type: String, required: true, select: false }, // Exclude by default
-  role: { type: String, enum: ['admin', 'user'], required: true }
+  role: { 
+    type: String, 
+    enum: ['admin', 'user', 'operator', 'supervisor', 'officer'], 
+    required: true 
+  },
+  name: { type: String, trim: true, default: '' },
+  email: { type: String, trim: true, default: '' },
+  agency: { type: String, trim: true, default: '' }
 }, {
   timestamps: true
 });

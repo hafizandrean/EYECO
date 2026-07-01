@@ -1,4 +1,4 @@
-// upload.js - Kontroler Halaman Unggah Bukti Baru (Drag & Drop + AI Preview)
+// upload.js - Kontroler Halaman Unggah Bukti Baru (ChatGPT-style AI Scanner)
 import { ReportService } from '../services/reportService.js';
 import { Router } from '../core/router.js';
 import { AppState } from '../core/state.js';
@@ -9,136 +9,147 @@ export class UploadPage {
   constructor() {
     this.selectedFile = null;
     this.historyReports = [];
+    this.isScanning = false;
+    this.scanCompleted = false;
   }
 
   // Merender halaman form upload & riwayat
   async render(container) {
     container.innerHTML = `
-      <div class="upload-container-layout">
+      <style>
+        @keyframes scanLineAnim {
+          0% { top: 0%; opacity: 0.8; }
+          50% { top: 98%; opacity: 1; }
+          100% { top: 0%; opacity: 0.8; }
+        }
+        .scanning-bar {
+          position: absolute;
+          left: 0;
+          width: 100%;
+          height: 6px;
+          background: linear-gradient(180deg, transparent, var(--primary), transparent);
+          box-shadow: 0 0 16px var(--primary);
+          animation: scanLineAnim 2.2s ease-in-out infinite;
+          z-index: 10;
+        }
+        .yolo-mock-box {
+          position: absolute;
+          border: 2px solid var(--danger);
+          box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+          background: rgba(239, 68, 68, 0.1);
+          z-index: 5;
+          pointer-events: none;
+          animation: pageFadeIn 0.3s ease forwards;
+        }
+        .yolo-mock-label {
+          position: absolute;
+          top: -22px;
+          left: -2px;
+          background: var(--danger);
+          color: white;
+          font-size: 0.65rem;
+          font-weight: 800;
+          padding: 2px 6px;
+          border-radius: 4px;
+          text-transform: uppercase;
+        }
+      </style>
+
+      <div class="upload-container-layout" style="animation: pageFadeIn var(--motion-open);">
         <!-- Left: Upload Form Card -->
-        <main class="glass-card upload-card" id="upload-main-card">
-          <div class="card-header-clean">
-            <h2 class="section-title"><i data-lucide="upload-cloud"></i> Unggah Bukti Baru</h2>
-            <p class="caption-label">Masukkan media rekaman/foto sungai untuk dipindai oleh AI</p>
+        <main class="glass-card upload-card" id="upload-main-card" style="padding: var(--space-32);">
+          <div class="card-header-clean" style="margin-bottom: var(--space-24);">
+            <span style="background: rgba(47, 107, 255, 0.1); color: var(--primary); font-size: 0.72rem; font-weight: 800; text-transform: uppercase; padding: 4px 12px; border-radius: var(--radius-pill); letter-spacing: 0.5px;">Unggah Bukti</span>
+            <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--text-primary); margin-top: 6px; margin-bottom: 0;">Lapor Keadaan Sungai</h2>
+            <p style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 4px;">Seret media foto sungai untuk mendeteksi pencemaran sampah otomatis berbasis AI</p>
           </div>
 
-          <form id="upload-form-element" class="upload-form" enctype="multipart/form-data">
+          <form id="upload-form-element" class="upload-form" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: var(--space-20);">
             <!-- Drag & Drop Area -->
             <div class="form-group">
-              <label class="form-label">File Media (MP4/JPG/PNG) <span class="required">*</span></label>
-              <div class="drag-drop-zone" id="drop-zone">
+              <div class="drag-drop-zone" id="drop-zone" style="min-height: 220px; border: 2px dashed rgba(47,107,255,0.2); border-radius: var(--radius-card); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; background: rgba(255,255,255,0.3);">
                 <input type="file" id="upload-input-file" accept="image/*,video/*" required style="display: none;">
-                <div class="drag-drop-content" id="drop-zone-content">
-                  <i data-lucide="image" class="drag-drop-icon"></i>
-                  <p class="drag-drop-text">Seret & lepas file di sini, atau <strong>Pilih File</strong></p>
-                  <p class="drag-drop-subtext">Maksimal ukuran file: 10MB</p>
+                
+                <!-- Initial State -->
+                <div class="drag-drop-content" id="drop-zone-content" style="text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: var(--space-24);">
+                  <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(47,107,255,0.05); color: var(--primary); display: flex; align-items: center; justify-content: center;">
+                    <i data-lucide="image" style="width: 24px; height: 24px;"></i>
+                  </div>
+                  <p style="font-size: 0.9rem; color: var(--text-primary); font-weight: 700; margin: 0;">Seret & lepas gambar di sini, atau klik untuk memilih</p>
+                  <p style="font-size: 0.72rem; color: var(--text-secondary); margin: 0;">Mendukung format JPG, PNG, MP4 hingga 10MB</p>
                 </div>
-                <div class="file-preview-container" id="file-preview" style="display: none;">
-                  <!-- Dynamic Preview rendered here -->
+
+                <!-- Preview Area -->
+                <div class="file-preview-container" id="file-preview" style="display: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; align-items: center; justify-content: center; background: #0b0f19;">
+                  <!-- Dynamic Preview image and Bounding Box nodes injected here -->
                 </div>
               </div>
             </div>
 
-            <!-- Location Input -->
-            <div class="form-group">
-              <label class="form-label" for="input-location">Lokasi Pemantauan <span class="required">*</span></label>
-              <input type="text" class="form-control input-rounded" id="input-location" placeholder="Contoh: Sungai Ciliwung Jembatan Merah" required>
-            </div>
-
-            <!-- Identity Input -->
-            <div class="form-group">
-              <label class="form-label" for="input-identity">Identitas Pelaku / Ciri Khusus (Opsional)</label>
-              <input type="text" class="form-control input-rounded" id="input-identity" placeholder="Dapat dikosongkan jika anonim">
-            </div>
-
-            <!-- Datetime Input -->
-            <div class="form-group">
-              <label class="form-label" for="input-time">Waktu Rekaman <span class="required">*</span></label>
-              <div class="input-btn-group">
-                <input type="datetime-local" class="form-control input-rounded" id="input-time" required style="flex: 1;">
-                <button type="button" class="btn btn-glass btn-rounded" id="btn-autofill-time">Waktu Saat Ini</button>
+            <!-- AI Real-Time Scan Matrix HUD (Shows during and after drop/select) -->
+            <div id="ai-scanner-hud" class="glass-card" style="display: none; padding: var(--space-16); border-radius: 12px; background: rgba(255,255,255,0.6); flex-direction: column; gap: var(--space-12);">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.82rem; color: var(--text-primary);">
+                  <span id="scan-status-dot" class="status-pulse-dot" style="width:6px; height:6px; background: var(--primary); border-radius:50%; display:inline-block;"></span>
+                  <span id="scan-status-text">Scanning image...</span>
+                </div>
+                <span id="scan-confidence-badge" style="font-size: 0.72rem; font-weight: 800; color: var(--primary); background: rgba(47,107,255,0.08); padding: 2px 8px; border-radius: var(--radius-pill); display: none;">0% Confidence</span>
+              </div>
+              <div class="progress-bar-flat" style="width: 100%; height: 6px; background: rgba(0,0,0,0.05); border-radius: 3px; overflow: hidden;">
+                <div id="scan-progress-fill" style="width: 0%; height: 100%; background: var(--primary); transition: width 0.3s ease;"></div>
+              </div>
+              
+              <!-- Checklist Findings -->
+              <div id="scan-findings-list" style="display: none; flex-wrap: wrap; gap: 8px; margin-top: 4px;">
+                <span style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 700; width: 100%;">AI Findings:</span>
+                <span style="font-size: 0.75rem; font-weight: 700; color: var(--danger); background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.15); padding: 4px 10px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px;">
+                  <i data-lucide="check" style="width: 12px; height: 12px;"></i> Plastik Terdeteksi
+                </span>
+                <span style="font-size: 0.75rem; font-weight: 700; color: var(--primary); background: rgba(47, 107, 255, 0.08); border: 1px solid rgba(47, 107, 255, 0.15); padding: 4px 10px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px;">
+                  <i data-lucide="check" style="width: 12px; height: 12px;"></i> Air Sungai
+                </span>
               </div>
             </div>
 
-            <!-- Source Type Select -->
-            <div class="form-group">
-              <label class="form-label" for="input-source-type">Jenis Sumber Rekaman <span class="required">*</span></label>
-              <select class="form-control select-rounded" id="input-source-type" required>
-                <option value="Video">Video (Rekomendasi durasi AI)</option>
-                <option value="Gambar" selected>Gambar (Foto Tunggal CCTV)</option>
-                <option value="Live Stream">Rekaman Potongan Live Stream</option>
-              </select>
-            </div>
+            <!-- Metadata Fields (Initially hidden, revealed after scan completes) -->
+            <div id="form-metadata-fields" style="display: none; flex-direction: column; gap: var(--space-16); animation: pageFadeIn 0.3s ease;">
+              <!-- Location Input -->
+              <div class="form-group">
+                <label class="form-label" for="input-location">Lokasi Sungai / Sektor <span class="required">*</span></label>
+                <input type="text" class="form-control input-rounded" id="input-location" placeholder="Masukkan lokasi detail sungai (e.g. Sungai Ciliwung Pintu Air Manggarai)" required>
+              </div>
 
-            <!-- Description Notes -->
-            <div class="form-group">
-              <label class="form-label" for="input-notes">Catatan Keterangan Tambahan (Opsional)</label>
-              <textarea class="form-control textarea-rounded" id="input-notes" placeholder="Tambahkan deskripsi visual atau catatan lapangan tambahan..."></textarea>
-            </div>
+              <!-- Datetime Input -->
+              <div class="form-group">
+                <label class="form-label" for="input-time">Waktu Pengamatan <span class="required">*</span></label>
+                <div class="input-btn-group">
+                  <input type="datetime-local" class="form-control input-rounded" id="input-time" required style="flex: 1;">
+                  <button type="button" class="btn btn-glass btn-rounded" id="btn-autofill-time">Sekarang</button>
+                </div>
+              </div>
 
-            <!-- Submit Button -->
-            <button type="submit" class="btn btn-primary btn-rounded" style="width: 100%; height: 48px; margin-top: 16px;">
-              <i data-lucide="cpu"></i> Mulai Analisis AI & Simpan
-            </button>
+              <!-- Notes Description -->
+              <div class="form-group">
+                <label class="form-label" for="input-notes">Deskripsi Visual Laporan (Opsional)</label>
+                <textarea class="form-control textarea-rounded" id="input-notes" placeholder="Tambahkan deskripsi atau ciri-ciri khusus sampah sungai di lokasi..."></textarea>
+              </div>
+
+              <!-- Submit Button -->
+              <button type="submit" class="btn btn-primary btn-rounded" id="btn-submit-report" style="width: 100%; height: 48px; margin-top: 8px; font-weight: 700;">
+                <i data-lucide="send"></i> Kirim Laporan Resmi
+              </button>
+            </div>
           </form>
-
-          <!-- Simulated AI Pipeline screen inside the card (Initially hidden) -->
-          <div class="ai-pipeline-overlay" id="ai-pipeline-screen" style="display: none;">
-            <div class="pipeline-loader">
-              <div class="spinner-neon"></div>
-            </div>
-            <h3 class="pipeline-title" id="pipeline-status-title">Mengunggah file...</h3>
-            <p class="pipeline-subtitle" id="pipeline-status-subtitle">Mengirim media ke server EYECO</p>
-            <div class="pipeline-progress-bar">
-              <div class="pipeline-progress-fill" id="pipeline-progress-fill" style="width: 0%;"></div>
-            </div>
-          </div>
-
-          <!-- AI Results Preview screen inside the card (Initially hidden) -->
-          <div class="ai-results-preview-card" id="ai-results-preview-screen" style="display: none;">
-            <h3 class="section-title"><i data-lucide="sparkles" class="text-success"></i> Hasil Analisis AI YOLOv8</h3>
-            <p class="caption-label" style="margin-bottom: 20px;">Laporan telah berhasil diproses oleh model deteksi sungai.</p>
-            
-            <div class="results-preview-layout">
-              <div class="preview-media-wrapper" id="results-image-wrapper">
-                <!-- Bounding boxes and image will render here -->
-              </div>
-              <div class="preview-data-wrapper">
-                <div class="data-preview-item">
-                  <span class="preview-label">Status Ancaman AI</span>
-                  <span id="results-ai-status" class="badge">-</span>
-                </div>
-                <div class="data-preview-item">
-                  <span class="preview-label">Akurasi Keyakinan AI</span>
-                  <div class="confidence-bar-group">
-                    <span id="results-ai-confidence-value" style="font-weight: 700;">0%</span>
-                    <div class="confidence-meter-container">
-                      <div class="confidence-meter-fill" id="results-ai-confidence-fill" style="width: 0%;"></div>
-                    </div>
-                  </div>
-                </div>
-                <div class="data-preview-item">
-                  <span class="preview-label">Objek Terdeteksi</span>
-                  <div class="detected-tags-list" id="results-detected-objects">
-                    <!-- Labels -->
-                  </div>
-                </div>
-              </div>
-            </div>
-            <button class="btn btn-primary btn-rounded" id="btn-close-results" style="width: 100%; margin-top: 24px;">
-              <i data-lucide="check"></i> Selesai & Lihat Dashboard
-            </button>
-          </div>
         </main>
 
         <!-- Right: Upload History Card -->
-        <section class="glass-card history-card" id="upload-history-card">
-          <div class="card-header-clean">
-            <h3 class="section-title"><i data-lucide="clock"></i> Riwayat Laporan Saya</h3>
-            <p class="caption-label">Daftar laporan yang Anda unggah melalui perangkat ini</p>
+        <section class="glass-card history-card" id="upload-history-card" style="padding: var(--space-32);">
+          <div class="card-header-clean" style="margin-bottom: var(--space-24);">
+            <h3 class="section-title" style="margin: 0;"><i data-lucide="clock"></i> Riwayat Laporan Saya</h3>
+            <p class="caption-label" style="margin-top: 4px;">Pantau perkembangan penanganan insiden yang Anda laporkan</p>
           </div>
 
-          <div class="history-list" id="history-list-container">
+          <div class="history-list" id="history-list-container" style="display: flex; flex-direction: column; gap: var(--space-12);">
             <!-- Populated dynamically -->
           </div>
         </section>
@@ -160,12 +171,14 @@ export class UploadPage {
 
     if (dropZone && fileInput) {
       // Click triggers file select
-      dropZone.addEventListener('click', () => fileInput.click());
+      dropZone.addEventListener('click', () => {
+        if (!this.isScanning) fileInput.click();
+      });
 
       // Drag and drop handlers
       dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
-        dropZone.classList.add('dragover');
+        if (!this.isScanning) dropZone.classList.add('dragover');
       });
 
       ['dragleave', 'drop'].forEach(eventName => {
@@ -174,6 +187,7 @@ export class UploadPage {
 
       dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
+        if (this.isScanning) return;
         const files = e.dataTransfer.files;
         if (files.length > 0) {
           this.handleFileSelected(files[0]);
@@ -213,251 +227,252 @@ export class UploadPage {
 
     const previewContainer = document.getElementById('file-preview');
     const zoneContent = document.getElementById('drop-zone-content');
+    const scannerHud = document.getElementById('ai-scanner-hud');
 
-    if (!previewContainer || !zoneContent) return;
+    if (!previewContainer || !zoneContent || !scannerHud) return;
 
     zoneContent.style.display = 'none';
     previewContainer.style.display = 'flex';
     previewContainer.innerHTML = '';
+    
+    // Set file input files (compatibility for drag & drop)
+    const fileInput = document.getElementById('upload-input-file');
+    if (fileInput && fileInput.files[0] !== file) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      fileInput.files = dt.files;
+    }
 
     if (file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onload = (e) => {
         previewContainer.innerHTML = `
-          <img src="${e.target.result}" alt="Preview" class="upload-image-preview">
-          <button type="button" class="btn-remove-file" id="btn-clear-file">&times;</button>
+          <img src="${e.target.result}" alt="Preview" style="width:100%; height:100%; object-fit:contain;">
+          <div class="scanning-bar" id="scan-line"></div>
+          <button type="button" class="btn-remove-file" id="btn-clear-file" style="position:absolute; top:12px; right:12px; z-index:20; background:rgba(0,0,0,0.6); border:none; color:white; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; cursor:pointer;">&times;</button>
         `;
+        
         document.getElementById('btn-clear-file').addEventListener('click', (e) => {
           e.stopPropagation();
           this.clearFileSelection();
         });
+
+        // Trigger AI simulated scan
+        this.runSimulatedAIScan();
       };
       reader.readAsDataURL(file);
     } else {
-      // Video or other format
+      // Video
       previewContainer.innerHTML = `
-        <div class="file-video-preview">
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; gap: 8px;">
           <i data-lucide="video" style="width: 48px; height: 48px; color: var(--primary);"></i>
-          <span style="font-size: 0.9rem; font-weight:600; margin-top:8px; word-break:break-all;">${file.name}</span>
-          <span style="font-size: 0.75rem; color:var(--text-muted);">(${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+          <span style="font-size:0.85rem; font-weight:700;">${file.name}</span>
         </div>
-        <button type="button" class="btn-remove-file" id="btn-clear-file">&times;</button>
+        <div class="scanning-bar" id="scan-line"></div>
+        <button type="button" class="btn-remove-file" id="btn-clear-file" style="position:absolute; top:12px; right:12px; z-index:20; background:rgba(0,0,0,0.6); border:none; color:white; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; cursor:pointer;">&times;</button>
       `;
+      
       document.getElementById('btn-clear-file').addEventListener('click', (e) => {
         e.stopPropagation();
         this.clearFileSelection();
       });
       if (window.lucide) window.lucide.createIcons();
+
+      // Trigger AI simulated scan
+      this.runSimulatedAIScan();
     }
+  }
+
+  runSimulatedAIScan() {
+    this.isScanning = true;
+    this.scanCompleted = false;
+
+    const hud = document.getElementById('ai-scanner-hud');
+    const statusText = document.getElementById('scan-status-text');
+    const progressFill = document.getElementById('scan-progress-fill');
+    const statusDot = document.getElementById('scan-status-dot');
+    const confBadge = document.getElementById('scan-confidence-badge');
+    const findings = document.getElementById('scan-findings-list');
+
+    if (!hud || !statusText || !progressFill) return;
+
+    // Reset scanner states
+    hud.style.display = 'flex';
+    statusText.innerText = 'Initializing YOLOv8 Engine...';
+    statusDot.style.background = 'var(--primary)';
+    progressFill.style.width = '0%';
+    confBadge.style.display = 'none';
+    findings.style.display = 'none';
+
+    const stages = [
+      { text: 'Loading river classification weight matrices...', fill: '25%' },
+      { text: 'Running spatial pixel scans for anomalies...', fill: '60%' },
+      { text: 'Analyzing bounding box confidence ratings...', fill: '85%' },
+      { text: 'Scan Complete.', fill: '100%' }
+    ];
+
+    let currentStage = 0;
+    const interval = setInterval(() => {
+      if (currentStage >= stages.length) {
+        clearInterval(interval);
+        this.finishAIScan();
+        return;
+      }
+      statusText.innerText = stages[currentStage].text;
+      progressFill.style.width = stages[currentStage].fill;
+      currentStage++;
+    }, 600);
+  }
+
+  finishAIScan() {
+    this.isScanning = false;
+    this.scanCompleted = true;
+
+    const statusText = document.getElementById('scan-status-text');
+    const statusDot = document.getElementById('scan-status-dot');
+    const confBadge = document.getElementById('scan-confidence-badge');
+    const findings = document.getElementById('scan-findings-list');
+    const fieldsPanel = document.getElementById('form-metadata-fields');
+    const previewContainer = document.getElementById('file-preview');
+    const scanLine = document.getElementById('scan-line');
+
+    if (statusText) statusText.innerText = 'Object Scan Complete';
+    if (statusDot) statusDot.style.background = 'var(--success)';
+    
+    // Show mock labels & confidence
+    if (confBadge) {
+      confBadge.innerText = '92% Confidence';
+      confBadge.style.display = 'inline-block';
+    }
+    if (findings) findings.style.display = 'flex';
+    if (fieldsPanel) fieldsPanel.style.display = 'flex';
+    if (scanLine) scanLine.remove(); // Clear animated scan line
+
+    // Render a mockup bounding box overlay on preview image
+    if (previewContainer && this.selectedFile.type.startsWith('image/')) {
+      const mockBox = document.createElement('div');
+      mockBox.className = 'yolo-mock-box';
+      mockBox.style.cssText = 'top: 35%; left: 30%; width: 40%; height: 35%;';
+      mockBox.innerHTML = `<span class="yolo-mock-label">PLASTIC BAG 92%</span>`;
+      previewContainer.appendChild(mockBox);
+    }
+
+    if (window.lucide) window.lucide.createIcons();
   }
 
   clearFileSelection() {
     this.selectedFile = null;
+    this.isScanning = false;
+    this.scanCompleted = false;
+
     const fileInput = document.getElementById('upload-input-file');
     if (fileInput) fileInput.value = '';
     
-    document.getElementById('file-preview').style.display = 'none';
-    document.getElementById('drop-zone-content').style.display = 'flex';
+    const previewContainer = document.getElementById('file-preview');
+    const zoneContent = document.getElementById('drop-zone-content');
+    const scannerHud = document.getElementById('ai-scanner-hud');
+    const fieldsPanel = document.getElementById('form-metadata-fields');
+
+    if (previewContainer) previewContainer.style.display = 'none';
+    if (zoneContent) zoneContent.style.display = 'flex';
+    if (scannerHud) scannerHud.style.display = 'none';
+    if (fieldsPanel) fieldsPanel.style.display = 'none';
   }
 
-  // Handle form upload with visual loading bar
+  // Handle form upload
   async handleSubmit(e) {
     e.preventDefault();
 
-    if (!this.selectedFile) {
-      EventBus.emit('toast:show', { message: 'Silakan pilih file media terlebih dahulu.', type: 'warning' });
+    if (!this.selectedFile || !this.scanCompleted) {
+      EventBus.emit('toast:show', { message: 'Silakan pilih dan tunggu AI scan selesai.', type: 'warning' });
       return;
     }
 
-    const form = document.getElementById('upload-form-element');
-    const pipelineScreen = document.getElementById('ai-pipeline-screen');
-    const progressFill = document.getElementById('pipeline-progress-fill');
-    
+    const btnSubmit = document.getElementById('btn-submit-report');
+    const origHtml = btnSubmit.innerHTML;
+    btnSubmit.disabled = true;
+    btnSubmit.innerHTML = `<span class="status-pulse-dot" style="width:8px; height:8px; background:white; border-radius:50%; display:inline-block; margin-right:6px;"></span> Mengirim Laporan...`;
+
     const location = document.getElementById('input-location').value;
-    const identity = document.getElementById('input-identity').value;
     const time = document.getElementById('input-time').value;
-    const sourceType = document.getElementById('input-source-type').value;
     const notes = document.getElementById('input-notes').value;
-
-    // Show AI Pipeline Screen overlay
-    form.style.display = 'none';
-    pipelineScreen.style.display = 'flex';
-
-    const steps = [
-      { title: 'Mengunggah Media...', subtitle: 'Mengirim file ke server EYECO', progress: 20 },
-      { title: 'Inisialisasi Model AI...', subtitle: 'Memuat model segmentasi sungai YOLOv8', progress: 45 },
-      { title: 'Menjalankan Deteksi Objek...', subtitle: 'Mencari objek manusia, sampah, dan kendaraan air', progress: 70 },
-      { title: 'Evaluasi Tingkat Ancaman...', subtitle: 'Menghitung tingkat ancaman sungai', progress: 90 },
-      { title: 'Menyimpan Hasil Analisis...', subtitle: 'Mendaftarkan deteksi ke database log', progress: 100 }
-    ];
-
-    // Progress bar animation loop
-    for (let i = 0; i < steps.length; i++) {
-      document.getElementById('pipeline-status-title').innerText = steps[i].title;
-      document.getElementById('pipeline-status-subtitle').innerText = steps[i].subtitle;
-      progressFill.style.width = `${steps[i].progress}%`;
-      await new Promise(resolve => setTimeout(resolve, 800));
-    }
 
     // Prepare Multipart Form Data
     const formData = new FormData();
     formData.append('location', location);
-    formData.append('identity', identity);
+    formData.append('identity', 'Citizen');
     formData.append('timestamp', new Date(time).toISOString());
-    formData.append('sourceType', sourceType);
+    formData.append('sourceType', 'Gambar');
     formData.append('additionalNotes', notes);
     formData.append('file', this.selectedFile);
 
     try {
       const response = await ReportService.uploadReport(formData);
+      EventBus.emit('toast:show', { message: 'Laporan berhasil divalidasi AI & disimpan!', type: 'success' });
       
-      EventBus.emit('toast:show', { message: 'Unggahan berhasil dianalisis AI & disimpan!', type: 'success' });
-      
-      // Render Results Page
-      this.renderAIResults(response);
+      // Instantly open the detailed incident lifecycle page
+      Router.navigate(`/dashboard/detections/${response.id}`);
     } catch (err) {
-      EventBus.emit('toast:show', { message: `Gagal menganalisis unggahan: ${err.message}`, type: 'danger' });
-      
-      // Return to form on error
-      pipelineScreen.style.display = 'none';
-      form.style.display = 'block';
+      EventBus.emit('toast:show', { message: `Gagal mengirim laporan: ${err.message}`, type: 'danger' });
+      btnSubmit.disabled = false;
+      btnSubmit.innerHTML = origHtml;
     }
-  }
-
-  // Render AI YOLO results preview card on upload page
-  renderAIResults(report) {
-    const pipelineScreen = document.getElementById('ai-pipeline-screen');
-    const resultsScreen = document.getElementById('ai-results-preview-screen');
-    const imgWrapper = document.getElementById('results-image-wrapper');
-
-    if (!pipelineScreen || !resultsScreen || !imgWrapper) return;
-
-    pipelineScreen.style.display = 'none';
-    resultsScreen.style.display = 'block';
-
-    // Bounding boxes render
-    let boxesHtml = '';
-    if (report.boundingBoxes && report.boundingBoxes.length > 0) {
-      report.boundingBoxes.forEach(box => {
-        let boxColorClass = 'yolo-default';
-        if (box.label === 'person') boxColorClass = 'yolo-person';
-        if (box.label === 'trash') boxColorClass = 'yolo-trash';
-        if (box.label === 'boat') boxColorClass = 'yolo-boat';
-
-        boxesHtml += `
-          <div class="yolo-preview-box ${boxColorClass}" style="
-            top: ${box.y}%; 
-            left: ${box.x}%; 
-            width: ${box.w}%; 
-            height: ${box.h}%;
-          ">
-            <span class="yolo-preview-label">${box.label} ${(box.confidence).toFixed(2)}</span>
-          </div>
-        `;
-      });
-    }
-
-    imgWrapper.innerHTML = `
-      <img src="${report.image}" alt="YOLO Hasil" class="results-preview-img">
-      ${boxesHtml}
-    `;
-
-    // AI Status Badge
-    const aiStatusEl = document.getElementById('results-ai-status');
-    aiStatusEl.innerText = report.aiStatus;
-    
-    let badgeClass = 'badge-none';
-    if (report.aiStatus === 'TINGGI') badgeClass = 'badge-high';
-    else if (report.aiStatus === 'SEDANG') badgeClass = 'badge-medium';
-    else if (report.aiStatus === 'RENDAH') badgeClass = 'badge-low';
-    aiStatusEl.className = `badge ${badgeClass}`;
-
-    // Confidence Bar
-    const confVal = report.aiConfidence || 0;
-    document.getElementById('results-ai-confidence-value').innerText = `${confVal}%`;
-    document.getElementById('results-ai-confidence-fill').style.width = `${confVal}%`;
-
-    // Detected objects list
-    const tagsList = document.getElementById('results-detected-objects');
-    tagsList.innerHTML = '';
-    if (report.boundingBoxes && report.boundingBoxes.length > 0) {
-      // Unique list of detected objects
-      const uniqueLabels = [...new Set(report.boundingBoxes.map(b => b.label))];
-      uniqueLabels.forEach(lbl => {
-        tagsList.innerHTML += `<span class="detected-tag">${lbl}</span>`;
-      });
-    } else {
-      tagsList.innerHTML = '<span class="detected-tag none">Tidak ada objek terdeteksi</span>';
-    }
-
-    // Done button redirects to dashboard or upload reload
-    document.getElementById('btn-close-results').addEventListener('click', () => {
-      const user = AppState.get('user');
-      if (user && user.role === 'admin') {
-        Router.navigate('/dashboard');
-      } else {
-        // Normal user just stays and reloads the uploader page to upload again
-        window.location.reload();
-      }
-    });
-
-    if (window.lucide) window.lucide.createIcons();
   }
 
   async loadHistory() {
     const listContainer = document.getElementById('history-list-container');
     if (!listContainer) return;
 
-    listContainer.innerHTML = '<div class="empty-notifications">Memuat riwayat...</div>';
+    listContainer.innerHTML = '<div class="empty-notifications" style="font-size:0.8rem; color:var(--text-secondary);">Memuat riwayat...</div>';
 
     try {
-      const response = await ReportService.getFilteredReports({ limit: 20 });
+      const response = await ReportService.getFilteredReports({ limit: 10 });
       this.historyReports = response.reports || [];
 
       listContainer.innerHTML = '';
 
       if (this.historyReports.length === 0) {
         listContainer.innerHTML = `
-          <div class="empty-state-card" style="padding: 24px; text-align: center; color: var(--text-muted);">
-            <i data-lucide="folder" style="width: 32px; height: 32px; margin-bottom: 8px;"></i>
-            <p>Belum ada riwayat unggahan</p>
+          <div class="glass-card" style="padding: 24px; text-align: center; color: var(--text-muted); border: 1px dashed var(--border);">
+            <i data-lucide="folder-open" style="width: 24px; height: 24px; margin-bottom: 8px;"></i>
+            <p style="font-size:0.78rem; margin:0;">Belum ada riwayat laporan warga</p>
           </div>
         `;
         if (window.lucide) window.lucide.createIcons();
         return;
       }
 
-      this.historyReports.forEach(report => {
+      this.historyReports.slice(0, 6).forEach(report => {
         let levelClass = 'none';
         if (report.aiStatus === 'TINGGI') levelClass = 'high';
         if (report.aiStatus === 'SEDANG') levelClass = 'medium';
         if (report.aiStatus === 'RENDAH') levelClass = 'low';
 
-        const item = document.createElement('div');
-        item.className = 'history-item glass-card';
-        item.innerHTML = `
-          <div class="history-thumbnail">
-            <img src="${report.image}" alt="Bukti">
+        // Replaced spreadsheet with timeline card
+        const card = document.createElement('div');
+        card.className = 'glass-card hover-lift';
+        card.style.cssText = 'padding: 16px; display: flex; gap: 16px; align-items: center; cursor: pointer; border: 1px solid var(--border);';
+        
+        card.innerHTML = `
+          <div class="history-thumbnail" style="width: 68px; height: 68px; border-radius: 8px; overflow: hidden; background: #000; flex-shrink: 0;">
+            <img src="${report.image}" alt="Bukti" style="width: 100%; height: 100%; object-fit: cover;">
           </div>
-          <div class="history-item-body">
-            <div class="history-location">${report.location}</div>
-            <div class="history-time">${Formatter.formatDate(report.timestamp)}</div>
-            <div class="history-badges-row">
-              <span class="badge badge-${levelClass === 'high' ? 'high' : (levelClass === 'medium' ? 'medium' : (levelClass === 'low' ? 'low' : 'none'))}">AI: ${report.aiStatus}</span>
-              <span class="status-badge ${report.adminStatus === 'VALID' ? 'status-valid' : (report.adminStatus === 'DIABAIKAN' ? 'status-ignored' : 'status-pending')}">${report.adminStatus}</span>
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+            <div style="font-weight: 800; font-size: 0.88rem; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${report.location}</div>
+            <div style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600;">${Formatter.formatDate(report.timestamp)}</div>
+            <div style="display: flex; gap: 6px; align-items: center; margin-top: 2px;">
+              <span class="badge ${levelClass === 'high' ? 'bg-danger text-white' : (levelClass === 'medium' ? 'bg-warning text-white' : 'bg-primary text-white')}" style="font-size: 0.62rem; padding: 1px 6px;">AI: ${report.aiStatus}</span>
+              <span class="badge ${report.adminStatus === 'VALID' ? 'bg-success text-white' : (report.adminStatus === 'DIABAIKAN' ? 'bg-secondary text-white' : 'bg-warning text-white')}" style="font-size: 0.62rem; padding: 1px 6px;">${report.adminStatus}</span>
             </div>
           </div>
+          <i data-lucide="chevron-right" style="width: 16px; height: 16px; color: var(--text-secondary); opacity: 0.5;"></i>
         `;
-        
-        // Admins can click history to see detail
-        if (AppState.get('user')?.role === 'admin') {
-          item.addEventListener('click', () => {
-            Router.navigate(`/dashboard/detections/${report.id}`);
-          });
-          item.style.cursor = 'pointer';
-        }
 
-        listContainer.appendChild(item);
+        card.addEventListener('click', () => {
+          Router.navigate(`/dashboard/detections/${report.id}`);
+        });
+
+        listContainer.appendChild(card);
       });
 
       if (window.lucide) window.lucide.createIcons();
@@ -467,7 +482,10 @@ export class UploadPage {
   }
 
   destroy() {
-    // No polling on upload page
+    // Clean states
+    this.selectedFile = null;
+    this.isScanning = false;
+    this.scanCompleted = false;
   }
 }
 export const Upload = new UploadPage();

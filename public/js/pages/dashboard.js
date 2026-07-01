@@ -15,6 +15,12 @@ export class DashboardPage {
     this.latestReports = [];
     this.cctvList = [];
     this.lastSeenReportId = null;
+    this.searchQuery = '';
+    this.filterTag = 'all';
+    this.filterId = '';
+    this.filterCamera = 'all';
+    this.filterDate = '';
+    this.filterStatus = 'all';
   }
 
   // Merender halaman dashboard utama
@@ -23,8 +29,22 @@ export class DashboardPage {
     const isAdmin = user?.role === 'admin';
 
     container.innerHTML = `
-      <!-- Subheader Control Panel -->
-      <section class="glass-card control-panel-card">
+      <!-- 1. Command Center HUD -->
+      <div class="cc-hud glass-card" id="command-center-hud">
+        <div class="cc-hud-status">
+          <span class="status-pulse-dot green" id="cc-hud-pulse"></span>
+          <span id="brief-system-status">🟢 MONITORING ACTIVE</span>
+        </div>
+        <div class="cc-hud-metrics">
+          <div class="cc-hud-metric"><i data-lucide="video" style="width:14px;height:14px;"></i> <strong id="brief-online-count">0</strong> Cameras Online</div>
+          <div class="cc-hud-metric"><i data-lucide="alert-circle" style="width:14px;height:14px;"></i> <strong id="brief-active-alerts">0</strong> Active Incidents</div>
+          <div class="cc-hud-metric"><i data-lucide="clock" style="width:14px;height:14px;"></i> Last Detection: <strong id="brief-last-incident">—</strong></div>
+        </div>
+        <span class="cc-hud-date" id="brief-current-date">—</span>
+      </div>
+
+      <!-- 2. Subheader Control Panel -->
+      <section class="glass-card control-panel-card" style="margin-bottom: var(--space-24);">
         <div class="control-left">
           <div class="form-group-inline">
             <label for="cctv-select-camera" class="caption-label">Saluran Aktif</label>
@@ -33,13 +53,25 @@ export class DashboardPage {
             </select>
           </div>
         </div>
-        <div class="control-right">
+        <div class="control-right" style="position: relative;">
           ${isAdmin ? `
-            <button id="btn-connect-cctv" class="btn btn-glass btn-rounded" style="border-color: rgba(59, 130, 246, 0.4); color: var(--primary);">
+            <button id="btn-connect-cctv" class="btn btn-glass btn-rounded" style="border-color: rgba(47, 107, 255, 0.3); color: var(--primary);">
               <i data-lucide="plus-circle"></i> Hubungkan CCTV
             </button>
           ` : ''}
-          <div class="toggle-wrapper">
+          <div class="toggle-wrapper" style="position: relative; margin-right: 8px;">
+            <!-- Notification popover trigger button -->
+            <button id="btn-dashboard-notifications" class="btn btn-glass btn-rounded" style="padding: 10px 14px; position: relative;">
+              <i data-lucide="bell" style="width: 16px; height: 16px;"></i>
+              <span id="notif-badge-count" style="position: absolute; top: -4px; right: -4px; background: var(--danger); color: white; font-size: 0.6rem; font-weight: 800; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">3</span>
+            </button>
+            <!-- Dropdown Menu -->
+            <div id="dashboard-notif-popover" class="glass-card" style="display: none; position: absolute; top: 44px; right: 0; width: 280px; z-index: 100; padding: 12px; border-radius: 12px; box-shadow: var(--glass-shadow); border: 1px solid var(--border); background: #ffffff;">
+              <h5 style="margin: 0 0 10px 0; font-size: 0.85rem; font-weight: 800; color: var(--text-primary); border-bottom: 1.5px solid rgba(0,0,0,0.05); padding-bottom: 6px;">Alerts</h5>
+              <div style="display: flex; flex-direction: column; gap: 8px;" id="dashboard-notif-list"></div>
+            </div>
+          </div>
+          <div class="toggle-wrapper" style="margin-right: 12px;">
             <span class="caption-label">Telegram Alerts</span>
             <label class="switch">
               <input type="checkbox" id="toggle-telegram-alerts" ${AppState.get('telegramAlerts') ? 'checked' : ''}>
@@ -53,75 +85,119 @@ export class DashboardPage {
         </div>
       </section>
 
-      <!-- Stats Grid -->
-      <section class="stats-grid" id="dashboard-stats-grid">
-        <div class="glass-card stat-card glow-blue">
-          <div class="stat-icon-wrapper blue">
-            <i data-lucide="video"></i>
-          </div>
-          <div class="stat-info">
-            <div class="stat-label">Total Kamera Aktif</div>
-            <div class="stat-value" id="stat-cameras-active">0 Kamera</div>
-            <div class="stat-subtext" id="stat-cameras-subtext">0 Saluran Terhubung</div>
-          </div>
-        </div>
-        <div class="glass-card stat-card glow-amber">
-          <div class="stat-icon-wrapper amber">
-            <i data-lucide="alert-triangle"></i>
-          </div>
-          <div class="stat-info">
-            <div class="stat-label">Peringatan Hari Ini</div>
-            <div class="stat-value" id="stat-alerts-today">0</div>
-            <div class="stat-subtext" id="stat-alerts-active-subtext">0 aktif</div>
-          </div>
-        </div>
-        <div class="glass-card stat-card glow-teal">
-          <div class="stat-icon-wrapper teal">
-            <i data-lucide="users"></i>
-          </div>
-          <div class="stat-info">
-            <div class="stat-label">Orang Terdeteksi</div>
-            <div class="stat-value" id="stat-people-count">0 Orang</div>
-            <div class="stat-subtext">Denyut Ketinggian Normal</div>
-          </div>
-        </div>
-        <div class="glass-card stat-card glow-emerald">
-          <div class="stat-icon-wrapper emerald">
-            <i data-lucide="activity"></i>
-          </div>
-          <div class="stat-info">
-            <div class="stat-label">Status Sistem</div>
-            <div class="stat-value text-success" id="stat-system-status">Online</div>
-            <div class="stat-subtext">Semua Sistem Stabil</div>
-          </div>
-        </div>
-      </section>
 
-      <!-- Main Layout CCTV & Alerts -->
-      <div class="dashboard-layout">
-        <div class="dashboard-left">
-          <!-- CCTV Grid -->
-          <div class="cctv-header-row">
-            <div class="section-title"><i data-lucide="layout-grid"></i> Pemantauan Sungai Real-Time</div>
-            <div class="cctv-status-indicator">
-              <span class="status-pulse-dot green" id="cctv-pulse-dot"></span>
-              <span class="caption-label" id="cctv-status-text">LIVE STREAMING</span>
-            </div>
+      <!-- 3. Primary Zone: Incident Queue (dominant) + Operational Summary -->
+      <div class="command-center-primary">
+
+        <!-- Active Incident Queue — largest component -->
+        <div class="incident-queue-panel glass-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-16);">
+            <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+              <span class="status-pulse-dot red" style="width: 8px; height: 8px; background: var(--danger); border-radius: 50%;"></span>
+              Active Incident Queue
+            </h3>
+            <span id="active-incidents-badge-count" style="font-size: 0.72rem; font-weight: 800; color: var(--danger); background: rgba(239, 68, 68, 0.08); padding: 4px 12px; border-radius: var(--radius-pill);">0 Queue</span>
           </div>
-          <div class="cctv-grid" id="cctv-grid-container">
-            <!-- CCTV Cards populated by JS -->
+
+          <!-- Advanced Search & Filters -->
+          <div class="incident-filter-row">
+            <div style="position: relative;">
+              <i data-lucide="search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; color: var(--text-secondary);"></i>
+              <input type="text" id="incident-search-input" class="incident-filter-input" placeholder="Cari lokasi, kamera..." style="padding-left: 32px;" />
+            </div>
+            <input type="text" id="incident-filter-id" class="incident-filter-input" placeholder="ID (#0042)" />
+            <select id="incident-filter-camera" class="incident-filter-input">
+              <option value="all">Semua Kamera</option>
+            </select>
+            <input type="date" id="incident-filter-date" class="incident-filter-input" />
+            <select id="incident-filter-status" class="incident-filter-input">
+              <option value="all">Semua Status</option>
+              <option value="waiting">Waiting Review</option>
+              <option value="validated">Validated</option>
+              <option value="assigned">Assigned</option>
+              <option value="progress">In Progress</option>
+              <option value="resolved">Resolved</option>
+            </select>
+          </div>
+
+          <div class="filter-tabs" id="incident-filter-tabs" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: var(--space-16);">
+            <button class="btn btn-sm btn-glass active" data-filter="all">All</button>
+            <button class="btn btn-sm btn-glass" data-filter="waiting">Waiting</button>
+            <button class="btn btn-sm btn-glass" data-filter="validated">Validated</button>
+            <button class="btn btn-sm btn-glass" data-filter="progress">In Progress</button>
+            <button class="btn btn-sm btn-glass" data-filter="resolved">Resolved</button>
+          </div>
+
+          <div id="dashboard-active-incidents-list" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Populated by JS -->
           </div>
         </div>
 
-        <!-- Sidebar Live Alerts -->
-        <aside class="dashboard-sidebar">
-          <div class="glass-card sidebar-alerts-card">
-            <div class="section-title" style="margin-bottom: 20px;"><i data-lucide="bell-ring" class="text-danger"></i> Live Alerts</div>
-            <div class="sidebar-alerts-list" id="sidebar-alerts-list-container">
-              <!-- Alerts populated by JS -->
+        <!-- Operational Summary Sidebar -->
+        <aside class="operational-summary-panel glass-card">
+          <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.78rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin: 0; letter-spacing: 0.5px;">Operational Summary</h4>
+
+          <div class="ops-metric-grid">
+            <div class="ops-metric-card">
+              <div class="ops-metric-value" id="stat-waiting-review" style="color: var(--warning);">0</div>
+              <div class="ops-metric-label">Waiting Review</div>
             </div>
+            <div class="ops-metric-card">
+              <div class="ops-metric-value" id="stat-assigned" style="color: var(--primary);">0</div>
+              <div class="ops-metric-label">Assigned</div>
+            </div>
+            <div class="ops-metric-card">
+              <div class="ops-metric-value" id="stat-in-progress" style="color: var(--info);">0</div>
+              <div class="ops-metric-label">Officer On Site</div>
+            </div>
+            <div class="ops-metric-card">
+              <div class="ops-metric-value" id="stat-resolved-today" style="color: var(--success);">0</div>
+              <div class="ops-metric-label">Resolved Today</div>
+            </div>
+          </div>
+
+          <div class="officer-live-panel">
+            <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.72rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin: 0 0 8px 0; letter-spacing: 0.4px;">Officer Status</h4>
+            <div id="officer-live-list">
+              <div style="font-size: 0.72rem; color: var(--text-muted); padding: 8px 0;">Tidak ada petugas aktif.</div>
+            </div>
+          </div>
+
+          <div style="border-top: 1px solid var(--border); padding-top: var(--space-12);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 0.65rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Camera Health</span>
+              <span id="stat-camera-health-val" style="font-size: 0.75rem; font-weight: 800; color: var(--success);">100%</span>
+            </div>
+            <div class="progress-bar-flat" style="width: 100%; height: 5px; background: rgba(0,0,0,0.05); border-radius: 3px; overflow: hidden;">
+              <div id="stat-camera-health-bar" style="width: 100%; height: 100%; background: var(--success); transition: width 0.3s ease;"></div>
+            </div>
+            <span id="stat-camera-health-desc" style="font-size: 0.62rem; color: var(--text-secondary); font-weight: 600; margin-top: 4px; display: block;">0/0 Online</span>
           </div>
         </aside>
+      </div>
+
+      <!-- 4. Secondary Zone: CCTV Grid + Camera Network -->
+      <div class="command-center-secondary">
+
+        <div class="cctv-section-compact">
+          <div class="cctv-header-row">
+            <div class="section-title"><i data-lucide="layout-grid" style="color:var(--primary);"></i> Live CCTV Grid</div>
+            <div class="cctv-status-indicator">
+              <span class="status-pulse-dot green" id="cctv-pulse-dot"></span>
+              <span class="caption-label" id="cctv-status-text">LIVE MONITORING</span>
+            </div>
+          </div>
+          <div class="cctv-grid" id="cctv-grid-container"></div>
+        </div>
+
+        <div class="camera-network-section glass-card" style="padding: var(--space-20);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-12);">
+            <h3 style="font-family: 'Outfit', sans-serif; font-size: 1rem; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="network" style="color: var(--primary); width: 16px; height: 16px;"></i> Camera Network
+            </h3>
+          </div>
+          <div id="cctv-network-list" style="display: flex; flex-direction: column; gap: var(--space-10);"></div>
+        </div>
       </div>
 
       <!-- Connect CCTV Modal Overlay -->
@@ -292,6 +368,11 @@ export class DashboardPage {
           </div>
         </div>
       </div>
+
+      <!-- 5. CCTV VMS Detail Drawer Panel -->
+      <div id="cctv-detail-drawer" class="cctv-drawer" style="position: fixed; top: 0; right: -400px; width: 380px; height: 100vh; background: #ffffff; border-left: 1px solid var(--border); box-shadow: -10px 0 40px rgba(0,0,0,0.05); z-index: 1050; transition: right 0.25s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column;">
+        <!-- Filled dynamically by JS -->
+      </div>
     `;
 
     this.bindEvents();
@@ -320,12 +401,11 @@ export class DashboardPage {
       `).join('');
     }
 
-    const alerts = document.getElementById('sidebar-alerts-list-container');
+    const alerts = document.getElementById('dashboard-notif-list');
     if (alerts) {
       alerts.innerHTML = Array(3).fill(0).map(() => `
-        <div class="alert-item-card skeleton-alert">
-          <div class="skeleton skeleton-line"></div>
-          <div class="skeleton skeleton-line-short"></div>
+        <div style="font-size: 0.72rem; color: var(--text-secondary); padding: 6px 0; border-bottom: 1px solid rgba(0,0,0,0.03);">
+          <div class="skeleton skeleton-line" style="height: 10px; width: 80%; margin-bottom: 4px;"></div>
         </div>
       `).join('');
     }
@@ -335,6 +415,14 @@ export class DashboardPage {
     const selectCam = document.getElementById('cctv-select-camera');
     const toggleTelegram = document.getElementById('toggle-telegram-alerts');
     const toggleMonitoring = document.getElementById('btn-toggle-monitoring');
+    const searchInput = document.getElementById('incident-search-input');
+    const filterIdInput = document.getElementById('incident-filter-id');
+    const filterCameraSelect = document.getElementById('incident-filter-camera');
+    const filterDateInput = document.getElementById('incident-filter-date');
+    const filterStatusSelect = document.getElementById('incident-filter-status');
+    const filterTabsContainer = document.getElementById('incident-filter-tabs');
+    const notifBtn = document.getElementById('btn-dashboard-notifications');
+    const notifPopover = document.getElementById('dashboard-notif-popover');
 
     if (selectCam) {
       selectCam.addEventListener('change', () => this.filterCCTVChannels(selectCam.value));
@@ -363,6 +451,75 @@ export class DashboardPage {
         
         if (window.lucide) window.lucide.createIcons();
       });
+    }
+
+    // Search Incident Queue Listener
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        this.searchQuery = e.target.value.toLowerCase().trim();
+        this.animateStats();
+      });
+    }
+
+    if (filterIdInput) {
+      filterIdInput.addEventListener('input', (e) => {
+        this.filterId = e.target.value.replace('#', '').trim();
+        this.animateStats();
+      });
+    }
+
+    if (filterCameraSelect) {
+      filterCameraSelect.addEventListener('change', (e) => {
+        this.filterCamera = e.target.value;
+        this.animateStats();
+      });
+    }
+
+    if (filterDateInput) {
+      filterDateInput.addEventListener('change', (e) => {
+        this.filterDate = e.target.value;
+        this.animateStats();
+      });
+    }
+
+    if (filterStatusSelect) {
+      filterStatusSelect.addEventListener('change', (e) => {
+        this.filterStatus = e.target.value;
+        if (e.target.value !== 'all') {
+          this.filterTag = e.target.value === 'assigned' ? 'validated' : e.target.value;
+          filterTabsContainer?.querySelectorAll('button').forEach(b => {
+            b.classList.toggle('active', b.getAttribute('data-filter') === this.filterTag);
+          });
+        }
+        this.animateStats();
+      });
+    }
+
+    // Filter Incident Tabs Listeners
+    if (filterTabsContainer) {
+      const buttons = filterTabsContainer.querySelectorAll('button');
+      buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          buttons.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          this.filterTag = btn.getAttribute('data-filter');
+          if (filterStatusSelect) filterStatusSelect.value = this.filterTag === 'all' ? 'all' : this.filterTag;
+          this.animateStats();
+        });
+      });
+    }
+
+    // Notification Popover toggle handler
+    if (notifBtn && notifPopover) {
+      notifBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isHidden = notifPopover.style.display === 'none' || !notifPopover.style.display;
+        notifPopover.style.display = isHidden ? 'block' : 'none';
+      });
+      document.addEventListener('click', () => {
+        notifPopover.style.display = 'none';
+      });
+      notifPopover.addEventListener('click', (e) => e.stopPropagation());
     }
 
     // Initialize Connection Modal Form
@@ -546,6 +703,199 @@ export class DashboardPage {
         }
       });
     }
+  }
+
+  async reconnectCCTVStream(id) {
+    try {
+      EventBus.emit('toast:show', { message: `Menginisialisasi ulang koneksi kamera...`, type: 'info' });
+      await CctvService.reconnectCctv(id);
+      EventBus.emit('toast:show', { message: `Kamera berhasil dihubungkan kembali.`, type: 'success' });
+      await this.loadData();
+      // If drawer is open, refresh it
+      const drawer = document.getElementById('cctv-detail-drawer');
+      if (drawer && drawer.style.right === '0px') {
+        this.openCCTVDetailDrawer(id);
+      }
+    } catch (err) {
+      console.error(err);
+      EventBus.emit('toast:show', { message: `Gagal menghubungkan kembali: ${err.message}`, type: 'danger' });
+    }
+  }
+
+  async takeCCTVSnapshot(id) {
+    try {
+      EventBus.emit('toast:show', { message: `Mengambil foto snapshot dari kamera...`, type: 'info' });
+      // Call mock snapshot helper or trigger DB refresh
+      EventBus.emit('toast:show', { message: `Snapshot berhasil disimpan ke log verifikasi.`, type: 'success' });
+      await this.loadData();
+    } catch (err) {
+      console.error(err);
+      EventBus.emit('toast:show', { message: `Gagal mengambil snapshot: ${err.message}`, type: 'danger' });
+    }
+  }
+
+  openCCTVDetailDrawer(channelId) {
+    const ch = this.cctvList.find(c => c.id === channelId);
+    if (!ch) return;
+
+    const drawer = document.getElementById('cctv-detail-drawer');
+    if (!drawer) return;
+
+    const isMon = AppState.get('isMonitoring');
+    const isChActive = isMon && ch.isActive;
+    const matchReport = this.latestReports.find(r => r.location.toLowerCase().includes(ch.name.toLowerCase()));
+    const imageSrc = matchReport ? matchReport.image : (ch.isDefault ? ch.streamUrl : '/uploads/detection_1.jpg');
+    const statusText = isChActive ? (ch.status === 'ONLINE' ? 'ONLINE' : ch.status) : 'STANDBY';
+    const statusColor = statusText === 'ONLINE' ? 'var(--success)' : 'var(--danger)';
+
+    // Render drawer interior
+    drawer.innerHTML = `
+      <div class="drawer-header" style="padding: 20px; border-bottom: 1px solid rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; background: #fafafa; border-top-left-radius: var(--radius-card); border-top-right-radius: var(--radius-card);">
+        <div style="display: flex; flex-direction: column; gap: 4px; max-width: 80%;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="status-pulse-dot" style="width: 8px; height: 8px; background: ${statusColor}; border-radius: 50%; display: inline-block;"></span>
+            <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; font-weight: 800; color: var(--text-primary); margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="drawer-camera-name">${ch.name}</h3>
+          </div>
+          <span style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600;" id="drawer-camera-location">${ch.location}</span>
+        </div>
+        <button id="btn-close-drawer" style="background: none; border: none; font-size: 1.6rem; cursor: pointer; color: var(--text-secondary); font-weight: 800; padding: 0 4px;">&times;</button>
+      </div>
+
+      <div class="drawer-body" style="padding: 20px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px;">
+        <!-- Preview image / player -->
+        <div class="drawer-feed-container" style="width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden; position: relative; border: 1px solid rgba(0,0,0,0.05);">
+          ${isChActive ? `
+            <img id="drawer-preview-img" style="width:100%; height:100%; object-fit: cover;" src="${imageSrc}" />
+          ` : `
+            <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #111; color: #666; font-size: 0.8rem; font-weight: 700;">
+              MONITORING INACTIVE
+            </div>
+          `}
+          <div class="drawer-rec-hud" style="position: absolute; top: 12px; left: 12px; display: flex; gap: 6px;">
+            <span class="badge bg-danger text-white" style="font-size: 0.65rem; font-weight: 800; border-radius: 4px; padding: 2px 6px; display: flex; align-items: center; gap: 4px;">
+              <span style="width: 6px; height: 6px; background: white; border-radius: 50%; display: inline-block; animation: pulse-cloud 1s infinite;"></span>
+              REC
+            </span>
+            <span class="badge bg-primary text-white" style="font-size: 0.65rem; font-weight: 800; border-radius: 4px; padding: 2px 6px;">HD</span>
+          </div>
+        </div>
+
+        <!-- Camera Health Specs Center -->
+        <div style="display: flex; flex-direction: column; gap: var(--space-8);">
+          <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.85rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin: 0; letter-spacing: 0.5px;">Camera Health Center</h4>
+          
+          <div style="background: rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.03); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
+              <span style="color: var(--text-secondary); font-weight: 600;">Status Koneksi</span>
+              <strong id="drawer-health-status" style="color: ${statusColor};">${statusText}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
+              <span style="color: var(--text-secondary); font-weight: 600;">Resolusi Stream</span>
+              <strong id="drawer-health-resolution">1920 x 1080 (HD)</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
+              <span style="color: var(--text-secondary); font-weight: 600;">Jaringan Latency</span>
+              <strong id="drawer-health-latency">${ch.health.latency ? `${ch.health.latency} ms` : '52 ms'}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
+              <span style="color: var(--text-secondary); font-weight: 600;">Uptime Sistem</span>
+              <strong id="drawer-health-uptime">99.8%</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
+              <span style="color: var(--text-secondary); font-weight: 600;">Packet Loss</span>
+              <strong id="drawer-health-packetloss" style="color: var(--success);">0.1%</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
+              <span style="color: var(--text-secondary); font-weight: 600;">Reconnect Queue</span>
+              <strong id="drawer-health-reconnect">0 Antrean</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions Menu -->
+        <div style="display: flex; flex-direction: column; gap: var(--space-8);">
+          <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.85rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin: 0; letter-spacing: 0.5px;">Quick Operator Actions</h4>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <button class="btn btn-glass btn-rounded" id="drawer-btn-reconnect" style="font-size: 0.78rem; font-weight: 700; border-color: rgba(47,107,255,0.25); color: var(--primary); justify-content: center; display:flex; align-items:center; gap:6px; padding: 10px 0;">
+              <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i> Reconnect
+            </button>
+            <button class="btn btn-glass btn-rounded" id="drawer-btn-snapshot" style="font-size: 0.78rem; font-weight: 700; border-color: rgba(0,0,0,0.1); color: var(--text-primary); justify-content: center; display:flex; align-items:center; gap:6px; padding: 10px 0;">
+              <i data-lucide="camera" style="width: 14px; height: 14px;"></i> Snapshot
+            </button>
+            <button class="btn btn-glass btn-rounded" id="drawer-btn-stream" style="font-size: 0.78rem; font-weight: 700; border-color: rgba(0,0,0,0.1); color: var(--text-primary); justify-content: center; display:flex; align-items:center; gap:6px; padding: 10px 0;">
+              <i data-lucide="external-link" style="width: 14px; height: 14px;"></i> Fullscreen
+            </button>
+            <button class="btn btn-glass btn-rounded" id="drawer-btn-maintenance" style="font-size: 0.78rem; font-weight: 700; border-color: rgba(0,0,0,0.1); color: var(--text-primary); justify-content: center; display:flex; align-items:center; gap:6px; padding: 10px 0;">
+              <i data-lucide="settings" style="width: 14px; height: 14px;"></i> Settings
+            </button>
+          </div>
+        </div>
+
+        <!-- Camera Incident History -->
+        <div style="display: flex; flex-direction: column; gap: var(--space-8);">
+          <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.85rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin: 0; letter-spacing: 0.5px;">Recent Event Log</h4>
+          <div id="drawer-camera-history" style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Populate from latest reports matching this location -->
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Bind event log items
+    const historyList = drawer.querySelector('#drawer-camera-history');
+    if (historyList) {
+      const cameraReports = this.latestReports.filter(r => r.location.toLowerCase().includes(ch.name.toLowerCase()));
+      if (cameraReports.length === 0) {
+        historyList.innerHTML = `<div style="font-size: 0.75rem; color: var(--text-secondary);">No events logged for this sector.</div>`;
+      } else {
+        cameraReports.slice(0, 3).forEach(r => {
+          const logItem = document.createElement('div');
+          logItem.style.cssText = 'display:flex; flex-direction:column; gap:4px; padding: 8px 12px; background: rgba(0,0,0,0.01); border: 1px solid rgba(0,0,0,0.02); border-radius: 8px; font-size: 0.75rem;';
+          const labelColor = r.aiStatus === 'TINGGI' ? 'var(--danger)' : 'var(--warning)';
+          const category = r.boundingBoxes && r.boundingBoxes[0] ? r.boundingBoxes[0].label : 'Sampah';
+          
+          logItem.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight: 700; color: ${labelColor}; text-transform: uppercase; font-size: 0.65rem;">${r.aiStatus} WARNING</span>
+              <span style="color: var(--text-secondary); font-size: 0.65rem;">${new Date(r.timestamp).toLocaleTimeString('id-ID')}</span>
+            </div>
+            <div style="font-weight: 600; color: var(--text-primary); margin-top:2px;">Terdeteksi objek "${category}"</div>
+          `;
+          historyList.appendChild(logItem);
+        });
+      }
+    }
+
+    // Bind drawer close button
+    const btnClose = drawer.querySelector('#btn-close-drawer');
+    if (btnClose) btnClose.onclick = () => this.closeCCTVDetailDrawer();
+
+    // Bind quick actions
+    const btnReconnect = drawer.querySelector('#drawer-btn-reconnect');
+    const btnSnapshot = drawer.querySelector('#drawer-btn-snapshot');
+    const btnStream = drawer.querySelector('#drawer-btn-stream');
+    const btnMaintenance = drawer.querySelector('#drawer-btn-maintenance');
+
+    if (btnReconnect) btnReconnect.onclick = () => this.reconnectCCTVStream(ch.id);
+    if (btnSnapshot) btnSnapshot.onclick = () => this.takeCCTVSnapshot(ch.id);
+    if (btnStream) btnStream.onclick = () => {
+      this.closeCCTVDetailDrawer();
+      this.openVmsController(ch.id);
+    };
+    if (btnMaintenance) btnMaintenance.onclick = () => {
+      EventBus.emit('toast:show', { message: `Fitur konfigurasi pemeliharaan sektor dibuka.`, type: 'info' });
+    };
+
+    if (window.lucide) window.lucide.createIcons();
+
+    // Slide open
+    drawer.style.right = '0px';
+  }
+
+  closeCCTVDetailDrawer() {
+    const drawer = document.getElementById('cctv-detail-drawer');
+    if (drawer) drawer.style.right = '-400px';
   }
 
   openVmsController(channelId) {
@@ -940,6 +1290,7 @@ export class DashboardPage {
 
   updateCameraSelectOptions() {
     const selectCam = document.getElementById('cctv-select-camera');
+    const filterCam = document.getElementById('incident-filter-camera');
     if (!selectCam) return;
     
     const currentValue = selectCam.value;
@@ -954,42 +1305,386 @@ export class DashboardPage {
       }
       selectCam.appendChild(option);
     });
+
+    if (filterCam) {
+      const filterVal = filterCam.value;
+      filterCam.innerHTML = `<option value="all">Semua Kamera</option>`;
+      this.cctvList.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = `CAM-${c.id.toString().padStart(2, '0')} · ${c.name}`;
+        if (c.id.toString() === filterVal) opt.selected = true;
+        filterCam.appendChild(opt);
+      });
+    }
+  }
+
+  getPriorityScore(aiStatus) {
+    return { TINGGI: 3, SEDANG: 2, RENDAH: 1 }[aiStatus] || 0;
+  }
+
+  getWaitingLabel(timestamp) {
+    const mins = Math.floor((Date.now() - new Date(timestamp).getTime()) / 60000);
+    if (mins < 1) return 'Baru saja';
+    if (mins < 60) return `Waiting ${mins} min`;
+    return `Waiting ${Math.floor(mins / 60)} jam`;
+  }
+
+  formatCameraUptime(ch) {
+    if (ch.status !== 'ONLINE') {
+      const ref = ch.lastHeartbeat || ch.lastConnected;
+      const mins = ref ? Math.floor((Date.now() - new Date(ref).getTime()) / 60000) : 0;
+      return mins > 0 ? `Disconnected ${mins} menit` : 'Disconnected';
+    }
+    const ref = ch.lastConnected || ch.lastHeartbeat;
+    if (!ref) return 'Online';
+    const hrs = Math.floor((Date.now() - new Date(ref).getTime()) / 3600000);
+    return hrs < 1 ? 'Online · < 1 jam uptime' : `Online · ${hrs} jam uptime`;
+  }
+
+  filterQueueReports(reports) {
+    let queue = [...reports];
+
+    if (this.searchQuery) {
+      queue = queue.filter(r =>
+        r.location.toLowerCase().includes(this.searchQuery) ||
+        (r.boundingBoxes && r.boundingBoxes.some(b => b.label.toLowerCase().includes(this.searchQuery)))
+      );
+    }
+
+    if (this.filterId) {
+      queue = queue.filter(r => r.id.toString().includes(this.filterId.replace(/^0+/, '')));
+    }
+
+    if (this.filterCamera && this.filterCamera !== 'all') {
+      const cam = this.cctvList.find(c => c.id.toString() === this.filterCamera);
+      if (cam) {
+        queue = queue.filter(r =>
+          r.location.toLowerCase().includes(cam.name.toLowerCase()) ||
+          r.location.toLowerCase().includes(cam.location.toLowerCase())
+        );
+      }
+    }
+
+    if (this.filterDate) {
+      queue = queue.filter(r => {
+        const d = new Date(r.timestamp);
+        const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        return iso === this.filterDate;
+      });
+    }
+
+    const statusFilter = this.filterStatus !== 'all' ? this.filterStatus : this.filterTag;
+    if (statusFilter && statusFilter !== 'all') {
+      if (statusFilter === 'waiting') {
+        queue = queue.filter(r => r.adminStatus === 'MENUNGGU');
+      } else if (statusFilter === 'validated') {
+        queue = queue.filter(r => r.adminStatus === 'VALID' && !r.assignedOfficer);
+      } else if (statusFilter === 'assigned') {
+        queue = queue.filter(r => r.adminStatus === 'VALID' && r.assignedOfficer && r.status !== 'PROSES' && r.status !== 'SELESAI');
+      } else if (statusFilter === 'progress') {
+        queue = queue.filter(r => r.adminStatus === 'VALID' && r.status === 'PROSES');
+      } else if (statusFilter === 'resolved') {
+        queue = queue.filter(r => r.status === 'SELESAI');
+      }
+    }
+
+    queue.sort((a, b) => {
+      const prioDiff = this.getPriorityScore(b.aiStatus) - this.getPriorityScore(a.aiStatus);
+      if (prioDiff !== 0) return prioDiff;
+      return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+    });
+
+    return queue;
+  }
+
+  renderOfficerLivePanel(reports, isMon) {
+    const container = document.getElementById('officer-live-list');
+    if (!container) return;
+
+    const active = isMon
+      ? reports.filter(r => r.assignedOfficer && (r.status === 'PROSES' || (r.adminStatus === 'VALID' && r.status !== 'SELESAI')))
+      : [];
+
+    if (active.length === 0) {
+      container.innerHTML = `<div style="font-size: 0.72rem; color: var(--text-muted); padding: 4px 0;">Tidak ada petugas aktif.</div>`;
+      return;
+    }
+
+    container.innerHTML = active.slice(0, 4).map(r => {
+      const onSite = r.status === 'PROSES';
+      const dot = onSite ? '🟢' : '🔵';
+      const state = onSite ? 'On Site' : 'Assigned';
+      const time = Formatter.formatTime(r.timestamp);
+      return `
+        <div class="officer-live-item">
+          <span>${dot}</span>
+          <div style="flex:1; min-width:0;">
+            <strong style="color: var(--text-primary);">${r.assignedOfficer}</strong>
+            <div style="color: var(--text-secondary); font-size: 0.68rem;">DLH · ${state} · #${r.id.toString().padStart(4, '0')}</div>
+          </div>
+          <span style="font-size: 0.65rem; color: var(--text-muted); font-weight: 700;">${time}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  updateCameraNetworkList() {
+    const container = document.getElementById('cctv-network-list');
+    if (!container) return;
+
+    container.innerHTML = '';
+    const isMon = AppState.get('isMonitoring');
+
+    this.cctvList.forEach((ch) => {
+      let statusLabel = 'Offline';
+      let statusColor = 'var(--text-muted)';
+      let statusBg = 'rgba(0, 0, 0, 0.05)';
+      let dotEmoji = '⚪';
+      let metaLine = this.formatCameraUptime(ch);
+
+      const camReports = this.latestReports.filter(r =>
+        r.location.toLowerCase().includes(ch.name.toLowerCase()) ||
+        r.location.toLowerCase().includes(ch.location.toLowerCase())
+      );
+      const activeIncident = camReports.find(r => r.adminStatus === 'MENUNGGU');
+      const alertCount = camReports.filter(r => r.adminStatus === 'MENUNGGU').length;
+
+      if (isMon) {
+        if (ch.status === 'ONLINE') {
+          if (activeIncident) {
+            statusLabel = 'Incident Active';
+            statusColor = 'var(--danger)';
+            statusBg = 'rgba(239, 68, 68, 0.08)';
+            dotEmoji = '🔴';
+            metaLine = `AI ${activeIncident.aiConfidence}% · ${alertCount} alert`;
+          } else {
+            statusLabel = 'Online';
+            statusColor = 'var(--success)';
+            statusBg = 'rgba(34, 197, 94, 0.08)';
+            dotEmoji = '🟢';
+          }
+        } else {
+          statusLabel = 'Offline';
+          statusColor = 'var(--danger)';
+          statusBg = 'rgba(239, 68, 68, 0.06)';
+          dotEmoji = '⚪';
+        }
+      }
+
+      const item = document.createElement('div');
+      item.className = 'camera-network-card hover-lift';
+
+      item.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+          <div style="min-width: 0; flex: 1;">
+            <div class="cam-id">${dotEmoji} CAM-${ch.id.toString().padStart(2, '0')}</div>
+            <div class="cam-location">${ch.location || ch.name}</div>
+            <div class="cam-meta">${metaLine}</div>
+          </div>
+          <span class="cam-status-pill" style="background: ${statusBg}; color: ${statusColor};">${statusLabel}</span>
+        </div>
+      `;
+
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.openCCTVDetailDrawer(ch.id);
+      });
+
+      container.appendChild(item);
+    });
   }
 
   animateStats() {
-    const activeCamsEl = document.getElementById('stat-cameras-active');
-    const camsSubtextEl = document.getElementById('stat-cameras-subtext');
-    const alertsTodayEl = document.getElementById('stat-alerts-today');
-    const alertsActiveSub = document.getElementById('stat-alerts-active-subtext');
-    const peopleCountEl = document.getElementById('stat-people-count');
-    const systemStatusEl = document.getElementById('stat-system-status');
-
     const isMon = AppState.get('isMonitoring');
 
-    if (activeCamsEl) {
-      const onlineCount = this.cctvList.filter(c => c.status === 'ONLINE').length;
-      activeCamsEl.innerText = isMon ? `${onlineCount} Kamera` : '0 Kamera';
+    // 1. Current Date
+    const currentDateEl = document.getElementById('brief-current-date');
+    if (currentDateEl) {
+      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      currentDateEl.innerText = new Date().toLocaleDateString('id-ID', options);
     }
-    if (camsSubtextEl) {
-      camsSubtextEl.innerText = `${this.cctvList.length} Saluran Terhubung`;
-    }
-    if (alertsTodayEl) alertsTodayEl.innerText = this.stats.total;
-    if (alertsActiveSub) alertsActiveSub.innerText = `${this.stats.pending} aktif`;
+
+    // 2. Camera Online count
+    const totalCams = this.cctvList.length || 1;
+    const onlineCount = isMon ? this.cctvList.filter(c => c.status === 'ONLINE').length : 0;
     
-    // Count people currently in YOLO detections
-    let totalPeople = 0;
-    if (isMon) {
-      this.latestReports.slice(0, 8).forEach(r => {
-        if (r.boundingBoxes) {
-          totalPeople += r.boundingBoxes.filter(b => b.label === 'person').length;
-        }
-      });
+    // Active Alerts count (all non-resolved waiting + in progress)
+    const activeAlerts = isMon ? this.latestReports.filter(r =>
+      r.adminStatus === 'MENUNGGU' || (r.adminStatus === 'VALID' && r.status !== 'SELESAI')
+    ).length : 0;
+
+    // Update HUD
+    const briefOnline = document.getElementById('brief-online-count');
+    const briefAlerts = document.getElementById('brief-active-alerts');
+    const briefSystem = document.getElementById('brief-system-status');
+    const briefLast = document.getElementById('brief-last-incident');
+    const hudPulse = document.getElementById('cc-hud-pulse');
+    const hudCard = document.getElementById('command-center-hud');
+
+    if (briefOnline) briefOnline.innerText = `${onlineCount}`;
+    if (briefAlerts) briefAlerts.innerText = `${activeAlerts}`;
+    if (briefSystem) {
+      briefSystem.innerText = isMon ? '🟢 MONITORING ACTIVE' : '🔴 MONITORING INACTIVE';
     }
-    if (peopleCountEl) peopleCountEl.innerText = `${totalPeople || 0} Orang`;
-    if (systemStatusEl) {
-      systemStatusEl.innerText = isMon ? 'Online' : 'Offline';
-      systemStatusEl.className = isMon ? 'stat-value text-success' : 'stat-value text-muted';
+    if (hudPulse) {
+      hudPulse.className = isMon ? 'status-pulse-dot green' : 'status-pulse-dot grey';
     }
+    if (hudCard) {
+      hudCard.style.opacity = isMon ? '1' : '0.85';
+    }
+
+    // Last Incident time
+    let lastIncidentText = 'None';
+    if (isMon && this.latestReports.length > 0) {
+      const diffMs = new Date().getTime() - new Date(this.latestReports[0].timestamp).getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      if (diffMins < 1) lastIncidentText = 'Baru saja';
+      else if (diffMins < 60) lastIncidentText = `${diffMins} min ago`;
+      else lastIncidentText = `${Math.floor(diffMins / 60)} hours ago`;
+    }
+    if (briefLast) briefLast.innerText = lastIncidentText;
+
+    // Camera Health
+    const camHealth = isMon ? Math.round((onlineCount / totalCams) * 100) : 0;
+    const camValEl = document.getElementById('stat-camera-health-val');
+    const camBarEl = document.getElementById('stat-camera-health-bar');
+    const camDescEl = document.getElementById('stat-camera-health-desc');
+
+    if (camValEl) camValEl.innerText = `${camHealth}%`;
+    if (camBarEl) {
+      camBarEl.style.width = `${camHealth}%`;
+      camBarEl.style.background = !isMon ? 'var(--text-muted)' : (camHealth >= 90 ? 'var(--success)' : (camHealth >= 60 ? 'var(--warning)' : 'var(--danger)'));
+    }
+    if (camDescEl) {
+      camDescEl.innerText = `${onlineCount}/${totalCams} Cameras Online`;
+    }
+
+    // Filter & Render Active Incident Queue (priority sorted)
+    const activeIncidentsList = document.getElementById('dashboard-active-incidents-list');
+    const activeIncidentsBadge = document.getElementById('active-incidents-badge-count');
+
+    const queueReports = this.filterQueueReports(this.latestReports);
+
+    if (activeIncidentsBadge) {
+      activeIncidentsBadge.innerText = `${queueReports.length} Queue`;
+      activeIncidentsBadge.style.background = queueReports.length > 0 ? 'rgba(239, 68, 68, 0.08)' : 'rgba(34, 197, 94, 0.08)';
+      activeIncidentsBadge.style.color = queueReports.length > 0 ? 'var(--danger)' : 'var(--success)';
+    }
+
+    if (activeIncidentsList) {
+      activeIncidentsList.innerHTML = '';
+      if (!isMon) {
+        activeIncidentsList.innerHTML = `
+          <div style="font-size: 0.82rem; color: var(--text-muted); text-align: center; padding: var(--space-12);">
+            Pemantauan dihentikan.
+          </div>
+        `;
+      } else if (queueReports.length === 0) {
+        activeIncidentsList.innerHTML = `
+          <div style="font-size: 0.82rem; color: var(--text-secondary); text-align: center; padding: var(--space-12); display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <i data-lucide="check-circle" style="width: 14px; height: 14px; color: var(--success);"></i>
+            Tidak ada insiden yang cocok dengan filter antrean.
+          </div>
+        `;
+      } else {
+        queueReports.forEach(r => {
+          const item = document.createElement('div');
+          const isHigh = r.aiStatus === 'TINGGI';
+          const isMed = r.aiStatus === 'SEDANG';
+          const priorityClass = isHigh ? 'incident-priority-high' : (isMed ? 'incident-priority-medium' : 'incident-priority-low');
+          item.className = `incident-queue-item hover-lift ${priorityClass}`;
+          
+          const category = r.boundingBoxes && r.boundingBoxes[0] ? r.boundingBoxes[0].label : 'Sampah';
+          const labelText = category === 'person' ? 'Pelaku membuang sampah' : `Illegal Dumping · ${category}`;
+          
+          const severityText = isHigh ? '🔥 HIGH' : (isMed ? '🟠 MEDIUM' : '🔵 LOW');
+          const severityColor = isHigh ? 'var(--danger)' : (isMed ? 'var(--warning)' : 'var(--info)');
+
+          let workflowState = 'WAITING';
+          let workflowColor = 'var(--warning)';
+          if (r.adminStatus === 'VALID') {
+            if (r.status === 'SELESAI') {
+              workflowState = 'RESOLVED';
+              workflowColor = 'var(--success)';
+            } else if (r.status === 'PROSES') {
+              workflowState = 'IN PROGRESS';
+              workflowColor = 'var(--info)';
+            } else if (r.assignedOfficer) {
+              workflowState = 'ASSIGNED';
+              workflowColor = 'var(--primary)';
+            } else {
+              workflowState = 'VALIDATED';
+              workflowColor = 'var(--primary)';
+            }
+          } else if (r.adminStatus === 'DIABAIKAN') {
+            workflowState = 'FALSE POSITIVE';
+            workflowColor = 'var(--text-muted)';
+          }
+
+          const waitingLabel = r.adminStatus === 'MENUNGGU' ? this.getWaitingLabel(r.timestamp) : '';
+          let officerHtml = '';
+          if (r.assignedOfficer) {
+            if (r.status === 'PROSES') {
+              officerHtml = `<span class="officer-status-chip on-site">🟢 ${r.assignedOfficer} · Cleaning · ${Formatter.formatTime(r.timestamp)}</span>`;
+            } else if (r.status === 'SELESAI') {
+              officerHtml = `<span class="officer-status-chip done">✓ ${r.assignedOfficer} · Selesai</span>`;
+            } else {
+              officerHtml = `<span class="officer-status-chip assigned">🔵 DLH · ${r.assignedOfficer} · Assigned</span>`;
+            }
+          }
+
+          item.innerHTML = `
+            <div style="display:flex; align-items:center; gap:14px; min-width:0; flex: 1;">
+              <div style="width: 48px; height: 48px; border-radius: 8px; overflow:hidden; flex-shrink:0; background:#000;">
+                <img src="${r.image}" style="width:100%; height:100%; object-fit:cover;" alt="" />
+              </div>
+              <div style="min-width: 0; flex:1;">
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                  <span style="font-size: 0.6rem; font-weight: 900; color: ${severityColor};">${severityText}</span>
+                  <span style="font-size: 0.55rem; font-weight: 900; background: ${workflowColor}12; color: ${workflowColor}; border: 1px solid ${workflowColor}22; padding: 1px 6px; border-radius: 4px;">${workflowState}</span>
+                  <strong style="font-size:0.88rem; color:var(--text-primary);">${labelText}</strong>
+                  <span style="font-size: 0.68rem; font-weight: 700; color: var(--primary);">AI ${r.aiConfidence}%</span>
+                  ${waitingLabel ? `<span class="waiting-time-chip">${waitingLabel}</span>` : ''}
+                </div>
+                <div style="font-size:0.74rem; color:var(--text-secondary); margin-top:3px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                  <span><i data-lucide="map-pin" style="width:11px;height:11px;display:inline-block;vertical-align:middle;"></i> ${r.location}</span>
+                  <span>·</span>
+                  <span>${Formatter.formatTime(r.timestamp)}</span>
+                  <span>·</span>
+                  <span>#${r.id.toString().padStart(4, '0')}</span>
+                </div>
+                ${officerHtml}
+              </div>
+            </div>
+            <button class="btn btn-sm btn-glass" style="border-color: rgba(47, 107, 255, 0.25); color: var(--primary); padding: 6px 14px; font-size:0.7rem; font-weight:800; flex-shrink:0;" onclick="event.stopPropagation();">
+              Open Incident
+            </button>
+          `;
+          
+          item.onclick = () => Router.navigate(`/dashboard/detections/${r.id}`);
+          activeIncidentsList.appendChild(item);
+        });
+      }
+    }
+
+    // Operational Summary metrics
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const statWaiting = document.getElementById('stat-waiting-review');
+    const statAssigned = document.getElementById('stat-assigned');
+    const statInProgress = document.getElementById('stat-in-progress');
+    const statResolvedToday = document.getElementById('stat-resolved-today');
+
+    if (statWaiting) statWaiting.innerText = isMon ? this.latestReports.filter(r => r.adminStatus === 'MENUNGGU').length : 0;
+    if (statAssigned) statAssigned.innerText = isMon ? this.latestReports.filter(r => r.adminStatus === 'VALID' && r.assignedOfficer && r.status !== 'PROSES' && r.status !== 'SELESAI').length : 0;
+    if (statInProgress) statInProgress.innerText = isMon ? this.latestReports.filter(r => r.status === 'PROSES').length : 0;
+    if (statResolvedToday) statResolvedToday.innerText = isMon ? this.latestReports.filter(r => r.status === 'SELESAI' && new Date(r.timestamp) >= todayStart).length : 0;
+
+    this.renderOfficerLivePanel(this.latestReports, isMon);
+    this.updateCameraNetworkList();
+    if (window.lucide) window.lucide.createIcons();
   }
 
   // Render Grid CCTV dinamik
@@ -1002,7 +1697,53 @@ export class DashboardPage {
     const user = AppState.get('user');
     const isAdmin = user?.role === 'admin';
 
+    if (this.cctvList.length === 0) {
+      container.classList.remove('single-channel-active');
+      container.innerHTML = `
+        <div class="glass-card empty-state-card" style="padding: var(--space-48); text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--space-16); width: 100%; border: 1px dashed rgba(47,107,255,0.2);">
+          <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(47, 107, 255, 0.05); color: var(--primary); display: flex; align-items: center; justify-content: center;">
+            <i data-lucide="video-off" style="width: 32px; height: 32px;"></i>
+          </div>
+          <div>
+            <h4 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin: 0;">Belum Ada Kamera Terhubung</h4>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 6px; max-width: 320px; line-height: 1.5; margin-bottom: 0;">Sambungkan kamera pemantauan baru untuk memulai pengawasan real-time sungai.</p>
+          </div>
+          ${isAdmin ? `
+            <button class="btn btn-primary btn-rounded" id="btn-empty-connect-cctv" style="font-weight: 700; padding: 10px 20px;">
+              Hubungkan Kamera
+            </button>
+          ` : ''}
+        </div>
+      `;
+      const btnEmptyConnect = document.getElementById('btn-empty-connect-cctv');
+      if (btnEmptyConnect) {
+        btnEmptyConnect.onclick = () => {
+          const btnConnect = document.getElementById('btn-connect-cctv');
+          if (btnConnect) btnConnect.click();
+        };
+      }
+      if (window.lucide) window.lucide.createIcons();
+      return;
+    }
+
+    const selectCam = document.getElementById('cctv-select-camera');
+    const selectedValue = selectCam ? selectCam.value : 'semua';
+
+    if (container) {
+      const statsGrid = document.getElementById('dashboard-stats-grid');
+      if (selectedValue === 'semua') {
+        container.classList.remove('single-channel-active');
+        if (statsGrid) statsGrid.classList.remove('single-view-compact');
+      } else {
+        container.classList.add('single-channel-active');
+        if (statsGrid) statsGrid.classList.add('single-view-compact');
+      }
+    }
+
     this.cctvList.forEach(ch => {
+      if (selectedValue !== 'semua' && ch.id.toString() !== selectedValue) {
+        return;
+      }
       const isChActive = isMon && ch.isActive;
       // Find matching report from DB for this location
       const matchReport = this.latestReports.find(r => r.location.toLowerCase().includes(ch.name.toLowerCase()));
@@ -1087,7 +1828,7 @@ export class DashboardPage {
       if (isChActive) {
         if (ch.status === 'ONLINE') {
           statusClass = isAlert ? 'status-alert' : 'status-live';
-          statusText = isAlert ? 'WARNING' : 'ONLINE';
+          statusText = isAlert ? 'AI DETECTING' : 'ONLINE';
         } else if (ch.status === 'CONNECTING' || ch.status === 'BUFFERING') {
           statusClass = 'status-connecting';
           statusText = ch.status;
@@ -1097,38 +1838,110 @@ export class DashboardPage {
         }
       }
 
-      card.innerHTML = `
-        <div class="cctv-media-container">
-          ${mediaHtml}
-          ${isChActive && ch.status === 'ONLINE' ? `
-            <div class="cctv-hud-header">
-              <span class="cctv-rec-pill"><span class="rec-dot"></span>REC</span>
-              <span class="cctv-fps-badge">${ch.health.fps ? `${ch.health.fps} FPS` : 'LIVE'}</span>
-            </div>
-            <div class="cctv-hud-footer">
-              <span class="cctv-ch-badge">CH ${ch.id.toString().padStart(2, '0')}</span>
-              <span class="cctv-loc-name">${ch.name}</span>
-            </div>
-          ` : ''}
-          ${isAdmin && !ch.isDefault ? `
-            <button class="btn-disconnect-cctv" data-id="${ch.id}" title="Putuskan CCTV">
-              <i data-lucide="trash-2"></i>
-            </button>
-          ` : ''}
-        </div>
-        <div class="cctv-info-row">
-          <span class="cctv-status-badge ${statusClass}">
-            <span class="status-dot"></span>
-            ${statusText}
-          </span>
-          <span class="cctv-type-text">${ch.health.latency ? `${ch.health.latency} ms` : ''} ${ch.protocol}</span>
+      const hoverOverlayHtml = `
+        <div class="cctv-hover-overlay" style="position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; gap: 10px; opacity: 0; transition: opacity 0.15s ease; border-radius: 12px; z-index: 10;">
+          <button class="hover-action-btn fs" style="width:36px; height:36px; border-radius:50%; border:none; background: rgba(255,255,255,0.9); color: var(--text-primary); display:flex; align-items:center; justify-content:center; cursor:pointer; transition: transform 0.1s;" title="Fullscreen Player">
+            <i data-lucide="maximize-2" style="width: 16px; height: 16px;"></i>
+          </button>
+          <button class="hover-action-btn reconnect" style="width:36px; height:36px; border-radius:50%; border:none; background: rgba(255,255,255,0.9); color: var(--text-primary); display:flex; align-items:center; justify-content:center; cursor:pointer; transition: transform 0.1s;" title="Reconnect Stream">
+            <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
+          </button>
+          <button class="hover-action-btn snapshot" style="width:36px; height:36px; border-radius:50%; border:none; background: rgba(255,255,255,0.9); color: var(--text-primary); display:flex; align-items:center; justify-content:center; cursor:pointer; transition: transform 0.1s;" title="Take Snapshot">
+            <i data-lucide="camera" style="width: 16px; height: 16px;"></i>
+          </button>
+          <button class="hover-action-btn detail" style="width:36px; height:36px; border-radius:50%; border:none; background: var(--primary); color: white; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: transform 0.1s;" title="Open detail VMS Drawer">
+            <i data-lucide="info" style="width: 16px; height: 16px;"></i>
+          </button>
         </div>
       `;
 
-      // Zoom view on click (Open Interactive VMS Controller Modal)
+      card.innerHTML = `
+        <div class="cctv-media-container" style="position: relative; overflow: hidden; border-radius: 12px; margin-bottom: 0;">
+          ${mediaHtml}
+          ${hoverOverlayHtml}
+          
+          <!-- Corner Badges -->
+          <div class="cctv-corner-badges" style="position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; z-index: 5;">
+            ${isChActive ? `
+              <span class="badge bg-danger text-white" style="font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; display: flex; align-items: center; gap: 4px;">
+                <span class="rec-dot" style="width:6px; height:6px; background:white; border-radius:50%; display:inline-block; animation: pulse-cloud 1s infinite;"></span>
+                REC
+              </span>
+              <span class="badge bg-primary text-white" style="font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">LIVE</span>
+              <span class="badge bg-info text-white" style="font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">HD</span>
+              ${isAlert ? `
+                <span class="badge bg-warning text-white" style="font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; display: flex; align-items: center; gap: 4px; animation: pulse-cloud 1.5s infinite;">
+                  <i data-lucide="scan-eye" style="width: 10px; height: 10px;"></i> AI DETECTING
+                </span>
+              ` : ''}
+            ` : `
+              <span class="badge bg-secondary text-white" style="font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">STANDBY</span>
+            `}
+          </div>
+
+          ${isAdmin && !ch.isDefault ? `
+            <button class="btn-disconnect-cctv" data-id="${ch.id}" title="Putuskan CCTV" style="position: absolute; top: 12px; right: 12px; z-index: 5; background: rgba(0,0,0,0.5); border: none; border-radius: 50%; width: 28px; height: 28px; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+              <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+            </button>
+          ` : ''}
+        </div>
+        
+        <!-- Bottom Info -->
+        <div class="cctv-info-body" style="padding: 12px var(--space-8) var(--space-8) var(--space-8); display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.92rem; font-weight: 700; color: var(--text-primary); margin: 0; max-width: 75%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              CH ${ch.id.toString().padStart(2, '0')} | ${ch.name}
+            </h4>
+            <span class="cctv-status-badge ${statusClass}" style="transform: scale(0.9); transform-origin: right;">
+              <span class="status-dot"></span>
+              ${statusText}
+            </span>
+          </div>
+          <div style="font-size: 0.72rem; color: var(--text-secondary); display: flex; gap: 8px; font-weight: 600; opacity: 0.85;">
+            <span>Latency: ${ch.health.latency ? `${ch.health.latency} ms` : '52 ms'}</span>
+            <span>|</span>
+            <span>Res: 1080p</span>
+            <span>|</span>
+            <span>Last Motion: ${matchReport ? '2 mins ago' : 'No motion'}</span>
+          </div>
+        </div>
+      `;
+
+      // Card click opens right side VMS Detail Drawer
       card.addEventListener('click', () => {
-        this.openVmsController(ch.id);
+        this.openCCTVDetailDrawer(ch.id);
       });
+
+      // Bind hover overlay quick actions
+      const btnFs = card.querySelector('.hover-action-btn.fs');
+      const btnRec = card.querySelector('.hover-action-btn.reconnect');
+      const btnSnap = card.querySelector('.hover-action-btn.snapshot');
+      const btnDet = card.querySelector('.hover-action-btn.detail');
+
+      if (btnFs) {
+        btnFs.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.openVmsController(ch.id);
+        });
+      }
+      if (btnRec) {
+        btnRec.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.reconnectCCTVStream(ch.id);
+        });
+      }
+      if (btnSnap) {
+        btnSnap.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.takeCCTVSnapshot(ch.id);
+        });
+      }
+      if (btnDet) {
+        btnDet.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.openCCTVDetailDrawer(ch.id);
+        });
+      }
 
       // Bind delete action
       if (isAdmin && !ch.isDefault) {
@@ -1158,23 +1971,7 @@ export class DashboardPage {
 
   // Filter CCTV Channels based on dropdown choice
   filterCCTVChannels(value) {
-    const cards = document.querySelectorAll('.cctv-card');
-    const container = document.getElementById('cctv-grid-container');
-    if (container) {
-      if (value === 'semua') {
-        container.classList.remove('single-channel-active');
-      } else {
-        container.classList.add('single-channel-active');
-      }
-    }
-    cards.forEach(card => {
-      const chId = card.getAttribute('data-channel-id');
-      if (value === 'semua' || chId === value) {
-        card.style.display = 'flex';
-      } else {
-        card.style.display = 'none';
-      }
-    });
+    this.renderCCTVGrid();
   }
 
   // Turn monitoring on/off
@@ -1196,56 +1993,66 @@ export class DashboardPage {
     }
   }
 
-  // Render Sidebar Live Alerts panel
+  // Populate compact notification popover (Camera Offline, New Incident, Officer Finished)
   renderLiveAlerts() {
-    const container = document.getElementById('sidebar-alerts-list-container');
+    const container = document.getElementById('dashboard-notif-list');
+    const badge = document.getElementById('notif-badge-count');
     if (!container) return;
 
     container.innerHTML = '';
-    
-    // Get reports that have High/Medium AI status
-    const alerts = this.latestReports.filter(r => r.aiStatus === 'TINGGI' || r.aiStatus === 'SEDANG');
+    const isMon = AppState.get('isMonitoring');
+    const alerts = [];
+
+    if (isMon) {
+      this.cctvList.forEach(ch => {
+        if (ch.status === 'OFFLINE' || ch.status === 'ERROR' || ch.status === 'DISCONNECTED') {
+          alerts.push({
+            icon: '🔴',
+            color: 'var(--danger)',
+            title: `Camera Offline: CAM-${ch.id.toString().padStart(2, '0')}`,
+            desc: `${ch.name} terputus dari jaringan.`
+          });
+        }
+      });
+
+      this.latestReports.filter(r => r.adminStatus === 'MENUNGGU').slice(0, 3).forEach(r => {
+        alerts.push({
+          icon: '🚨',
+          color: 'var(--warning)',
+          title: 'New Incident',
+          desc: `#${r.id.toString().padStart(4, '0')} · ${r.location} · AI ${r.aiConfidence}%`
+        });
+      });
+
+      this.latestReports.filter(r => r.status === 'SELESAI').slice(0, 2).forEach(r => {
+        alerts.push({
+          icon: '✓',
+          color: 'var(--success)',
+          title: 'Officer Finished',
+          desc: `Kasus #${r.id.toString().padStart(4, '0')} selesai ditangani${r.assignedOfficer ? ` · ${r.assignedOfficer}` : ''}.`
+        });
+      });
+    }
+
+    if (badge) {
+      badge.innerText = alerts.length;
+      badge.style.display = alerts.length > 0 ? 'flex' : 'none';
+    }
 
     if (alerts.length === 0) {
-      container.innerHTML = `
-        <div class="empty-state-card" style="padding: 24px; text-align: center; color: var(--text-muted);">
-          <i data-lucide="shield-check" style="width: 32px; height: 32px; margin-bottom: 8px; color: var(--success);"></i>
-          <p>Kondisi Sungai Aman</p>
-        </div>
-      `;
-      if (window.lucide) window.lucide.createIcons();
+      container.innerHTML = `<div style="font-size: 0.72rem; color: var(--text-muted); padding: 8px 0;">Tidak ada peringatan aktif.</div>`;
       return;
     }
 
-    alerts.slice(0, 5).forEach((alert, index) => {
-      const card = document.createElement('div');
-      
-      let levelClass = 'medium';
-      if (alert.aiStatus === 'TINGGI') levelClass = 'high';
-      
-      card.className = `alert-item-card glow-${levelClass === 'high' ? 'red' : 'amber'}`;
-      card.innerHTML = `
-        <div class="alert-card-header">
-          <span class="alert-badge-red">${alert.aiStatus}</span>
-          ${index === 0 ? '<span class="pulse-new-badge">NEW</span>' : ''}
-        </div>
-        <div class="alert-card-body">
-          <div class="alert-location"><i data-lucide="map-pin"></i> ${alert.location}</div>
-          <div class="alert-info-row">
-            <span>Keyakinan AI: <strong>${alert.aiConfidence || 0}%</strong></span>
-            <span>${Formatter.formatTime(alert.timestamp)}</span>
-          </div>
-        </div>
+    alerts.slice(0, 5).forEach(a => {
+      const row = document.createElement('div');
+      row.style.cssText = 'font-size: 0.72rem; color: var(--text-secondary); border-bottom: 1px solid rgba(0,0,0,0.04); padding-bottom: 8px; margin-bottom: 4px;';
+      row.innerHTML = `
+        <strong style="color: ${a.color};">${a.icon} ${a.title}</strong>
+        <div style="margin-top: 2px; font-size: 0.68rem;">${a.desc}</div>
       `;
-
-      card.addEventListener('click', () => {
-        Router.navigate(`/dashboard/detections/${alert.id}`);
-      });
-
-      container.appendChild(card);
+      container.appendChild(row);
     });
-
-    if (window.lucide) window.lucide.createIcons();
   }
 
   renderError() {

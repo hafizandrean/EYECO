@@ -326,13 +326,19 @@ app.post('/api/detections/:id/verify', async (req, res) => {
     }
 
     const id = parseInt(req.params.id);
-    const { status, notes } = req.body;
+    const { status, notes, assignedOfficer, progressStatus } = req.body;
 
     if (!status || !['VALID', 'DIABAIKAN', 'MENUNGGU'].includes(status)) {
       return res.status(400).json({ error: 'Status tidak valid' });
     }
 
-    const updatedReport = await DatabaseManager.updateVerification(id, status, notes || '');
+    const updatedReport = await DatabaseManager.updateVerification(
+      id, 
+      status, 
+      notes || '', 
+      assignedOfficer, 
+      progressStatus
+    );
     if (!updatedReport) {
       return res.status(404).json({ error: 'Laporan tidak ditemukan' });
     }

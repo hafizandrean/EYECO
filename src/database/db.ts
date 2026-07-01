@@ -5,9 +5,27 @@ import { runMigration } from './migration';
 import { UserModel, IUser } from './models/User';
 import { ReportModel, IReport, IBoundingBox, IComment } from './models/Report';
 import { CctvModel, ICctv } from './models/Cctv';
+import { TimelineEventModel, ITimelineEvent } from './models/TimelineEvent';
+import { AssignmentModel, IAssignment } from './models/Assignment';
+import { ResolutionModel, IResolution } from './models/Resolution';
+import { NotificationModel, INotification } from './models/Notification';
+import { OutboxEventModel, IOutboxEvent } from './models/OutboxEvent';
+import { SystemAuditLogModel, ISystemAuditLog } from './models/SystemAuditLog';
 
 // Re-export types for legacy compatibility in server.ts
-export { IUser as User, IReport as Report, IBoundingBox as BoundingBox, IComment as Comment, ICctv as Cctv };
+export { 
+  IUser as User, 
+  IReport as Report, 
+  IBoundingBox as BoundingBox, 
+  IComment as Comment, 
+  ICctv as Cctv,
+  TimelineEventModel, ITimelineEvent as TimelineEvent,
+  AssignmentModel, IAssignment as Assignment,
+  ResolutionModel, IResolution as Resolution,
+  NotificationModel, INotification as Notification,
+  OutboxEventModel, IOutboxEvent as OutboxEvent,
+  SystemAuditLogModel, ISystemAuditLog as SystemAuditLog
+};
 
 dotenv.config();
 
@@ -194,12 +212,28 @@ export class DatabaseManager {
   public static async updateVerification(
     id: number, 
     status: 'VALID' | 'DIABAIKAN' | 'MENUNGGU', 
-    notes: string
+    notes: string,
+    assignedOfficer?: string,
+    progressStatus?: 'PENDING' | 'PROSES' | 'SELESAI' | 'CLOSED' | 'DITOLAK'
   ): Promise<IReport | null> {
     try {
+      const updateFields: any = { adminStatus: status, adminNotes: notes };
+      if (assignedOfficer !== undefined) {
+        updateFields.assignedOfficer = assignedOfficer;
+      }
+      if (progressStatus !== undefined) {
+        updateFields.status = progressStatus;
+      } else {
+        if (status === 'VALID') {
+          updateFields.status = 'PROSES';
+        } else if (status === 'DIABAIKAN') {
+          updateFields.status = 'DITOLAK';
+        }
+      }
+
       const updated = await ReportModel.findOneAndUpdate(
         { id }, 
-        { adminStatus: status, adminNotes: notes }, 
+        updateFields, 
         { new: true }
       ).lean();
       return updated;

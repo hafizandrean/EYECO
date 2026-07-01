@@ -43,6 +43,15 @@ const BoundingBoxSchema = new mongoose_1.Schema({
     w: { type: Number, required: true, min: 0, max: 100 },
     h: { type: Number, required: true, min: 0, max: 100 }
 });
+const CommentSchema = new mongoose_1.Schema({
+    userId: { type: Number, required: true },
+    text: { type: String, required: true, trim: true },
+    likedBy: { type: [Number], default: [] },
+    isDeleted: { type: Boolean, default: false },
+    parentCommentId: { type: String, default: null }
+}, {
+    timestamps: true
+});
 const ReportSchema = new mongoose_1.Schema({
     id: { type: Number, required: true, unique: true, index: true },
     userId: { type: Number, required: true, index: true },
@@ -67,7 +76,10 @@ const ReportSchema = new mongoose_1.Schema({
     sourceType: { type: String, required: true, trim: true },
     additionalNotes: { type: String, default: 'Tidak ada catatan tambahan.', trim: true },
     adminNotes: { type: String, default: '', trim: true },
-    boundingBoxes: [BoundingBoxSchema]
+    boundingBoxes: [BoundingBoxSchema],
+    comments: [CommentSchema],
+    assignedOfficer: { type: String, default: '' },
+    status: { type: String, enum: ['PENDING', 'PROSES', 'SELESAI', 'CLOSED', 'DITOLAK'], default: 'PENDING', index: true }
 }, {
     timestamps: true
 });

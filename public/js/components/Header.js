@@ -102,17 +102,18 @@ export class HeaderComponent {
     const isAdmin = user?.role === 'admin';
     const exportBtn = document.getElementById('btn-header-export');
 
-    // Role Guard Tab: sembunyikan Dashboard untuk non-admin, tapi tampilkan Laporan
-    const navCapsule = this.container.querySelector('.nav-tabs');
-    if (user && !isAdmin) {
-      if (this.tabs.dashboard) this.tabs.dashboard.style.display = 'none';
-      if (this.tabs.laporan) this.tabs.laporan.style.display = 'inline-flex';
-      if (this.indicator) this.indicator.style.display = 'block';
-    } else {
-      if (this.tabs.dashboard) this.tabs.dashboard.style.display = 'inline-flex';
-      if (this.tabs.laporan) this.tabs.laporan.style.display = 'inline-flex';
-      if (this.indicator) this.indicator.style.display = 'block';
+    // Role Guard Tab: Rename first tab dynamically based on role (Dashboard vs Beranda)
+    if (this.tabs.dashboard) {
+      if (isAdmin) {
+        this.tabs.dashboard.innerHTML = '<i data-lucide="layout-dashboard"></i> Dashboard';
+      } else {
+        this.tabs.dashboard.innerHTML = '<i data-lucide="home"></i> Beranda';
+      }
+      this.tabs.dashboard.style.display = 'inline-flex';
     }
+    if (this.tabs.laporan) this.tabs.laporan.style.display = 'inline-flex';
+    if (this.tabs.upload) this.tabs.upload.style.display = 'inline-flex';
+    if (this.indicator) this.indicator.style.display = 'block';
 
     // Export button visibility (Only on /dashboard/laporan)
     if (exportBtn) {

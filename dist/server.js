@@ -12,6 +12,10 @@ const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const db_1 = require("./database/db");
 const Report_1 = require("./database/models/Report");
+const User_1 = require("./database/models/User");
+const CctvHealthEngine_1 = require("./cctv/CctvHealthEngine");
+const CctvScanner_1 = require("./cctv/CctvScanner");
+const CctvAdapter_1 = require("./cctv/CctvAdapter");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 8000;
@@ -199,9 +203,12 @@ app.get(['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/de
         const user = await getLoggedInUser(req);
         if (!user)
             return res.redirect('/login');
-        // Normal user can only access /dashboard/upload.
+        // Normal user can only access /dashboard/upload, /dashboard/laporan, and /dashboard/detections/:id.
         // If they try to access other admin dashboard pages, redirect them to /dashboard/upload
-        if (user.role !== 'admin' && req.path !== '/dashboard/upload') {
+        if (user.role !== 'admin' &&
+            req.path !== '/dashboard/upload' &&
+            req.path !== '/dashboard/laporan' &&
+            !req.path.startsWith('/dashboard/detections/')) {
             return res.redirect('/dashboard/upload');
         }
         res.sendFile(path_1.default.join(__dirname, '../public/views/dashboard.html'));
@@ -267,10 +274,6 @@ app.get('/api/detections/:id', async (req, res) => {
         if (!report) {
             return res.status(404).json({ error: 'Laporan tidak ditemukan' });
         }
-        // Access check: normal user can only view their own report
-        if (user.role === 'user' && report.userId !== user.id) {
-            return res.status(403).json({ error: 'Akses ditolak' });
-        }
         res.json(report);
     }
     catch (err) {
@@ -289,11 +292,11 @@ app.post('/api/detections/:id/verify', async (req, res) => {
             return res.status(403).json({ error: 'Hanya Admin yang dapat memvalidasi laporan' });
         }
         const id = parseInt(req.params.id);
-        const { status, notes } = req.body;
+        const { status, notes, assignedOfficer, progressStatus } = req.body;
         if (!status || !['VALID', 'DIABAIKAN', 'MENUNGGU'].includes(status)) {
             return res.status(400).json({ error: 'Status tidak valid' });
         }
-        const updatedReport = await db_1.DatabaseManager.updateVerification(id, status, notes || '');
+        const updatedReport = await db_1.DatabaseManager.updateVerification(id, status, notes || '', assignedOfficer, progressStatus);
         if (!updatedReport) {
             return res.status(404).json({ error: 'Laporan tidak ditemukan' });
         }
@@ -302,6 +305,156 @@ app.post('/api/detections/:id/verify', async (req, res) => {
     catch (err) {
         console.error('[SERVER ERROR] Verify report failed:', err);
         res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+// Helper functions for standard API responses
+function sendSuccess(res, data, status = 200) {
+    return res.status(status).json({ success: true, data });
+}
+function sendError(res, message, status = 400) {
+    return res.status(status).json({ success: false, message });
+}
+// Rate limiters for commenting and liking
+const commentLimiter = (0, express_rate_limit_1.default)({
+    windowMs: 30 * 1000, // 30 seconds
+    max: 5, // Limit each IP to 5 comments per windowMs
+    message: { success: false, message: 'Terlalu banyak mengirim komentar, silakan tunggu 30 detik.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+const likeLimiter = (0, express_rate_limit_1.default)({
+    windowMs: 60 * 1000, // 1 minute
+    max: 30, // Limit each IP to 30 likes per windowMs
+    message: { success: false, message: 'Terlalu banyak menekan tombol suka, silakan tunggu 1 menit.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+// GET /api/detections/:id/comments - Fetch paginated, sorted comments with resolved usernames
+app.get('/api/detections/:id/comments', async (req, res) => {
+    try {
+        const user = await getLoggedInUser(req);
+        if (!user) {
+            return sendError(res, 'Unauthorized', 401);
+        }
+        const reportId = parseInt(req.params.id);
+        const report = await Report_1.ReportModel.findOne({ id: reportId }).lean();
+        if (!report) {
+            return sendError(res, 'Laporan tidak ditemukan', 404);
+        }
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const sortBy = req.query.sortBy || 'newest';
+        // Filter out deleted comments
+        let activeComments = (report.comments || []).filter(c => !c.isDeleted);
+        // Sort comments
+        if (sortBy === 'newest') {
+            activeComments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        }
+        else if (sortBy === 'oldest') {
+            activeComments.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        }
+        else if (sortBy === 'most_liked') {
+            activeComments.sort((a, b) => (b.likedBy || []).length - (a.likedBy || []).length);
+        }
+        // Paginate in memory
+        const total = activeComments.length;
+        const totalPages = Math.ceil(total / limit) || 1;
+        const skip = (page - 1) * limit;
+        const paginatedComments = activeComments.slice(skip, skip + limit);
+        // Resolve usernames in a single query (avoid N+1)
+        const uniqueUserIds = Array.from(new Set(paginatedComments.map(c => c.userId)));
+        const users = await User_1.UserModel.find({ id: { $in: uniqueUserIds } }).select('id username role').lean();
+        const userMap = new Map(users.map(u => [u.id, { username: u.username, role: u.role }]));
+        const commentsWithUser = paginatedComments.map(c => {
+            const uInfo = userMap.get(c.userId);
+            return {
+                ...c,
+                username: uInfo ? uInfo.username : 'Pengguna tidak dikenal',
+                role: uInfo ? uInfo.role : 'user'
+            };
+        });
+        return sendSuccess(res, {
+            comments: commentsWithUser,
+            pagination: {
+                page,
+                limit,
+                totalComments: total,
+                totalPages,
+                hasPrev: page > 1,
+                hasNext: page < totalPages
+            }
+        });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] Get comments failed:', err);
+        return sendError(res, 'Internal Server Error', 500);
+    }
+});
+// POST /api/detections/:id/comments - Add a comment (rate-limited)
+app.post('/api/detections/:id/comments', commentLimiter, async (req, res) => {
+    try {
+        const user = await getLoggedInUser(req);
+        if (!user) {
+            return sendError(res, 'Unauthorized', 401);
+        }
+        const reportId = parseInt(req.params.id);
+        const { text } = req.body;
+        if (!text || typeof text !== 'string') {
+            return sendError(res, 'Konten komentar harus diisi.', 400);
+        }
+        const comment = await db_1.DatabaseManager.addComment(reportId, user.id, text);
+        // Resolve comment author details for direct frontend integration
+        return sendSuccess(res, {
+            ...comment.toJSON(),
+            username: user.username,
+            role: user.role
+        }, 201);
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] Create comment failed:', err);
+        return sendError(res, err.message || 'Internal Server Error', 500);
+    }
+});
+// DELETE /api/detections/:id/comments/:commentId - Delete a comment (soft delete)
+app.delete('/api/detections/:id/comments/:commentId', async (req, res) => {
+    try {
+        const user = await getLoggedInUser(req);
+        if (!user) {
+            return sendError(res, 'Unauthorized', 401);
+        }
+        const reportId = parseInt(req.params.id);
+        const commentId = req.params.commentId;
+        const isAdmin = user.role === 'admin';
+        // soft delete comment
+        await db_1.DatabaseManager.deleteComment(reportId, commentId, user.id, isAdmin);
+        return sendSuccess(res, { success: true });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] Delete comment failed:', err);
+        return sendError(res, err.message || 'Internal Server Error', 500);
+    }
+});
+// POST /api/detections/:id/comments/:commentId/like - Toggle like on a comment (rate-limited)
+app.post('/api/detections/:id/comments/:commentId/like', likeLimiter, async (req, res) => {
+    try {
+        const user = await getLoggedInUser(req);
+        if (!user) {
+            return sendError(res, 'Unauthorized', 401);
+        }
+        const reportId = parseInt(req.params.id);
+        const commentId = req.params.commentId;
+        const comment = await db_1.DatabaseManager.toggleLikeComment(reportId, commentId, user.id);
+        const isLiked = comment.likedBy.includes(user.id);
+        return sendSuccess(res, {
+            commentId,
+            likedBy: comment.likedBy,
+            likeCount: comment.likedBy.length,
+            isLiked
+        });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] Like comment failed:', err);
+        return sendError(res, err.message || 'Internal Server Error', 500);
     }
 });
 // API: Get Stats & Charts data (Aggregation Pipeline optimized)
@@ -474,8 +627,208 @@ app.get('/api/export', async (req, res) => {
         }
     }
 });
+// --- CCTV API ENDPOINTS ---
+// GET /api/cctv - List all CCTV channels
+app.get('/api/cctv', async (req, res) => {
+    try {
+        const user = await getLoggedInUser(req);
+        if (!user) {
+            return res.status(401).json({ error: 'Belum masuk' });
+        }
+        const cctvs = await db_1.DatabaseManager.getAllCctv();
+        // Decrypt / enrich each CCTV config with playUrl dynamically
+        const processed = cctvs.map(c => {
+            const playTarget = CctvAdapter_1.CctvAdapter.getPlayTarget(c);
+            return {
+                ...c,
+                playUrl: playTarget.playUrl,
+                mediaType: playTarget.playType,
+                // Hide password in listing
+                password: c.password ? '••••••••' : ''
+            };
+        });
+        res.json({ success: true, data: processed });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] GET /api/cctv failed:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+// GET /api/cctv/:id - Fetch single CCTV detail
+app.get('/api/cctv/:id', async (req, res) => {
+    try {
+        const user = await getLoggedInUser(req);
+        if (!user) {
+            return res.status(401).json({ error: 'Belum masuk' });
+        }
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            return res.status(400).json({ error: 'ID tidak valid' });
+        }
+        const c = await db_1.DatabaseManager.getCctvById(id);
+        if (!c) {
+            return res.status(404).json({ error: 'CCTV tidak ditemukan' });
+        }
+        // Expose password decrypted to admin only for editing
+        const decryptedPassword = user.role === 'admin' && c.password
+            ? db_1.DatabaseManager.decryptCctvPassword(c.password)
+            : '';
+        const playTarget = CctvAdapter_1.CctvAdapter.getPlayTarget(c);
+        res.json({
+            success: true,
+            data: {
+                ...c,
+                playUrl: playTarget.playUrl,
+                mediaType: playTarget.playType,
+                password: decryptedPassword
+            }
+        });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] GET /api/cctv/:id failed:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+// POST /api/cctv/scan - Capability Discovery Scan
+app.post('/api/cctv/scan', async (req, res) => {
+    try {
+        const user = await getLoggedInUser(req);
+        if (!user) {
+            return res.status(401).json({ error: 'Belum masuk' });
+        }
+        if (user.role !== 'admin') {
+            return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
+        }
+        const { ipOrHost, username, password, vendorHint, port, connectionMode } = req.body;
+        if (!ipOrHost) {
+            return res.status(400).json({ error: 'IP Address / Host wajib diisi.' });
+        }
+        console.log(`[CctvScanner] Probing camera at: ${ipOrHost} (Vendor: ${vendorHint || 'GENERIC'}, Mode: ${connectionMode || 'AUTO'})...`);
+        const scanResult = await CctvScanner_1.CctvScanner.scan(ipOrHost, username, password, vendorHint, port ? parseInt(port) : undefined, connectionMode);
+        res.json({ success: true, data: scanResult });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] POST /api/cctv/scan failed:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+// POST /api/cctv - Connect CCTV (admin-only)
+app.post('/api/cctv', async (req, res) => {
+    try {
+        const user = await getLoggedInUser(req);
+        if (!user) {
+            return res.status(401).json({ error: 'Belum masuk' });
+        }
+        if (user.role !== 'admin') {
+            return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
+        }
+        const newCctv = await db_1.DatabaseManager.addCctv(req.body, user.id);
+        // Instantly check camera health upon connection
+        CctvHealthEngine_1.CctvHealthEngine.checkCameraHealth(newCctv.id);
+        res.json({ success: true, data: newCctv });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] POST /api/cctv failed:', err);
+        res.status(400).json({ error: err.message || 'Gagal menambahkan CCTV' });
+    }
+});
+// PUT /api/cctv/:id - Update CCTV (admin-only)
+app.put('/api/cctv/:id', async (req, res) => {
+    try {
+        const user = await getLoggedInUser(req);
+        if (!user) {
+            return res.status(401).json({ error: 'Belum masuk' });
+        }
+        if (user.role !== 'admin') {
+            return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
+        }
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            return res.status(400).json({ error: 'ID tidak valid' });
+        }
+        const updated = await db_1.DatabaseManager.updateCctv(id, req.body);
+        // Instantly trigger health check to update status
+        CctvHealthEngine_1.CctvHealthEngine.checkCameraHealth(id);
+        res.json({ success: true, data: updated });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] PUT /api/cctv/:id failed:', err);
+        res.status(400).json({ error: err.message || 'Gagal mengubah CCTV' });
+    }
+});
+// DELETE /api/cctv/:id - Disconnect CCTV (admin-only)
+app.delete('/api/cctv/:id', async (req, res) => {
+    try {
+        const user = await getLoggedInUser(req);
+        if (!user) {
+            return res.status(401).json({ error: 'Belum masuk' });
+        }
+        if (user.role !== 'admin') {
+            return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
+        }
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            return res.status(400).json({ error: 'ID tidak valid' });
+        }
+        await db_1.DatabaseManager.deleteCctv(id);
+        res.json({ success: true, message: 'CCTV berhasil diputuskan' });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] DELETE /api/cctv/:id failed:', err);
+        res.status(400).json({ error: err.message || 'Gagal menghapus CCTV' });
+    }
+});
+// POST /api/cctv/:id/reconnect - Trigger manual reconnect
+app.post('/api/cctv/:id/reconnect', async (req, res) => {
+    try {
+        const user = await getLoggedInUser(req);
+        if (!user) {
+            return res.status(401).json({ error: 'Belum masuk' });
+        }
+        if (user.role !== 'admin') {
+            return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
+        }
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            return res.status(400).json({ error: 'ID tidak valid' });
+        }
+        const success = await CctvHealthEngine_1.CctvHealthEngine.manualReconnect(id);
+        if (success) {
+            res.json({ success: true, message: 'Reconnection triggered' });
+        }
+        else {
+            res.status(400).json({ error: 'Failed to trigger reconnect' });
+        }
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] POST /api/cctv/:id/reconnect failed:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+// GET /api/cctv/:id/snapshot - Snapshot image proxy fallback
+app.get('/api/cctv/:id/snapshot', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const camera = await db_1.DatabaseManager.getCctvById(id);
+        if (!camera) {
+            return res.status(404).send('Camera not found');
+        }
+        // Proxy the snapshot, or fallback to the static asset image
+        if (camera.isDefault || camera.protocol === 'HTTP Image') {
+            res.redirect(camera.streamUrl);
+        }
+        else {
+            // Return default camera 1 image as fallback
+            res.redirect('/uploads/detection_1.jpg');
+        }
+    }
+    catch (err) {
+        res.status(500).send('Internal Server Error');
+    }
+});
 // Start Server after Database connection is established
 (0, db_1.connectDB)().then(() => {
+    CctvHealthEngine_1.CctvHealthEngine.start();
     app.listen(PORT, () => {
         console.log(`Server EYECO berjalan di http://localhost:${PORT}`);
     });
