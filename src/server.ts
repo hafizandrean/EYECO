@@ -65,10 +65,46 @@ async function getLoggedInUser(req: express.Request): Promise<User | null> {
 
 // --- AUTH API ENDPOINTS ---
 
-// Register API
+// 1. API BARU: Registrasi Desa / Workspace Baru (Otomatis Jadi Superadmin Desa Tersebut)
+app.post('/api/auth/register-desa', async (req, res) => {
+  try {
+    const { namaDesa, kodeDesa, username, password } = req.body;
+
+    if (!namaDesa || !kodeDesa || !username || !password) {
+      return res.status(400).json({ error: 'Semua data desa dan akun wajib diisi' });
+    }
+
+    // Cek apakah kode desa sudah terdaftar
+    const existingDesa = await DatabaseManager.findDesaByKode(kodeDesa.toLowerCase());
+    if (existingDesa) {
+      return res.status(400).json({ error: 'Kode desa/workspace sudah digunakan' });
+    }
+
+    // Buat Desanya terlebih dahulu
+    const newDesa = await DatabaseManager.createDesa(namaDesa, kodeDesa.toLowerCase());
+
+    // Buat user pertamanya langsung sebagai 'superadmin' di desa tersebut
+    const newSuperAdmin = await DatabaseManager.createUser(username, password, 'superadmin', newDesa._id.toString());
+    if (!newSuperAdmin) {
+      return res.status(400).json({ error: 'Username sudah digunakan' });
+    }
+
+    res.status(201).json({ 
+      message: 'Workspace desa dan akun superadmin berhasil dibuat',
+      desa: { namaDesa: newDesa.namaDesa, kodeDesa: newDesa.kodeDesa },
+      user: { username: newSuperAdmin.username, role: newSuperAdmin.role }
+    });
+  } catch (err) {
+    console.error('Register Desa API Error:', err);
+    res.status(500).json({ error: 'Terjadi kesalahan pada server saat pendaftaran desa' });
+  }
+});
+
+// 2. API Register Akun Anggota (Bisa Dipakai Publik dengan Mengirim desaId, atau oleh Superadmin untuk Tambah Admin)
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { username, password, role } = req.body;
+    const { username, password, role, desaId } = req.body;
+    const loggedInUser = await getLoggedInUser(req);
 
     if (!username || !password || !role) {
       return res.status(400).json({ error: 'Username, password, dan role harus diisi' });
@@ -82,12 +118,22 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: 'Role tidak valid' });
     }
 
-    const newUser = await DatabaseManager.createUser(username, password, role as 'admin' | 'user');
+    // Tentukan desaId: diambil dari request body, atau otomatis ikut desaId milik Superadmin yang sedang login
+    let targetDesaId = desaId;
+    if (loggedInUser && (loggedInUser.role === 'superadmin' || loggedInUser.role === 'admin')) {
+      targetDesaId = loggedInUser.desaId;
+    }
+
+    if (!targetDesaId) {
+      return res.status(400).json({ error: 'ID Desa / Workspace tidak ditemukan' });
+    }
+
+    const newUser = await DatabaseManager.createUser(username, password, role as 'admin' | 'user', targetDesaId);
     if (!newUser) {
       return res.status(400).json({ error: 'Username sudah digunakan' });
     }
 
-    res.status(201).json({ id: newUser.id, username: newUser.username, role: newUser.role });
+    res.status(201).json({ id: newUser.id, username: newUser.username, role: newUser.role, desaId: newUser.desaId });
   } catch (err) {
     console.error('Register API Error:', err);
     res.status(500).json({ error: 'Terjadi kesalahan pada server saat pendaftaran' });
@@ -114,7 +160,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     // Set Cookie
     res.setHeader('Set-Cookie', `session_token=${token}; Path=/; HttpOnly; SameSite=Lax`);
-    res.json({ id: user.id, username: user.username, role: user.role });
+    res.json({ id: user.id, username: user.username, role: user.role, desaId: user.desaId });
   } catch (err) {
     console.error('Login API Error:', err);
     res.status(500).json({ error: 'Terjadi kesalahan pada server saat login' });
@@ -145,7 +191,7 @@ app.get('/api/auth/me', async (req, res) => {
   if (!user) {
     return res.status(401).json({ error: 'Belum masuk' });
   }
-  res.json({ id: user.id, username: user.username, role: user.role });
+  res.json({ id: user.id, username: user.username, role: user.role, desaId: user.desaId });
 });
 
 
@@ -154,7 +200,7 @@ app.get('/api/auth/me', async (req, res) => {
 app.get('/login', async (req, res) => {
   const user = await getLoggedInUser(req);
   if (user) {
-    return res.redirect(user.role === 'admin' ? '/dashboard' : '/dashboard/upload');
+    return res.redirect(['superadmin', 'admin'].includes(user.role) ? '/dashboard' : '/dashboard/upload');
   }
   res.sendFile(path.join(__dirname, '../public/views/login.html'));
 });
@@ -162,14 +208,15 @@ app.get('/login', async (req, res) => {
 app.get('/register', async (req, res) => {
   const user = await getLoggedInUser(req);
   if (user) {
-    return res.redirect(user.role === 'admin' ? '/dashboard' : '/dashboard/upload');
+    return res.redirect(['superadmin', 'admin'].includes(user.role) ? '/dashboard' : '/dashboard/upload');
   }
   res.sendFile(path.join(__dirname, '../public/views/register.html'));
 });
 
+// Hanya Superadmin desa yang bisa mengakses halaman tambah admin/anggota baru
 app.get('/admin-register', async (req, res) => {
   const user = await getLoggedInUser(req);
-  if (!user || user.username !== 'admin') {
+  if (!user || user.role !== 'superadmin') {
     return res.redirect('/login');
   }
   res.sendFile(path.join(__dirname, '../public/views/admin-register.html'));
@@ -178,13 +225,13 @@ app.get('/admin-register', async (req, res) => {
 app.get('/', async (req, res) => {
   const user = await getLoggedInUser(req);
   if (!user) return res.redirect('/login');
-  res.redirect(user.role === 'admin' ? '/dashboard' : '/dashboard/upload');
+  res.redirect(['superadmin', 'admin'].includes(user.role) ? '/dashboard' : '/dashboard/upload');
 });
 
 app.get('/dashboard', async (req, res) => {
   const user = await getLoggedInUser(req);
   if (!user) return res.redirect('/login');
-  if (user.role !== 'admin') return res.redirect('/dashboard/upload');
+  if (!['superadmin', 'admin'].includes(user.role)) return res.redirect('/dashboard/upload');
   
   res.sendFile(path.join(__dirname, '../public/views/dashboard.html'));
 });
@@ -199,7 +246,7 @@ app.get('/dashboard/upload', async (req, res) => {
 app.get('/dashboard/detections/:id', async (req, res) => {
   const user = await getLoggedInUser(req);
   if (!user) return res.redirect('/login');
-  if (user.role !== 'admin') return res.redirect('/dashboard/upload');
+  if (!['superadmin', 'admin'].includes(user.role)) return res.redirect('/dashboard/upload');
   
   res.sendFile(path.join(__dirname, '../public/views/detail.html'));
 });
@@ -207,7 +254,7 @@ app.get('/dashboard/detections/:id', async (req, res) => {
 
 // --- SECURE DATA API ENDPOINTS ---
 
-// API: Get Filtered & Paginated Reports
+// API: Get Filtered & Paginated Reports (Terisolasi per Desa)
 app.get('/api/detections', async (req, res) => {
   const user = await getLoggedInUser(req);
   if (!user) {
@@ -225,7 +272,8 @@ app.get('/api/detections', async (req, res) => {
     location: req.query.location as string,
   };
 
-  const userContext = { id: user.id, role: user.role };
+  // Mengirim konteks user lengkap beserta desaId-nya
+  const userContext = { id: user.id, role: user.role, desaId: user.desaId };
   const allFilteredReports = await DatabaseManager.getFiltered(filters, userContext);
   
   // Paginate
@@ -247,21 +295,26 @@ app.get('/api/detections', async (req, res) => {
   });
 });
 
-// API: Get Single Report by ID
+// API: Get Single Report by ID (Proteksi Silang Antar Desa)
 app.get('/api/detections/:id', async (req, res) => {
   const user = await getLoggedInUser(req);
   if (!user) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const id = req.params.id; // Now a string (ObjectId)
+  const id = req.params.id;
   const report = await DatabaseManager.getById(id);
 
   if (!report) {
     return res.status(404).json({ error: 'Laporan tidak ditemukan' });
   }
 
-  // Access check: normal user can only view their own report
+  // Cek Keamanan: Admin/User desa lain dilarang mengintip laporan desa ini
+  if (report.desaId !== user.desaId) {
+    return res.status(403).json({ error: 'Akses ditolak: Anda bukan bagian dari workspace desa ini' });
+  }
+
+  // Akses user biasa hanya boleh melihat buatannya sendiri
   if (user.role === 'user' && report.userId !== user.id) {
     return res.status(403).json({ error: 'Akses ditolak' });
   }
@@ -276,11 +329,22 @@ app.post('/api/detections/:id/verify', async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  if (user.role !== 'admin') {
-    return res.status(403).json({ error: 'Hanya Admin yang dapat memvalidasi laporan' });
+  if (!['superadmin', 'admin'].includes(user.role)) {
+    return res.status(403).json({ error: 'Hanya Admin/Superadmin yang dapat memvalidasi laporan' });
   }
 
   const id = req.params.id;
+  const report = await DatabaseManager.getById(id);
+
+  if (!report) {
+    return res.status(404).json({ error: 'Laporan tidak ditemukan' });
+  }
+
+  // Cek Keamanan: Admin dilarang memverifikasi laporan desa lain
+  if (report.desaId !== user.desaId) {
+    return res.status(403).json({ error: 'Akses ditolak' });
+  }
+
   const { status, notes } = req.body;
 
   if (!status || !['VALID', 'DIABAIKAN', 'MENUNGGU'].includes(status)) {
@@ -288,57 +352,44 @@ app.post('/api/detections/:id/verify', async (req, res) => {
   }
 
   const updatedReport = await DatabaseManager.updateVerification(id, status, notes || '');
-  if (!updatedReport) {
-    return res.status(404).json({ error: 'Laporan tidak ditemukan' });
-  }
-
   res.json(updatedReport);
 });
 
-// API: Get Stats & Charts data
+// API: Get Stats & Charts data (Ter-scope per desa)
 app.get('/api/stats', async (req, res) => {
   const user = await getLoggedInUser(req);
   if (!user) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const userContext = { id: user.id, role: user.role };
+  const userContext = { id: user.id, role: user.role, desaId: user.desaId };
   const stats = await DatabaseManager.getStats(userContext);
   res.json(stats);
 });
 
-// Helper: Run simulated AI YOLO detector on uploaded images
+// Helper: Run simulated AI YOLO detector
 function runSimulatedAI(location: string, notes: string): {
   status: 'TINGGI' | 'SEDANG' | 'RENDAH' | 'Tidak Terindikasi';
   confidence: number | null;
   boxes: BoundingBox[];
 } {
   const boxes: BoundingBox[] = [];
-  
   const notesLower = notes.toLowerCase();
   
   let hasPerson = Math.random() > 0.3;
   let hasTrash = Math.random() > 0.6;
   let hasBoat = Math.random() > 0.8;
   
-  if (notesLower.includes('orang') || notesLower.includes('warga') || notesLower.includes('mancing')) {
-    hasPerson = true;
-  }
-  if (notesLower.includes('sampah') || notesLower.includes('buang') || notesLower.includes('limbah')) {
-    hasTrash = true;
-  }
-  if (notesLower.includes('perahu') || notesLower.includes('kapal') || notesLower.includes('boat')) {
-    hasBoat = true;
-  }
+  if (notesLower.includes('orang') || notesLower.includes('warga') || notesLower.includes('mancing')) hasPerson = true;
+  if (notesLower.includes('sampah') || notesLower.includes('buang') || notesLower.includes('limbah')) hasTrash = true;
+  if (notesLower.includes('perahu') || notesLower.includes('kapal') || notesLower.includes('boat')) hasBoat = true;
 
   if (hasPerson) {
     boxes.push({
       label: 'person',
       confidence: parseFloat((0.75 + Math.random() * 0.23).toFixed(2)),
-      x: parseFloat((15 + Math.random() * 40).toFixed(1)),
-      y: parseFloat((30 + Math.random() * 30).toFixed(1)),
-      w: parseFloat((12 + Math.random() * 15).toFixed(1)),
-      h: parseFloat((40 + Math.random() * 25).toFixed(1)),
+      x: parseFloat((15 + Math.random() * 40).toFixed(1)), y: parseFloat((30 + Math.random() * 30).toFixed(1)),
+      w: parseFloat((12 + Math.random() * 15).toFixed(1)), h: parseFloat((40 + Math.random() * 25).toFixed(1)),
     });
   }
 
@@ -346,35 +397,20 @@ function runSimulatedAI(location: string, notes: string): {
     boxes.push({
       label: 'trash',
       confidence: parseFloat((0.65 + Math.random() * 0.3).toFixed(2)),
-      x: parseFloat((30 + Math.random() * 40).toFixed(1)),
-      y: parseFloat((60 + Math.random() * 20).toFixed(1)),
-      w: parseFloat((15 + Math.random() * 20).toFixed(1)),
-      h: parseFloat((15 + Math.random() * 15).toFixed(1)),
-    });
-  }
-
-  if (hasBoat) {
-    boxes.push({
-      label: 'boat',
-      confidence: parseFloat((0.8 + Math.random() * 0.18).toFixed(2)),
-      x: parseFloat((10 + Math.random() * 30).toFixed(1)),
-      y: parseFloat((40 + Math.random() * 15).toFixed(1)),
-      w: parseFloat((35 + Math.random() * 25).toFixed(1)),
-      h: parseFloat((20 + Math.random() * 10).toFixed(1)),
+      x: parseFloat((30 + Math.random() * 40).toFixed(1)), y: parseFloat((60 + Math.random() * 20).toFixed(1)),
+      w: parseFloat((15 + Math.random() * 20).toFixed(1)), h: parseFloat((15 + Math.random() * 15).toFixed(1)),
     });
   }
 
   let status: 'TINGGI' | 'SEDANG' | 'RENDAH' | 'Tidak Terindikasi' = 'Tidak Terindikasi';
   let confidence: number | null = null;
 
-  if (hasTrash || (hasPerson && hasBoat) || notesLower.includes('mencurigakan') || notesLower.includes('tebang')) {
+  if (hasTrash || (hasPerson && hasBoat) || notesLower.includes('mencurigakan')) {
     status = 'TINGGI';
     confidence = Math.round(75 + Math.random() * 23);
   } else if (hasPerson) {
     status = 'RENDAH';
     confidence = Math.round(40 + Math.random() * 30);
-  } else if (hasBoat) {
-    status = 'Tidak Terindikasi';
   } else if (boxes.length > 0) {
     status = 'SEDANG';
     confidence = Math.round(60 + Math.random() * 15);
@@ -383,7 +419,7 @@ function runSimulatedAI(location: string, notes: string): {
   return { status, confidence, boxes };
 }
 
-// API: Create new report (upload)
+// API: Create new report (Mencatat desaId pelapor secara otomatis)
 app.post('/api/detections', upload.single('file'), async (req, res) => {
   const user = await getLoggedInUser(req);
   if (!user) {
@@ -395,11 +431,9 @@ app.post('/api/detections', upload.single('file'), async (req, res) => {
   }
 
   const { location, identity, sourceType, additionalNotes } = req.body;
-
-  // Run AI processing simulation
   const aiResults = runSimulatedAI(location || '', additionalNotes || '');
 
-  // Create report entry linked to user.id
+  // Kirim data laporan beserta user.id dan user.desaId pelapor!
   const newReport = await DatabaseManager.create({
     location: location || 'Lokasi tidak diketahui',
     aiStatus: aiResults.status,
@@ -409,9 +443,8 @@ app.post('/api/detections', upload.single('file'), async (req, res) => {
     sourceType: sourceType || 'Gambar',
     additionalNotes: additionalNotes || 'Tidak ada catatan tambahan.',
     boundingBoxes: aiResults.boxes,
-  }, user.id);
+  }, user.id, user.desaId);
 
-  // Also copy this uploaded file as the last capture image for the dashboard
   try {
     const uploadDir = path.join(__dirname, '../public/uploads');
     const sourcePath = path.join(uploadDir, req.file.filename);
@@ -424,17 +457,17 @@ app.post('/api/detections', upload.single('file'), async (req, res) => {
   res.status(201).json(newReport);
 });
 
-// API: Export all reports to CSV (Admins only)
+// API: Export Laporan Ke CSV (Ter-scope hanya mengekspor data milik desanya sendiri)
 app.get('/api/export', async (req, res) => {
   const user = await getLoggedInUser(req);
-  if (!user || user.role !== 'admin') {
+  if (!user || !['superadmin', 'admin'].includes(user.role)) {
     return res.status(403).send('Forbidden: Hanya Admin yang dapat mengekspor laporan');
   }
 
-  const reports = await DatabaseManager.getAll();
+  // Mengambil laporan hanya untuk desanya sendiri
+  const reports = await DatabaseManager.getAll(user.desaId);
 
-  // CSV headers
-  let csvContent = 'ID,User ID,Lokasi,Waktu Kejadian,Status AI,Keyakinan AI (%),Status Admin,Sumber,Identitas/Kiri,Catatan Admin\n';
+  let csvContent = 'ID,User ID,Lokasi,Waktu Kejadian,Status AI,Keyakinan AI (%),Status Admin,Sumber,Identitas,Catatan Admin\n';
 
   reports.forEach((r) => {
     const row = [
@@ -453,7 +486,7 @@ app.get('/api/export', async (req, res) => {
   });
 
   res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="simbahrang_report_export.csv"');
+  res.setHeader('Content-Disposition', `attachment; filename="report_export_desa_${user.desaId}.csv"`);
   res.status(200).send(csvContent);
 });
 

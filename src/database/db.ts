@@ -1,30 +1,44 @@
 import mongoose, { Document, Schema, Model } from 'mongoose';
 import crypto from 'crypto';
 
+// --- DESA (WORKSPACE) INTERFACE & SCHEMA ---
+export interface Desa {
+  id: string;
+  namaDesa: string;
+  kodeDesa: string; // Contoh: "desa-a"
+}
+
+export interface DesaDocument extends Document {
+  namaDesa: string;
+  kodeDesa: string;
+}
+
+const DesaSchema = new Schema<DesaDocument>({
+  namaDesa: { type: String, required: true },
+  kodeDesa: { type: String, required: true, unique: true }
+});
+
+const DesaModel: Model<DesaDocument> = mongoose.models.Desa || mongoose.model<DesaDocument>('Desa', DesaSchema);
+
+// --- USER INTERFACE & SCHEMA ---
 export interface User {
   id: string;
   username: string;
   passwordHash: string;
-  role: 'superadmin' | 'admin' | 'user';
-  kodeDesa?: string;
-  namaDesa?: string;
+  role: 'admin' | 'user';
 }
 
 export interface UserDocument extends Document {
   username: string;
   passwordHash: string;
-  role: 'superadmin' | 'admin' | 'user';
-  kodeDesa?: string;
-  namaDesa?: string;
+  role: 'admin' | 'user';
 }
 
 // Dibikin unique majemuk (compound index) agar username yang sama bisa ada di desa yang berbeda
 const UserSchema = new Schema<UserDocument>({
   username: { type: String, required: true },
   passwordHash: { type: String, required: true },
-  role: { type: String, enum: ['superadmin', 'admin', 'user'], required: true },
-  kodeDesa: { type: String, default: null },
-  namaDesa: { type: String, default: null }
+  role: { type: String, enum: ['admin', 'user'], required: true }
 });
 
 // Memastikan username + kodeDesa bersifat unik secara kombinasi
@@ -32,6 +46,7 @@ UserSchema.index({ username: 1, kodeDesa: 1 }, { unique: true });
 
 const UserModel: Model<UserDocument> = mongoose.models.User || mongoose.model<UserDocument>('User', UserSchema);
 
+// --- BOUNDING BOX INTERFACE ---
 export interface BoundingBox {
   label: string;
   confidence: number;
@@ -41,9 +56,11 @@ export interface BoundingBox {
   h: number;
 }
 
+// --- REPORT INTERFACE & SCHEMA ---
 export interface Report {
   id: string;
   userId: string;
+  desaId: string; // Laporan di-scope per desa
   location: string;
   timestamp: string;
   aiStatus: 'TINGGI' | 'SEDANG' | 'RENDAH' | 'Tidak Terindikasi';
@@ -60,6 +77,7 @@ export interface Report {
 
 export interface ReportDocument extends Document {
   userId: string;
+  desaId: mongoose.Types.ObjectId;
   location: string;
   timestamp: string;
   aiStatus: 'TINGGI' | 'SEDANG' | 'RENDAH' | 'Tidak Terindikasi';
@@ -76,6 +94,7 @@ export interface ReportDocument extends Document {
 
 const ReportSchema = new Schema<ReportDocument>({
   userId: { type: String, required: true },
+  desaId: { type: Schema.Types.ObjectId, ref: 'Desa', required: true },
   location: { type: String, required: true },
   timestamp: { type: String, required: true },
   aiStatus: { type: String, enum: ['TINGGI', 'SEDANG', 'RENDAH', 'Tidak Terindikasi'], required: true },
@@ -99,6 +118,7 @@ const ReportSchema = new Schema<ReportDocument>({
 
 const ReportModel: Model<ReportDocument> = mongoose.models.Report || mongoose.model<ReportDocument>('Report', ReportSchema);
 
+// --- DATABASE MANAGER ---
 export class DatabaseManager {
   public static hashPassword(password: string): string {
     return crypto.createHash('sha256').update(password).digest('hex');
@@ -109,9 +129,7 @@ export class DatabaseManager {
       id: doc._id.toString(),
       username: doc.username,
       passwordHash: doc.passwordHash,
-      role: doc.role,
-      kodeDesa: doc.kodeDesa,
-      namaDesa: doc.namaDesa
+      role: doc.role
     };
   }
 
@@ -119,6 +137,7 @@ export class DatabaseManager {
     return {
       id: doc._id.toString(),
       userId: doc.userId,
+      desaId: doc.desaId.toString(),
       location: doc.location,
       timestamp: doc.timestamp,
       aiStatus: doc.aiStatus,
@@ -141,12 +160,20 @@ export class DatabaseManager {
     };
   }
 
-  // Cari user berdasarkan username di lingkungan desa yang spesifik
-  public static async findUserInDesa(username: string, kodeDesa: string | undefined): Promise<User | undefined> {
-    const doc = await UserModel.findOne({ 
-      username: { $regex: new RegExp('^' + username + '$', 'i') },
-      kodeDesa: kodeDesa || null
-    });
+  // --- DESA METHODS ---
+  public static async createDesa(namaDesa: string, kodeDesa: string): Promise<DesaDocument> {
+    const doc = new DesaModel({ namaDesa, kodeDesa });
+    return await doc.save();
+  }
+
+  public static async findDesaByKode(kodeDesa: string): Promise<DesaDocument | null> {
+    return await DesaModel.findOne({ kodeDesa });
+  }
+
+  // --- USER METHODS ---
+  public static async findUserByUsername(username: string): Promise<User | undefined> {
+    // Regex for case-insensitive exact match
+    const doc = await UserModel.findOne({ username: { $regex: new RegExp('^' + username + '$', 'i') } });
     return doc ? this.mapUser(doc) : undefined;
   }
 
@@ -159,22 +186,14 @@ export class DatabaseManager {
     }
   }
 
-  public static async createUser(
-    username: string, 
-    passwordPlain: string, 
-    role: 'superadmin' | 'admin' | 'user', 
-    kodeDesa?: string, 
-    namaDesa?: string
-  ): Promise<User | null> {
-    const existing = await this.findUserInDesa(username, kodeDesa);
+  public static async createUser(username: string, passwordPlain: string, role: 'admin' | 'user'): Promise<User | null> {
+    const existing = await this.findUserByUsername(username);
     if (existing) return null;
 
     const doc = new UserModel({
       username,
       passwordHash: this.hashPassword(passwordPlain),
-      role,
-      kodeDesa: kodeDesa || null,
-      namaDesa: namaDesa || null
+      role: role
     });
     await doc.save();
     return this.mapUser(doc);
@@ -191,31 +210,9 @@ export class DatabaseManager {
     return null;
   }
 
-  // Cek apakah admin di desa ini sudah terdaftar atau belum
-  public static async checkAdminExistsInDesa(kodeDesa: string): Promise<User | null> {
-    const doc = await UserModel.findOne({ role: 'admin', kodeDesa });
-    return doc ? this.mapUser(doc) : null;
-  }
-
-  public static async updateProfile(id: string, newUsername: string, newPasswordPlain?: string): Promise<User | null> {
-    try {
-      const doc = await UserModel.findById(id);
-      if (!doc) return null;
-      
-      doc.username = newUsername;
-      if (newPasswordPlain) {
-        doc.passwordHash = this.hashPassword(newPasswordPlain);
-      }
-      await doc.save();
-      return this.mapUser(doc);
-    } catch {
-      return null;
-    }
-  }
-
-  public static async getAll(kodeDesa?: string): Promise<Report[]> {
-    const query = kodeDesa ? { kodeDesa } : {};
-    const docs = await ReportModel.find(query).sort({ timestamp: -1 });
+  // --- REPORT METHODS ---
+  public static async getAll(): Promise<Report[]> {
+    const docs = await ReportModel.find().sort({ timestamp: -1 });
     return docs.map(d => this.mapReport(d));
   }
 
@@ -230,12 +227,12 @@ export class DatabaseManager {
 
   public static async create(
     report: Omit<Report, 'id' | 'timestamp' | 'adminStatus' | 'adminNotes' | 'userId'>, 
-    creatorId: string,
-    kodeDesa?: string
+    creatorId: string
   ): Promise<Report> {
     const doc = new ReportModel({
       ...report,
       userId: creatorId,
+      desaId: new mongoose.Types.ObjectId(desaId),
       timestamp: new Date().toISOString(),
       adminStatus: 'MENUNGGU',
       adminNotes: '',
@@ -261,15 +258,18 @@ export class DatabaseManager {
 
   public static async getFiltered(
     filters: {
-      timeRange?: string; 
-      date?: string; 
-      aiStatus?: string; 
-      adminStatus?: string; 
+      timeRange?: string; // 'hari_ini', 'minggu_ini', 'semua'
+      date?: string; // YYYY-MM-DD
+      aiStatus?: string; // 'TINGGI', 'SEDANG', 'RENDAH', 'Tidak Terindikasi', 'semua'
+      adminStatus?: string; // 'MENUNGGU', 'VALID', 'DIABAIKAN', 'semua'
       location?: string;
     },
-    userContext: { id: string; role: string; kodeDesa?: string }
+    userContext: { id: string; role: 'admin' | 'user' }
   ): Promise<Report[]> {
     let query: any = {};
+
+    // Kunci utama Multi-Tenancy: Semua user/admin hanya bisa melihat data desanya sendiri
+    query.desaId = new mongoose.Types.ObjectId(userContext.desaId);
 
     if (userContext.kodeDesa) {
       query.kodeDesa = userContext.kodeDesa;
@@ -316,10 +316,10 @@ export class DatabaseManager {
     return docs.map(d => this.mapReport(d));
   }
 
-  public static async getStats(userContext?: { id: string; role: string; kodeDesa?: string }) {
+  public static async getStats(userContext?: { id: string; role: 'admin' | 'user' }) {
     let query: any = {};
-    if (userContext && userContext.kodeDesa) {
-      query.kodeDesa = userContext.kodeDesa;
+    if (userContext && userContext.role === 'user') {
+      query.userId = userContext.id;
     }
 
     const docs = await ReportModel.find(query);
