@@ -1,0 +1,491 @@
+// upload.js - Kontroler Halaman Unggah Bukti Baru (ChatGPT-style AI Scanner)
+import { ReportService } from '../services/reportService.js';
+import { Router } from '../core/router.js';
+import { AppState } from '../core/state.js';
+import { Formatter } from '../utils/formatter.js';
+import { EventBus } from '../core/eventBus.js';
+
+export class UploadPage {
+  constructor() {
+    this.selectedFile = null;
+    this.historyReports = [];
+    this.isScanning = false;
+    this.scanCompleted = false;
+  }
+
+  // Merender halaman form upload & riwayat
+  async render(container) {
+    container.innerHTML = `
+      <style>
+        @keyframes scanLineAnim {
+          0% { top: 0%; opacity: 0.8; }
+          50% { top: 98%; opacity: 1; }
+          100% { top: 0%; opacity: 0.8; }
+        }
+        .scanning-bar {
+          position: absolute;
+          left: 0;
+          width: 100%;
+          height: 6px;
+          background: linear-gradient(180deg, transparent, var(--primary), transparent);
+          box-shadow: 0 0 16px var(--primary);
+          animation: scanLineAnim 2.2s ease-in-out infinite;
+          z-index: 10;
+        }
+        .yolo-mock-box {
+          position: absolute;
+          border: 2px solid var(--danger);
+          box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+          background: rgba(239, 68, 68, 0.1);
+          z-index: 5;
+          pointer-events: none;
+          animation: pageFadeIn 0.3s ease forwards;
+        }
+        .yolo-mock-label {
+          position: absolute;
+          top: -22px;
+          left: -2px;
+          background: var(--danger);
+          color: white;
+          font-size: 0.65rem;
+          font-weight: 800;
+          padding: 2px 6px;
+          border-radius: 4px;
+          text-transform: uppercase;
+        }
+      </style>
+
+      <div class="upload-container-layout" style="animation: pageFadeIn var(--motion-open);">
+        <!-- Left: Upload Form Card -->
+        <main class="glass-card upload-card" id="upload-main-card" style="padding: var(--space-32);">
+          <div class="card-header-clean" style="margin-bottom: var(--space-24);">
+            <span style="background: rgba(47, 107, 255, 0.1); color: var(--primary); font-size: 0.72rem; font-weight: 800; text-transform: uppercase; padding: 4px 12px; border-radius: var(--radius-pill); letter-spacing: 0.5px;">Unggah Bukti</span>
+            <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--text-primary); margin-top: 6px; margin-bottom: 0;">Lapor Keadaan Sungai</h2>
+            <p style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 4px;">Seret media foto sungai untuk mendeteksi pencemaran sampah otomatis berbasis AI</p>
+          </div>
+
+          <form id="upload-form-element" class="upload-form" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: var(--space-20);">
+            <!-- Drag & Drop Area -->
+            <div class="form-group">
+              <div class="drag-drop-zone" id="drop-zone" style="min-height: 220px; border: 2px dashed rgba(47,107,255,0.2); border-radius: var(--radius-card); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; background: rgba(255,255,255,0.3);">
+                <input type="file" id="upload-input-file" accept="image/*,video/*" required style="display: none;">
+                
+                <!-- Initial State -->
+                <div class="drag-drop-content" id="drop-zone-content" style="text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: var(--space-24);">
+                  <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(47,107,255,0.05); color: var(--primary); display: flex; align-items: center; justify-content: center;">
+                    <i data-lucide="image" style="width: 24px; height: 24px;"></i>
+                  </div>
+                  <p style="font-size: 0.9rem; color: var(--text-primary); font-weight: 700; margin: 0;">Seret & lepas gambar di sini, atau klik untuk memilih</p>
+                  <p style="font-size: 0.72rem; color: var(--text-secondary); margin: 0;">Mendukung format JPG, PNG, MP4 hingga 10MB</p>
+                </div>
+
+                <!-- Preview Area -->
+                <div class="file-preview-container" id="file-preview" style="display: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; align-items: center; justify-content: center; background: #0b0f19;">
+                  <!-- Dynamic Preview image and Bounding Box nodes injected here -->
+                </div>
+              </div>
+            </div>
+
+            <!-- AI Real-Time Scan Matrix HUD (Shows during and after drop/select) -->
+            <div id="ai-scanner-hud" class="glass-card" style="display: none; padding: var(--space-16); border-radius: 12px; background: rgba(255,255,255,0.6); flex-direction: column; gap: var(--space-12);">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.82rem; color: var(--text-primary);">
+                  <span id="scan-status-dot" class="status-pulse-dot" style="width:6px; height:6px; background: var(--primary); border-radius:50%; display:inline-block;"></span>
+                  <span id="scan-status-text">Scanning image...</span>
+                </div>
+                <span id="scan-confidence-badge" style="font-size: 0.72rem; font-weight: 800; color: var(--primary); background: rgba(47,107,255,0.08); padding: 2px 8px; border-radius: var(--radius-pill); display: none;">0% Confidence</span>
+              </div>
+              <div class="progress-bar-flat" style="width: 100%; height: 6px; background: rgba(0,0,0,0.05); border-radius: 3px; overflow: hidden;">
+                <div id="scan-progress-fill" style="width: 0%; height: 100%; background: var(--primary); transition: width 0.3s ease;"></div>
+              </div>
+              
+              <!-- Checklist Findings -->
+              <div id="scan-findings-list" style="display: none; flex-wrap: wrap; gap: 8px; margin-top: 4px;">
+                <span style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 700; width: 100%;">AI Findings:</span>
+                <span style="font-size: 0.75rem; font-weight: 700; color: var(--danger); background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.15); padding: 4px 10px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px;">
+                  <i data-lucide="check" style="width: 12px; height: 12px;"></i> Plastik Terdeteksi
+                </span>
+                <span style="font-size: 0.75rem; font-weight: 700; color: var(--primary); background: rgba(47, 107, 255, 0.08); border: 1px solid rgba(47, 107, 255, 0.15); padding: 4px 10px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px;">
+                  <i data-lucide="check" style="width: 12px; height: 12px;"></i> Air Sungai
+                </span>
+              </div>
+            </div>
+
+            <!-- Metadata Fields (Initially hidden, revealed after scan completes) -->
+            <div id="form-metadata-fields" style="display: none; flex-direction: column; gap: var(--space-16); animation: pageFadeIn 0.3s ease;">
+              <!-- Location Input -->
+              <div class="form-group">
+                <label class="form-label" for="input-location">Lokasi Sungai / Sektor <span class="required">*</span></label>
+                <input type="text" class="form-control input-rounded" id="input-location" placeholder="Masukkan lokasi detail sungai (e.g. Sungai Ciliwung Pintu Air Manggarai)" required>
+              </div>
+
+              <!-- Datetime Input -->
+              <div class="form-group">
+                <label class="form-label" for="input-time">Waktu Pengamatan <span class="required">*</span></label>
+                <div class="input-btn-group">
+                  <input type="datetime-local" class="form-control input-rounded" id="input-time" required style="flex: 1;">
+                  <button type="button" class="btn btn-glass btn-rounded" id="btn-autofill-time">Sekarang</button>
+                </div>
+              </div>
+
+              <!-- Notes Description -->
+              <div class="form-group">
+                <label class="form-label" for="input-notes">Deskripsi Visual Laporan (Opsional)</label>
+                <textarea class="form-control textarea-rounded" id="input-notes" placeholder="Tambahkan deskripsi atau ciri-ciri khusus sampah sungai di lokasi..."></textarea>
+              </div>
+
+              <!-- Submit Button -->
+              <button type="submit" class="btn btn-primary btn-rounded" id="btn-submit-report" style="width: 100%; height: 48px; margin-top: 8px; font-weight: 700;">
+                <i data-lucide="send"></i> Kirim Laporan Resmi
+              </button>
+            </div>
+          </form>
+        </main>
+
+        <!-- Right: Upload History Card -->
+        <section class="glass-card history-card" id="upload-history-card" style="padding: var(--space-32);">
+          <div class="card-header-clean" style="margin-bottom: var(--space-24);">
+            <h3 class="section-title" style="margin: 0;"><i data-lucide="clock"></i> Riwayat Laporan Saya</h3>
+            <p class="caption-label" style="margin-top: 4px;">Pantau perkembangan penanganan insiden yang Anda laporkan</p>
+          </div>
+
+          <div class="history-list" id="history-list-container" style="display: flex; flex-direction: column; gap: var(--space-12);">
+            <!-- Populated dynamically -->
+          </div>
+        </section>
+      </div>
+    `;
+
+    this.bindEvents();
+    this.autofillCurrentTime();
+    
+    // Load history
+    await this.loadHistory();
+  }
+
+  bindEvents() {
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('upload-input-file');
+    const autofillBtn = document.getElementById('btn-autofill-time');
+    const form = document.getElementById('upload-form-element');
+
+    if (dropZone && fileInput) {
+      // Click triggers file select
+      dropZone.addEventListener('click', () => {
+        if (!this.isScanning) fileInput.click();
+      });
+
+      // Drag and drop handlers
+      dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if (!this.isScanning) dropZone.classList.add('dragover');
+      });
+
+      ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'));
+      });
+
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (this.isScanning) return;
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          this.handleFileSelected(files[0]);
+        }
+      });
+
+      fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+          this.handleFileSelected(fileInput.files[0]);
+        }
+      });
+    }
+
+    if (autofillBtn) {
+      autofillBtn.addEventListener('click', () => this.autofillCurrentTime());
+    }
+
+    if (form) {
+      form.addEventListener('submit', (e) => this.handleSubmit(e));
+    }
+  }
+
+  autofillCurrentTime() {
+    const timeInput = document.getElementById('input-time');
+    if (!timeInput) return;
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    timeInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
+  handleFileSelected(file) {
+    this.selectedFile = file;
+
+    const previewContainer = document.getElementById('file-preview');
+    const zoneContent = document.getElementById('drop-zone-content');
+    const scannerHud = document.getElementById('ai-scanner-hud');
+
+    if (!previewContainer || !zoneContent || !scannerHud) return;
+
+    zoneContent.style.display = 'none';
+    previewContainer.style.display = 'flex';
+    previewContainer.innerHTML = '';
+    
+    // Set file input files (compatibility for drag & drop)
+    const fileInput = document.getElementById('upload-input-file');
+    if (fileInput && fileInput.files[0] !== file) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      fileInput.files = dt.files;
+    }
+
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        previewContainer.innerHTML = `
+          <img src="${e.target.result}" alt="Preview" style="width:100%; height:100%; object-fit:contain;">
+          <div class="scanning-bar" id="scan-line"></div>
+          <button type="button" class="btn-remove-file" id="btn-clear-file" style="position:absolute; top:12px; right:12px; z-index:20; background:rgba(0,0,0,0.6); border:none; color:white; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; cursor:pointer;">&times;</button>
+        `;
+        
+        document.getElementById('btn-clear-file').addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.clearFileSelection();
+        });
+
+        // Trigger AI simulated scan
+        this.runSimulatedAIScan();
+      };
+      reader.readAsDataURL(file);
+    } else {
+      // Video
+      previewContainer.innerHTML = `
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; gap: 8px;">
+          <i data-lucide="video" style="width: 48px; height: 48px; color: var(--primary);"></i>
+          <span style="font-size:0.85rem; font-weight:700;">${file.name}</span>
+        </div>
+        <div class="scanning-bar" id="scan-line"></div>
+        <button type="button" class="btn-remove-file" id="btn-clear-file" style="position:absolute; top:12px; right:12px; z-index:20; background:rgba(0,0,0,0.6); border:none; color:white; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; cursor:pointer;">&times;</button>
+      `;
+      
+      document.getElementById('btn-clear-file').addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.clearFileSelection();
+      });
+      if (window.lucide) window.lucide.createIcons();
+
+      // Trigger AI simulated scan
+      this.runSimulatedAIScan();
+    }
+  }
+
+  runSimulatedAIScan() {
+    this.isScanning = true;
+    this.scanCompleted = false;
+
+    const hud = document.getElementById('ai-scanner-hud');
+    const statusText = document.getElementById('scan-status-text');
+    const progressFill = document.getElementById('scan-progress-fill');
+    const statusDot = document.getElementById('scan-status-dot');
+    const confBadge = document.getElementById('scan-confidence-badge');
+    const findings = document.getElementById('scan-findings-list');
+
+    if (!hud || !statusText || !progressFill) return;
+
+    // Reset scanner states
+    hud.style.display = 'flex';
+    statusText.innerText = 'Initializing YOLOv8 Engine...';
+    statusDot.style.background = 'var(--primary)';
+    progressFill.style.width = '0%';
+    confBadge.style.display = 'none';
+    findings.style.display = 'none';
+
+    const stages = [
+      { text: 'Loading river classification weight matrices...', fill: '25%' },
+      { text: 'Running spatial pixel scans for anomalies...', fill: '60%' },
+      { text: 'Analyzing bounding box confidence ratings...', fill: '85%' },
+      { text: 'Scan Complete.', fill: '100%' }
+    ];
+
+    let currentStage = 0;
+    const interval = setInterval(() => {
+      if (currentStage >= stages.length) {
+        clearInterval(interval);
+        this.finishAIScan();
+        return;
+      }
+      statusText.innerText = stages[currentStage].text;
+      progressFill.style.width = stages[currentStage].fill;
+      currentStage++;
+    }, 600);
+  }
+
+  finishAIScan() {
+    this.isScanning = false;
+    this.scanCompleted = true;
+
+    const statusText = document.getElementById('scan-status-text');
+    const statusDot = document.getElementById('scan-status-dot');
+    const confBadge = document.getElementById('scan-confidence-badge');
+    const findings = document.getElementById('scan-findings-list');
+    const fieldsPanel = document.getElementById('form-metadata-fields');
+    const previewContainer = document.getElementById('file-preview');
+    const scanLine = document.getElementById('scan-line');
+
+    if (statusText) statusText.innerText = 'Object Scan Complete';
+    if (statusDot) statusDot.style.background = 'var(--success)';
+    
+    // Show mock labels & confidence
+    if (confBadge) {
+      confBadge.innerText = '92% Confidence';
+      confBadge.style.display = 'inline-block';
+    }
+    if (findings) findings.style.display = 'flex';
+    if (fieldsPanel) fieldsPanel.style.display = 'flex';
+    if (scanLine) scanLine.remove(); // Clear animated scan line
+
+    // Render a mockup bounding box overlay on preview image
+    if (previewContainer && this.selectedFile.type.startsWith('image/')) {
+      const mockBox = document.createElement('div');
+      mockBox.className = 'yolo-mock-box';
+      mockBox.style.cssText = 'top: 35%; left: 30%; width: 40%; height: 35%;';
+      mockBox.innerHTML = `<span class="yolo-mock-label">PLASTIC BAG 92%</span>`;
+      previewContainer.appendChild(mockBox);
+    }
+
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  clearFileSelection() {
+    this.selectedFile = null;
+    this.isScanning = false;
+    this.scanCompleted = false;
+
+    const fileInput = document.getElementById('upload-input-file');
+    if (fileInput) fileInput.value = '';
+    
+    const previewContainer = document.getElementById('file-preview');
+    const zoneContent = document.getElementById('drop-zone-content');
+    const scannerHud = document.getElementById('ai-scanner-hud');
+    const fieldsPanel = document.getElementById('form-metadata-fields');
+
+    if (previewContainer) previewContainer.style.display = 'none';
+    if (zoneContent) zoneContent.style.display = 'flex';
+    if (scannerHud) scannerHud.style.display = 'none';
+    if (fieldsPanel) fieldsPanel.style.display = 'none';
+  }
+
+  // Handle form upload
+  async handleSubmit(e) {
+    e.preventDefault();
+
+    if (!this.selectedFile || !this.scanCompleted) {
+      EventBus.emit('toast:show', { message: 'Silakan pilih dan tunggu AI scan selesai.', type: 'warning' });
+      return;
+    }
+
+    const btnSubmit = document.getElementById('btn-submit-report');
+    const origHtml = btnSubmit.innerHTML;
+    btnSubmit.disabled = true;
+    btnSubmit.innerHTML = `<span class="status-pulse-dot" style="width:8px; height:8px; background:white; border-radius:50%; display:inline-block; margin-right:6px;"></span> Mengirim Laporan...`;
+
+    const location = document.getElementById('input-location').value;
+    const time = document.getElementById('input-time').value;
+    const notes = document.getElementById('input-notes').value;
+
+    // Prepare Multipart Form Data
+    const formData = new FormData();
+    formData.append('location', location);
+    formData.append('identity', 'Citizen');
+    formData.append('timestamp', new Date(time).toISOString());
+    formData.append('sourceType', 'Gambar');
+    formData.append('additionalNotes', notes);
+    formData.append('file', this.selectedFile);
+
+    try {
+      const response = await ReportService.uploadReport(formData);
+      EventBus.emit('toast:show', { message: 'Laporan berhasil divalidasi AI & disimpan!', type: 'success' });
+      
+      // Instantly open the detailed incident lifecycle page
+      Router.navigate(`/dashboard/detections/${response.id}`);
+    } catch (err) {
+      EventBus.emit('toast:show', { message: `Gagal mengirim laporan: ${err.message}`, type: 'danger' });
+      btnSubmit.disabled = false;
+      btnSubmit.innerHTML = origHtml;
+    }
+  }
+
+  async loadHistory() {
+    const listContainer = document.getElementById('history-list-container');
+    if (!listContainer) return;
+
+    listContainer.innerHTML = '<div class="empty-notifications" style="font-size:0.8rem; color:var(--text-secondary);">Memuat riwayat...</div>';
+
+    try {
+      const response = await ReportService.getFilteredReports({ limit: 10 });
+      this.historyReports = response.reports || [];
+
+      listContainer.innerHTML = '';
+
+      if (this.historyReports.length === 0) {
+        listContainer.innerHTML = `
+          <div class="glass-card" style="padding: 24px; text-align: center; color: var(--text-muted); border: 1px dashed var(--border);">
+            <i data-lucide="folder-open" style="width: 24px; height: 24px; margin-bottom: 8px;"></i>
+            <p style="font-size:0.78rem; margin:0;">Belum ada riwayat laporan warga</p>
+          </div>
+        `;
+        if (window.lucide) window.lucide.createIcons();
+        return;
+      }
+
+      this.historyReports.slice(0, 6).forEach(report => {
+        let levelClass = 'none';
+        if (report.aiStatus === 'TINGGI') levelClass = 'high';
+        if (report.aiStatus === 'SEDANG') levelClass = 'medium';
+        if (report.aiStatus === 'RENDAH') levelClass = 'low';
+
+        // Replaced spreadsheet with timeline card
+        const card = document.createElement('div');
+        card.className = 'glass-card hover-lift';
+        card.style.cssText = 'padding: 16px; display: flex; gap: 16px; align-items: center; cursor: pointer; border: 1px solid var(--border);';
+        
+        card.innerHTML = `
+          <div class="history-thumbnail" style="width: 68px; height: 68px; border-radius: 8px; overflow: hidden; background: #000; flex-shrink: 0;">
+            <img src="${report.image}" alt="Bukti" style="width: 100%; height: 100%; object-fit: cover;">
+          </div>
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+            <div style="font-weight: 800; font-size: 0.88rem; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${report.location}</div>
+            <div style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600;">${Formatter.formatDate(report.timestamp)}</div>
+            <div style="display: flex; gap: 6px; align-items: center; margin-top: 2px;">
+              <span class="badge ${levelClass === 'high' ? 'bg-danger text-white' : (levelClass === 'medium' ? 'bg-warning text-white' : 'bg-primary text-white')}" style="font-size: 0.62rem; padding: 1px 6px;">AI: ${report.aiStatus}</span>
+              <span class="badge ${report.adminStatus === 'VALID' ? 'bg-success text-white' : (report.adminStatus === 'DIABAIKAN' ? 'bg-secondary text-white' : 'bg-warning text-white')}" style="font-size: 0.62rem; padding: 1px 6px;">${report.adminStatus}</span>
+            </div>
+          </div>
+          <i data-lucide="chevron-right" style="width: 16px; height: 16px; color: var(--text-secondary); opacity: 0.5;"></i>
+        `;
+
+        card.addEventListener('click', () => {
+          Router.navigate(`/dashboard/detections/${report.id}`);
+        });
+
+        listContainer.appendChild(card);
+      });
+
+      if (window.lucide) window.lucide.createIcons();
+    } catch (err) {
+      listContainer.innerHTML = '<div class="empty-notifications text-danger">Gagal memuat riwayat.</div>';
+    }
+  }
+
+  destroy() {
+    // Clean states
+    this.selectedFile = null;
+    this.isScanning = false;
+    this.scanCompleted = false;
+  }
+}
+export const Upload = new UploadPage();
