@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
 import { runMigration } from './migration';
+import { AiModelManager } from '../cctv/services/AiModelManager';
 import { UserModel, IUser } from './models/User';
 import { ReportModel, IReport, IBoundingBox, IComment } from './models/Report';
 import { CctvModel, ICctv } from './models/Cctv';
@@ -12,6 +13,15 @@ import { NotificationModel, INotification } from './models/Notification';
 import { OutboxEventModel, IOutboxEvent } from './models/OutboxEvent';
 import { SystemAuditLogModel, ISystemAuditLog } from './models/SystemAuditLog';
 
+import { SystemSettingsModel, ISystemSettings } from './models/SystemSettings';
+import { AiModelModel, IAiModel } from './models/AiModel';
+import { AiDetectionModel, IAiDetection } from './models/AiDetection';
+import { AiEvidenceModel, IAiEvidence } from './models/AiEvidence';
+import { AiVerificationStateModel, IAiVerificationState } from './models/AiVerificationState';
+import { CameraHealthLogModel, ICameraHealthLog } from './models/CameraHealthLog';
+import { AiMetricModel, IAiMetric } from './models/AiMetric';
+import { CameraEventModel, ICameraEvent } from './models/CameraEvent';
+
 // Re-export types for legacy compatibility in server.ts
 export { 
   IUser as User, 
@@ -19,12 +29,23 @@ export {
   IBoundingBox as BoundingBox, 
   IComment as Comment, 
   ICctv as Cctv,
+  CctvModel,
+  UserModel,
+  ReportModel,
   TimelineEventModel, ITimelineEvent as TimelineEvent,
   AssignmentModel, IAssignment as Assignment,
   ResolutionModel, IResolution as Resolution,
   NotificationModel, INotification as Notification,
   OutboxEventModel, IOutboxEvent as OutboxEvent,
-  SystemAuditLogModel, ISystemAuditLog as SystemAuditLog
+  SystemAuditLogModel, ISystemAuditLog as SystemAuditLog,
+  SystemSettingsModel, ISystemSettings as SystemSettings,
+  AiModelModel, IAiModel as AiModel,
+  AiDetectionModel, IAiDetection as AiDetection,
+  AiEvidenceModel, IAiEvidence as AiEvidence,
+  AiVerificationStateModel, IAiVerificationState as AiVerificationState,
+  CameraHealthLogModel, ICameraHealthLog as CameraHealthLog,
+  AiMetricModel, IAiMetric as AiMetric,
+  CameraEventModel, ICameraEvent as CameraEvent
 };
 
 dotenv.config();
@@ -53,6 +74,9 @@ export async function connectDB() {
       
       // Run automatic migration from db.json
       await runMigration();
+
+      // Initialize AI Model Manager & Engines
+      await AiModelManager.initialize();
       return;
     } catch (err) {
       console.error(`[DATABASE ERROR] MongoDB connection attempt ${attempt} failed:`, err);
@@ -68,20 +92,16 @@ export async function connectDB() {
 }
 
 // Graceful Shutdown Handler
-const gracefulExit = async (signal: string) => {
+export const disconnectDB = async () => {
   try {
-    console.log(`[DATABASE INFO] Closing database connection due to ${signal}...`);
+    console.log(`[DATABASE INFO] Closing database connection...`);
     await mongoose.connection.close();
     console.log('[DATABASE SUCCESS] Mongoose connection closed successfully.');
-    process.exit(0);
   } catch (err) {
     console.error('[DATABASE ERROR] Error during database disconnect:', err);
-    process.exit(1);
+    throw err;
   }
 };
-
-process.on('SIGINT', () => gracefulExit('SIGINT'));
-process.on('SIGTERM', () => gracefulExit('SIGTERM'));
 
 export class DatabaseManager {
   // Hashing utility remains SHA-256 for backward compatibility with existing hashed passwords
@@ -112,7 +132,7 @@ export class DatabaseManager {
   public static async createUser(
     username: string, 
     passwordPlain: string, 
-    role: 'admin' | 'user'
+    role: 'admin' | 'user' | 'operator' | 'supervisor' | 'officer'
   ): Promise<IUser | null> {
     try {
       // Case-insensitive duplicate check (username is stored in lowercase)
@@ -189,6 +209,12 @@ export class DatabaseManager {
     creatorId: number
   ): Promise<IReport> {
     try {
+      // Find user to get the mongoose ObjectId
+      const user = await UserModel.findOne({ id: creatorId });
+      if (!user) {
+        throw new Error(`User dengan ID ${creatorId} tidak ditemukan.`);
+      }
+
       // Find max integer id for legacy auto-increment compatibility
       const lastReport = await ReportModel.findOne().sort({ id: -1 }).exec();
       const nextId = lastReport ? lastReport.id + 1 : 1;
@@ -196,10 +222,13 @@ export class DatabaseManager {
       const newReport = await ReportModel.create({
         ...report,
         id: nextId,
-        userId: creatorId,
+        userId: user._id,
         timestamp: new Date(),
         adminStatus: 'MENUNGGU',
         adminNotes: '',
+        sla: {
+          detectedAt: new Date(),
+        }
       });
 
       return newReport.toJSON();
@@ -252,7 +281,7 @@ export class DatabaseManager {
       adminStatus?: string; // 'MENUNGGU', 'VALID', 'DIABAIKAN', 'semua'
       location?: string;
     },
-    userContext: { id: number; role: 'admin' | 'user' },
+    userContext: { id: number; role: 'admin' | 'user' | 'operator' | 'supervisor' | 'officer' },
     page?: number,
     limit?: number
   ): Promise<{ reports: IReport[]; total: number } | IReport[]> {
@@ -317,7 +346,7 @@ export class DatabaseManager {
   }
 
   // Optimize statistics queries using MongoDB aggregation pipeline
-  public static async getStats(userContext?: { id: number; role: 'admin' | 'user' }) {
+  public static async getStats(userContext?: { id: number; role: 'admin' | 'user' | 'operator' | 'supervisor' | 'officer' }) {
     try {
       const matchQuery: any = {};
 
@@ -418,7 +447,7 @@ export class DatabaseManager {
         throw new Error('Laporan tidak ditemukan.');
       }
 
-      const comment = report.comments.id(commentId);
+      const comment = report.comments.find(c => c._id.toString() === commentId);
       if (!comment) {
         throw new Error('Komentar tidak ditemukan.');
       }
@@ -450,7 +479,7 @@ export class DatabaseManager {
         throw new Error('Laporan tidak ditemukan.');
       }
 
-      const comment = report.comments.id(commentId);
+      const comment = report.comments.find(c => c._id.toString() === commentId);
       if (!comment) {
         throw new Error('Komentar tidak ditemukan.');
       }
@@ -706,7 +735,7 @@ export class DatabaseManager {
       if (payload.location) cctv.location = payload.location;
       if (payload.description !== undefined) cctv.description = payload.description;
       if (payload.vendor) cctv.vendor = payload.vendor;
-      if (payload.model !== undefined) cctv.model = payload.model;
+      if (payload.model !== undefined) (cctv as any).model = payload.model;
       if (payload.protocol) cctv.protocol = payload.protocol;
       if (payload.mediaType) cctv.mediaType = payload.mediaType;
       if (payload.streamUrl) {
@@ -793,7 +822,7 @@ export class DatabaseManager {
       const encryptionKey = crypto.scryptSync(process.env.JWT_SECRET || 'eyeco-secret-key', 'salt', 32);
       const parts = text.split(':');
       const iv = Buffer.from(parts.shift()!, 'hex');
-      const encryptedText = Buffer.from(parts.join(':'), 'hex');
+      const encryptedText = parts.join(':');
       const decipher = crypto.createDecipheriv('aes-256-cbc', encryptionKey, iv);
       let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
       decrypted += decipher.final('utf8');

@@ -435,21 +435,37 @@ export class DashboardPage {
     }
 
     if (toggleMonitoring) {
-      toggleMonitoring.addEventListener('click', () => {
+      toggleMonitoring.addEventListener('click', async () => {
         const isMonitoring = AppState.get('isMonitoring');
-        AppState.set('isMonitoring', !isMonitoring);
+        const nextMonitoringState = !isMonitoring;
+        
+        try {
+          // Send request to backend
+          const enabledResult = await CctvService.toggleGlobalMonitoring(nextMonitoringState);
+          
+          AppState.set('isMonitoring', enabledResult);
 
-        // Update button visual
-        toggleMonitoring.className = `btn ${!isMonitoring ? 'btn-danger' : 'btn-primary'} btn-rounded`;
-        toggleMonitoring.innerHTML = `
-          <i data-lucide="${!isMonitoring ? 'video-off' : 'video'}"></i>
-          <span id="btn-monitoring-text">${!isMonitoring ? 'Hentikan Pemantauan' : 'Mulai Pemantauan'}</span>
-        `;
-        
-        // Trigger CCTV static screen
-        this.updateCCTVMonitoringState(!isMonitoring);
-        
-        if (window.lucide) window.lucide.createIcons();
+          // Update button visual
+          toggleMonitoring.className = `btn ${enabledResult ? 'btn-danger' : 'btn-primary'} btn-rounded`;
+          toggleMonitoring.innerHTML = `
+            <i data-lucide="${enabledResult ? 'video-off' : 'video'}"></i>
+            <span id="btn-monitoring-text">${enabledResult ? 'Hentikan Pemantauan' : 'Mulai Pemantauan'}</span>
+          `;
+          
+          // Trigger CCTV static screen
+          this.updateCCTVMonitoringState(enabledResult);
+          
+          if (window.lucide) window.lucide.createIcons();
+          
+          EventBus.emit('toast:show', {
+            message: enabledResult ? 'Pemantauan AI aktif secara global!' : 'Pemantauan AI dinonaktifkan!',
+            type: enabledResult ? 'success' : 'warning'
+          });
+          
+          await this.loadData();
+        } catch (err) {
+          EventBus.emit('toast:show', { message: 'Gagal mengubah status pemantauan.', type: 'danger' });
+        }
       });
     }
 
@@ -1817,7 +1833,7 @@ export class DashboardPage {
         mediaHtml = `
           <div class="cctv-static-screen">
             <div class="static-noise"></div>
-            <div class="static-label">OFFLINE</div>
+            <div class="static-label">PAUSED</div>
           </div>
         `;
       }
@@ -1826,9 +1842,9 @@ export class DashboardPage {
       let statusClass = 'status-offline';
       let statusText = 'OFFLINE';
       if (isChActive) {
-        if (ch.status === 'ONLINE') {
+        if (ch.status === 'ONLINE' || ch.status === 'MONITORING') {
           statusClass = isAlert ? 'status-alert' : 'status-live';
-          statusText = isAlert ? 'AI DETECTING' : 'ONLINE';
+          statusText = isAlert ? 'AI DETECTING' : 'LIVE';
         } else if (ch.status === 'CONNECTING' || ch.status === 'BUFFERING') {
           statusClass = 'status-connecting';
           statusText = ch.status;
@@ -1836,6 +1852,9 @@ export class DashboardPage {
           statusClass = 'status-offline';
           statusText = ch.status;
         }
+      } else if (!ch.monitoringEnabled || !isMon) {
+        statusClass = 'status-offline';
+        statusText = 'PAUSED';
       }
 
       const hoverOverlayHtml = `
@@ -1849,6 +1868,11 @@ export class DashboardPage {
           <button class="hover-action-btn snapshot" style="width:36px; height:36px; border-radius:50%; border:none; background: rgba(255,255,255,0.9); color: var(--text-primary); display:flex; align-items:center; justify-content:center; cursor:pointer; transition: transform 0.1s;" title="Take Snapshot">
             <i data-lucide="camera" style="width: 16px; height: 16px;"></i>
           </button>
+          ${isAdmin ? `
+            <button class="hover-action-btn toggle-mon" style="width:36px; height:36px; border-radius:50%; border:none; background: ${ch.monitoringEnabled ? 'var(--danger)' : 'var(--success)'}; color: white; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: transform 0.1s;" title="${ch.monitoringEnabled ? 'Hentikan Pemantauan AI' : 'Mulai Pemantauan AI'}">
+              <i data-lucide="${ch.monitoringEnabled ? 'video-off' : 'video'}" style="width: 16px; height: 16px;"></i>
+            </button>
+          ` : ''}
           <button class="hover-action-btn detail" style="width:36px; height:36px; border-radius:50%; border:none; background: var(--primary); color: white; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: transform 0.1s;" title="Open detail VMS Drawer">
             <i data-lucide="info" style="width: 16px; height: 16px;"></i>
           </button>
@@ -1916,6 +1940,7 @@ export class DashboardPage {
       const btnFs = card.querySelector('.hover-action-btn.fs');
       const btnRec = card.querySelector('.hover-action-btn.reconnect');
       const btnSnap = card.querySelector('.hover-action-btn.snapshot');
+      const btnToggleMon = card.querySelector('.hover-action-btn.toggle-mon');
       const btnDet = card.querySelector('.hover-action-btn.detail');
 
       if (btnFs) {
@@ -1934,6 +1959,22 @@ export class DashboardPage {
         btnSnap.addEventListener('click', (e) => {
           e.stopPropagation();
           this.takeCCTVSnapshot(ch.id);
+        });
+      }
+      if (btnToggleMon) {
+        btnToggleMon.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const nextState = !ch.monitoringEnabled;
+          try {
+            await CctvService.toggleCameraMonitoring(ch.id, nextState);
+            EventBus.emit('toast:show', {
+              message: nextState ? `Pemantauan AI aktif untuk ${ch.name}!` : `Pemantauan AI dinonaktifkan untuk ${ch.name}!`,
+              type: nextState ? 'success' : 'warning'
+            });
+            await this.loadData();
+          } catch (err) {
+            EventBus.emit('toast:show', { message: 'Gagal mengubah status pemantauan kamera.', type: 'danger' });
+          }
         });
       }
       if (btnDet) {

@@ -848,10 +848,20 @@ export class DetailPage {
         telegramBtn.innerHTML = '<span class="status-pulse-dot" style="width:8px; height:8px; background:white; border-radius:50%; display:inline-block; margin-right:6px;"></span> Mengirim...';
         
         try {
-          await new Promise(resolve => setTimeout(resolve, 1200));
-          EventBus.emit('toast:show', { message: 'Disiarkan ke Telegram Respon Cepat!', type: 'success' });
+          const res = await fetch(`/api/v1/detections/${this.reportId}/telegram`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            EventBus.emit('toast:show', { message: 'Disiarkan ke Telegram Respon Cepat!', type: 'success' });
+          } else {
+            throw new Error(data.error || 'Gagal mengirim Telegram');
+          }
         } catch (err) {
-          EventBus.emit('toast:show', { message: 'Gagal mengirim Telegram.', type: 'danger' });
+          EventBus.emit('toast:show', { message: err.message || 'Gagal mengirim Telegram.', type: 'danger' });
         } finally {
           telegramBtn.disabled = false;
           telegramBtn.innerHTML = '<i data-lucide="send" style="width:14px; height:14px; margin-right:4px;"></i> Siarkan Telegram Respon';

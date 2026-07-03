@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export interface ICctv extends Document {
+export interface ICctv {
   id: number;
   name: string;
   location: string;
@@ -21,7 +21,7 @@ export interface ICctv extends Document {
     onvif: boolean;
     cloud: boolean;
   };
-  status: 'NEW' | 'CONNECTING' | 'ONLINE' | 'OFFLINE' | 'BUFFERING' | 'ERROR' | 'DISCONNECTED';
+  status: 'NEW' | 'CONNECTING' | 'ONLINE' | 'OFFLINE' | 'BUFFERING' | 'ERROR' | 'DISCONNECTED' | 'MONITORING' | 'PAUSED' | 'MAINTENANCE';
   health: {
     latency: number; // ms
     fps: number;
@@ -29,6 +29,12 @@ export interface ICctv extends Document {
   };
   isDefault: boolean; // Protects camera ID 1-8 from deletion
   isActive: boolean;
+  monitoringEnabled: boolean; // AI Monitoring active control
+  priority: 'CRITICAL' | 'HIGH' | 'NORMAL' | 'LOW';
+  priorityWeight: number;
+  lastFrameAt?: Date;
+  reconnectCount?: number;
+  packetLoss?: number;
   lastHeartbeat?: Date;
   lastConnected?: Date;
   createdBy: number;
@@ -55,7 +61,12 @@ const CctvSchema: Schema = new Schema({
     onvif: { type: Boolean, default: false },
     cloud: { type: Boolean, default: false }
   },
-  status: { type: String, required: true, enum: ['NEW', 'CONNECTING', 'ONLINE', 'OFFLINE', 'BUFFERING', 'ERROR', 'DISCONNECTED'], default: 'NEW' },
+  status: { 
+    type: String, 
+    required: true, 
+    enum: ['NEW', 'CONNECTING', 'ONLINE', 'OFFLINE', 'BUFFERING', 'ERROR', 'DISCONNECTED', 'MONITORING', 'PAUSED', 'MAINTENANCE'], 
+    default: 'NEW' 
+  },
   health: {
     latency: { type: Number, default: 0 },
     fps: { type: Number, default: 0 },
@@ -63,6 +74,12 @@ const CctvSchema: Schema = new Schema({
   },
   isDefault: { type: Boolean, default: false },
   isActive: { type: Boolean, default: true },
+  monitoringEnabled: { type: Boolean, default: true },
+  priority: { type: String, enum: ['CRITICAL', 'HIGH', 'NORMAL', 'LOW'], default: 'NORMAL' },
+  priorityWeight: { type: Number, default: 50 },
+  lastFrameAt: { type: Date },
+  reconnectCount: { type: Number, default: 0 },
+  packetLoss: { type: Number, default: 0 },
   lastHeartbeat: { type: Date },
   lastConnected: { type: Date },
   createdBy: { type: Number, required: true }

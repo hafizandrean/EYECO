@@ -6,6 +6,7 @@ export interface IOutboxEvent extends Document {
   eventType: string;
   payload: Record<string, any>;
   status: 'PENDING' | 'PROCESSED' | 'FAILED';
+  retryCount: number;
   createdAt: Date;
   processedAt: Date | null;
 }
@@ -16,6 +17,7 @@ const OutboxEventSchema = new Schema<IOutboxEvent>({
   eventType: { type: String, required: true },
   payload: { type: Schema.Types.Mixed, required: true },
   status: { type: String, enum: ['PENDING', 'PROCESSED', 'FAILED'], default: 'PENDING', required: true, index: true },
+  retryCount: { type: Number, default: 0, required: true },
   processedAt: { type: Date, default: null }
 }, {
   timestamps: { createdAt: true, updatedAt: false }

@@ -4,11 +4,97 @@ import mongoose from 'mongoose';
 import { UserModel } from './models/User';
 import { ReportModel } from './models/Report';
 import { TimelineEventModel } from './models/TimelineEvent';
+import { SystemSettingsModel } from './models/SystemSettings';
+import { AiModelModel } from './models/AiModel';
 
 const DB_PATH = path.join(__dirname, 'db.json');
 const BACKUP_PATH = path.join(__dirname, 'db.backup.json');
 
+export async function seedSystemSettingsAndModels() {
+  try {
+    const settingsCount = await SystemSettingsModel.countDocuments();
+    if (settingsCount === 0) {
+      await SystemSettingsModel.insertMany([
+        { key: 'ai.cooldown.minutes', value: 3, description: 'Masa cooldown (menit) setelah insiden ditutup agar tidak memicu insiden baru di lokasi yang sama.', updatedBy: 1 },
+        { key: 'ai.verification.frames', value: 3, description: 'Jumlah frame positif berturut-turut yang dibutuhkan sebelum promosi insiden.', updatedBy: 1 },
+        { key: 'ai.confidence.threshold', value: 0.7, description: 'Ambang batas nilai confidence (keyakinan) AI agar dapat dipromosikan (0.0 - 1.0).', updatedBy: 1 },
+        { 
+          key: 'ai.rules', 
+          value: {
+            confidenceThreshold: 0.70,
+            verificationFrames: 3,
+            cooldownMinutes: 3,
+            duplicateRadiusMeters: 15,
+            duplicateTimeWindowSeconds: 300,
+            timelineUpdateIntervalSeconds: 120,
+            archiveAfterDays: 180
+          }, 
+          description: 'Blok aturan bisnis terpusat untuk mesin promosi AI.', 
+          updatedBy: 1 
+        },
+        { key: 'telegram.enabled', value: true, description: 'Status keaktifan pengiriman notifikasi Telegram.', updatedBy: 1 },
+        { key: 'telegram.chatId', value: '-1003941703215', description: 'ID Chat / Grup penerima notifikasi Telegram.', updatedBy: 1 },
+        { 
+          key: 'scheduler.lock', 
+          value: { locked: false, lockedBy: null, expiresAt: null }, 
+          description: 'Distributed lock untuk mencegah eksekusi paralel scheduler.', 
+          updatedBy: 1 
+        }
+      ]);
+      console.log('[MIGRATION INFO] Seeded initial SystemSettings.');
+    } else {
+      const hasAiRules = await SystemSettingsModel.findOne({ key: 'ai.rules' });
+      if (!hasAiRules) {
+        await SystemSettingsModel.create({ 
+          key: 'ai.rules', 
+          value: {
+            confidenceThreshold: 0.70,
+            verificationFrames: 3,
+            cooldownMinutes: 3,
+            duplicateRadiusMeters: 15,
+            duplicateTimeWindowSeconds: 300,
+            timelineUpdateIntervalSeconds: 120,
+            archiveAfterDays: 180
+          }, 
+          description: 'Blok aturan bisnis terpusat untuk mesin promosi AI.', 
+          updatedBy: 1 
+        });
+      }
+      const hasTelegramEnabled = await SystemSettingsModel.findOne({ key: 'telegram.enabled' });
+      if (!hasTelegramEnabled) {
+        await SystemSettingsModel.create({ key: 'telegram.enabled', value: true, description: 'Status keaktifan pengiriman notifikasi Telegram.', updatedBy: 1 });
+      }
+      const hasTelegramChatId = await SystemSettingsModel.findOne({ key: 'telegram.chatId' });
+      if (!hasTelegramChatId) {
+        await SystemSettingsModel.create({ key: 'telegram.chatId', value: '-1003941703215', description: 'ID Chat / Grup penerima notifikasi Telegram.', updatedBy: 1 });
+      }
+      const hasLockSetting = await SystemSettingsModel.findOne({ key: 'scheduler.lock' });
+      if (!hasLockSetting) {
+        await SystemSettingsModel.create({ 
+          key: 'scheduler.lock', 
+          value: { locked: false, lockedBy: null, expiresAt: null }, 
+          description: 'Distributed lock untuk mencegah eksekusi paralel scheduler.', 
+          updatedBy: 1 
+        });
+      }
+    }
+
+    const aiModelCount = await AiModelModel.countDocuments();
+    if (aiModelCount === 0) {
+      await AiModelModel.create([
+        { id: 'yolov8-river-v1.0', name: 'YOLOv8 River Anomaly Detector', version: '1.0', isActive: true }
+      ]);
+      console.log('[MIGRATION INFO] Seeded initial AiModel registry.');
+    }
+  } catch (err: any) {
+    console.error('[MIGRATION ERROR] Failed to seed system settings and models:', err.message);
+  }
+}
+
 export async function runMigration() {
+  // Selalu seed konfigurasi default and model AI registry saat startup
+  await seedSystemSettingsAndModels();
+
   if (!fs.existsSync(DB_PATH)) {
     console.log('[MIGRATION INFO] db.json not found, skipping migration.');
     return;
@@ -114,6 +200,9 @@ export async function runMigration() {
     // 2. Map integer ID to ObjectId
     const idMap = new Map<number, mongoose.Types.ObjectId>();
     insertedUsers.forEach(u => idMap.set(u.id, u._id as mongoose.Types.ObjectId));
+
+    // Seeding SystemSettings & Models
+    await seedSystemSettingsAndModels();
 
     // 3. Prepare Report documents with ObjectIds and SLA details
     const reportDocs = reportsToMigrate.map(r => {

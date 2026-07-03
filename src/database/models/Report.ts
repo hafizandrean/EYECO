@@ -60,8 +60,38 @@ export interface IReport extends Document {
   deletedByName: string | null;
   deleteReason: string | null;
   restoreReason: string | null;
+  archived: boolean;
+  archivedAt: Date | null;
+  archiveReason: string | null;
+  sourceMetadata: ISourceMetadata;
+  createdAt: Date;
+  updatedAt: Date;
   __v: number;
 }
+
+export interface ISourceMetadata {
+  cameraId?: number;
+  modelId?: string;
+  confidence?: number;
+  detectionId?: number;
+  reporterDevice?: string;
+  appVersion?: string;
+  clientIp?: string;
+  ruleVersion?: string;
+  modelVersion?: string;
+}
+
+const SourceMetadataSchema = new Schema<ISourceMetadata>({
+  cameraId: { type: Number },
+  modelId: { type: String },
+  confidence: { type: Number },
+  detectionId: { type: Number },
+  reporterDevice: { type: String },
+  appVersion: { type: String },
+  clientIp: { type: String },
+  ruleVersion: { type: String },
+  modelVersion: { type: String }
+}, { _id: false });
 
 const BoundingBoxSchema = new Schema<IBoundingBox>({
   label: { type: String, required: true, trim: true },
@@ -137,7 +167,11 @@ const ReportSchema = new Schema<IReport>({
   deletedById: { type: Schema.Types.ObjectId, ref: 'User', default: null },
   deletedByName: { type: String, default: null },
   deleteReason: { type: String, default: null },
-  restoreReason: { type: String, default: null }
+  restoreReason: { type: String, default: null },
+  archived: { type: Boolean, default: false, index: true },
+  archivedAt: { type: Date, default: null },
+  archiveReason: { type: String, default: null },
+  sourceMetadata: { type: SourceMetadataSchema, default: {} }
 }, {
   timestamps: true
 });

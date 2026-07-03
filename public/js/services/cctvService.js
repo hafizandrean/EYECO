@@ -98,5 +98,33 @@ export const CctvService = {
       console.error(`[CctvService] reconnectCctv failed for ID ${id}:`, err);
       throw err;
     }
+  },
+
+  // Ubah status pemantauan global
+  async toggleGlobalMonitoring(enabled) {
+    try {
+      const response = await API.post('/api/cctv/monitoring', { enabled });
+      if (response && response.success) {
+        return response.monitoringEnabled;
+      }
+      throw new Error(response?.error || 'Gagal mengubah status pemantauan global');
+    } catch (err) {
+      console.error('[CctvService] toggleGlobalMonitoring failed:', err);
+      throw err;
+    }
+  },
+
+  // Ubah status pemantauan per-kamera tertentu
+  async toggleCameraMonitoring(id, enabled) {
+    try {
+      const response = await API.patch(`/api/cctv/${id}/monitoring`, { enabled });
+      if (response && response.success) {
+        return response.monitoringEnabled;
+      }
+      throw new Error(response?.error || 'Gagal mengubah status pemantauan kamera');
+    } catch (err) {
+      console.error(`[CctvService] toggleCameraMonitoring failed for ID ${id}:`, err);
+      throw err;
+    }
   }
 };
