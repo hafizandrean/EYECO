@@ -33,29 +33,17 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UserModel = void 0;
+exports.SystemAuditLogModel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
-const UserSchema = new mongoose_1.Schema({
-    id: { type: Number, required: true, unique: true, index: true },
-    username: {
-        type: String,
-        required: [true, 'Username wajib diisi'],
-        unique: true,
-        lowercase: true, // Case insensitive matching
-        trim: true,
-        minlength: [3, 'Username minimal 3 karakter'],
-        maxlength: [30, 'Username maksimal 30 karakter']
-    },
-    passwordHash: { type: String, required: true, select: false }, // Exclude by default
-    role: {
-        type: String,
-        enum: ['admin', 'user', 'operator', 'supervisor', 'officer'],
-        required: true
-    },
-    name: { type: String, trim: true, default: '' },
-    email: { type: String, trim: true, default: '' },
-    agency: { type: String, trim: true, default: '' }
+const SystemAuditLogSchema = new mongoose_1.Schema({
+    tenantId: { type: String, required: true, index: true },
+    actorId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', default: null },
+    actorName: { type: String, required: true },
+    action: { type: String, required: true },
+    ipAddress: { type: String, default: '' },
+    userAgent: { type: String, default: '' },
+    details: { type: mongoose_1.Schema.Types.Mixed, default: {} }
 }, {
-    timestamps: true
+    timestamps: { createdAt: true, updatedAt: false }
 });
-exports.UserModel = mongoose_1.default.model('User', UserSchema);
+exports.SystemAuditLogModel = mongoose_1.default.model('SystemAuditLog', SystemAuditLogSchema);

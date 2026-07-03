@@ -929,16 +929,16 @@ body.dark-mode .dropdown-item-btn:hover {
   gap: var(--space-20);
 }
 
-@media (min-width: 1024px) {
-  .command-center-secondary {
-    grid-template-columns: 1.6fr 1fr;
-  }
-}
-
 .cctv-section-compact .cctv-grid {
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 12px;
 }
+
+.dropdown-item-btn:hover {
+  background: rgba(47, 107, 255, 0.05) !important;
+  color: var(--primary) !important;
+}
+
 
 @media (min-width: 1400px) {
   .cctv-section-compact .cctv-grid {
@@ -946,47 +946,6 @@ body.dark-mode .dropdown-item-btn:hover {
   }
 }
 
-.camera-network-card {
-  padding: var(--space-12) var(--space-16);
-  border-radius: var(--radius-button);
-  border: 1px solid var(--border);
-  background: #ffffff;
-  cursor: pointer;
-  transition: border-color var(--motion-hover);
-}
-
-.camera-network-card:hover {
-  border-color: rgba(47, 107, 255, 0.2);
-}
-
-.camera-network-card .cam-id {
-  font-size: 0.82rem;
-  font-weight: 800;
-  color: var(--text-primary);
-}
-
-.camera-network-card .cam-location {
-  font-size: 0.68rem;
-  color: var(--text-secondary);
-  margin-top: 2px;
-}
-
-.camera-network-card .cam-meta {
-  font-size: 0.65rem;
-  color: var(--text-muted);
-  margin-top: 6px;
-  font-weight: 600;
-}
-
-.camera-network-card .cam-status-pill {
-  font-size: 0.6rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  padding: 4px 8px;
-  border-radius: 6px;
-  letter-spacing: 0.3px;
-  white-space: nowrap;
-}
 
 /* Main Dashboard Grid CCTV Layout (legacy) */
 .dashboard-layout {

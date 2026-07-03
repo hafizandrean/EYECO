@@ -3,15 +3,47 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DatabaseManager = void 0;
+exports.DatabaseManager = exports.disconnectDB = exports.CameraEventModel = exports.AiMetricModel = exports.CameraHealthLogModel = exports.AiVerificationStateModel = exports.AiEvidenceModel = exports.AiDetectionModel = exports.AiModelModel = exports.SystemSettingsModel = exports.SystemAuditLogModel = exports.OutboxEventModel = exports.NotificationModel = exports.ResolutionModel = exports.AssignmentModel = exports.TimelineEventModel = exports.ReportModel = exports.UserModel = exports.CctvModel = void 0;
 exports.connectDB = connectDB;
 const mongoose_1 = __importDefault(require("mongoose"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const crypto_1 = __importDefault(require("crypto"));
 const migration_1 = require("./migration");
+const AiModelManager_1 = require("../cctv/services/AiModelManager");
 const User_1 = require("./models/User");
+Object.defineProperty(exports, "UserModel", { enumerable: true, get: function () { return User_1.UserModel; } });
 const Report_1 = require("./models/Report");
+Object.defineProperty(exports, "ReportModel", { enumerable: true, get: function () { return Report_1.ReportModel; } });
 const Cctv_1 = require("./models/Cctv");
+Object.defineProperty(exports, "CctvModel", { enumerable: true, get: function () { return Cctv_1.CctvModel; } });
+const TimelineEvent_1 = require("./models/TimelineEvent");
+Object.defineProperty(exports, "TimelineEventModel", { enumerable: true, get: function () { return TimelineEvent_1.TimelineEventModel; } });
+const Assignment_1 = require("./models/Assignment");
+Object.defineProperty(exports, "AssignmentModel", { enumerable: true, get: function () { return Assignment_1.AssignmentModel; } });
+const Resolution_1 = require("./models/Resolution");
+Object.defineProperty(exports, "ResolutionModel", { enumerable: true, get: function () { return Resolution_1.ResolutionModel; } });
+const Notification_1 = require("./models/Notification");
+Object.defineProperty(exports, "NotificationModel", { enumerable: true, get: function () { return Notification_1.NotificationModel; } });
+const OutboxEvent_1 = require("./models/OutboxEvent");
+Object.defineProperty(exports, "OutboxEventModel", { enumerable: true, get: function () { return OutboxEvent_1.OutboxEventModel; } });
+const SystemAuditLog_1 = require("./models/SystemAuditLog");
+Object.defineProperty(exports, "SystemAuditLogModel", { enumerable: true, get: function () { return SystemAuditLog_1.SystemAuditLogModel; } });
+const SystemSettings_1 = require("./models/SystemSettings");
+Object.defineProperty(exports, "SystemSettingsModel", { enumerable: true, get: function () { return SystemSettings_1.SystemSettingsModel; } });
+const AiModel_1 = require("./models/AiModel");
+Object.defineProperty(exports, "AiModelModel", { enumerable: true, get: function () { return AiModel_1.AiModelModel; } });
+const AiDetection_1 = require("./models/AiDetection");
+Object.defineProperty(exports, "AiDetectionModel", { enumerable: true, get: function () { return AiDetection_1.AiDetectionModel; } });
+const AiEvidence_1 = require("./models/AiEvidence");
+Object.defineProperty(exports, "AiEvidenceModel", { enumerable: true, get: function () { return AiEvidence_1.AiEvidenceModel; } });
+const AiVerificationState_1 = require("./models/AiVerificationState");
+Object.defineProperty(exports, "AiVerificationStateModel", { enumerable: true, get: function () { return AiVerificationState_1.AiVerificationStateModel; } });
+const CameraHealthLog_1 = require("./models/CameraHealthLog");
+Object.defineProperty(exports, "CameraHealthLogModel", { enumerable: true, get: function () { return CameraHealthLog_1.CameraHealthLogModel; } });
+const AiMetric_1 = require("./models/AiMetric");
+Object.defineProperty(exports, "AiMetricModel", { enumerable: true, get: function () { return AiMetric_1.AiMetricModel; } });
+const CameraEvent_1 = require("./models/CameraEvent");
+Object.defineProperty(exports, "CameraEventModel", { enumerable: true, get: function () { return CameraEvent_1.CameraEventModel; } });
 dotenv_1.default.config();
 // Validate Environment Variables
 if (!process.env.MONGODB_URI) {
@@ -34,6 +66,8 @@ async function connectDB() {
             console.log('[DATABASE SUCCESS] MongoDB connected successfully.');
             // Run automatic migration from db.json
             await (0, migration_1.runMigration)();
+            // Initialize AI Model Manager & Engines
+            await AiModelManager_1.AiModelManager.initialize();
             return;
         }
         catch (err) {
@@ -49,20 +83,18 @@ async function connectDB() {
     }
 }
 // Graceful Shutdown Handler
-const gracefulExit = async (signal) => {
+const disconnectDB = async () => {
     try {
-        console.log(`[DATABASE INFO] Closing database connection due to ${signal}...`);
+        console.log(`[DATABASE INFO] Closing database connection...`);
         await mongoose_1.default.connection.close();
         console.log('[DATABASE SUCCESS] Mongoose connection closed successfully.');
-        process.exit(0);
     }
     catch (err) {
         console.error('[DATABASE ERROR] Error during database disconnect:', err);
-        process.exit(1);
+        throw err;
     }
 };
-process.on('SIGINT', () => gracefulExit('SIGINT'));
-process.on('SIGTERM', () => gracefulExit('SIGTERM'));
+exports.disconnectDB = disconnectDB;
 class DatabaseManager {
     // Hashing utility remains SHA-256 for backward compatibility with existing hashed passwords
     static hashPassword(password) {
@@ -148,16 +180,24 @@ class DatabaseManager {
     }
     static async create(report, creatorId) {
         try {
+            // Find user to get the mongoose ObjectId
+            const user = await User_1.UserModel.findOne({ id: creatorId });
+            if (!user) {
+                throw new Error(`User dengan ID ${creatorId} tidak ditemukan.`);
+            }
             // Find max integer id for legacy auto-increment compatibility
             const lastReport = await Report_1.ReportModel.findOne().sort({ id: -1 }).exec();
             const nextId = lastReport ? lastReport.id + 1 : 1;
             const newReport = await Report_1.ReportModel.create({
                 ...report,
                 id: nextId,
-                userId: creatorId,
+                userId: user._id,
                 timestamp: new Date(),
                 adminStatus: 'MENUNGGU',
                 adminNotes: '',
+                sla: {
+                    detectedAt: new Date(),
+                }
             });
             return newReport.toJSON();
         }
@@ -331,7 +371,7 @@ class DatabaseManager {
             if (!report) {
                 throw new Error('Laporan tidak ditemukan.');
             }
-            const comment = report.comments.id(commentId);
+            const comment = report.comments.find(c => c._id.toString() === commentId);
             if (!comment) {
                 throw new Error('Komentar tidak ditemukan.');
             }
@@ -355,7 +395,7 @@ class DatabaseManager {
             if (!report) {
                 throw new Error('Laporan tidak ditemukan.');
             }
-            const comment = report.comments.id(commentId);
+            const comment = report.comments.find(c => c._id.toString() === commentId);
             if (!comment) {
                 throw new Error('Komentar tidak ditemukan.');
             }
@@ -691,7 +731,7 @@ class DatabaseManager {
             const encryptionKey = crypto_1.default.scryptSync(process.env.JWT_SECRET || 'eyeco-secret-key', 'salt', 32);
             const parts = text.split(':');
             const iv = Buffer.from(parts.shift(), 'hex');
-            const encryptedText = Buffer.from(parts.join(':'), 'hex');
+            const encryptedText = parts.join(':');
             const decipher = crypto_1.default.createDecipheriv('aes-256-cbc', encryptionKey, iv);
             let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
             decrypted += decipher.final('utf8');

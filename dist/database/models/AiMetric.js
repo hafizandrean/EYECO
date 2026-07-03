@@ -33,29 +33,17 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UserModel = void 0;
+exports.AiMetricModel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
-const UserSchema = new mongoose_1.Schema({
-    id: { type: Number, required: true, unique: true, index: true },
-    username: {
-        type: String,
-        required: [true, 'Username wajib diisi'],
-        unique: true,
-        lowercase: true, // Case insensitive matching
-        trim: true,
-        minlength: [3, 'Username minimal 3 karakter'],
-        maxlength: [30, 'Username maksimal 30 karakter']
-    },
-    passwordHash: { type: String, required: true, select: false }, // Exclude by default
-    role: {
-        type: String,
-        enum: ['admin', 'user', 'operator', 'supervisor', 'officer'],
-        required: true
-    },
-    name: { type: String, trim: true, default: '' },
-    email: { type: String, trim: true, default: '' },
-    agency: { type: String, trim: true, default: '' }
+const AiMetricSchema = new mongoose_1.Schema({
+    timestamp: { type: Date, default: Date.now, index: true },
+    cameraId: { type: Number, required: true, index: true },
+    framesProcessed: { type: Number, default: 0 },
+    averageInferenceTimeMs: { type: Number, default: 0 },
+    promotionCount: { type: Number, default: 0 },
+    duplicateCount: { type: Number, default: 0 },
+    falsePositiveCount: { type: Number, default: 0 }
 }, {
-    timestamps: true
+    timestamps: { createdAt: true, updatedAt: false }
 });
-exports.UserModel = mongoose_1.default.model('User', UserSchema);
+exports.AiMetricModel = mongoose_1.default.model('AiMetric', AiMetricSchema);

@@ -56,7 +56,12 @@ const CctvSchema = new mongoose_1.Schema({
         onvif: { type: Boolean, default: false },
         cloud: { type: Boolean, default: false }
     },
-    status: { type: String, required: true, enum: ['NEW', 'CONNECTING', 'ONLINE', 'OFFLINE', 'BUFFERING', 'ERROR', 'DISCONNECTED'], default: 'NEW' },
+    status: {
+        type: String,
+        required: true,
+        enum: ['NEW', 'CONNECTING', 'ONLINE', 'OFFLINE', 'BUFFERING', 'ERROR', 'DISCONNECTED', 'MONITORING', 'PAUSED', 'MAINTENANCE'],
+        default: 'NEW'
+    },
     health: {
         latency: { type: Number, default: 0 },
         fps: { type: Number, default: 0 },
@@ -64,6 +69,12 @@ const CctvSchema = new mongoose_1.Schema({
     },
     isDefault: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
+    monitoringEnabled: { type: Boolean, default: true },
+    priority: { type: String, enum: ['CRITICAL', 'HIGH', 'NORMAL', 'LOW'], default: 'NORMAL' },
+    priorityWeight: { type: Number, default: 50 },
+    lastFrameAt: { type: Date },
+    reconnectCount: { type: Number, default: 0 },
+    packetLoss: { type: Number, default: 0 },
     lastHeartbeat: { type: Date },
     lastConnected: { type: Date },
     createdBy: { type: Number, required: true }

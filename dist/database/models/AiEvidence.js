@@ -33,29 +33,24 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UserModel = void 0;
+exports.AiEvidenceModel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
-const UserSchema = new mongoose_1.Schema({
-    id: { type: Number, required: true, unique: true, index: true },
-    username: {
-        type: String,
-        required: [true, 'Username wajib diisi'],
-        unique: true,
-        lowercase: true, // Case insensitive matching
-        trim: true,
-        minlength: [3, 'Username minimal 3 karakter'],
-        maxlength: [30, 'Username maksimal 30 karakter']
-    },
-    passwordHash: { type: String, required: true, select: false }, // Exclude by default
-    role: {
-        type: String,
-        enum: ['admin', 'user', 'operator', 'supervisor', 'officer'],
-        required: true
-    },
-    name: { type: String, trim: true, default: '' },
-    email: { type: String, trim: true, default: '' },
-    agency: { type: String, trim: true, default: '' }
+const AiEvidenceSchema = new mongoose_1.Schema({
+    id: { type: Number, required: true, unique: true },
+    cameraId: { type: Number, required: true, index: true },
+    capturedAt: { type: Date, required: true },
+    storageKey: { type: String, required: true },
+    sha256: { type: String, required: true },
+    linkedDetectionId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'AiDetection', required: true },
+    expiresAt: { type: Date, default: null, index: { expires: 0 } },
+    mimeType: { type: String, default: 'image/jpeg' },
+    width: { type: Number, default: 1920 },
+    height: { type: Number, default: 1080 },
+    size: { type: Number, default: 0 },
+    storage: { type: String, enum: ['LOCAL', 'S3', 'GCS', 'AZURE'], default: 'LOCAL' },
+    thumbnail: { type: String, default: '' },
+    virusScanStatus: { type: String, enum: ['CLEAN', 'INFECTED', 'UNSCANNED'], default: 'CLEAN' }
 }, {
     timestamps: true
 });
-exports.UserModel = mongoose_1.default.model('User', UserSchema);
+exports.AiEvidenceModel = mongoose_1.default.model('AiEvidence', AiEvidenceSchema);

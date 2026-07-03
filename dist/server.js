@@ -16,6 +16,10 @@ const User_1 = require("./database/models/User");
 const CctvHealthEngine_1 = require("./cctv/CctvHealthEngine");
 const CctvScanner_1 = require("./cctv/CctvScanner");
 const CctvAdapter_1 = require("./cctv/CctvAdapter");
+const AiPipelineScheduler_1 = require("./cctv/services/AiPipelineScheduler");
+const AiEngineHealthMonitor_1 = require("./cctv/services/AiEngineHealthMonitor");
+const OutboxWorker_1 = require("./notifications/OutboxWorker");
+const TelegramNotificationChannel_1 = require("./notifications/TelegramNotificationChannel");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 8000;
@@ -34,6 +38,13 @@ const sessions = new Map();
 // Setup middleware
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
+// API Versioning Rewriter (Translates /api/v1/* to /api/* internally for seamless backward compatibility)
+app.use((req, res, next) => {
+    if (req.url.startsWith('/api/v1/')) {
+        req.url = req.url.replace('/api/v1/', '/api/');
+    }
+    next();
+});
 // Serve static CSS and JS files directly
 app.use('/css', express_1.default.static(path_1.default.join(__dirname, '../public/css')));
 app.use('/js', express_1.default.static(path_1.default.join(__dirname, '../public/js')));
@@ -77,13 +88,47 @@ async function getLoggedInUser(req) {
         return null;
     }
 }
-// --- HEALTH CHECK ENDPOINT ---
-app.get('/health', (req, res) => {
-    const isConnected = mongoose_1.default.connection.readyState === 1;
-    res.status(isConnected ? 200 : 503).json({
-        status: isConnected ? 'UP' : 'DOWN',
-        database: isConnected ? 'connected' : 'disconnected'
-    });
+// --- HEALTH CHECK ENDPOINTS ---
+app.get('/health/live', (req, res) => {
+    res.json({ status: 'UP' });
+});
+app.get('/health/ready', async (req, res) => {
+    try {
+        const mongoStatus = mongoose_1.default.connection.readyState === 1 ? 'UP' : 'DOWN';
+        // Check if Telegram notifications are enabled in settings
+        const telegramEnabledSetting = await db_1.SystemSettingsModel.findOne({ key: 'telegram.enabled' }).exec();
+        const telegramStatus = telegramEnabledSetting && telegramEnabledSetting.value === true ? 'UP' : 'DOWN';
+        // Verify storage write accessibility
+        const uploadDir = path_1.default.join(__dirname, '../public/uploads');
+        let storageStatus = 'DOWN';
+        try {
+            fs_1.default.accessSync(uploadDir, fs_1.default.constants.W_OK);
+            storageStatus = 'UP';
+        }
+        catch {
+            storageStatus = 'DOWN';
+        }
+        const aiMetrics = await AiEngineHealthMonitor_1.AiEngineHealthMonitor.getMetrics();
+        const ready = mongoStatus === 'UP' && storageStatus === 'UP' && aiMetrics.status !== 'OFFLINE';
+        res.status(ready ? 200 : 503).json({
+            mongodb: mongoStatus,
+            telegram: telegramStatus,
+            scheduler: 'UP',
+            storage: storageStatus,
+            aiEngine: aiMetrics,
+            ready
+        });
+    }
+    catch (err) {
+        res.status(503).json({
+            mongodb: 'DOWN',
+            telegram: 'DOWN',
+            scheduler: 'DOWN',
+            storage: 'DOWN',
+            ready: false,
+            error: err.message
+        });
+    }
 });
 // --- AUTH API ENDPOINTS ---
 // Register API
@@ -300,11 +345,63 @@ app.post('/api/detections/:id/verify', async (req, res) => {
         if (!updatedReport) {
             return res.status(404).json({ error: 'Laporan tidak ditemukan' });
         }
+        // Rekam audit log aksi manual override verifikasi admin
+        await db_1.SystemAuditLogModel.create({
+            tenantId: 'BBWS',
+            actorId: user._id,
+            actorName: user.username,
+            action: 'VERIFY_REPORT',
+            ipAddress: req.ip || '',
+            userAgent: req.headers['user-agent'] || '',
+            details: {
+                reportId: id,
+                adminStatus: status,
+                notes: notes || '',
+                assignedOfficer,
+                progressStatus
+            }
+        });
         res.json(updatedReport);
     }
     catch (err) {
         console.error('[SERVER ERROR] Verify report failed:', err);
         res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+// API: Manual Broadcast to Telegram Channel
+app.post('/api/detections/:id/telegram', async (req, res) => {
+    try {
+        const user = await getLoggedInUser(req);
+        if (!user) {
+            return res.status(401).json({ error: 'Unauthorized: Harap masuk terlebih dahulu.' });
+        }
+        const id = parseInt(req.params.id);
+        const report = await Report_1.ReportModel.findOne({ id }).exec();
+        if (!report) {
+            return res.status(404).json({ error: 'Laporan tidak ditemukan' });
+        }
+        const channel = new TelegramNotificationChannel_1.TelegramNotificationChannel();
+        const success = await channel.send(report);
+        if (success) {
+            // Rekam audit log aksi penyiaran manual
+            await db_1.SystemAuditLogModel.create({
+                tenantId: 'BBWS',
+                actorId: user._id,
+                actorName: user.username,
+                action: 'MANUAL_TELEGRAM_BROADCAST',
+                ipAddress: req.ip || '',
+                userAgent: req.headers['user-agent'] || '',
+                details: { reportId: id }
+            });
+            return res.json({ success: true, message: 'Notifikasi berhasil dikirim ke Telegram.' });
+        }
+        else {
+            return res.status(500).json({ error: 'Gagal mengirim notifikasi Telegram. Periksa status keaktifan Telegram dan ID chat di konfigurasi.' });
+        }
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] Telegram manual broadcast failed:', err);
+        res.status(500).json({ error: err.message || 'Internal Server Error' });
     }
 });
 // Helper functions for standard API responses
@@ -826,13 +923,207 @@ app.get('/api/cctv/:id/snapshot', async (req, res) => {
         res.status(500).send('Internal Server Error');
     }
 });
+// POST /api/cctv/monitoring - Global toggle monitoring
+app.post('/api/cctv/monitoring', async (req, res) => {
+    try {
+        const user = await getLoggedInUser(req);
+        if (!user || user.role !== 'admin') {
+            return res.status(403).json({ error: 'Forbidden: Hanya Admin yang dapat memodifikasi status pemantauan.' });
+        }
+        const { enabled } = req.body;
+        if (typeof enabled !== 'boolean') {
+            return res.status(400).json({ error: 'Parameter "enabled" wajib boolean.' });
+        }
+        await db_1.CctvModel.updateMany({}, { $set: { monitoringEnabled: enabled, status: enabled ? 'MONITORING' : 'PAUSED' } });
+        console.log(`[SERVER INFO] Global monitoring toggle set to ${enabled} by user ${user.username}`);
+        res.json({ success: true, monitoringEnabled: enabled });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] POST /api/cctv/monitoring failed:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+// PATCH /api/cctv/:id/monitoring - Per-camera toggle monitoring
+app.patch('/api/cctv/:id/monitoring', async (req, res) => {
+    try {
+        const user = await getLoggedInUser(req);
+        if (!user || user.role !== 'admin') {
+            return res.status(403).json({ error: 'Forbidden: Hanya Admin yang dapat memodifikasi status pemantauan.' });
+        }
+        const id = parseInt(req.params.id);
+        const { enabled } = req.body;
+        if (typeof enabled !== 'boolean') {
+            return res.status(400).json({ error: 'Parameter "enabled" wajib boolean.' });
+        }
+        const camera = await db_1.CctvModel.findOne({ id });
+        if (!camera) {
+            return res.status(404).json({ error: 'Camera not found' });
+        }
+        camera.monitoringEnabled = enabled;
+        camera.status = enabled ? 'MONITORING' : 'PAUSED';
+        await camera.save();
+        console.log(`[SERVER INFO] Camera ID ${id} monitoring set to ${enabled} by user ${user.username}`);
+        res.json({ success: true, cameraId: id, monitoringEnabled: enabled });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] PATCH /api/cctv/:id/monitoring failed:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+// GET /api/ai-detections - Retrieve raw AI detections log
+app.get('/api/ai-detections', async (req, res) => {
+    try {
+        const user = await getLoggedInUser(req);
+        if (!user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+        const detections = await db_1.AiDetectionModel.find().sort({ createdAt: -1 }).limit(100).lean();
+        res.json(detections);
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] GET /api/ai-detections failed:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+// GET /api/ai-evidences - Retrieve raw AI evidences log
+app.get('/api/ai-evidences', async (req, res) => {
+    try {
+        const user = await getLoggedInUser(req);
+        if (!user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+        const evidences = await db_1.AiEvidenceModel.find().sort({ createdAt: -1 }).limit(100).lean();
+        res.json(evidences);
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] GET /api/ai-evidences failed:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+// GET /api/system-settings - Retrieve configuration settings
+app.get('/api/system-settings', async (req, res) => {
+    try {
+        const user = await getLoggedInUser(req);
+        if (!user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+        const settings = await db_1.SystemSettingsModel.find().lean();
+        res.json(settings);
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] GET /api/system-settings failed:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+// POST /api/system-settings - Update configuration settings
+app.post('/api/system-settings', async (req, res) => {
+    try {
+        const user = await getLoggedInUser(req);
+        if (!user || user.role !== 'admin') {
+            return res.status(403).json({ error: 'Forbidden: Hanya Admin yang dapat memodifikasi konfigurasi.' });
+        }
+        const { key, value, reason, approvedBy } = req.body;
+        if (!key || value === undefined) {
+            return res.status(400).json({ error: 'Parameter "key" dan "value" wajib diisi.' });
+        }
+        const setting = await db_1.SystemSettingsModel.findOne({ key });
+        if (!setting) {
+            return res.status(404).json({ error: 'Konfigurasi tidak ditemukan.' });
+        }
+        const oldValue = setting.value;
+        setting.value = value;
+        setting.updatedBy = user.id;
+        await setting.save();
+        // Rekam log audit perubahan konfigurasi sistem (Before, After, Reason, Approved By)
+        await db_1.SystemAuditLogModel.create({
+            tenantId: 'BBWS',
+            actorId: user._id,
+            actorName: user.username,
+            action: 'UPDATE_SYSTEM_SETTINGS',
+            ipAddress: req.ip || '',
+            userAgent: req.headers['user-agent'] || '',
+            details: {
+                key,
+                oldValue,
+                newValue: value,
+                reason: reason || 'Optimasi berkala performa modul deteksi.',
+                approvedBy: approvedBy || 'Supervisor'
+            }
+        });
+        console.log(`[SERVER INFO] Configuration setting "${key}" updated from "${JSON.stringify(oldValue)}" to "${JSON.stringify(value)}" by user ${user.username}`);
+        res.json({ success: true, key, value });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] POST /api/system-settings failed:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+let serverInstance;
 // Start Server after Database connection is established
 (0, db_1.connectDB)().then(() => {
     CctvHealthEngine_1.CctvHealthEngine.start();
-    app.listen(PORT, () => {
+    AiPipelineScheduler_1.AiPipelineScheduler.start();
+    OutboxWorker_1.OutboxWorker.start();
+    serverInstance = app.listen(PORT, () => {
         console.log(`Server EYECO berjalan di http://localhost:${PORT}`);
     });
 }).catch((err) => {
     console.error('[SERVER CRITICAL] Failed to connect to database. Server not started.', err);
     process.exit(1);
 });
+// Coordinated Graceful Shutdown Handler
+const gracefulShutdown = async (signal) => {
+    console.log(`\n[SERVER] Received ${signal}. Starting coordinated graceful shutdown...`);
+    // 1. Stop AI Pipeline Scheduler (which halts capture and triggers InferenceQueue shutdown)
+    try {
+        console.log('[SERVER] Stopping AI Pipeline Scheduler...');
+        await AiPipelineScheduler_1.AiPipelineScheduler.stop();
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] Failed to stop AiPipelineScheduler:', err.message);
+    }
+    // 2. Stop CCTV Health Engine
+    try {
+        console.log('[SERVER] Stopping CCTV Health Engine...');
+        CctvHealthEngine_1.CctvHealthEngine.stop();
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] Failed to stop CctvHealthEngine:', err.message);
+    }
+    // 3. Stop Outbox Worker
+    try {
+        console.log('[SERVER] Stopping Outbox Worker...');
+        OutboxWorker_1.OutboxWorker.stop();
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] Failed to stop OutboxWorker:', err.message);
+    }
+    // 4. Close database connection
+    try {
+        console.log('[SERVER] Closing database connection...');
+        await (0, db_1.disconnectDB)();
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] Failed to disconnect database:', err.message);
+    }
+    // 5. Close HTTP server listener
+    if (serverInstance) {
+        console.log('[SERVER] Closing HTTP server listener...');
+        serverInstance.close(() => {
+            console.log('[SERVER] HTTP server closed.');
+            console.log('[SERVER] Graceful shutdown completed. Exiting process.');
+            process.exit(0);
+        });
+        // Force exit after 10 seconds if HTTP server hangs
+        setTimeout(() => {
+            console.warn('[SERVER WARNING] Coordinated shutdown timed out. Forcing exit.');
+            process.exit(1);
+        }, 10000);
+    }
+    else {
+        console.log('[SERVER] Coordinated shutdown completed. Exiting process.');
+        process.exit(0);
+    }
+};
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

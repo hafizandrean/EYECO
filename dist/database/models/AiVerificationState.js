@@ -33,29 +33,17 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UserModel = void 0;
+exports.AiVerificationStateModel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
-const UserSchema = new mongoose_1.Schema({
-    id: { type: Number, required: true, unique: true, index: true },
-    username: {
-        type: String,
-        required: [true, 'Username wajib diisi'],
-        unique: true,
-        lowercase: true, // Case insensitive matching
-        trim: true,
-        minlength: [3, 'Username minimal 3 karakter'],
-        maxlength: [30, 'Username maksimal 30 karakter']
-    },
-    passwordHash: { type: String, required: true, select: false }, // Exclude by default
-    role: {
-        type: String,
-        enum: ['admin', 'user', 'operator', 'supervisor', 'officer'],
-        required: true
-    },
-    name: { type: String, trim: true, default: '' },
-    email: { type: String, trim: true, default: '' },
-    agency: { type: String, trim: true, default: '' }
+const AiVerificationStateSchema = new mongoose_1.Schema({
+    cameraId: { type: Number, required: true, index: true },
+    trackingId: { type: String, required: true, index: true },
+    consecutiveFrames: { type: Number, required: true, default: 1 },
+    lastDetectedClass: { type: String, required: true },
+    updatedAt: { type: Date, default: Date.now, index: { expires: 300 } } // Expires 5 minutes after last update
 }, {
-    timestamps: true
+    timestamps: { createdAt: false, updatedAt: true } // Mongoose updates 'updatedAt' automatically on save/update
 });
-exports.UserModel = mongoose_1.default.model('User', UserSchema);
+// Compound unique index to prevent duplicate records
+AiVerificationStateSchema.index({ cameraId: 1, trackingId: 1 }, { unique: true });
+exports.AiVerificationStateModel = mongoose_1.default.model('AiVerificationState', AiVerificationStateSchema);

@@ -21,6 +21,7 @@ export class DashboardPage {
     this.filterCamera = 'all';
     this.filterDate = '';
     this.filterStatus = 'all';
+    this.editingCctvId = null;
   }
 
   // Merender halaman dashboard utama
@@ -176,7 +177,7 @@ export class DashboardPage {
         </aside>
       </div>
 
-      <!-- 4. Secondary Zone: CCTV Grid + Camera Network -->
+      <!-- 4. Secondary Zone: CCTV Grid -->
       <div class="command-center-secondary">
 
         <div class="cctv-section-compact">
@@ -188,15 +189,6 @@ export class DashboardPage {
             </div>
           </div>
           <div class="cctv-grid" id="cctv-grid-container"></div>
-        </div>
-
-        <div class="camera-network-section glass-card" style="padding: var(--space-20);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-12);">
-            <h3 style="font-family: 'Outfit', sans-serif; font-size: 1rem; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
-              <i data-lucide="network" style="color: var(--primary); width: 16px; height: 16px;"></i> Camera Network
-            </h3>
-          </div>
-          <div id="cctv-network-list" style="display: flex; flex-direction: column; gap: var(--space-10);"></div>
         </div>
       </div>
 
@@ -308,9 +300,30 @@ export class DashboardPage {
             </button>
             <span class="vms-fs-cam-title" id="vms-fs-cam-title">JALAN TERAS SAMPING</span>
           </div>
-          <div class="vms-fs-header-right">
-            <button class="vms-fs-icon-btn"><i data-lucide="video"></i></button>
-            <button class="vms-fs-icon-btn"><i data-lucide="more-horizontal"></i></button>
+          <div class="vms-fs-header-right" style="position: relative;">
+            <button class="vms-fs-icon-btn" id="vms-fs-btn-toggle-ai-mon" title="Toggle AI Monitoring"><i data-lucide="eye"></i></button>
+            <button class="vms-fs-icon-btn" id="vms-fs-btn-more" title="More Actions"><i data-lucide="more-horizontal"></i></button>
+            
+            <!-- Dropdown Menu -->
+            <div id="vms-fs-more-dropdown" class="glass-card" style="display: none; position: absolute; top: 40px; right: 0; width: 200px; z-index: 1000; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: #ffffff; box-shadow: var(--glass-shadow);">
+              <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px;">
+                <li>
+                  <button class="dropdown-item-btn" id="vms-fs-drop-settings" style="width: 100%; border: none; background: transparent; padding: 8px 12px; font-size: 0.78rem; font-weight: 700; color: var(--text-primary); text-align: left; cursor: pointer; border-radius: 6px; display: flex; align-items: center; gap: 8px; transition: background 0.15s;">
+                    <i data-lucide="settings" style="width: 14px; height: 14px;"></i> Settings / Edit CCTV
+                  </button>
+                </li>
+                <li>
+                  <button class="dropdown-item-btn" id="vms-fs-drop-reconnect" style="width: 100%; border: none; background: transparent; padding: 8px 12px; font-size: 0.78rem; font-weight: 700; color: var(--text-primary); text-align: left; cursor: pointer; border-radius: 6px; display: flex; align-items: center; gap: 8px; transition: background 0.15s;">
+                    <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i> Reconnect Stream
+                  </button>
+                </li>
+                <li>
+                  <button class="dropdown-item-btn" id="vms-fs-drop-toggle-overlay" style="width: 100%; border: none; background: transparent; padding: 8px 12px; font-size: 0.78rem; font-weight: 700; color: var(--text-primary); text-align: left; cursor: pointer; border-radius: 6px; display: flex; align-items: center; gap: 8px; transition: background 0.15s;">
+                    <i data-lucide="scan-eye" style="width: 14px; height: 14px;"></i> Toggle AI Overlay
+                  </button>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
 
@@ -557,9 +570,20 @@ export class DashboardPage {
 
     if (btnConnect) {
       btnConnect.addEventListener('click', () => {
+        this.editingCctvId = null;
         form.reset();
         scannerBox.style.display = 'none';
         btnSave.disabled = true;
+        
+        // Restore title and button text
+        const modalTitle = modal.querySelector('.modal-header h3');
+        if (modalTitle) {
+          modalTitle.innerHTML = `<i data-lucide="plus-circle"></i> Hubungkan CCTV Baru`;
+        }
+        if (btnSave) {
+          btnSave.innerHTML = `<i data-lucide="save"></i> Hubungkan CCTV`;
+        }
+
         modal.style.display = 'flex';
         if (window.lucide) window.lucide.createIcons();
       });
@@ -697,28 +721,121 @@ export class DashboardPage {
     if (form) {
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        if (!detectedConfig) return;
 
-        // Force values if admin edited them after scanning
-        detectedConfig.name = document.getElementById('cctv-input-name').value;
-        detectedConfig.location = document.getElementById('cctv-input-location').value;
-        detectedConfig.description = document.getElementById('cctv-input-description').value;
+        const name = document.getElementById('cctv-input-name').value;
+        const location = document.getElementById('cctv-input-location').value;
+        const description = document.getElementById('cctv-input-description').value;
+        const vendor = document.getElementById('cctv-input-vendor').value;
+        const host = document.getElementById('cctv-input-host').value;
+        const port = document.getElementById('cctv-input-port').value;
+        const protocol = document.getElementById('cctv-input-mode').value;
+        const username = document.getElementById('cctv-input-username').value;
+        const password = document.getElementById('cctv-input-password').value;
 
         btnSave.disabled = true;
 
         try {
-          await CctvService.connectCctv(detectedConfig);
-          EventBus.emit('toast:show', { message: 'CCTV Baru berhasil dihubungkan ke sistem!', type: 'success' });
+          if (this.editingCctvId) {
+            // Edit Mode
+            const payload = {
+              name,
+              location,
+              description,
+              vendor,
+              protocol,
+              username,
+              password,
+              streamUrl: host + (port ? `:${port}` : '')
+            };
+            await CctvService.updateCctv(this.editingCctvId, payload);
+            EventBus.emit('toast:show', { message: 'Konfigurasi CCTV berhasil diperbarui!', type: 'success' });
+          } else {
+            // Create Mode
+            if (!detectedConfig) return;
+            detectedConfig.name = name;
+            detectedConfig.location = location;
+            detectedConfig.description = description;
+            await CctvService.connectCctv(detectedConfig);
+            EventBus.emit('toast:show', { message: 'CCTV Baru berhasil dihubungkan ke sistem!', type: 'success' });
+          }
+
           modal.style.display = 'none';
           
           // Reload
           await this.loadData();
+          
+          // If drawer is open, refresh it
+          if (this.editingCctvId) {
+            const drawer = document.getElementById('cctv-detail-drawer');
+            if (drawer && drawer.style.right === '0px') {
+              this.openCCTVDetailDrawer(this.editingCctvId);
+            }
+          }
         } catch (err) {
           EventBus.emit('toast:show', { message: `Gagal menyimpan CCTV: ${err.message}`, type: 'danger' });
           btnSave.disabled = false;
         }
       });
     }
+  }
+
+  openEditCctvModal(ch) {
+    this.editingCctvId = ch.id;
+    const modal = document.getElementById('connect-cctv-modal');
+    const form = document.getElementById('connect-cctv-form');
+    const btnSave = document.getElementById('btn-save-cctv');
+    const scannerBox = document.querySelector('.scanner-hud-box');
+    
+    if (!modal || !form) return;
+
+    // Reset Form
+    form.reset();
+    scannerBox.style.display = 'none';
+
+    // Set title
+    const modalTitle = modal.querySelector('.modal-header h3');
+    if (modalTitle) {
+      modalTitle.innerHTML = `<i data-lucide="settings"></i> Pengaturan & Pemeliharaan CCTV`;
+    }
+
+    // Set button text
+    if (btnSave) {
+      btnSave.innerHTML = `<i data-lucide="save"></i> Simpan Konfigurasi`;
+      btnSave.disabled = false;
+    }
+
+    // Pre-fill values
+    document.getElementById('cctv-input-name').value = ch.name || '';
+    document.getElementById('cctv-input-location').value = ch.location || '';
+    document.getElementById('cctv-input-description').value = ch.description || '';
+    document.getElementById('cctv-input-vendor').value = ch.vendor || 'GENERIC';
+    
+    // Extract host and port from streamUrl
+    let host = ch.streamUrl || '';
+    let port = '554';
+    if (host.includes('://')) {
+      const urlPart = host.split('://')[1];
+      const hostPort = urlPart.split('/')[0];
+      if (hostPort.includes(':')) {
+        host = hostPort.split(':')[0];
+        port = hostPort.split(':')[1];
+      } else {
+        host = hostPort;
+      }
+    } else if (host.includes(':')) {
+      host = ch.streamUrl.split(':')[0];
+      port = ch.streamUrl.split(':')[1];
+    }
+    
+    document.getElementById('cctv-input-host').value = host;
+    document.getElementById('cctv-input-port').value = port;
+    document.getElementById('cctv-input-mode').value = ch.protocol || 'AUTO';
+    document.getElementById('cctv-input-username').value = ch.username || '';
+    document.getElementById('cctv-input-password').value = ch.password || '';
+
+    // Show modal
+    modal.style.display = 'flex';
+    if (window.lucide) window.lucide.createIcons();
   }
 
   async reconnectCCTVStream(id) {
@@ -900,7 +1017,8 @@ export class DashboardPage {
       this.openVmsController(ch.id);
     };
     if (btnMaintenance) btnMaintenance.onclick = () => {
-      EventBus.emit('toast:show', { message: `Fitur konfigurasi pemeliharaan sektor dibuka.`, type: 'info' });
+      this.closeCCTVDetailDrawer();
+      this.openEditCctvModal(ch);
     };
 
     if (window.lucide) window.lucide.createIcons();
@@ -939,6 +1057,13 @@ export class DashboardPage {
     const btnActRecord = document.getElementById('vms-fs-action-record');
     const btnActMic = document.getElementById('vms-fs-action-mic');
     const btnActAi = document.getElementById('vms-fs-action-ai');
+
+    const btnToggleAiMon = document.getElementById('vms-fs-btn-toggle-ai-mon');
+    const btnMore = document.getElementById('vms-fs-btn-more');
+    const moreDropdown = document.getElementById('vms-fs-more-dropdown');
+    const dropSettings = document.getElementById('vms-fs-drop-settings');
+    const dropReconnect = document.getElementById('vms-fs-drop-reconnect');
+    const dropToggleOverlay = document.getElementById('vms-fs-drop-toggle-overlay');
 
     if (!page) return;
 
@@ -1056,7 +1181,7 @@ export class DashboardPage {
 
 
     // 4. Back/Close button handler
-    const handleClose = () => {
+    let handleClose = () => {
       page.style.display = 'none';
       if (recordInterval) {
         clearInterval(recordInterval);
@@ -1199,6 +1324,78 @@ export class DashboardPage {
         type: 'info' 
       });
     };
+
+    // Header actions binding
+    const updateAiMonButtonState = () => {
+      if (btnToggleAiMon) {
+        btnToggleAiMon.style.color = ch.monitoringEnabled ? 'var(--primary)' : 'var(--text-secondary)';
+        btnToggleAiMon.title = ch.monitoringEnabled ? 'Hentikan Pemantauan AI' : 'Mulai Pemantauan AI';
+      }
+    };
+    updateAiMonButtonState();
+
+    if (btnToggleAiMon) {
+      btnToggleAiMon.onclick = async (e) => {
+        e.stopPropagation();
+        const nextState = !ch.monitoringEnabled;
+        try {
+          await CctvService.toggleCameraMonitoring(ch.id, nextState);
+          ch.monitoringEnabled = nextState;
+          updateAiMonButtonState();
+          
+          EventBus.emit('toast:show', {
+            message: nextState ? `Pemantauan AI aktif untuk ${ch.name}!` : `Pemantauan AI dinonaktifkan untuk ${ch.name}!`,
+            type: nextState ? 'success' : 'warning'
+          });
+        } catch (err) {
+          EventBus.emit('toast:show', { message: 'Gagal mengubah status pemantauan kamera.', type: 'danger' });
+        }
+      };
+    }
+
+    if (btnMore && moreDropdown) {
+      btnMore.onclick = (e) => {
+        e.stopPropagation();
+        const isHidden = moreDropdown.style.display === 'none';
+        moreDropdown.style.display = isHidden ? 'block' : 'none';
+      };
+      
+      const closeDropdown = () => {
+        moreDropdown.style.display = 'none';
+      };
+      document.addEventListener('click', closeDropdown);
+
+      const originalHandleClose = handleClose;
+      handleClose = () => {
+        document.removeEventListener('click', closeDropdown);
+        originalHandleClose();
+      };
+    }
+
+    if (dropSettings) {
+      dropSettings.onclick = (e) => {
+        e.stopPropagation();
+        moreDropdown.style.display = 'none';
+        page.style.display = 'none'; // Close player
+        this.openEditCctvModal(ch);
+      };
+    }
+
+    if (dropReconnect) {
+      dropReconnect.onclick = (e) => {
+        e.stopPropagation();
+        moreDropdown.style.display = 'none';
+        this.reconnectCCTVStream(ch.id);
+      };
+    }
+
+    if (dropToggleOverlay) {
+      dropToggleOverlay.onclick = (e) => {
+        e.stopPropagation();
+        moreDropdown.style.display = 'none';
+        btnActAi.click(); // Trigger AI overlay toggle
+      };
+    }
 
     // Boot Fullscreen view
     renderActivePlayer();
@@ -1673,12 +1870,19 @@ export class DashboardPage {
                 ${officerHtml}
               </div>
             </div>
-            <button class="btn btn-sm btn-glass" style="border-color: rgba(47, 107, 255, 0.25); color: var(--primary); padding: 6px 14px; font-size:0.7rem; font-weight:800; flex-shrink:0;" onclick="event.stopPropagation();">
+            <button class="btn btn-sm btn-glass btn-open-incident" style="border-color: rgba(47, 107, 255, 0.25); color: var(--primary); padding: 6px 14px; font-size:0.7rem; font-weight:800; flex-shrink:0;">
               Open Incident
             </button>
           `;
           
           item.onclick = () => Router.navigate(`/dashboard/detections/${r.id}`);
+          const btnOpenInc = item.querySelector('.btn-open-incident');
+          if (btnOpenInc) {
+            btnOpenInc.onclick = (e) => {
+              e.stopPropagation();
+              Router.navigate(`/dashboard/detections/${r.id}`);
+            };
+          }
           activeIncidentsList.appendChild(item);
         });
       }
@@ -2051,7 +2255,9 @@ export class DashboardPage {
             icon: '🔴',
             color: 'var(--danger)',
             title: `Camera Offline: CAM-${ch.id.toString().padStart(2, '0')}`,
-            desc: `${ch.name} terputus dari jaringan.`
+            desc: `${ch.name} terputus dari jaringan.`,
+            id: ch.id,
+            type: 'camera'
           });
         }
       });
@@ -2061,7 +2267,9 @@ export class DashboardPage {
           icon: '🚨',
           color: 'var(--warning)',
           title: 'New Incident',
-          desc: `#${r.id.toString().padStart(4, '0')} · ${r.location} · AI ${r.aiConfidence}%`
+          desc: `#${r.id.toString().padStart(4, '0')} · ${r.location} · AI ${r.aiConfidence}%`,
+          id: r.id,
+          type: 'incident'
         });
       });
 
@@ -2070,7 +2278,9 @@ export class DashboardPage {
           icon: '✓',
           color: 'var(--success)',
           title: 'Officer Finished',
-          desc: `Kasus #${r.id.toString().padStart(4, '0')} selesai ditangani${r.assignedOfficer ? ` · ${r.assignedOfficer}` : ''}.`
+          desc: `Kasus #${r.id.toString().padStart(4, '0')} selesai ditangani${r.assignedOfficer ? ` · ${r.assignedOfficer}` : ''}.`,
+          id: r.id,
+          type: 'incident'
         });
       });
     }
@@ -2087,11 +2297,33 @@ export class DashboardPage {
 
     alerts.slice(0, 5).forEach(a => {
       const row = document.createElement('div');
-      row.style.cssText = 'font-size: 0.72rem; color: var(--text-secondary); border-bottom: 1px solid rgba(0,0,0,0.04); padding-bottom: 8px; margin-bottom: 4px;';
+      row.style.cssText = 'font-size: 0.72rem; color: var(--text-secondary); border-bottom: 1px solid rgba(0,0,0,0.04); padding: var(--space-8); margin-bottom: 4px; cursor: pointer; transition: background 0.15s; border-radius: var(--radius-button);';
+      
+      row.addEventListener('mouseenter', () => {
+        row.style.background = 'rgba(0, 0, 0, 0.03)';
+      });
+      row.addEventListener('mouseleave', () => {
+        row.style.background = 'transparent';
+      });
+
       row.innerHTML = `
         <strong style="color: ${a.color};">${a.icon} ${a.title}</strong>
         <div style="margin-top: 2px; font-size: 0.68rem;">${a.desc}</div>
       `;
+
+      row.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Hide popover first
+        const notifPopover = document.getElementById('dashboard-notif-popover');
+        if (notifPopover) notifPopover.style.display = 'none';
+
+        if (a.type === 'incident') {
+          Router.navigate(`/dashboard/detections/${a.id}`);
+        } else if (a.type === 'camera') {
+          this.openCCTVDetailDrawer(a.id);
+        }
+      });
+
       container.appendChild(row);
     });
   }
