@@ -7,6 +7,8 @@ import { AppState } from '../core/state.js';
 import { Formatter } from '../utils/formatter.js';
 import { EventBus } from '../core/eventBus.js';
 import { CONFIG } from '../core/config.js';
+import { API } from '../services/api.js';
+
 
 export class DashboardPage {
   constructor() {
@@ -322,6 +324,11 @@ export class DashboardPage {
                     <i data-lucide="scan-eye" style="width: 14px; height: 14px;"></i> Toggle AI Overlay
                   </button>
                 </li>
+                <li id="vms-fs-drop-delete-container" style="display: none; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 4px; margin-top: 4px;">
+                  <button class="dropdown-item-btn" id="vms-fs-drop-delete" style="width: 100%; border: none; background: transparent; padding: 8px 12px; font-size: 0.78rem; font-weight: 700; color: var(--danger); text-align: left; cursor: pointer; border-radius: 6px; display: flex; align-items: center; gap: 8px; transition: background 0.15s;">
+                    <i data-lucide="trash-2" style="width: 14px; height: 14px; color: var(--danger);"></i> Putuskan CCTV
+                  </button>
+                </li>
               </ul>
             </div>
           </div>
@@ -442,8 +449,28 @@ export class DashboardPage {
     }
 
     if (toggleTelegram) {
-      toggleTelegram.addEventListener('change', () => {
-        AppState.set('telegramAlerts', toggleTelegram.checked);
+      toggleTelegram.addEventListener('change', async () => {
+        const isChecked = toggleTelegram.checked;
+        AppState.set('telegramAlerts', isChecked);
+        
+        try {
+          await API.post('/api/system-settings', {
+            key: 'telegram.enabled',
+            value: isChecked,
+            reason: 'Toggled via Dashboard Control Panel',
+            approvedBy: 'Admin'
+          });
+          EventBus.emit('toast:show', {
+            message: isChecked ? 'Notifikasi Telegram diaktifkan.' : 'Notifikasi Telegram dinonaktifkan.',
+            type: isChecked ? 'success' : 'warning'
+          });
+        } catch (err) {
+          console.error('Failed to update telegram setting:', err);
+          EventBus.emit('toast:show', { message: 'Gagal memperbarui konfigurasi Telegram di server.', type: 'danger' });
+          // Revert UI switch
+          toggleTelegram.checked = !isChecked;
+          AppState.set('telegramAlerts', !isChecked);
+        }
       });
     }
 
@@ -1064,6 +1091,8 @@ export class DashboardPage {
     const dropSettings = document.getElementById('vms-fs-drop-settings');
     const dropReconnect = document.getElementById('vms-fs-drop-reconnect');
     const dropToggleOverlay = document.getElementById('vms-fs-drop-toggle-overlay');
+    const dropDeleteContainer = document.getElementById('vms-fs-drop-delete-container');
+    const dropDelete = document.getElementById('vms-fs-drop-delete');
 
     if (!page) return;
 
@@ -1397,6 +1426,32 @@ export class DashboardPage {
       };
     }
 
+    // Show/hide delete option in dropdown based on whether it is default
+    const user = AppState.get('user');
+    const isAdmin = user?.role === 'admin';
+    if (dropDeleteContainer) {
+      dropDeleteContainer.style.display = (isAdmin && !ch.isDefault) ? 'block' : 'none';
+    }
+
+    if (dropDelete) {
+      dropDelete.onclick = async (e) => {
+        e.stopPropagation();
+        moreDropdown.style.display = 'none';
+        
+        const confirmDel = confirm(`Apakah Anda yakin ingin memutuskan koneksi CCTV: "${ch.name}"?`);
+        if (!confirmDel) return;
+
+        try {
+          page.style.display = 'none'; // Close player
+          await CctvService.disconnectCctv(ch.id);
+          EventBus.emit('toast:show', { message: `Koneksi CCTV "${ch.name}" berhasil diputuskan.`, type: 'success' });
+          await this.loadData();
+        } catch (err) {
+          EventBus.emit('toast:show', { message: `Gagal memutuskan CCTV: ${err.message}`, type: 'danger' });
+        }
+      };
+    }
+
     // Boot Fullscreen view
     renderActivePlayer();
     updateSeekerProgress();
@@ -1414,6 +1469,24 @@ export class DashboardPage {
       this.cctvList = await CctvService.getCctvList();
       this.updateCameraSelectOptions();
       
+      // Load system settings for telegram alerts
+      try {
+        const sysSettings = await API.get('/api/system-settings');
+        if (sysSettings && Array.isArray(sysSettings)) {
+          const telegramSetting = sysSettings.find(s => s.key === 'telegram.enabled');
+          if (telegramSetting) {
+            const isEnabled = telegramSetting.value === true;
+            AppState.set('telegramAlerts', isEnabled);
+            const toggleTelegram = document.getElementById('toggle-telegram-alerts');
+            if (toggleTelegram) {
+              toggleTelegram.checked = isEnabled;
+            }
+          }
+        }
+      } catch (sysErr) {
+        console.error('Failed to sync telegram setting from backend:', sysErr);
+      }
+
       // Load detections
       const detectionsData = await ReportService.getFilteredReports({ limit: 50 });
       this.latestReports = detectionsData.reports || [];
@@ -2108,7 +2181,7 @@ export class DashboardPage {
           </div>
 
           ${isAdmin && !ch.isDefault ? `
-            <button class="btn-disconnect-cctv" data-id="${ch.id}" title="Putuskan CCTV" style="position: absolute; top: 12px; right: 12px; z-index: 5; background: rgba(0,0,0,0.5); border: none; border-radius: 50%; width: 28px; height: 28px; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+            <button class="btn-disconnect-cctv" data-id="${ch.id}" title="Putuskan CCTV" style="position: absolute; top: 12px; right: 12px; z-index: 15; background: rgba(0,0,0,0.5); border: none; border-radius: 50%; width: 28px; height: 28px; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer;">
               <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
             </button>
           ` : ''}

@@ -76,6 +76,44 @@ class ApiService {
       body: formattedBody
     });
   }
+
+  put(url, body, options = {}) {
+    const headers = options.headers || {};
+    let formattedBody = body;
+
+    if (body && !(body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+      formattedBody = JSON.stringify(body);
+    }
+
+    return this.request(url, {
+      ...options,
+      method: 'PUT',
+      headers,
+      body: formattedBody
+    });
+  }
+
+  patch(url, body, options = {}) {
+    const headers = options.headers || {};
+    let formattedBody = body;
+
+    if (body && !(body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+      formattedBody = JSON.stringify(body);
+    }
+
+    return this.request(url, {
+      ...options,
+      method: 'PATCH',
+      headers,
+      body: formattedBody
+    });
+  }
+
+  delete(url, options = {}) {
+    return this.request(url, { ...options, method: 'DELETE' });
+  }
 }
 
 export const API = new ApiService();
