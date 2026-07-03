@@ -50,7 +50,7 @@ export class UserRepository {
   public static async create(
     username: string, 
     passwordPlain: string, 
-    role: 'admin' | 'user' | 'operator' | 'supervisor' | 'officer',
+    role: 'superadmin' | 'admin' | 'user' | 'operator' | 'supervisor' | 'officer',
     status: 'PENDING' | 'APPROVED' = 'PENDING'
   ): Promise<IUser | null> {
     try {
@@ -81,7 +81,7 @@ export class UserRepository {
     }
   }
 
-  /** Seed the default admin account if it doesn't exist yet. */
+  /** Seed the default admin and super admin accounts if they don't exist. */
   public static async seedDefaultAdmin(): Promise<void> {
     const existing = await UserModel.findOne({ username: 'admin_eyeco' }).lean().exec();
     if (!existing) {
@@ -91,6 +91,15 @@ export class UserRepository {
       // Ensure the default admin is always APPROVED
       await UserModel.updateOne({ username: 'admin_eyeco' }, { status: 'APPROVED' });
       console.log('[DATABASE] Default admin user "admin_eyeco" status restored to APPROVED.');
+    }
+
+    const existingSuper = await UserModel.findOne({ username: 'superadmin' }).lean().exec();
+    if (!existingSuper) {
+      await UserRepository.create('superadmin', 'superadmin123', 'superadmin', 'APPROVED');
+      console.log('[DATABASE] Super Admin user "superadmin" seeded successfully.');
+    } else if ((existingSuper as IUser).status !== 'APPROVED') {
+      await UserModel.updateOne({ username: 'superadmin' }, { status: 'APPROVED' });
+      console.log('[DATABASE] Super Admin user "superadmin" status restored to APPROVED.');
     }
   }
 }

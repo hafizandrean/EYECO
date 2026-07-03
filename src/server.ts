@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
+import cookieParser from 'cookie-parser';
 import { DatabaseManager, Report, BoundingBox, User, connectDB } from './database/db';
 import { ReportModel } from './database/models/Report';
 import { UserModel } from './database/models/User';
@@ -17,6 +18,7 @@ import { CctvRepository } from './database/repositories/CctvRepository';
 import { UserRepository } from './database/repositories/UserRepository';
 import { ReportRepository } from './database/repositories/ReportRepository';
 import { generateToken, verifyToken } from './auth/auth.service';
+import { authMiddleware, roleGuard } from './auth/authMiddleware';
 
 declare global {
   namespace Express {
@@ -50,6 +52,7 @@ app.use('/api/auth/register', authLimiter);
 // Setup middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // Global middleware to populate req.userContext
 app.use((req, res, next) => {
@@ -60,13 +63,8 @@ app.use((req, res, next) => {
     token = authHeader.split(' ')[1];
   }
 
-  if (!token && req.headers.cookie) {
-    const cookies = req.headers.cookie.split(';').reduce((acc, c) => {
-      const [key, val] = c.trim().split('=');
-      if (key && val) acc[key] = val;
-      return acc;
-    }, {} as Record<string, string>);
-    token = cookies['session_token'];
+  if (!token) {
+    token = req.cookies?.session_token || '';
   }
 
   if (token) {
@@ -123,28 +121,31 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Helper to get redirect path based on role
+function getRedirectPath(role: string): string {
+  if (role === 'superadmin') return '/superadmin/dashboard';
+  if (role === 'admin') return '/dashboard';
+  return '/dashboard/upload';
+}
+
 // --- AUTH API ENDPOINTS ---
 
 // Register API
 app.post('/api/auth/register', async (req, res) => {
-  const { username, password, role } = req.body;
+  const { username, password } = req.body;
 
-  if (!username || !password || !role) {
-    return res.status(400).json({ error: 'Username, password, dan role harus diisi' });
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username dan password harus diisi' });
   }
 
   if (password.length < 6) {
     return res.status(400).json({ error: 'Password minimal 6 karakter' });
   }
 
-  // Only allow 'admin' or 'user' roles via public registration
-  if (!['admin', 'user'].includes(role)) {
-    return res.status(400).json({ error: 'Role tidak valid. Pilih: admin atau user' });
-  }
-
   try {
+    // Always set role automatically to 'user' for public registration
     // Always set status PENDING — must be approved by existing admin
-    const newUser = await UserRepository.create(username, password, role as any, 'PENDING');
+    const newUser = await UserRepository.create(username, password, 'user', 'PENDING');
     if (!newUser) {
       return res.status(400).json({ error: 'Username sudah digunakan' });
     }
@@ -207,8 +208,13 @@ app.post('/api/auth/login', async (req, res) => {
     // Generate JWT stateless token
     const token = generateToken({ id: user.id, username: user.username, role: user.role });
 
-    // Set Cookie
-    res.setHeader('Set-Cookie', `session_token=${token}; Path=/; HttpOnly; SameSite=Lax`);
+    // Set HttpOnly Cookie
+    res.cookie('session_token', token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: false, // development
+        maxAge: 24 * 60 * 60 * 1000
+    });
     res.json({ id: user.id, username: user.username, role: user.role, status: user.status });
   } catch (err) {
     console.error('[SERVER ERROR] Login failed:', err);
@@ -218,8 +224,14 @@ app.post('/api/auth/login', async (req, res) => {
 
 // Logout API
 app.post('/api/auth/logout', (req, res) => {
-  res.setHeader('Set-Cookie', 'session_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly');
+  res.clearCookie('session_token');
   res.json({ success: true });
+});
+
+// GET Logout (Redirect to login)
+app.get('/logout', (req, res) => {
+  res.clearCookie('session_token');
+  res.redirect('/login');
 });
 
 // Get Current User API
@@ -236,13 +248,96 @@ app.get('/api/auth/me', async (req, res) => {
 });
 
 
+// --- SUPER ADMIN MANAGEMENT API ---
+
+// GET admins
+app.get('/api/superadmin/admins', authMiddleware, roleGuard(['superadmin']), async (req, res) => {
+  try {
+    const admins = await UserModel.find({ role: 'admin' }).sort({ createdAt: -1 }).lean().exec();
+    res.json({ success: true, admins });
+  } catch (err) {
+    console.error('[SERVER ERROR] GET /api/superadmin/admins failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// CREATE admin
+app.post('/api/superadmin/admins', authMiddleware, roleGuard(['superadmin']), async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username dan password wajib diisi' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password minimal 6 karakter' });
+  }
+  try {
+    const newUser = await UserRepository.create(username.trim(), password, 'admin', 'APPROVED');
+    if (!newUser) {
+      return res.status(400).json({ error: 'Username admin sudah digunakan' });
+    }
+    res.status(201).json({ success: true, admin: newUser });
+  } catch (err) {
+    console.error('[SERVER ERROR] POST /api/superadmin/admins failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// EDIT admin
+app.put('/api/superadmin/admins/:id', authMiddleware, roleGuard(['superadmin']), async (req, res) => {
+  const adminId = parseInt(req.params.id);
+  if (isNaN(adminId)) return res.status(400).json({ error: 'ID tidak valid' });
+  const { username, password } = req.body;
+  try {
+    const admin = await UserModel.findOne({ id: adminId, role: 'admin' });
+    if (!admin) {
+      return res.status(404).json({ error: 'Admin tidak ditemukan' });
+    }
+    if (username) {
+      const lowercaseUsername = username.trim().toLowerCase();
+      if (lowercaseUsername !== admin.username) {
+        const exists = await UserModel.findOne({ username: lowercaseUsername }).lean().exec();
+        if (exists) return res.status(400).json({ error: 'Username sudah digunakan' });
+        admin.username = lowercaseUsername;
+      }
+    }
+    if (password) {
+      if (password.length < 6) {
+        return res.status(400).json({ error: 'Password minimal 6 karakter' });
+      }
+      admin.passwordHash = await bcrypt.hash(password, 10);
+    }
+    await admin.save();
+    res.json({ success: true, message: 'Admin berhasil diperbarui', admin });
+  } catch (err) {
+    console.error('[SERVER ERROR] PUT /api/superadmin/admins failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// DELETE admin
+app.delete('/api/superadmin/admins/:id', authMiddleware, roleGuard(['superadmin']), async (req, res) => {
+  const adminId = parseInt(req.params.id);
+  if (isNaN(adminId)) return res.status(400).json({ error: 'ID tidak valid' });
+  try {
+    const deleted = await UserModel.findOneAndDelete({ id: adminId, role: 'admin' });
+    if (!deleted) {
+      return res.status(404).json({ error: 'Admin tidak ditemukan' });
+    }
+    res.json({ success: true, message: 'Admin berhasil dihapus' });
+  } catch (err) {
+    console.error('[SERVER ERROR] DELETE /api/superadmin/admins failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+
 // --- VIEW ROUTING & GUARDS ---
 
 app.get('/login', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
     if (user) {
-      return res.redirect(user.role === 'admin' ? '/dashboard' : '/dashboard/upload');
+      return res.redirect(getRedirectPath(user.role));
     }
     res.sendFile(path.join(__dirname, '../public/views/login.html'));
   } catch (err) {
@@ -254,7 +349,7 @@ app.get('/register', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
     if (user) {
-      return res.redirect(user.role === 'admin' ? '/dashboard' : '/dashboard/upload');
+      return res.redirect(getRedirectPath(user.role));
     }
     res.sendFile(path.join(__dirname, '../public/views/register.html'));
   } catch (err) {
@@ -266,16 +361,26 @@ app.get('/', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
     if (!user) return res.redirect('/login');
-    res.redirect(user.role === 'admin' ? '/dashboard' : '/dashboard/upload');
+    res.redirect(getRedirectPath(user.role));
   } catch (err) {
     res.redirect('/login');
   }
 });
 
-app.get(['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/users', '/dashboard/detections/:id'], async (req, res) => {
+// Super Admin Pages
+app.get(['/superadmin/dashboard', '/superadmin/admins'], authMiddleware, roleGuard(['superadmin']), (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/views/superadmin.html'));
+});
+
+// Dashboard Pages
+app.get(['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/users', '/dashboard/detections/:id'], authMiddleware, async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
     if (!user) return res.redirect('/login');
+
+    if (user.role === 'superadmin') {
+      return res.redirect('/superadmin/dashboard');
+    }
     
     // Non-admin users can only access upload, laporan, and detections
     if (user.role !== 'admin' && 

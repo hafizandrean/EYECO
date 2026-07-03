@@ -33,35 +33,26 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UserModel = void 0;
+exports.AssignmentModel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
-const UserSchema = new mongoose_1.Schema({
-    id: { type: Number, required: true, unique: true, index: true },
-    username: {
-        type: String,
-        required: [true, 'Username wajib diisi'],
-        unique: true,
-        lowercase: true, // Case insensitive matching
-        trim: true,
-        minlength: [3, 'Username minimal 3 karakter'],
-        maxlength: [30, 'Username maksimal 30 karakter']
-    },
-    passwordHash: { type: String, required: true, select: false }, // Exclude by default
-    role: {
-        type: String,
-        enum: ['superadmin', 'admin', 'user', 'operator', 'supervisor', 'officer'],
-        required: true
-    },
+const AssignmentSchema = new mongoose_1.Schema({
+    reportId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Report', required: true, index: true },
+    officerId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
+    officerName: { type: String, required: true },
+    agency: { type: String, required: true },
+    assignedById: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
+    assignedByName: { type: String, required: true },
+    assignedAt: { type: Date, default: Date.now, required: true },
+    endedAt: { type: Date, default: null },
     status: {
         type: String,
-        enum: ['PENDING', 'APPROVED', 'REJECTED'],
-        default: 'PENDING',
+        enum: ['ASSIGNED', 'ON_SITE', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'REASSIGNED'],
         required: true
-    },
-    name: { type: String, trim: true, default: '' },
-    email: { type: String, trim: true, default: '' },
-    agency: { type: String, trim: true, default: '' }
+    }
 }, {
     timestamps: true
 });
-exports.UserModel = mongoose_1.default.model('User', UserSchema);
+// Index to find active assignment and officer assignments quickly
+AssignmentSchema.index({ reportId: 1, endedAt: 1 });
+AssignmentSchema.index({ officerId: 1, status: 1 });
+exports.AssignmentModel = mongoose_1.default.model('Assignment', AssignmentSchema);

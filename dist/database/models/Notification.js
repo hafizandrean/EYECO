@@ -33,35 +33,26 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UserModel = void 0;
+exports.NotificationModel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
-const UserSchema = new mongoose_1.Schema({
-    id: { type: Number, required: true, unique: true, index: true },
-    username: {
-        type: String,
-        required: [true, 'Username wajib diisi'],
-        unique: true,
-        lowercase: true, // Case insensitive matching
-        trim: true,
-        minlength: [3, 'Username minimal 3 karakter'],
-        maxlength: [30, 'Username maksimal 30 karakter']
-    },
-    passwordHash: { type: String, required: true, select: false }, // Exclude by default
-    role: {
-        type: String,
-        enum: ['superadmin', 'admin', 'user', 'operator', 'supervisor', 'officer'],
-        required: true
-    },
-    status: {
-        type: String,
-        enum: ['PENDING', 'APPROVED', 'REJECTED'],
-        default: 'PENDING',
-        required: true
-    },
-    name: { type: String, trim: true, default: '' },
-    email: { type: String, trim: true, default: '' },
-    agency: { type: String, trim: true, default: '' }
+const NotificationSchema = new mongoose_1.Schema({
+    recipientId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    reportId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Report', required: true },
+    type: { type: String, required: true },
+    title: { type: String, required: true },
+    message: { type: String, required: true },
+    actionUrl: { type: String, default: '' },
+    icon: { type: String, default: '' },
+    priority: { type: String, enum: ['LOW', 'MEDIUM', 'HIGH'], default: 'LOW', required: true },
+    read: { type: Boolean, default: false, required: true },
+    readAt: { type: Date, default: null },
+    expiresAt: { type: Date, required: true },
+    deletedAt: { type: Date, default: null }
 }, {
     timestamps: true
 });
-exports.UserModel = mongoose_1.default.model('User', UserSchema);
+// Compound index for sorted notifications query
+NotificationSchema.index({ recipientId: 1, read: 1, createdAt: -1 });
+// TTL index to automatically delete expired notifications (expiresAt contains the exact deletion Date)
+NotificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+exports.NotificationModel = mongoose_1.default.model('Notification', NotificationSchema);

@@ -52,9 +52,23 @@ const CommentSchema = new mongoose_1.Schema({
 }, {
     timestamps: true
 });
+const SlaSchema = new mongoose_1.Schema({
+    detectedAt: { type: Date, required: true },
+    validatedAt: { type: Date, default: null },
+    assignedAt: { type: Date, default: null },
+    arrivedAt: { type: Date, default: null },
+    resolvedAt: { type: Date, default: null },
+    closedAt: { type: Date, default: null },
+    validationDurationMs: { type: Number, default: null },
+    assignmentDurationMs: { type: Number, default: null },
+    cleanupDurationMs: { type: Number, default: null },
+    resolutionDurationMs: { type: Number, default: null },
+    totalDurationMs: { type: Number, default: null }
+}, { _id: false });
 const ReportSchema = new mongoose_1.Schema({
     id: { type: Number, required: true, unique: true, index: true },
-    userId: { type: Number, required: true, index: true },
+    userId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    tenantId: { type: String, default: 'BBWS', index: true },
     location: { type: String, required: true, trim: true },
     timestamp: { type: Date, required: true, index: true },
     aiStatus: {
@@ -79,9 +93,24 @@ const ReportSchema = new mongoose_1.Schema({
     boundingBoxes: [BoundingBoxSchema],
     comments: [CommentSchema],
     assignedOfficer: { type: String, default: '' },
-    status: { type: String, enum: ['PENDING', 'PROSES', 'SELESAI', 'CLOSED', 'DITOLAK'], default: 'PENDING', index: true }
+    status: {
+        type: String,
+        enum: ['NEW', 'UNDER_REVIEW', 'VALIDATED', 'ASSIGNED', 'ON_SITE', 'IN_PROGRESS', 'RESOLVED', 'WAITING_APPROVAL', 'CLOSED', 'REJECTED'],
+        default: 'NEW',
+        index: true
+    },
+    currentAssignmentId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Assignment', default: null },
+    currentResolutionId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Resolution', default: null },
+    sla: { type: SlaSchema, required: true },
+    deletedAt: { type: Date, default: null },
+    deletedById: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', default: null },
+    deletedByName: { type: String, default: null },
+    deleteReason: { type: String, default: null },
+    restoreReason: { type: String, default: null }
 }, {
     timestamps: true
 });
 ReportSchema.index({ timestamp: -1, adminStatus: 1 });
+// Compound index for sorted status queries
+ReportSchema.index({ status: 1, timestamp: -1 });
 exports.ReportModel = mongoose_1.default.model('Report', ReportSchema);

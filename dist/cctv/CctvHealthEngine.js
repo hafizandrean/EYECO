@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CctvHealthEngine = void 0;
 const Cctv_1 = require("../database/models/Cctv");
-const db_1 = require("../database/db");
+const CctvRepository_1 = require("../database/repositories/CctvRepository");
 const CctvScanner_1 = require("./CctvScanner");
 class CctvHealthEngine {
     static timer = null;
@@ -81,7 +81,7 @@ class CctvHealthEngine {
             }
             if (isOnline) {
                 // Transition back to ONLINE if it wasn't
-                await db_1.DatabaseManager.updateCctvStatus(camera.id, 'ONLINE', {
+                await CctvRepository_1.CctvRepository.updateStatus(camera.id, 'ONLINE', {
                     latency,
                     fps,
                     resolution
@@ -90,7 +90,7 @@ class CctvHealthEngine {
             else {
                 // Initiate the Auto-Reconnect state machine
                 console.warn(`[CctvHealthEngine] Camera ${camera.name} (ID: ${camera.id}) went OFFLINE. Starting reconnect loop.`);
-                await db_1.DatabaseManager.updateCctvStatus(camera.id, 'CONNECTING');
+                await CctvRepository_1.CctvRepository.updateStatus(camera.id, 'CONNECTING');
                 this.triggerAutoReconnect(camera.id);
             }
         }
@@ -108,7 +108,7 @@ class CctvHealthEngine {
         const runRetry = async () => {
             if (attempt >= retryDelays.length) {
                 console.error(`[CctvHealthEngine] Camera ID ${id} failed all reconnection attempts. Marking as DISCONNECTED.`);
-                await db_1.DatabaseManager.updateCctvStatus(id, 'DISCONNECTED', { latency: 0, fps: 0, resolution: 'N/A' });
+                await CctvRepository_1.CctvRepository.updateStatus(id, 'DISCONNECTED', { latency: 0, fps: 0, resolution: 'N/A' });
                 this.reconnectingCameras.delete(id);
                 return;
             }
@@ -134,7 +134,7 @@ class CctvHealthEngine {
                     }
                     if (isOnline) {
                         console.log(`[CctvHealthEngine] Camera ID ${id} successfully reconnected ONLINE.`);
-                        await db_1.DatabaseManager.updateCctvStatus(id, 'ONLINE', {
+                        await CctvRepository_1.CctvRepository.updateStatus(id, 'ONLINE', {
                             latency: 40,
                             fps: camera.protocol === 'HTTP Image' ? 0 : 24,
                             resolution: camera.health.resolution
@@ -162,7 +162,7 @@ class CctvHealthEngine {
             if (!camera)
                 return false;
             console.log(`[CctvHealthEngine] Manual reconnect triggered for camera: ${camera.name} (ID: ${camera.id})`);
-            await db_1.DatabaseManager.updateCctvStatus(id, 'CONNECTING');
+            await CctvRepository_1.CctvRepository.updateStatus(id, 'CONNECTING');
             // Remove from active reconnect lock list to force a fresh restart
             this.reconnectingCameras.delete(id);
             // Run status check instantly

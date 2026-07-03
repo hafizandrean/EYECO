@@ -33,35 +33,34 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UserModel = void 0;
+exports.TimelineEventModel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
-const UserSchema = new mongoose_1.Schema({
-    id: { type: Number, required: true, unique: true, index: true },
-    username: {
+const TimelineEventSchema = new mongoose_1.Schema({
+    reportId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Report', required: true, index: true },
+    eventVersion: { type: Number, default: 1, required: true },
+    type: {
         type: String,
-        required: [true, 'Username wajib diisi'],
-        unique: true,
-        lowercase: true, // Case insensitive matching
-        trim: true,
-        minlength: [3, 'Username minimal 3 karakter'],
-        maxlength: [30, 'Username maksimal 30 karakter']
-    },
-    passwordHash: { type: String, required: true, select: false }, // Exclude by default
-    role: {
-        type: String,
-        enum: ['superadmin', 'admin', 'user', 'operator', 'supervisor', 'officer'],
+        enum: [
+            'DETECTION', 'REVIEW', 'VALIDATED', 'ASSIGNED', 'ARRIVED', 'RESOLVED', 'CLOSED', 'REJECTED',
+            'APPROVAL_REQUESTED', 'COMMENT_ADDED', 'FILE_UPLOADED', 'ASSIGNMENT_CHANGED',
+            'RESOLUTION_REJECTED', 'NOTIFICATION_SENT'
+        ],
         required: true
     },
-    status: {
-        type: String,
-        enum: ['PENDING', 'APPROVED', 'REJECTED'],
-        default: 'PENDING',
-        required: true
-    },
-    name: { type: String, trim: true, default: '' },
-    email: { type: String, trim: true, default: '' },
-    agency: { type: String, trim: true, default: '' }
+    actorId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
+    actorName: { type: String, required: true },
+    actorRole: { type: String, required: true },
+    title: { type: String, required: true },
+    description: { type: String, required: true },
+    metadata: { type: mongoose_1.Schema.Types.Mixed, default: {} },
+    requestId: { type: String, default: '' },
+    traceId: { type: String, default: '' },
+    correlationId: { type: String, default: '' },
+    ipAddress: { type: String, default: '' },
+    userAgent: { type: String, default: '' }
 }, {
-    timestamps: true
+    timestamps: { createdAt: true, updatedAt: false } // Immutable
 });
-exports.UserModel = mongoose_1.default.model('User', UserSchema);
+// Compound index for sorted timeline query
+TimelineEventSchema.index({ reportId: 1, createdAt: -1 });
+exports.TimelineEventModel = mongoose_1.default.model('TimelineEvent', TimelineEventSchema);

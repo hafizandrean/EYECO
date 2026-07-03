@@ -35,39 +35,39 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CctvModel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
+const CctvCapabilitiesSchema = new mongoose_1.Schema({
+    rtsp: { type: Boolean, default: false },
+    hls: { type: Boolean, default: false },
+    snapshot: { type: Boolean, default: false },
+    mjpeg: { type: Boolean, default: false },
+    onvif: { type: Boolean, default: false },
+    cloud: { type: Boolean, default: false }
+}, { _id: false });
+const CctvHealthSchema = new mongoose_1.Schema({
+    latency: { type: Number, default: 0 },
+    fps: { type: Number, default: 0 },
+    resolution: { type: String, default: '1280x720' }
+}, { _id: false });
 const CctvSchema = new mongoose_1.Schema({
-    id: { type: Number, required: true, unique: true },
+    id: { type: Number, required: true, unique: true, index: true },
     name: { type: String, required: true },
     location: { type: String, required: true },
-    description: { type: String },
-    vendor: { type: String, required: true, enum: ['KRISBOW', 'HIKVISION', 'DAHUA', 'EZVIZ', 'GENERIC', 'CUSTOM'], default: 'GENERIC' },
-    model: { type: String },
-    protocol: { type: String, required: true, enum: ['RTSP', 'RTMP', 'HLS', 'MJPEG', 'HTTP Image', 'MP4', 'CLOUD_VIEWER'] },
-    mediaType: { type: String, required: true, enum: ['Video', 'Image', 'Cloud'] },
+    description: { type: String, default: '' },
+    vendor: { type: String, default: 'GENERIC' },
+    model: { type: String, default: '' },
+    protocol: { type: String, required: true },
+    mediaType: { type: String, required: true },
     streamUrl: { type: String, required: true },
-    playUrl: { type: String },
-    username: { type: String },
-    password: { type: String }, // Stored encrypted
-    capabilities: {
-        rtsp: { type: Boolean, default: false },
-        hls: { type: Boolean, default: false },
-        snapshot: { type: Boolean, default: false },
-        mjpeg: { type: Boolean, default: false },
-        onvif: { type: Boolean, default: false },
-        cloud: { type: Boolean, default: false }
-    },
-    status: { type: String, required: true, enum: ['NEW', 'CONNECTING', 'ONLINE', 'OFFLINE', 'BUFFERING', 'ERROR', 'DISCONNECTED'], default: 'NEW' },
-    health: {
-        latency: { type: Number, default: 0 },
-        fps: { type: Number, default: 0 },
-        resolution: { type: String, default: '1280x720' }
-    },
+    playUrl: { type: String, required: true },
+    username: { type: String, default: '' },
+    password: { type: String, default: '' },
+    capabilities: { type: CctvCapabilitiesSchema, required: true },
+    status: { type: String, default: 'CONNECTING' },
+    health: { type: CctvHealthSchema, required: true },
     isDefault: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
+    createdBy: { type: Number, required: true },
     lastHeartbeat: { type: Date },
-    lastConnected: { type: Date },
-    createdBy: { type: Number, required: true }
-}, {
-    timestamps: true
-});
-exports.CctvModel = mongoose_1.default.model('Cctv', CctvSchema);
+    lastConnected: { type: Date }
+}, { timestamps: true });
+exports.CctvModel = mongoose_1.default.models.Cctv || mongoose_1.default.model('Cctv', CctvSchema);

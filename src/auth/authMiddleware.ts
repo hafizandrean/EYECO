@@ -11,13 +11,19 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
   }
 
   // 2. Read from Cookie
+  if (!token) {
+    token = req.cookies?.session_token || '';
+  }
+
   if (!token && req.headers.cookie) {
-    const cookies = req.headers.cookie.split(';').reduce((acc, c) => {
-      const [key, val] = c.trim().split('=');
+    const cookiesObj = req.headers.cookie.split(';').reduce((acc, c) => {
+      const parts = c.trim().split('=');
+      const key = parts[0];
+      const val = parts.slice(1).join('=');
       if (key && val) acc[key] = val;
       return acc;
     }, {} as Record<string, string>);
-    token = cookies['session_token'];
+    token = cookiesObj['session_token'] || '';
   }
 
   if (!token) {
@@ -35,17 +41,31 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     return res.redirect('/login');
   }
 
-  req.userContext = payload;
+  req.userContext = payload as any;
   next();
 }
 
 export function roleGuard(roles: string[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.userContext) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      if (req.path.startsWith('/api/')) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      return res.redirect('/login');
     }
     if (!roles.includes(req.userContext.role)) {
-      return res.status(403).json({ error: 'Forbidden: Anda tidak memiliki akses' });
+      if (req.path.startsWith('/api/')) {
+        return res.status(403).json({ error: 'Forbidden: Anda tidak memiliki akses' });
+      }
+      
+      const role = req.userContext.role;
+      if (role === 'superadmin') {
+        return res.redirect('/superadmin/dashboard');
+      } else if (role === 'admin') {
+        return res.redirect('/dashboard');
+      } else {
+        return res.redirect('/dashboard/upload');
+      }
     }
     next();
   };

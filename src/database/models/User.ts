@@ -4,7 +4,7 @@ export interface IUser extends Document {
   id: number; // Keep for compatibility with legacy database/UI
   username: string;
   passwordHash: string;
-  role: 'admin' | 'user' | 'operator' | 'supervisor' | 'officer';
+  role: 'superadmin' | 'admin' | 'user' | 'operator' | 'supervisor' | 'officer';
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   name: string;
   email: string;
@@ -25,7 +25,7 @@ const UserSchema = new Schema<IUser>({
   passwordHash: { type: String, required: true, select: false }, // Exclude by default
   role: { 
     type: String, 
-    enum: ['admin', 'user', 'operator', 'supervisor', 'officer'], 
+    enum: ['superadmin', 'admin', 'user', 'operator', 'supervisor', 'officer'], 
     required: true 
   },
   status: {
