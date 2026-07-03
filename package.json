@@ -4,19 +4,25 @@
   "description": "Sistem Monitoring Aktivitas Mencurigakan Sungai",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "node node_modules/tsx/dist/cli.mjs watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
+    "connect-mongo": "^6.0.0",
     "dotenv": "^17.4.2",
     "express": "^4.19.2",
     "express-rate-limit": "^8.5.2",
+    "express-session": "^1.19.0",
     "mongoose": "^9.7.3",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^1.4.5-lts.1",
+    "nanoid": "^5.1.16"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
     "@types/express": "^4.17.21",
+    "@types/express-session": "^1.19.0",
     "@types/multer": "^1.4.11",
     "@types/node": "^20.14.9",
     "tsx": "^4.15.7",

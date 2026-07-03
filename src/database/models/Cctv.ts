@@ -1,73 +1,79 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 
-export interface ICctv extends Document {
+export interface ICctvCapabilities {
+  rtsp: boolean;
+  hls: boolean;
+  snapshot: boolean;
+  mjpeg: boolean;
+  onvif: boolean;
+  cloud: boolean;
+}
+
+export interface ICctvHealth {
+  latency: number;
+  fps: number;
+  resolution: string;
+}
+
+export interface ICctv {
   id: number;
   name: string;
   location: string;
-  description?: string;
-  vendor: 'KRISBOW' | 'HIKVISION' | 'DAHUA' | 'EZVIZ' | 'GENERIC' | 'CUSTOM';
-  model?: string;
-  protocol: 'RTSP' | 'RTMP' | 'HLS' | 'MJPEG' | 'HTTP Image' | 'MP4' | 'CLOUD_VIEWER';
-  mediaType: 'Video' | 'Image' | 'Cloud';
+  description: string;
+  vendor: string;
+  model: string;
+  protocol: string;
+  mediaType: string;
   streamUrl: string;
-  playUrl?: string; // Generated proxy stream url (e.g. MediaMTX path)
+  playUrl: string;
   username?: string;
-  password?: string; // Encrypted in database
-  capabilities: {
-    rtsp: boolean;
-    hls: boolean;
-    snapshot: boolean;
-    mjpeg: boolean;
-    onvif: boolean;
-    cloud: boolean;
-  };
+  password?: string;
+  capabilities: ICctvCapabilities;
   status: 'NEW' | 'CONNECTING' | 'ONLINE' | 'OFFLINE' | 'BUFFERING' | 'ERROR' | 'DISCONNECTED';
-  health: {
-    latency: number; // ms
-    fps: number;
-    resolution: string; // e.g. '1280x720'
-  };
-  isDefault: boolean; // Protects camera ID 1-8 from deletion
+  health: ICctvHealth;
+  isDefault: boolean;
   isActive: boolean;
+  createdBy: number;
   lastHeartbeat?: Date;
   lastConnected?: Date;
-  createdBy: number;
 }
 
-const CctvSchema: Schema = new Schema({
-  id: { type: Number, required: true, unique: true },
+const CctvCapabilitiesSchema = new Schema<ICctvCapabilities>({
+  rtsp: { type: Boolean, default: false },
+  hls: { type: Boolean, default: false },
+  snapshot: { type: Boolean, default: false },
+  mjpeg: { type: Boolean, default: false },
+  onvif: { type: Boolean, default: false },
+  cloud: { type: Boolean, default: false }
+}, { _id: false });
+
+const CctvHealthSchema = new Schema<ICctvHealth>({
+  latency: { type: Number, default: 0 },
+  fps: { type: Number, default: 0 },
+  resolution: { type: String, default: '1280x720' }
+}, { _id: false });
+
+const CctvSchema = new Schema<ICctv>({
+  id: { type: Number, required: true, unique: true, index: true },
   name: { type: String, required: true },
   location: { type: String, required: true },
-  description: { type: String },
-  vendor: { type: String, required: true, enum: ['KRISBOW', 'HIKVISION', 'DAHUA', 'EZVIZ', 'GENERIC', 'CUSTOM'], default: 'GENERIC' },
-  model: { type: String },
-  protocol: { type: String, required: true, enum: ['RTSP', 'RTMP', 'HLS', 'MJPEG', 'HTTP Image', 'MP4', 'CLOUD_VIEWER'] },
-  mediaType: { type: String, required: true, enum: ['Video', 'Image', 'Cloud'] },
+  description: { type: String, default: '' },
+  vendor: { type: String, default: 'GENERIC' },
+  model: { type: String, default: '' },
+  protocol: { type: String, required: true },
+  mediaType: { type: String, required: true },
   streamUrl: { type: String, required: true },
-  playUrl: { type: String },
-  username: { type: String },
-  password: { type: String }, // Stored encrypted
-  capabilities: {
-    rtsp: { type: Boolean, default: false },
-    hls: { type: Boolean, default: false },
-    snapshot: { type: Boolean, default: false },
-    mjpeg: { type: Boolean, default: false },
-    onvif: { type: Boolean, default: false },
-    cloud: { type: Boolean, default: false }
-  },
-  status: { type: String, required: true, enum: ['NEW', 'CONNECTING', 'ONLINE', 'OFFLINE', 'BUFFERING', 'ERROR', 'DISCONNECTED'], default: 'NEW' },
-  health: {
-    latency: { type: Number, default: 0 },
-    fps: { type: Number, default: 0 },
-    resolution: { type: String, default: '1280x720' }
-  },
+  playUrl: { type: String, required: true },
+  username: { type: String, default: '' },
+  password: { type: String, default: '' },
+  capabilities: { type: CctvCapabilitiesSchema, required: true },
+  status: { type: String, default: 'CONNECTING' },
+  health: { type: CctvHealthSchema, required: true },
   isDefault: { type: Boolean, default: false },
   isActive: { type: Boolean, default: true },
+  createdBy: { type: Number, required: true },
   lastHeartbeat: { type: Date },
-  lastConnected: { type: Date },
-  createdBy: { type: Number, required: true }
-}, {
-  timestamps: true
-});
+  lastConnected: { type: Date }
+}, { timestamps: true });
 
-export const CctvModel = mongoose.model<ICctv>('Cctv', CctvSchema);
+export const CctvModel: Model<ICctv> = mongoose.models.Cctv || mongoose.model<ICctv>('Cctv', CctvSchema);

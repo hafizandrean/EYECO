@@ -5,6 +5,7 @@ export interface IUser extends Document {
   username: string;
   passwordHash: string;
   role: 'admin' | 'user' | 'operator' | 'supervisor' | 'officer';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
   name: string;
   email: string;
   agency: string;
@@ -26,6 +27,12 @@ const UserSchema = new Schema<IUser>({
     type: String, 
     enum: ['admin', 'user', 'operator', 'supervisor', 'officer'], 
     required: true 
+  },
+  status: {
+    type: String,
+    enum: ['PENDING', 'APPROVED', 'REJECTED'],
+    default: 'PENDING',
+    required: true
   },
   name: { type: String, trim: true, default: '' },
   email: { type: String, trim: true, default: '' },

@@ -5,12 +5,30 @@ import fs from 'fs';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import mongoose from 'mongoose';
+import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import { DatabaseManager, Report, BoundingBox, User, connectDB } from './database/db';
 import { ReportModel } from './database/models/Report';
 import { UserModel } from './database/models/User';
 import { CctvHealthEngine } from './cctv/CctvHealthEngine';
 import { CctvScanner } from './cctv/CctvScanner';
 import { CctvAdapter } from './cctv/CctvAdapter';
+import { CctvRepository } from './database/repositories/CctvRepository';
+import { UserRepository } from './database/repositories/UserRepository';
+import { ReportRepository } from './database/repositories/ReportRepository';
+import { generateToken, verifyToken } from './auth/auth.service';
+
+declare global {
+  namespace Express {
+    interface Request {
+      userContext?: {
+        id: number;
+        username: string;
+        role: string;
+      };
+    }
+  }
+}
 
 dotenv.config();
 
@@ -29,12 +47,36 @@ const authLimiter = rateLimit({
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 
-// In-memory Session Store (Session Token -> User ID)
-const sessions = new Map<string, number>();
-
 // Setup middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Global middleware to populate req.userContext
+app.use((req, res, next) => {
+  let token = '';
+
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  }
+
+  if (!token && req.headers.cookie) {
+    const cookies = req.headers.cookie.split(';').reduce((acc, c) => {
+      const [key, val] = c.trim().split('=');
+      if (key && val) acc[key] = val;
+      return acc;
+    }, {} as Record<string, string>);
+    token = cookies['session_token'];
+  }
+
+  if (token) {
+    const payload = verifyToken(token);
+    if (payload) {
+      req.userContext = payload;
+    }
+  }
+  next();
+});
 
 // Serve static CSS and JS files directly
 app.use('/css', express.static(path.join(__dirname, '../public/css')));
@@ -61,25 +103,15 @@ const upload = multer({ storage });
 
 // --- SESSION HELPER ---
 async function getLoggedInUser(req: express.Request): Promise<User | null> {
-  const cookieHeader = req.headers.cookie || '';
-  const cookies = cookieHeader.split(';').reduce((acc, c) => {
-    const [key, val] = c.trim().split('=');
-    if (key && val) acc[key] = val;
-    return acc;
-  }, {} as Record<string, string>);
-  
-  const token = cookies['session_token'];
-  if (!token) return null;
-  
-  const userId = sessions.get(token);
-  if (userId === undefined) return null;
-  
-  try {
-    return (await DatabaseManager.getUserById(userId)) || null;
-  } catch (err) {
-    console.error('[SERVER ERROR] Failed to fetch session user:', err);
-    return null;
+  if (req.userContext) {
+    try {
+      return (await UserRepository.findByLegacyId(req.userContext.id)) || null;
+    } catch (err) {
+      console.error('[SERVER ERROR] Failed to fetch session user:', err);
+      return null;
+    }
   }
+  return null;
 }
 
 // --- HEALTH CHECK ENDPOINT ---
@@ -105,17 +137,25 @@ app.post('/api/auth/register', async (req, res) => {
     return res.status(400).json({ error: 'Password minimal 6 karakter' });
   }
 
+  // Only allow 'admin' or 'user' roles via public registration
   if (!['admin', 'user'].includes(role)) {
-    return res.status(400).json({ error: 'Role tidak valid' });
+    return res.status(400).json({ error: 'Role tidak valid. Pilih: admin atau user' });
   }
 
   try {
-    const newUser = await DatabaseManager.createUser(username, password, role as 'admin' | 'user');
+    // Always set status PENDING — must be approved by existing admin
+    const newUser = await UserRepository.create(username, password, role as any, 'PENDING');
     if (!newUser) {
       return res.status(400).json({ error: 'Username sudah digunakan' });
     }
 
-    res.status(201).json({ id: newUser.id, username: newUser.username, role: newUser.role });
+    res.status(201).json({
+      id: newUser.id,
+      username: newUser.username,
+      role: newUser.role,
+      status: newUser.status,
+      message: 'Akun berhasil dibuat. Menunggu persetujuan admin.'
+    });
   } catch (err) {
     console.error('[SERVER ERROR] Registration failed:', err);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -131,18 +171,45 @@ app.post('/api/auth/login', async (req, res) => {
   }
 
   try {
-    const user = await DatabaseManager.authenticateUser(username, password);
+    const user = await UserRepository.findByUsernameWithPassword(username);
     if (!user) {
       return res.status(401).json({ error: 'Username atau password salah' });
     }
 
-    // Create session
-    const token = 'sess_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    sessions.set(token, user.id);
+    const isBcrypt = user.passwordHash.startsWith('$2');
+    let match = false;
+    if (isBcrypt) {
+      match = await bcrypt.compare(password, user.passwordHash);
+    } else {
+      // Legacy SHA-256 fallback for migrated passwords
+      const sha256Hash = crypto.createHash('sha256').update(password).digest('hex');
+      match = (sha256Hash === user.passwordHash);
+    }
+
+    if (!match) {
+      return res.status(401).json({ error: 'Username atau password salah' });
+    }
+
+    // --- Status-based access control ---
+    if (user.status === 'PENDING') {
+      return res.status(403).json({
+        error: 'Akun Anda sedang menunggu persetujuan admin.',
+        statusCode: 'PENDING'
+      });
+    }
+    if (user.status === 'REJECTED') {
+      return res.status(403).json({
+        error: 'Akun Anda telah ditolak oleh admin. Hubungi administrator.',
+        statusCode: 'REJECTED'
+      });
+    }
+
+    // Generate JWT stateless token
+    const token = generateToken({ id: user.id, username: user.username, role: user.role });
 
     // Set Cookie
     res.setHeader('Set-Cookie', `session_token=${token}; Path=/; HttpOnly; SameSite=Lax`);
-    res.json({ id: user.id, username: user.username, role: user.role });
+    res.json({ id: user.id, username: user.username, role: user.role, status: user.status });
   } catch (err) {
     console.error('[SERVER ERROR] Login failed:', err);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -151,18 +218,6 @@ app.post('/api/auth/login', async (req, res) => {
 
 // Logout API
 app.post('/api/auth/logout', (req, res) => {
-  const cookieHeader = req.headers.cookie || '';
-  const cookies = cookieHeader.split(';').reduce((acc, c) => {
-    const [key, val] = c.trim().split('=');
-    if (key && val) acc[key] = val;
-    return acc;
-  }, {} as Record<string, string>);
-  
-  const token = cookies['session_token'];
-  if (token) {
-    sessions.delete(token);
-  }
-
   res.setHeader('Set-Cookie', 'session_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly');
   res.json({ success: true });
 });
@@ -217,13 +272,12 @@ app.get('/', async (req, res) => {
   }
 });
 
-app.get(['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/detections/:id'], async (req, res) => {
+app.get(['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/users', '/dashboard/detections/:id'], async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
     if (!user) return res.redirect('/login');
     
-    // Normal user can only access /dashboard/upload, /dashboard/laporan, and /dashboard/detections/:id.
-    // If they try to access other admin dashboard pages, redirect them to /dashboard/upload
+    // Non-admin users can only access upload, laporan, and detections
     if (user.role !== 'admin' && 
         req.path !== '/dashboard/upload' && 
         req.path !== '/dashboard/laporan' && 
@@ -235,6 +289,71 @@ app.get(['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/de
   } catch (err) {
     console.error('[SERVER ERROR] Dashboard view routing failed:', err);
     res.redirect('/login');
+  }
+});
+
+
+// --- ADMIN USER MANAGEMENT API ---
+
+// GET /admin/users - List all users (admin only)
+app.get('/admin/users', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.status(401).json({ error: 'Belum masuk' });
+    if (user.role !== 'admin') return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
+
+    const users = await UserRepository.getAllUsers();
+    const safeUsers = users.map(u => ({
+      id: u.id,
+      username: u.username,
+      role: u.role,
+      status: u.status,
+      createdAt: (u as any).createdAt
+    }));
+    res.json({ users: safeUsers });
+  } catch (err) {
+    console.error('[SERVER ERROR] GET /admin/users failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// PATCH /admin/users/:id/approve - Approve a user (admin only)
+app.patch('/admin/users/:id/approve', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.status(401).json({ error: 'Belum masuk' });
+    if (user.role !== 'admin') return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
+
+    const targetId = parseInt(req.params.id);
+    if (isNaN(targetId)) return res.status(400).json({ error: 'ID tidak valid' });
+
+    const updated = await UserRepository.updateStatus(targetId, 'APPROVED');
+    if (!updated) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    res.json({ success: true, message: `User ${updated.username} berhasil disetujui.`, user: { id: updated.id, username: updated.username, status: updated.status } });
+  } catch (err) {
+    console.error('[SERVER ERROR] PATCH /admin/users/:id/approve failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// PATCH /admin/users/:id/reject - Reject a user (admin only)
+app.patch('/admin/users/:id/reject', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.status(401).json({ error: 'Belum masuk' });
+    if (user.role !== 'admin') return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
+
+    const targetId = parseInt(req.params.id);
+    if (isNaN(targetId)) return res.status(400).json({ error: 'ID tidak valid' });
+
+    const updated = await UserRepository.updateStatus(targetId, 'REJECTED');
+    if (!updated) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    res.json({ success: true, message: `User ${updated.username} berhasil ditolak.`, user: { id: updated.id, username: updated.username, status: updated.status } });
+  } catch (err) {
+    console.error('[SERVER ERROR] PATCH /admin/users/:id/reject failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
@@ -263,7 +382,7 @@ app.get('/api/detections', async (req, res) => {
     const userContext = { id: user.id, role: user.role };
     
     // Call database-level paginated query
-    const result = await DatabaseManager.getFiltered(filters, userContext, page, limit);
+    const result = await ReportRepository.getFiltered(filters, userContext, page, limit);
 
     if (result && 'reports' in result) {
       const { reports: paginatedReports, total: totalReports } = result;
@@ -298,13 +417,11 @@ app.get('/api/detections/:id', async (req, res) => {
     }
 
     const id = parseInt(req.params.id);
-    const report = await DatabaseManager.getById(id);
+    const report = await ReportRepository.findByLegacyId(id);
 
     if (!report) {
       return res.status(404).json({ error: 'Laporan tidak ditemukan' });
     }
-
-
 
     res.json(report);
   } catch (err) {
@@ -332,7 +449,7 @@ app.post('/api/detections/:id/verify', async (req, res) => {
       return res.status(400).json({ error: 'Status tidak valid' });
     }
 
-    const updatedReport = await DatabaseManager.updateVerification(
+    const updatedReport = await ReportRepository.updateVerification(
       id, 
       status, 
       notes || '', 
@@ -458,11 +575,11 @@ app.post('/api/detections/:id/comments', commentLimiter, async (req, res) => {
       return sendError(res, 'Konten komentar harus diisi.', 400);
     }
 
-    const comment = await DatabaseManager.addComment(reportId, user.id, text);
+    const comment = await ReportRepository.addComment(reportId, user.id, text);
     
     // Resolve comment author details for direct frontend integration
     return sendSuccess(res, {
-      ...comment.toJSON(),
+      ...comment,
       username: user.username,
       role: user.role
     }, 201);
@@ -485,7 +602,7 @@ app.delete('/api/detections/:id/comments/:commentId', async (req, res) => {
     const isAdmin = user.role === 'admin';
 
     // soft delete comment
-    await DatabaseManager.deleteComment(reportId, commentId, user.id, isAdmin);
+    await ReportRepository.deleteComment(reportId, commentId, user.id, isAdmin);
     return sendSuccess(res, { success: true });
   } catch (err: any) {
     console.error('[SERVER ERROR] Delete comment failed:', err);
@@ -504,7 +621,7 @@ app.post('/api/detections/:id/comments/:commentId/like', likeLimiter, async (req
     const reportId = parseInt(req.params.id);
     const commentId = req.params.commentId;
 
-    const comment = await DatabaseManager.toggleLikeComment(reportId, commentId, user.id);
+    const comment = await ReportRepository.toggleLikeComment(reportId, commentId, user.id);
     const isLiked = comment.likedBy.includes(user.id);
 
     return sendSuccess(res, {
@@ -528,7 +645,7 @@ app.get('/api/stats', async (req, res) => {
     }
 
     const userContext = { id: user.id, role: user.role };
-    const stats = await DatabaseManager.getStats(userContext);
+    const stats = await ReportRepository.getStats(userContext);
     res.json(stats);
   } catch (err) {
     console.error('[SERVER ERROR] Get stats failed:', err);
@@ -629,7 +746,7 @@ app.post('/api/detections', upload.single('file'), async (req, res) => {
     const aiResults = runSimulatedAI(location || '', additionalNotes || '');
 
     // Create report entry linked to user.id
-    const newReport = await DatabaseManager.create({
+    const newReport = await ReportRepository.create({
       location: location || 'Lokasi tidak diketahui',
       aiStatus: aiResults.status,
       aiConfidence: aiResults.confidence,
@@ -721,7 +838,7 @@ app.get('/api/cctv', async (req, res) => {
       return res.status(401).json({ error: 'Belum masuk' });
     }
 
-    const cctvs = await DatabaseManager.getAllCctv();
+    const cctvs = await CctvRepository.getAll()
     
     // Decrypt / enrich each CCTV config with playUrl dynamically
     const processed = cctvs.map(c => {
@@ -755,14 +872,14 @@ app.get('/api/cctv/:id', async (req, res) => {
       return res.status(400).json({ error: 'ID tidak valid' });
     }
 
-    const c = await DatabaseManager.getCctvById(id);
+    const c = await CctvRepository.getById(id)
     if (!c) {
       return res.status(404).json({ error: 'CCTV tidak ditemukan' });
     }
 
     // Expose password decrypted to admin only for editing
     const decryptedPassword = user.role === 'admin' && c.password
-      ? DatabaseManager.decryptCctvPassword(c.password)
+      ? CctvRepository.decryptCctvPassword(c.password)
       : '';
 
     const playTarget = CctvAdapter.getPlayTarget(c as any);
@@ -826,7 +943,7 @@ app.post('/api/cctv', async (req, res) => {
       return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
     }
 
-    const newCctv = await DatabaseManager.addCctv(req.body, user.id);
+    const newCctv = await CctvRepository.add(req.body, user.id);
     
     // Instantly check camera health upon connection
     CctvHealthEngine.checkCameraHealth(newCctv.id);
@@ -854,7 +971,7 @@ app.put('/api/cctv/:id', async (req, res) => {
       return res.status(400).json({ error: 'ID tidak valid' });
     }
 
-    const updated = await DatabaseManager.updateCctv(id, req.body);
+    const updated = await CctvRepository.update(id, req.body);
     
     // Instantly trigger health check to update status
     CctvHealthEngine.checkCameraHealth(id);
@@ -882,7 +999,7 @@ app.delete('/api/cctv/:id', async (req, res) => {
       return res.status(400).json({ error: 'ID tidak valid' });
     }
 
-    await DatabaseManager.deleteCctv(id);
+    await CctvRepository.delete(id);
     res.json({ success: true, message: 'CCTV berhasil diputuskan' });
   } catch (err: any) {
     console.error('[SERVER ERROR] DELETE /api/cctv/:id failed:', err);
@@ -922,7 +1039,7 @@ app.post('/api/cctv/:id/reconnect', async (req, res) => {
 app.get('/api/cctv/:id/snapshot', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const camera = await DatabaseManager.getCctvById(id);
+    const camera = await CctvRepository.getById(id)
     if (!camera) {
       return res.status(404).send('Camera not found');
     }
@@ -940,7 +1057,10 @@ app.get('/api/cctv/:id/snapshot', async (req, res) => {
 });
 
 // Start Server after Database connection is established
-connectDB().then(() => {
+connectDB().then(async () => {
+  // Seed default admin account
+  await UserRepository.seedDefaultAdmin();
+
   CctvHealthEngine.start();
   app.listen(PORT, () => {
     console.log(`Server EYECO berjalan di http://localhost:${PORT}`);
