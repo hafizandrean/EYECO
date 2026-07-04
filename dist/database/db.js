@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DatabaseManager = exports.SystemAuditLogModel = exports.OutboxEventModel = exports.NotificationModel = exports.ResolutionModel = exports.AssignmentModel = exports.TimelineEventModel = void 0;
+exports.DatabaseManager = exports.WorkspaceModel = exports.SystemAuditLogModel = exports.OutboxEventModel = exports.NotificationModel = exports.ResolutionModel = exports.AssignmentModel = exports.TimelineEventModel = void 0;
 exports.connectDB = connectDB;
 const mongoose_1 = __importDefault(require("mongoose"));
 const dotenv_1 = __importDefault(require("dotenv"));
@@ -21,6 +21,8 @@ const OutboxEvent_1 = require("./models/OutboxEvent");
 Object.defineProperty(exports, "OutboxEventModel", { enumerable: true, get: function () { return OutboxEvent_1.OutboxEventModel; } });
 const SystemAuditLog_1 = require("./models/SystemAuditLog");
 Object.defineProperty(exports, "SystemAuditLogModel", { enumerable: true, get: function () { return SystemAuditLog_1.SystemAuditLogModel; } });
+const Workspace_1 = require("./models/Workspace");
+Object.defineProperty(exports, "WorkspaceModel", { enumerable: true, get: function () { return Workspace_1.WorkspaceModel; } });
 dotenv_1.default.config();
 // Validate Environment Variables
 if (!process.env.MONGODB_URI) {

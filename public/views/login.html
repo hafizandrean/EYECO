@@ -186,11 +186,11 @@
 
         const role = (data.role || '').toLowerCase();
         if (role === 'superadmin') {
-          window.location.replace('/superadmin/dashboard');
+          window.location.replace('/superadmin');
         } else if (role === 'admin') {
           window.location.replace('/dashboard');
         } else {
-          window.location.replace('/dashboard/upload');
+          window.location.replace('/dashboard-user');
         }
       } catch (err) {
         console.error(err);

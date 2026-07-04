@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Registrasi - EYECO</title>
+  <meta name="description" content="Daftar akun baru di EYECO untuk melaporkan aktivitas mencurigakan di aliran sungai.">
   <link rel="stylesheet" href="/css/style.css">
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
@@ -11,14 +12,14 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 100vh;
+      min-height: 100vh;
       padding: 20px;
       background: radial-gradient(circle at top right, rgba(16, 185, 129, 0.12) 0%, rgba(9, 13, 22, 0) 65%), var(--bg-gradient);
     }
-    
+
     .register-card {
       width: 100%;
-      max-width: 420px;
+      max-width: 440px;
       padding: 40px 32px;
       animation: pageFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
     }
@@ -85,9 +86,9 @@
   </style>
 </head>
 <body>
-  
+
   <main class="glass-card register-card">
-    
+
     <div class="brand-header">
       <div class="brand-icon-wrapper">
         <i data-lucide="user-plus" style="width: 28px; height: 28px;"></i>
@@ -109,15 +110,26 @@
     </div>
 
     <form id="register-form">
+      <!-- Nama Lengkap -->
       <div class="form-group" style="margin-bottom: 18px;">
-        <label class="form-label" for="reg-username" style="font-weight: 600; font-size: 0.85rem;">Username</label>
+        <label class="form-label" for="reg-name" style="font-weight: 600; font-size: 0.85rem;">Nama Lengkap</label>
         <div style="position: relative;">
-          <input type="text" class="form-control" id="reg-username" placeholder="Buat username baru" required style="width: 100%; padding-left: 42px; height: 46px; border-radius: var(--radius-input);">
+          <input type="text" class="form-control" id="reg-name" placeholder="Masukkan nama lengkap" required style="width: 100%; padding-left: 42px; height: 46px; border-radius: var(--radius-input);">
           <i data-lucide="user" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--text-muted);"></i>
         </div>
       </div>
 
-      <div class="form-group" style="margin-bottom: 24px;">
+      <!-- Email -->
+      <div class="form-group" style="margin-bottom: 18px;">
+        <label class="form-label" for="reg-email" style="font-weight: 600; font-size: 0.85rem;">Email</label>
+        <div style="position: relative;">
+          <input type="email" class="form-control" id="reg-email" placeholder="nama@email.com" required style="width: 100%; padding-left: 42px; height: 46px; border-radius: var(--radius-input);">
+          <i data-lucide="mail" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--text-muted);"></i>
+        </div>
+      </div>
+
+      <!-- Password -->
+      <div class="form-group" style="margin-bottom: 18px;">
         <label class="form-label" for="reg-password" style="font-weight: 600; font-size: 0.85rem;">Password</label>
         <div class="password-wrapper">
           <input type="password" class="form-control" id="reg-password" placeholder="Password minimal 6 karakter" required style="width: 100%; padding-left: 42px; padding-right: 46px; height: 46px; border-radius: var(--radius-input);" minlength="6">
@@ -128,7 +140,19 @@
         </div>
       </div>
 
-      <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; height: 46px; border-radius: var(--radius-input); display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; font-size: 0.95rem; background-color: var(--success); border-color: var(--success); box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);">
+      <!-- Confirm Password -->
+      <div class="form-group" style="margin-bottom: 24px;">
+        <label class="form-label" for="reg-confirm-password" style="font-weight: 600; font-size: 0.85rem;">Konfirmasi Password</label>
+        <div class="password-wrapper">
+          <input type="password" class="form-control" id="reg-confirm-password" placeholder="Ulangi password" required style="width: 100%; padding-left: 42px; padding-right: 46px; height: 46px; border-radius: var(--radius-input);">
+          <i data-lucide="key" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--text-muted);"></i>
+          <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('reg-confirm-password', this)">
+            <i data-lucide="eye" style="width: 18px; height: 18px;"></i>
+          </button>
+        </div>
+      </div>
+
+      <button type="submit" id="btn-register-submit" class="btn btn-primary" style="width: 100%; padding: 12px; height: 46px; border-radius: var(--radius-input); display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; font-size: 0.95rem; background-color: var(--success); border-color: var(--success); box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);">
         Daftar Akun <i data-lucide="user-check" style="width: 18px; height: 18px;"></i>
       </button>
     </form>
@@ -146,6 +170,7 @@
     const errorAlert = document.getElementById('error-alert');
     const successAlert = document.getElementById('success-alert');
     const errorText = document.getElementById('error-text');
+    const submitBtn = document.getElementById('btn-register-submit');
 
     function togglePasswordVisibility(inputId, btnEl) {
       const input = document.getElementById(inputId);
@@ -165,14 +190,38 @@
       errorAlert.style.display = 'none';
       successAlert.style.display = 'none';
 
-      const username = document.getElementById('reg-username').value;
+      const name = document.getElementById('reg-name').value.trim();
+      const email = document.getElementById('reg-email').value.trim();
       const password = document.getElementById('reg-password').value;
+      const confirmPassword = document.getElementById('reg-confirm-password').value;
+
+      if (!name) {
+        errorText.innerText = 'Nama lengkap wajib diisi.';
+        errorAlert.style.display = 'flex';
+        return;
+      }
+
+      if (!email) {
+        errorText.innerText = 'Email wajib diisi.';
+        errorAlert.style.display = 'flex';
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        errorText.innerText = 'Konfirmasi password tidak cocok.';
+        errorAlert.style.display = 'flex';
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i data-lucide="loader" style="width: 18px; height: 18px; animation: spin 1s linear infinite;"></i> Mendaftarkan...';
+      if (window.lucide) window.lucide.createIcons();
 
       try {
         const res = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
+          body: JSON.stringify({ name, email, password, confirmPassword })
         });
 
         const data = await res.json();
@@ -191,12 +240,19 @@
         console.error('Error registering:', err);
         errorText.innerText = 'Koneksi ke server gagal.';
         errorAlert.style.display = 'flex';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Daftar Akun <i data-lucide="user-check" style="width: 18px; height: 18px;"></i>';
+        if (window.lucide) window.lucide.createIcons();
       }
     });
 
     document.addEventListener('DOMContentLoaded', () => {
       if (window.lucide) window.lucide.createIcons();
     });
+
+    // Also init on load
+    if (window.lucide) window.lucide.createIcons();
   </script>
 </body>
 </html>

@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EYECO - Dashboard User</title>
+  <meta name="description" content="Dashboard pelaporan aktivitas mencurigakan sungai untuk pengguna EYECO.">
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --user-accent: #10b981;
+      --user-accent-dim: rgba(16, 185, 129, 0.15);
+    }
+
+    body {
+      background: radial-gradient(circle at top right, rgba(16, 185, 129, 0.12) 0%, rgba(9, 13, 22, 0) 60%), #090d16;
+      font-family: 'Inter', sans-serif;
+      color: #f3f4f6;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* ── Top Navbar ── */
+    .user-navbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      height: 64px;
+      background: rgba(9, 13, 22, 0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .navbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: #f3f4f6;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 1.25rem;
+    }
+
+    .brand-icon-nav {
+      background: linear-gradient(135deg, var(--user-accent) 0%, #059669 100%);
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+
+    .navbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--user-accent-dim);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: 100px;
+      padding: 6px 14px 6px 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .avatar-circle {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--user-accent), #059669);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: white;
+    }
+
+    .btn-logout-nav {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      border-radius: 10px;
+      color: #ef4444;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-logout-nav:hover {
+      background: rgba(239, 68, 68, 0.2);
+    }
+
+    /* ── Page Content ── */
+    .page-container {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px 80px;
+      animation: pageFadeIn 0.4s ease-out;
+    }
+
+    @keyframes pageFadeIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .page-title {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 1.75rem;
+      margin-bottom: 6px;
+      letter-spacing: -0.5px;
+    }
+
+    .page-subtitle {
+      color: #9ca3af;
+      font-size: 0.95rem;
+      margin-bottom: 32px;
+    }
+
+    /* ── Welcome Card ── */
+    .welcome-card {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.08) 100%);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: 20px;
+      padding: 28px 32px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+
+    .welcome-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--user-accent), #059669);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      flex-shrink: 0;
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+    }
+
+    .welcome-text h3 {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 1.2rem;
+      margin: 0 0 4px;
+    }
+
+    .welcome-text p {
+      color: #9ca3af;
+      font-size: 0.9rem;
+      margin: 0;
+    }
+
+    /* ── Info Cards ── */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .info-card {
+      background: rgba(11, 15, 25, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 22px;
+      backdrop-filter: blur(12px);
+      transition: transform 0.2s ease;
+    }
+
+    .info-card:hover { transform: translateY(-2px); }
+
+    .info-card-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+    }
+
+    .info-card-label {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+
+    .info-card-value {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 1.4rem;
+    }
+
+    /* ── Upload Section ── */
+    .section-card {
+      background: rgba(11, 15, 25, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 28px;
+      backdrop-filter: blur(12px);
+      margin-bottom: 24px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .section-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .section-title {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 1.05rem;
+    }
+
+    .upload-zone {
+      border: 2px dashed rgba(16, 185, 129, 0.3);
+      border-radius: 14px;
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: rgba(16, 185, 129, 0.03);
+    }
+
+    .upload-zone:hover {
+      border-color: var(--user-accent);
+      background: rgba(16, 185, 129, 0.07);
+    }
+
+    .upload-zone-icon {
+      width: 52px;
+      height: 52px;
+      background: var(--user-accent-dim);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 14px;
+      color: var(--user-accent);
+    }
+
+    .upload-zone p {
+      color: #9ca3af;
+      font-size: 0.9rem;
+      margin: 0;
+    }
+
+    .upload-zone strong {
+      color: var(--user-accent);
+    }
+
+    .btn-upload {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 16px;
+      padding: 10px 22px;
+      background: linear-gradient(135deg, var(--user-accent), #059669);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .btn-upload:hover { opacity: 0.88; }
+
+    /* Hidden file input */
+    #file-input { display: none; }
+
+    .help-text {
+      background: rgba(47, 107, 255, 0.08);
+      border: 1px solid rgba(47, 107, 255, 0.15);
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-size: 0.85rem;
+      color: #93c5fd;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="user-navbar">
+    <a href="/dashboard-user" class="navbar-brand">
+      <div class="brand-icon-nav">
+        <i data-lucide="waves" style="width: 18px; height: 18px;"></i>
+      </div>
+      EYECO
+    </a>
+    <div class="navbar-right">
+      <div class="user-badge">
+        <div class="avatar-circle" id="user-avatar">U</div>
+        <span id="nav-username">User</span>
+        <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; margin-left: 4px;">USER</span>
+      </div>
+      <button class="btn-logout-nav" id="btn-logout">
+        <i data-lucide="log-out" style="width: 16px; height: 16px;"></i>
+        Keluar
+      </button>
+    </div>
+  </nav>
+
+  <!-- Page Content -->
+  <div class="page-container">
+
+    <h1 class="page-title">Dashboard Pelaporan</h1>
+    <p class="page-subtitle">Pantau dan laporkan aktivitas mencurigakan di aliran sungai Anda</p>
+
+    <!-- Welcome Card -->
+    <div class="welcome-card">
+      <div class="welcome-icon">
+        <i data-lucide="shield-check" style="width: 28px; height: 28px;"></i>
+      </div>
+      <div class="welcome-text">
+        <h3>Selamat Datang, <span id="welcome-name">Pengguna</span>! 👋</h3>
+        <p>Anda masuk sebagai <strong style="color: #10b981;">User</strong>. Gunakan halaman ini untuk melaporkan aktivitas mencurigakan di aliran sungai.</p>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="info-card-icon" style="background: rgba(16, 185, 129, 0.15);">
+          <i data-lucide="upload-cloud" style="width: 22px; height: 22px; color: #10b981;"></i>
+        </div>
+        <div class="info-card-label">Total Upload</div>
+        <div class="info-card-value" id="stat-uploads">—</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon" style="background: rgba(47, 107, 255, 0.15);">
+          <i data-lucide="clock" style="width: 22px; height: 22px; color: #2f6bff;"></i>
+        </div>
+        <div class="info-card-label">Menunggu Review</div>
+        <div class="info-card-value" id="stat-pending">—</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon" style="background: rgba(245, 158, 11, 0.15);">
+          <i data-lucide="alert-triangle" style="width: 22px; height: 22px; color: #f59e0b;"></i>
+        </div>
+        <div class="info-card-label">Tervalidasi</div>
+        <div class="info-card-value" id="stat-validated">—</div>
+      </div>
+    </div>
+
+    <!-- Upload Bukti -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-icon" style="background: rgba(16, 185, 129, 0.15);">
+          <i data-lucide="upload-cloud" style="width: 22px; height: 22px; color: #10b981;"></i>
+        </div>
+        <div>
+          <div class="section-title">Upload Bukti Laporan</div>
+          <div style="font-size: 0.85rem; color: #9ca3af; margin-top: 2px;">Unggah foto atau video aktivitas mencurigakan</div>
+        </div>
+      </div>
+
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+        <div class="upload-zone-icon">
+          <i data-lucide="image-plus" style="width: 26px; height: 26px;"></i>
+        </div>
+        <p><strong>Klik untuk memilih file</strong> atau seret ke sini</p>
+        <p style="margin-top: 6px; font-size: 0.8rem;">JPG, PNG, MP4 • Maks. 10 MB</p>
+        <button class="btn-upload" type="button" onclick="event.stopPropagation(); document.getElementById('file-input').click()">
+          <i data-lucide="upload" style="width: 16px; height: 16px;"></i>
+          Pilih File
+        </button>
+      </div>
+
+      <input type="file" id="file-input" accept="image/*,video/*" multiple>
+
+      <div class="help-text">
+        <i data-lucide="info" style="width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px;"></i>
+        <span>Laporan Anda akan ditinjau oleh Admin workspace. Pastikan bukti yang diunggah jelas dan relevan dengan aktivitas mencurigakan yang dilaporkan.</span>
+      </div>
+
+      <!-- Upload Result -->
+      <div id="upload-result" style="display: none; margin-top: 16px; padding: 14px; border-radius: 12px; font-size: 0.9rem; font-weight: 600;"></div>
+    </div>
+
+    <!-- Info Section -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-icon" style="background: rgba(47, 107, 255, 0.15);">
+          <i data-lucide="info" style="width: 22px; height: 22px; color: #2f6bff;"></i>
+        </div>
+        <div>
+          <div class="section-title">Informasi Akun</div>
+          <div style="font-size: 0.85rem; color: #9ca3af; margin-top: 2px;">Detail profil akun Anda</div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+          <span style="color: #9ca3af; font-size: 0.9rem;">Nama</span>
+          <span id="info-name" style="font-weight: 600;">—</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+          <span style="color: #9ca3af; font-size: 0.9rem;">Email</span>
+          <span id="info-email" style="font-weight: 600;">—</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+          <span style="color: #9ca3af; font-size: 0.9rem;">Role</span>
+          <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 3px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 700;">USER</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast-container" style="position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;"></div>
+
+  <script>
+    // ── Init Lucide Icons ──
+    if (window.lucide) window.lucide.createIcons();
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) window.lucide.createIcons();
+    });
+
+    // ── Load User Info ──
+    async function loadUserInfo() {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (!res.ok) {
+          window.location.replace('/login');
+          return;
+        }
+        const data = await res.json();
+
+        // Guard: only 'user' role allowed here
+        if (data.role !== 'user') {
+          if (data.role === 'admin') window.location.replace('/dashboard');
+          else if (data.role === 'superadmin') window.location.replace('/superadmin');
+          else window.location.replace('/login');
+          return;
+        }
+
+        const name = data.name || data.username || 'Pengguna';
+        const email = data.email || '—';
+        const initials = name.substring(0, 2).toUpperCase();
+
+        document.getElementById('user-avatar').textContent = initials;
+        document.getElementById('nav-username').textContent = data.username || name;
+        document.getElementById('welcome-name').textContent = name;
+        document.getElementById('info-name').textContent = name;
+        document.getElementById('info-email').textContent = email;
+
+        // Placeholder stats
+        document.getElementById('stat-uploads').textContent = '0';
+        document.getElementById('stat-pending').textContent = '0';
+        document.getElementById('stat-validated').textContent = '0';
+      } catch (err) {
+        console.error('Failed to load user info:', err);
+        window.location.replace('/login');
+      }
+    }
+
+    loadUserInfo();
+
+    // ── Logout ──
+    document.getElementById('btn-logout').addEventListener('click', async () => {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.replace('/login');
+    });
+
+    // ── Upload Handler ──
+    const fileInput = document.getElementById('file-input');
+    const uploadResult = document.getElementById('upload-result');
+    const uploadZone = document.getElementById('upload-zone');
+
+    // Drag-and-drop
+    uploadZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadZone.style.borderColor = '#10b981';
+      uploadZone.style.background = 'rgba(16, 185, 129, 0.1)';
+    });
+
+    uploadZone.addEventListener('dragleave', () => {
+      uploadZone.style.borderColor = '';
+      uploadZone.style.background = '';
+    });
+
+    uploadZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadZone.style.borderColor = '';
+      uploadZone.style.background = '';
+      if (e.dataTransfer.files.length > 0) {
+        handleFiles(e.dataTransfer.files);
+      }
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length > 0) {
+        handleFiles(fileInput.files);
+      }
+    });
+
+    function handleFiles(files) {
+      const names = Array.from(files).map(f => f.name).join(', ');
+      uploadResult.style.display = 'block';
+      uploadResult.style.background = 'rgba(16, 185, 129, 0.1)';
+      uploadResult.style.border = '1px solid rgba(16, 185, 129, 0.25)';
+      uploadResult.style.color = '#10b981';
+      uploadResult.innerHTML = `✓ ${files.length} file dipilih: ${names}`;
+
+      showToast(`${files.length} file siap diunggah`, 'success');
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const colors = {
+        success: { bg: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.3)', color: '#10b981' },
+        error: { bg: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.3)', color: '#ef4444' },
+        info: { bg: 'rgba(47,107,255,0.15)', border: 'rgba(47,107,255,0.3)', color: '#2f6bff' }
+      };
+      const c = colors[type] || colors.info;
+      toast.style.cssText = `background:${c.bg};border:1px solid ${c.border};color:${c.color};padding:12px 18px;border-radius:12px;font-size:0.875rem;font-weight:600;animation:pageFadeIn 0.3s ease;max-width:320px;`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+  </script>
+</body>
+</html>

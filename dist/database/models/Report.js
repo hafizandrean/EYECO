@@ -106,7 +106,8 @@ const ReportSchema = new mongoose_1.Schema({
     deletedById: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', default: null },
     deletedByName: { type: String, default: null },
     deleteReason: { type: String, default: null },
-    restoreReason: { type: String, default: null }
+    restoreReason: { type: String, default: null },
+    workspaceId: { type: Number, index: true }
 }, {
     timestamps: true
 });

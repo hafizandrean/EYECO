@@ -16,6 +16,7 @@ const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const db_1 = require("./database/db");
 const Report_1 = require("./database/models/Report");
 const User_1 = require("./database/models/User");
+const Cctv_1 = require("./database/models/Cctv");
 const CctvHealthEngine_1 = require("./cctv/CctvHealthEngine");
 const CctvScanner_1 = require("./cctv/CctvScanner");
 const CctvAdapter_1 = require("./cctv/CctvAdapter");
@@ -103,34 +104,58 @@ app.get('/health', (req, res) => {
 // Helper to get redirect path based on role
 function getRedirectPath(role) {
     if (role === 'superadmin')
-        return '/superadmin/dashboard';
+        return '/superadmin';
     if (role === 'admin')
         return '/dashboard';
-    return '/dashboard/upload';
+    return '/dashboard-user';
 }
 // --- AUTH API ENDPOINTS ---
 // Register API
 app.post('/api/auth/register', async (req, res) => {
-    const { username, password } = req.body;
-    if (!username || !password) {
-        return res.status(400).json({ error: 'Username dan password harus diisi' });
+    const { name, email, password, confirmPassword } = req.body;
+    if (!name || !name.trim()) {
+        return res.status(400).json({ error: 'Nama lengkap wajib diisi' });
+    }
+    if (!email || !email.trim()) {
+        return res.status(400).json({ error: 'Email wajib diisi' });
+    }
+    // Basic email format check
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+        return res.status(400).json({ error: 'Format email tidak valid' });
+    }
+    if (!password) {
+        return res.status(400).json({ error: 'Password wajib diisi' });
     }
     if (password.length < 6) {
         return res.status(400).json({ error: 'Password minimal 6 karakter' });
     }
+    if (password !== confirmPassword) {
+        return res.status(400).json({ error: 'Konfirmasi password tidak cocok' });
+    }
     try {
-        // Always set role automatically to 'user' for public registration
-        // Always set status PENDING — must be approved by existing admin
-        const newUser = await UserRepository_1.UserRepository.create(username, password, 'user', 'PENDING');
+        // Generate username from email (ambil bagian sebelum @)
+        const baseUsername = email.trim().split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+        let username = baseUsername;
+        // Pastikan username unik
+        let counter = 1;
+        while (await UserRepository_1.UserRepository.findByUsername(username)) {
+            username = `${baseUsername}${counter}`;
+            counter++;
+        }
+        const newUser = await UserRepository_1.UserRepository.create(username, password, 'user', 'APPROVED', {
+            name: name.trim(),
+            email: email.trim().toLowerCase()
+        });
         if (!newUser) {
-            return res.status(400).json({ error: 'Username sudah digunakan' });
+            return res.status(400).json({ error: 'Gagal membuat akun, coba lagi' });
         }
         res.status(201).json({
             id: newUser.id,
             username: newUser.username,
             role: newUser.role,
             status: newUser.status,
-            message: 'Akun berhasil dibuat. Menunggu persetujuan admin.'
+            message: 'Akun berhasil dibuat.'
         });
     }
     catch (err) {
@@ -165,13 +190,13 @@ app.post('/api/auth/login', async (req, res) => {
         // --- Status-based access control ---
         if (user.status === 'PENDING') {
             return res.status(403).json({
-                error: 'Akun Anda sedang menunggu persetujuan admin.',
+                error: 'Akun Anda sedang menunggu persetujuan.',
                 statusCode: 'PENDING'
             });
         }
         if (user.status === 'REJECTED') {
             return res.status(403).json({
-                error: 'Akun Anda telah ditolak oleh admin. Hubungi administrator.',
+                error: 'Akun Anda telah ditolak. Hubungi administrator.',
                 statusCode: 'REJECTED'
             });
         }
@@ -181,7 +206,7 @@ app.post('/api/auth/login', async (req, res) => {
         res.cookie('session_token', token, {
             httpOnly: true,
             sameSite: 'lax',
-            secure: false, // development
+            secure: process.env.NODE_ENV === 'production',
             maxAge: 24 * 60 * 60 * 1000
         });
         res.json({ id: user.id, username: user.username, role: user.role, status: user.status });
@@ -215,6 +240,28 @@ app.get('/api/auth/me', async (req, res) => {
     }
 });
 // --- SUPER ADMIN MANAGEMENT API ---
+// GET stats for ringkas dashboard
+app.get('/api/superadmin/stats', authMiddleware_1.authMiddleware, (0, authMiddleware_1.roleGuard)(['superadmin']), async (req, res) => {
+    try {
+        const totalAdmins = await User_1.UserModel.countDocuments({ role: 'admin' });
+        const totalWorkspaces = await db_1.WorkspaceModel.countDocuments({});
+        const totalUsers = await User_1.UserModel.countDocuments({ role: 'user' });
+        const totalCCTVs = await Cctv_1.CctvModel.countDocuments({});
+        res.json({
+            success: true,
+            stats: {
+                totalAdmins,
+                totalWorkspaces,
+                totalUsers,
+                totalCCTVs
+            }
+        });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] GET /api/superadmin/stats failed:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
 // GET admins
 app.get('/api/superadmin/admins', authMiddleware_1.authMiddleware, (0, authMiddleware_1.roleGuard)(['superadmin']), async (req, res) => {
     try {
@@ -226,21 +273,78 @@ app.get('/api/superadmin/admins', authMiddleware_1.authMiddleware, (0, authMiddl
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+// Helper functions for admin credentials generation
+function generateRandomPassword(length = 8) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let password = '';
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const numbers = '0123456789';
+    password += uppercase[Math.floor(Math.random() * uppercase.length)];
+    password += lowercase[Math.floor(Math.random() * lowercase.length)];
+    password += numbers[Math.floor(Math.random() * numbers.length)];
+    for (let i = 3; i < length; i++) {
+        password += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return password.split('').sort(() => 0.5 - Math.random()).join('');
+}
+async function generateAdminUsername(workspaceName) {
+    const workspaceSlug = workspaceName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const prefix = `admin_${workspaceSlug}_`;
+    const existingUsers = await User_1.UserModel.find({
+        username: { $regex: new RegExp('^' + prefix) }
+    }).lean().exec();
+    let maxSeq = 0;
+    for (const user of existingUsers) {
+        const parts = user.username.split('_');
+        const seqStr = parts[parts.length - 1];
+        const seq = parseInt(seqStr, 10);
+        if (!isNaN(seq) && seq > maxSeq) {
+            maxSeq = seq;
+        }
+    }
+    const nextSeq = maxSeq + 1;
+    const seqStr = String(nextSeq).padStart(3, '0');
+    return `${prefix}${seqStr}`;
+}
 // CREATE admin
 app.post('/api/superadmin/admins', authMiddleware_1.authMiddleware, (0, authMiddleware_1.roleGuard)(['superadmin']), async (req, res) => {
-    const { username, password } = req.body;
-    if (!username || !password) {
-        return res.status(400).json({ error: 'Username dan password wajib diisi' });
-    }
-    if (password.length < 6) {
-        return res.status(400).json({ error: 'Password minimal 6 karakter' });
+    const { name, workspaceId } = req.body;
+    if (!name) {
+        return res.status(400).json({ error: 'Nama Admin wajib diisi' });
     }
     try {
-        const newUser = await UserRepository_1.UserRepository.create(username.trim(), password, 'admin', 'APPROVED');
+        let workspaceName = 'default';
+        let wId;
+        if (workspaceId) {
+            const workspace = await db_1.WorkspaceModel.findOne({ id: Number(workspaceId) }).lean().exec();
+            if (workspace) {
+                workspaceName = workspace.name;
+                wId = workspace.id;
+            }
+        }
+        const username = await generateAdminUsername(workspaceName);
+        const passwordPlain = generateRandomPassword(8);
+        const newUser = await UserRepository_1.UserRepository.create(username, passwordPlain, 'admin', 'APPROVED');
         if (!newUser) {
             return res.status(400).json({ error: 'Username admin sudah digunakan' });
         }
-        res.status(201).json({ success: true, admin: newUser });
+        await User_1.UserModel.updateOne({ id: newUser.id }, { name: name.trim(), workspaceId: wId });
+        if (wId) {
+            await db_1.WorkspaceModel.updateOne({ id: wId }, { adminId: newUser.id });
+        }
+        res.status(201).json({
+            success: true,
+            admin: {
+                id: newUser.id,
+                username,
+                role: newUser.role,
+                status: newUser.status,
+                name: name.trim(),
+                workspaceId: wId
+            },
+            passwordPlain
+        });
     }
     catch (err) {
         console.error('[SERVER ERROR] POST /api/superadmin/admins failed:', err);
@@ -252,32 +356,57 @@ app.put('/api/superadmin/admins/:id', authMiddleware_1.authMiddleware, (0, authM
     const adminId = parseInt(req.params.id);
     if (isNaN(adminId))
         return res.status(400).json({ error: 'ID tidak valid' });
-    const { username, password } = req.body;
+    const { name, workspaceId } = req.body;
     try {
         const admin = await User_1.UserModel.findOne({ id: adminId, role: 'admin' });
         if (!admin) {
             return res.status(404).json({ error: 'Admin tidak ditemukan' });
         }
-        if (username) {
-            const lowercaseUsername = username.trim().toLowerCase();
-            if (lowercaseUsername !== admin.username) {
-                const exists = await User_1.UserModel.findOne({ username: lowercaseUsername }).lean().exec();
-                if (exists)
-                    return res.status(400).json({ error: 'Username sudah digunakan' });
-                admin.username = lowercaseUsername;
-            }
+        if (name) {
+            admin.name = name.trim();
         }
-        if (password) {
-            if (password.length < 6) {
-                return res.status(400).json({ error: 'Password minimal 6 karakter' });
-            }
-            admin.passwordHash = await bcrypt_1.default.hash(password, 10);
+        const oldWorkspaceId = admin.workspaceId;
+        if (workspaceId !== undefined) {
+            admin.workspaceId = workspaceId ? Number(workspaceId) : undefined;
         }
         await admin.save();
+        // Sync Workspace relations
+        if (workspaceId !== undefined) {
+            if (oldWorkspaceId && oldWorkspaceId !== workspaceId) {
+                await db_1.WorkspaceModel.updateOne({ id: oldWorkspaceId }, { $unset: { adminId: 1 } });
+            }
+            if (workspaceId) {
+                await db_1.WorkspaceModel.updateOne({ id: Number(workspaceId) }, { adminId: adminId });
+            }
+        }
         res.json({ success: true, message: 'Admin berhasil diperbarui', admin });
     }
     catch (err) {
         console.error('[SERVER ERROR] PUT /api/superadmin/admins failed:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+// RESET admin password
+app.post('/api/superadmin/admins/:id/reset-password', authMiddleware_1.authMiddleware, (0, authMiddleware_1.roleGuard)(['superadmin']), async (req, res) => {
+    const adminId = parseInt(req.params.id);
+    if (isNaN(adminId))
+        return res.status(400).json({ error: 'ID tidak valid' });
+    try {
+        const admin = await User_1.UserModel.findOne({ id: adminId, role: 'admin' });
+        if (!admin) {
+            return res.status(404).json({ error: 'Admin tidak ditemukan' });
+        }
+        const passwordPlain = generateRandomPassword(8);
+        admin.passwordHash = await bcrypt_1.default.hash(passwordPlain, 10);
+        await admin.save();
+        res.json({
+            success: true,
+            message: 'Password admin berhasil direset',
+            passwordPlain
+        });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] Reset admin password failed:', err);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
@@ -291,10 +420,135 @@ app.delete('/api/superadmin/admins/:id', authMiddleware_1.authMiddleware, (0, au
         if (!deleted) {
             return res.status(404).json({ error: 'Admin tidak ditemukan' });
         }
+        // Clean up workspace association
+        await db_1.WorkspaceModel.updateOne({ adminId }, { $unset: { adminId: 1 } });
         res.json({ success: true, message: 'Admin berhasil dihapus' });
     }
     catch (err) {
         console.error('[SERVER ERROR] DELETE /api/superadmin/admins failed:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+// --- WORKSPACE MANAGEMENT API ---
+// GET workspaces
+app.get('/api/superadmin/workspaces', authMiddleware_1.authMiddleware, (0, authMiddleware_1.roleGuard)(['superadmin']), async (req, res) => {
+    try {
+        const workspaces = await db_1.WorkspaceModel.find({}).sort({ createdAt: -1 }).lean().exec();
+        res.json({ success: true, workspaces });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] GET /api/superadmin/workspaces failed:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+// CREATE workspace + auto-generate admin
+app.post('/api/superadmin/workspaces', authMiddleware_1.authMiddleware, (0, authMiddleware_1.roleGuard)(['superadmin']), async (req, res) => {
+    const { name, company, address, description } = req.body;
+    if (!name || !name.trim()) {
+        return res.status(400).json({ error: 'Nama workspace wajib diisi' });
+    }
+    try {
+        const lastWorkspace = await db_1.WorkspaceModel.findOne().sort({ id: -1 }).exec();
+        let nextId = 1;
+        if (lastWorkspace && typeof lastWorkspace.id === 'number' && !isNaN(lastWorkspace.id)) {
+            nextId = lastWorkspace.id + 1;
+        }
+        else if (lastWorkspace && lastWorkspace.id) {
+            nextId = parseInt(lastWorkspace.id) + 1 || 1;
+        }
+        const newWorkspace = await db_1.WorkspaceModel.create({
+            id: nextId,
+            name: name.trim(),
+            company: (company || '').trim(),
+            address: (address || '').trim(),
+            description: (description || '').trim()
+        });
+        // Auto-generate admin untuk workspace baru
+        const workspaceSlug = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 20);
+        let adminUsername = `admin_${workspaceSlug}`;
+        // Pastikan username unik
+        const usernameExists = await UserRepository_1.UserRepository.findByUsername(adminUsername);
+        if (usernameExists) {
+            let seq = 2;
+            while (await UserRepository_1.UserRepository.findByUsername(`admin_${workspaceSlug}_${String(seq).padStart(3, '0')}`)) {
+                seq++;
+            }
+            adminUsername = `admin_${workspaceSlug}_${String(seq).padStart(3, '0')}`;
+        }
+        const adminPasswordPlain = generateRandomPassword(8);
+        const newAdmin = await UserRepository_1.UserRepository.create(adminUsername, adminPasswordPlain, 'admin', 'APPROVED', {
+            name: `Admin ${name.trim()}`,
+            workspaceId: nextId
+        });
+        if (newAdmin) {
+            await db_1.WorkspaceModel.updateOne({ id: nextId }, { adminId: newAdmin.id });
+        }
+        res.status(201).json({
+            success: true,
+            workspace: newWorkspace,
+            admin: newAdmin ? {
+                id: newAdmin.id,
+                username: newAdmin.username,
+                role: newAdmin.role
+            } : null,
+            adminPasswordPlain: adminPasswordPlain
+        });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] POST /api/superadmin/workspaces failed:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+// EDIT workspace
+app.put('/api/superadmin/workspaces/:id', authMiddleware_1.authMiddleware, (0, authMiddleware_1.roleGuard)(['superadmin']), async (req, res) => {
+    const workspaceId = parseInt(req.params.id);
+    if (isNaN(workspaceId))
+        return res.status(400).json({ error: 'ID tidak valid' });
+    const { name, company, address, description, adminId } = req.body;
+    try {
+        const workspace = await db_1.WorkspaceModel.findOne({ id: workspaceId });
+        if (!workspace) {
+            return res.status(404).json({ error: 'Workspace tidak ditemukan' });
+        }
+        const oldAdminId = workspace.adminId;
+        if (name)
+            workspace.name = name.trim();
+        if (company !== undefined)
+            workspace.company = (company || '').trim();
+        if (address !== undefined)
+            workspace.address = (address || '').trim();
+        if (description !== undefined)
+            workspace.description = (description || '').trim();
+        workspace.adminId = adminId ? Number(adminId) : undefined;
+        await workspace.save();
+        if (oldAdminId && oldAdminId !== adminId) {
+            await User_1.UserModel.updateOne({ id: oldAdminId }, { $unset: { workspaceId: 1 } });
+        }
+        if (adminId) {
+            await User_1.UserModel.updateOne({ id: Number(adminId) }, { workspaceId: workspaceId });
+        }
+        res.json({ success: true, message: 'Workspace berhasil diperbarui', workspace });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] PUT /api/superadmin/workspaces failed:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+// DELETE workspace
+app.delete('/api/superadmin/workspaces/:id', authMiddleware_1.authMiddleware, (0, authMiddleware_1.roleGuard)(['superadmin']), async (req, res) => {
+    const workspaceId = parseInt(req.params.id);
+    if (isNaN(workspaceId))
+        return res.status(400).json({ error: 'ID tidak valid' });
+    try {
+        const deleted = await db_1.WorkspaceModel.findOneAndDelete({ id: workspaceId });
+        if (!deleted) {
+            return res.status(404).json({ error: 'Workspace tidak ditemukan' });
+        }
+        await User_1.UserModel.updateMany({ workspaceId }, { $unset: { workspaceId: 1 } });
+        res.json({ success: true, message: 'Workspace berhasil dihapus' });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] DELETE /api/superadmin/workspaces failed:', err);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
@@ -335,31 +589,16 @@ app.get('/', async (req, res) => {
     }
 });
 // Super Admin Pages
-app.get(['/superadmin/dashboard', '/superadmin/admins'], authMiddleware_1.authMiddleware, (0, authMiddleware_1.roleGuard)(['superadmin']), (req, res) => {
+app.get(['/superadmin', '/superadmin/dashboard', '/superadmin/admins', '/superadmin/workspaces'], authMiddleware_1.authMiddleware, (0, authMiddleware_1.roleGuard)(['superadmin']), (req, res) => {
     res.sendFile(path_1.default.join(__dirname, '../public/views/superadmin.html'));
 });
-// Dashboard Pages
-app.get(['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/users', '/dashboard/detections/:id'], authMiddleware_1.authMiddleware, async (req, res) => {
-    try {
-        const user = await getLoggedInUser(req);
-        if (!user)
-            return res.redirect('/login');
-        if (user.role === 'superadmin') {
-            return res.redirect('/superadmin/dashboard');
-        }
-        // Non-admin users can only access upload, laporan, and detections
-        if (user.role !== 'admin' &&
-            req.path !== '/dashboard/upload' &&
-            req.path !== '/dashboard/laporan' &&
-            !req.path.startsWith('/dashboard/detections/')) {
-            return res.redirect('/dashboard/upload');
-        }
-        res.sendFile(path_1.default.join(__dirname, '../public/views/dashboard.html'));
-    }
-    catch (err) {
-        console.error('[SERVER ERROR] Dashboard view routing failed:', err);
-        res.redirect('/login');
-    }
+// Dashboard Pages — hanya untuk role 'admin'
+app.get(['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/users', '/dashboard/detections/:id'], authMiddleware_1.authMiddleware, (0, authMiddleware_1.roleGuard)(['admin']), (req, res) => {
+    res.sendFile(path_1.default.join(__dirname, '../public/views/dashboard.html'));
+});
+// Dashboard User Pages — hanya untuk role 'user'
+app.get('/dashboard-user', authMiddleware_1.authMiddleware, (0, authMiddleware_1.roleGuard)(['user']), (req, res) => {
+    res.sendFile(path_1.default.join(__dirname, '../public/views/dashboard-user.html'));
 });
 // --- ADMIN USER MANAGEMENT API ---
 // GET /admin/users - List all users (admin only)
@@ -844,7 +1083,18 @@ app.get('/api/cctv', async (req, res) => {
         if (!user) {
             return res.status(401).json({ error: 'Belum masuk' });
         }
-        const cctvs = await CctvRepository_1.CctvRepository.getAll();
+        let cctvs;
+        if (user.role === 'admin') {
+            if (user.workspaceId !== undefined && user.workspaceId !== null) {
+                cctvs = await CctvRepository_1.CctvRepository.getAll(user.workspaceId);
+            }
+            else {
+                cctvs = [];
+            }
+        }
+        else {
+            cctvs = await CctvRepository_1.CctvRepository.getAll();
+        }
         // Decrypt / enrich each CCTV config with playUrl dynamically
         const processed = cctvs.map(c => {
             const playTarget = CctvAdapter_1.CctvAdapter.getPlayTarget(c);
@@ -931,7 +1181,7 @@ app.post('/api/cctv', async (req, res) => {
         if (user.role !== 'admin') {
             return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
         }
-        const newCctv = await CctvRepository_1.CctvRepository.add(req.body, user.id);
+        const newCctv = await CctvRepository_1.CctvRepository.add({ ...req.body, workspaceId: user.workspaceId }, user.id);
         // Instantly check camera health upon connection
         CctvHealthEngine_1.CctvHealthEngine.checkCameraHealth(newCctv.id);
         res.json({ success: true, data: newCctv });

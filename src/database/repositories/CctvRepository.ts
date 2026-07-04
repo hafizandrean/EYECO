@@ -11,7 +11,7 @@ export class CctvRepository {
 
     // --- CCTV METHODS ---
     
-      static async getAll(): Promise<ICctv[]> {
+      static async getAll(workspaceId?: number): Promise<ICctv[]> {
         try {
           let count = await CctvModel.countDocuments();
           if (count === 0) {
@@ -156,7 +156,11 @@ export class CctvRepository {
             ];
             await CctvModel.insertMany(defaultCameras);
           }
-          return await CctvModel.find({}).sort({ id: 1 }).lean();
+          const filter: any = {};
+          if (workspaceId !== undefined) {
+            filter.workspaceId = workspaceId;
+          }
+          return await CctvModel.find(filter).sort({ id: 1 }).lean();
         } catch (err) {
           console.error('[DATABASE ERROR] getAllCctv failed:', err);
           throw err;
@@ -217,7 +221,8 @@ export class CctvRepository {
             },
             isDefault: false,
             isActive: true,
-            createdBy: userId
+            createdBy: userId,
+            workspaceId: payload.workspaceId
           });
     
           await newCctv.save();

@@ -5,7 +5,7 @@ const Cctv_1 = require("../models/Cctv");
 const crypto_1 = require("crypto");
 class CctvRepository {
     // --- CCTV METHODS ---
-    static async getAll() {
+    static async getAll(workspaceId) {
         try {
             let count = await Cctv_1.CctvModel.countDocuments();
             if (count === 0) {
@@ -150,7 +150,11 @@ class CctvRepository {
                 ];
                 await Cctv_1.CctvModel.insertMany(defaultCameras);
             }
-            return await Cctv_1.CctvModel.find({}).sort({ id: 1 }).lean();
+            const filter = {};
+            if (workspaceId !== undefined) {
+                filter.workspaceId = workspaceId;
+            }
+            return await Cctv_1.CctvModel.find(filter).sort({ id: 1 }).lean();
         }
         catch (err) {
             console.error('[DATABASE ERROR] getAllCctv failed:', err);
@@ -208,7 +212,8 @@ class CctvRepository {
                 },
                 isDefault: false,
                 isActive: true,
-                createdBy: userId
+                createdBy: userId,
+                workspaceId: payload.workspaceId
             });
             await newCctv.save();
             return newCctv;

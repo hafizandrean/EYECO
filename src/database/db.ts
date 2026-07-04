@@ -11,6 +11,7 @@ import { ResolutionModel, IResolution } from './models/Resolution';
 import { NotificationModel, INotification } from './models/Notification';
 import { OutboxEventModel, IOutboxEvent } from './models/OutboxEvent';
 import { SystemAuditLogModel, ISystemAuditLog } from './models/SystemAuditLog';
+import { WorkspaceModel, IWorkspace } from './models/Workspace';
 
 // Re-export types for legacy compatibility in server.ts
 export { 
@@ -24,7 +25,8 @@ export {
   ResolutionModel, IResolution as Resolution,
   NotificationModel, INotification as Notification,
   OutboxEventModel, IOutboxEvent as OutboxEvent,
-  SystemAuditLogModel, ISystemAuditLog as SystemAuditLog
+  SystemAuditLogModel, ISystemAuditLog as SystemAuditLog,
+  WorkspaceModel, IWorkspace as Workspace
 };
 
 dotenv.config();

@@ -36,6 +36,7 @@ export interface ICctv {
   createdBy: number;
   lastHeartbeat?: Date;
   lastConnected?: Date;
+  workspaceId?: number;
 }
 
 const CctvCapabilitiesSchema = new Schema<ICctvCapabilities>({
@@ -73,7 +74,8 @@ const CctvSchema = new Schema<ICctv>({
   isActive: { type: Boolean, default: true },
   createdBy: { type: Number, required: true },
   lastHeartbeat: { type: Date },
-  lastConnected: { type: Date }
+  lastConnected: { type: Date },
+  workspaceId: { type: Number, index: true }
 }, { timestamps: true });
 
 export const CctvModel: Model<ICctv> = mongoose.models.Cctv || mongoose.model<ICctv>('Cctv', CctvSchema);

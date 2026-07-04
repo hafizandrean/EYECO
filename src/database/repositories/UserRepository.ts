@@ -48,10 +48,11 @@ export class UserRepository {
   }
 
   public static async create(
-    username: string, 
-    passwordPlain: string, 
+    username: string,
+    passwordPlain: string,
     role: 'superadmin' | 'admin' | 'user' | 'operator' | 'supervisor' | 'officer',
-    status: 'PENDING' | 'APPROVED' = 'PENDING'
+    status: 'PENDING' | 'APPROVED' = 'PENDING',
+    extraFields?: { name?: string; email?: string; workspaceId?: number }
   ): Promise<IUser | null> {
     try {
       const lowercaseUsername = username.toLowerCase();
@@ -69,7 +70,10 @@ export class UserRepository {
         username: lowercaseUsername,
         passwordHash,
         role,
-        status
+        status,
+        name: extraFields?.name || '',
+        email: extraFields?.email || '',
+        workspaceId: extraFields?.workspaceId
       });
 
       // return plain user object (passwordHash is select: false and not returned by toJSON)
@@ -81,25 +85,29 @@ export class UserRepository {
     }
   }
 
-  /** Seed the default admin and super admin accounts if they don't exist. */
+  /**
+   * Seed the default superadmin account if it doesn't exist.
+   * admin_eyeco = superadmin (satu-satunya superadmin di sistem)
+   */
   public static async seedDefaultAdmin(): Promise<void> {
-    const existing = await UserModel.findOne({ username: 'admin_eyeco' }).lean().exec();
-    if (!existing) {
-      await UserRepository.create('admin_eyeco', 'admin123', 'admin', 'APPROVED');
-      console.log('[DATABASE] Default admin user "admin_eyeco" seeded successfully.');
-    } else if ((existing as IUser).status !== 'APPROVED') {
-      // Ensure the default admin is always APPROVED
-      await UserModel.updateOne({ username: 'admin_eyeco' }, { status: 'APPROVED' });
-      console.log('[DATABASE] Default admin user "admin_eyeco" status restored to APPROVED.');
-    }
+    const superadminUsername = 'admin_eyeco';
+    const superadminPassword = process.env.SUPERADMIN_PASSWORD || 'admin123';
 
-    const existingSuper = await UserModel.findOne({ username: 'superadmin' }).lean().exec();
-    if (!existingSuper) {
-      await UserRepository.create('superadmin', 'superadmin123', 'superadmin', 'APPROVED');
-      console.log('[DATABASE] Super Admin user "superadmin" seeded successfully.');
-    } else if ((existingSuper as IUser).status !== 'APPROVED') {
-      await UserModel.updateOne({ username: 'superadmin' }, { status: 'APPROVED' });
-      console.log('[DATABASE] Super Admin user "superadmin" status restored to APPROVED.');
+    const existing = await UserModel.findOne({ username: superadminUsername }).lean().exec();
+    if (!existing) {
+      await UserRepository.create(superadminUsername, superadminPassword, 'superadmin', 'APPROVED');
+      console.log(`[DATABASE] Superadmin "${superadminUsername}" seeded successfully.`);
+    } else if ((existing as IUser).role !== 'superadmin') {
+      // Jika sudah ada tapi role salah (misal admin), perbaiki ke superadmin
+      const passwordHash = await bcrypt.hash(superadminPassword, 10);
+      await UserModel.updateOne(
+        { username: superadminUsername },
+        { role: 'superadmin', status: 'APPROVED', passwordHash }
+      );
+      console.log(`[DATABASE] Superadmin "${superadminUsername}" role corrected to superadmin.`);
+    } else if ((existing as IUser).status !== 'APPROVED') {
+      await UserModel.updateOne({ username: superadminUsername }, { status: 'APPROVED' });
+      console.log(`[DATABASE] Superadmin "${superadminUsername}" status restored to APPROVED.`);
     }
   }
 }

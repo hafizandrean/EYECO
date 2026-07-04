@@ -68,6 +68,7 @@ const CctvSchema = new mongoose_1.Schema({
     isActive: { type: Boolean, default: true },
     createdBy: { type: Number, required: true },
     lastHeartbeat: { type: Date },
-    lastConnected: { type: Date }
+    lastConnected: { type: Date },
+    workspaceId: { type: Number, index: true }
 }, { timestamps: true });
 exports.CctvModel = mongoose_1.default.models.Cctv || mongoose_1.default.model('Cctv', CctvSchema);

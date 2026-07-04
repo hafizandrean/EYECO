@@ -61,6 +61,7 @@ export interface IReport extends Document {
   deleteReason: string | null;
   restoreReason: string | null;
   __v: number;
+  workspaceId?: number;
 }
 
 const BoundingBoxSchema = new Schema<IBoundingBox>({
@@ -137,7 +138,8 @@ const ReportSchema = new Schema<IReport>({
   deletedById: { type: Schema.Types.ObjectId, ref: 'User', default: null },
   deletedByName: { type: String, default: null },
   deleteReason: { type: String, default: null },
-  restoreReason: { type: String, default: null }
+  restoreReason: { type: String, default: null },
+  workspaceId: { type: Number, index: true }
 }, {
   timestamps: true
 });

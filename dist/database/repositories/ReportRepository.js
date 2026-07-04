@@ -7,6 +7,7 @@ exports.ReportRepository = void 0;
 const Report_1 = require("../models/Report");
 const User_1 = require("../models/User");
 const mongoose_1 = __importDefault(require("mongoose"));
+const Workspace_1 = require("../models/Workspace");
 class ReportRepository {
     static async findById(id) {
         const report = await Report_1.ReportModel.findOne({ _id: id, deletedAt: null }).exec();
@@ -62,6 +63,15 @@ class ReportRepository {
             // Find user _id for the ref based on legacy creatorId
             const user = await User_1.UserModel.findOne({ id: creatorId }).lean().exec();
             const userObjectId = user ? user._id : new mongoose_1.default.Types.ObjectId();
+            const workspaces = await Workspace_1.WorkspaceModel.find({}).lean().exec();
+            let matchedWorkspaceId;
+            const reportLocationLower = report.location.toLowerCase();
+            for (const w of workspaces) {
+                if (reportLocationLower.includes(w.name.toLowerCase()) || reportLocationLower.includes(w.location.toLowerCase())) {
+                    matchedWorkspaceId = w.id;
+                    break;
+                }
+            }
             const newReport = await Report_1.ReportModel.create({
                 ...report,
                 id: nextId,
@@ -69,6 +79,7 @@ class ReportRepository {
                 timestamp: new Date(),
                 adminStatus: 'MENUNGGU',
                 adminNotes: '',
+                workspaceId: matchedWorkspaceId,
                 sla: {
                     detectedAt: new Date(),
                     validatedAt: null,
@@ -118,6 +129,25 @@ class ReportRepository {
     static async getFiltered(filters, userContext, page, limit) {
         try {
             const query = { deletedAt: null };
+            if (userContext.role === 'admin') {
+                const adminUser = await User_1.UserModel.findOne({ id: userContext.id }).lean().exec();
+                if (adminUser && adminUser.workspaceId) {
+                    const ws = await Workspace_1.WorkspaceModel.findOne({ id: adminUser.workspaceId }).lean().exec();
+                    if (ws) {
+                        query.$or = [
+                            { workspaceId: adminUser.workspaceId },
+                            { location: new RegExp(ws.name, 'i') },
+                            { location: new RegExp(ws.location, 'i') }
+                        ];
+                    }
+                    else {
+                        query.workspaceId = adminUser.workspaceId;
+                    }
+                }
+                else {
+                    query.workspaceId = -1;
+                }
+            }
             if (filters.date) {
                 const start = new Date(filters.date);
                 start.setHours(0, 0, 0, 0);

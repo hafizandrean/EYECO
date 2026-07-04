@@ -1,6 +1,7 @@
 import { ReportModel, IReport, IBoundingBox, IComment } from '../models/Report';
 import { UserModel } from '../models/User';
 import mongoose from 'mongoose';
+import { WorkspaceModel } from '../models/Workspace';
 
 export class ReportRepository {
   public static async findById(id: mongoose.Types.ObjectId | string): Promise<IReport | null> {
@@ -103,6 +104,16 @@ export class ReportRepository {
       const user = await UserModel.findOne({ id: creatorId }).lean().exec();
       const userObjectId = user ? (user._id as mongoose.Types.ObjectId) : new mongoose.Types.ObjectId();
 
+      const workspaces = await WorkspaceModel.find({}).lean().exec();
+      let matchedWorkspaceId: number | undefined;
+      const reportLocationLower = report.location.toLowerCase();
+      for (const w of workspaces) {
+        if (reportLocationLower.includes(w.name.toLowerCase()) || reportLocationLower.includes(w.location.toLowerCase())) {
+          matchedWorkspaceId = w.id;
+          break;
+        }
+      }
+
       const newReport = await ReportModel.create({
         ...report,
         id: nextId,
@@ -110,6 +121,7 @@ export class ReportRepository {
         timestamp: new Date(),
         adminStatus: 'MENUNGGU',
         adminNotes: '',
+        workspaceId: matchedWorkspaceId,
         sla: {
           detectedAt: new Date(),
           validatedAt: null,
@@ -180,6 +192,24 @@ export class ReportRepository {
   ): Promise<{ reports: IReport[]; total: number } | IReport[]> {
     try {
       const query: any = { deletedAt: null };
+
+      if (userContext.role === 'admin') {
+        const adminUser = await UserModel.findOne({ id: userContext.id }).lean().exec();
+        if (adminUser && adminUser.workspaceId) {
+          const ws = await WorkspaceModel.findOne({ id: adminUser.workspaceId }).lean().exec();
+          if (ws) {
+            query.$or = [
+              { workspaceId: adminUser.workspaceId },
+              { location: new RegExp(ws.name, 'i') },
+              { location: new RegExp(ws.location, 'i') }
+            ];
+          } else {
+            query.workspaceId = adminUser.workspaceId;
+          }
+        } else {
+          query.workspaceId = -1;
+        }
+      }
 
       if (filters.date) {
         const start = new Date(filters.date);

@@ -33,38 +33,18 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UserModel = void 0;
+exports.WorkspaceModel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
-const UserSchema = new mongoose_1.Schema({
+const WorkspaceSchema = new mongoose_1.Schema({
     id: { type: Number, required: true, unique: true, index: true },
-    username: {
-        type: String,
-        required: [true, 'Username wajib diisi'],
-        unique: true,
-        lowercase: true,
-        trim: true,
-        minlength: [3, 'Username minimal 3 karakter'],
-        maxlength: [50, 'Username maksimal 50 karakter']
-    },
-    passwordHash: { type: String, required: true, select: false },
-    role: {
-        type: String,
-        enum: ['superadmin', 'admin', 'user', 'operator', 'supervisor', 'officer'],
-        required: true
-    },
-    status: {
-        type: String,
-        enum: ['PENDING', 'APPROVED', 'REJECTED'],
-        default: 'PENDING',
-        required: true
-    },
-    name: { type: String, trim: true, default: '' },
-    email: { type: String, trim: true, lowercase: true, default: '' },
-    agency: { type: String, trim: true, default: '' },
-    workspaceId: { type: Number, index: true }
+    name: { type: String, required: true, trim: true },
+    company: { type: String, default: '', trim: true },
+    location: { type: String, default: '', trim: true },
+    address: { type: String, default: '', trim: true },
+    description: { type: String, default: '', trim: true },
+    adminId: { type: Number, index: true }
 }, {
     timestamps: true
 });
-exports.UserModel = mongoose_1.default.models.User
-    ? mongoose_1.default.model('User')
-    : mongoose_1.default.model('User', UserSchema);
+exports.WorkspaceModel = mongoose_1.default.models.Workspace
+    || mongoose_1.default.model('Workspace', WorkspaceSchema);
