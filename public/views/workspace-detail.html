@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EYECO — Detail Workspace</title>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body { background: #F8FAFC; padding-top: var(--nav-height); }
+    .container { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
+    
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .page-header h1 { font-size: 1.6rem; font-weight: 800; color: var(--text-dark); display: flex; align-items: center; gap: 12px; }
+    
+    .detail-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      padding: 32px;
+      margin-bottom: 32px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+    }
+    
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px; }
+    .info-box { background: var(--primary-light); padding: 20px; border-radius: 12px; border: 1px solid rgba(37, 99, 235, 0.1); }
+    .info-box h3 { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; font-weight: 700; letter-spacing: 0.05em; }
+    .info-box p { font-size: 1.1rem; color: var(--text-dark); font-weight: 600; }
+    
+    .btn-back { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); text-decoration: none; font-weight: 600; margin-bottom: 16px; transition: color var(--anim-duration); }
+    .btn-back:hover { color: var(--primary); }
+  </style>
+</head>
+<body>
+
+  <header class="navbar">
+    <a href="/superadmin" class="logo"><i data-lucide="waves"></i> EYECO</a>
+    <div class="top-nav-user" style="display:flex;align-items:center;gap:10px;">
+      <div class="profile-avatar" style="width:34px;height:34px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;">S</div>
+      <span style="font-weight:600;font-size:0.9rem;">SuperAdmin</span>
+    </div>
+  </header>
+
+  <div class="container">
+    <a href="/superadmin" class="btn-back"><i data-lucide="arrow-left" style="width:16px;"></i> Kembali ke Dashboard</a>
+    
+    <div class="page-header">
+      <h1 id="ws-title"><i data-lucide="briefcase"></i> Memuat Workspace...</h1>
+      <span id="ws-code" class="badge badge-blue" style="font-size: 1rem; padding: 6px 16px;">—</span>
+    </div>
+
+    <div class="detail-card">
+      <h2 style="font-size:1.1rem; margin-bottom:12px;">Informasi Utama</h2>
+      <p id="ws-desc" style="color:var(--text-muted); line-height:1.6;">—</p>
+      
+      <div class="info-grid">
+        <div class="info-box">
+          <h3>Perusahaan / Instansi</h3>
+          <p id="ws-company">—</p>
+        </div>
+        <div class="info-box">
+          <h3>Alamat Lengkap</h3>
+          <p id="ws-address">—</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-header" style="margin-top: 40px; margin-bottom: 16px;">
+      <h2 style="font-size: 1.3rem;">Administrator Workspace (<span id="ws-admin-count">0</span>)</h2>
+    </div>
+
+    <div class="table-container" style="background:#fff; border:1px solid var(--border); box-shadow:0 4px 20px rgba(0,0,0,0.03);">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nama Lengkap</th>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Terdaftar</th>
+          </tr>
+        </thead>
+        <tbody id="admins-table">
+          <tr><td colspan="5" class="text-center" style="padding:40px;">Memuat admin...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+    
+    function formatDate(dateStr) {
+      if (!dateStr) return '—';
+      try {
+        return new Intl.DateTimeFormat('id-ID', {
+          day: 'numeric', month: 'long', year: 'numeric'
+        }).format(new Date(dateStr));
+      } catch (_) { return dateStr; }
+    }
+
+    async function loadWorkspaceDetail() {
+      const parts = window.location.pathname.split('/');
+      const id = parts[parts.length - 1];
+      if (!id || isNaN(id)) {
+        alert('ID Workspace tidak valid');
+        window.location.href = '/superadmin';
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/superadmin/workspaces/${id}/detail`);
+        const data = await res.json();
+        
+        if (!res.ok) throw new Error(data.error || 'Gagal memuat');
+
+        const ws = data.workspace;
+        document.title = `EYECO — ${ws.name}`;
+        document.getElementById('ws-title').innerHTML = `<i data-lucide="briefcase"></i> ${escapeHtml(ws.name)}`;
+        document.getElementById('ws-code').textContent = escapeHtml(ws.code);
+        document.getElementById('ws-desc').textContent = escapeHtml(ws.description || 'Tidak ada deskripsi.');
+        document.getElementById('ws-company').textContent = escapeHtml(ws.company || '—');
+        document.getElementById('ws-address').textContent = escapeHtml(ws.address || '—');
+        
+        const admins = data.admins || [];
+        document.getElementById('ws-admin-count').textContent = admins.length;
+        
+        const tbody = document.getElementById('admins-table');
+        if (admins.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="text-center" style="padding:40px; color:var(--text-muted);">Belum ada admin di workspace ini.</td></tr>';
+        } else {
+          tbody.innerHTML = admins.map(a => `
+            <tr>
+              <td data-label="ID"><span class="mono">#${a.id}</span></td>
+              <td data-label="Nama Lengkap"><strong>${escapeHtml(a.name)}</strong></td>
+              <td data-label="Username"><code class="font-mono" style="font-size:0.85rem;">${escapeHtml(a.username)}</code></td>
+              <td data-label="Email">${escapeHtml(a.email || '—')}</td>
+              <td data-label="Terdaftar">${formatDate(a.createdAt)}</td>
+            </tr>
+          `).join('');
+        }
+        
+        lucide.createIcons();
+      } catch (err) {
+        alert(err.message);
+        window.location.href = '/superadmin';
+      }
+    }
+
+    loadWorkspaceDetail();
+  </script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface INotification extends Document {
+  workspaceId: number;
   recipientId: mongoose.Types.ObjectId;
   reportId: mongoose.Types.ObjectId;
   type: string;
@@ -17,6 +18,7 @@ export interface INotification extends Document {
 }
 
 const NotificationSchema = new Schema<INotification>({
+  workspaceId: { type: Number, index: true },
   recipientId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   reportId: { type: Schema.Types.ObjectId, ref: 'Report', required: true },
   type: { type: String, required: true },
@@ -34,7 +36,7 @@ const NotificationSchema = new Schema<INotification>({
 });
 
 // Compound index for sorted notifications query
-NotificationSchema.index({ recipientId: 1, read: 1, createdAt: -1 });
+NotificationSchema.index({ workspaceId: 1, recipientId: 1, read: 1, createdAt: -1 });
 
 // TTL index to automatically delete expired notifications (expiresAt contains the exact deletion Date)
 NotificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });

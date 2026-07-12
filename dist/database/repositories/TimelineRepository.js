@@ -9,8 +9,11 @@ class TimelineRepository {
         // Convert Mongoose Documents to DTOs (plain objects)
         return events.map(e => e.toObject());
     }
-    static async findByReportId(reportId) {
-        const events = await TimelineEvent_1.TimelineEventModel.find({ reportId })
+    static async findByReportId(reportId, workspaceId) {
+        const query = { reportId };
+        if (workspaceId !== undefined)
+            query.workspaceId = workspaceId;
+        const events = await TimelineEvent_1.TimelineEventModel.find(query)
             .sort({ createdAt: -1 })
             .lean()
             .exec();

@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EYECO — Pilih Workspace</title>
+    <meta name="description" content="Pilih atau bergabung ke workspace EYECO untuk mulai memantau laporan.">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        /* ─── Page-level resets ─── */
+        html, body { height: 100%; margin: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #F0F4FF;
+            min-height: 100vh;
+        }
+
+        /* ─── Background blobs ─── */
+        .bg-blobs {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 0;
+        }
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.18;
+        }
+        .blob-1 { width: 560px; height: 560px; background: #2563EB; top: -120px; left: -120px; }
+        .blob-2 { width: 420px; height: 420px; background: #7C3AED; bottom: -80px; right: -80px; }
+
+        /* ─── Navbar ─── */
+        .ws-navbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            height: 64px;
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(37,99,235,0.1);
+            box-shadow: 0 2px 20px rgba(0,0,0,0.04);
+        }
+        .ws-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #1e3a8a;
+            text-decoration: none;
+            letter-spacing: -0.03em;
+        }
+        .ws-brand i, .ws-brand svg { width: 26px; height: 26px; color: #2563EB; }
+        .ws-nav-links { display: flex; align-items: center; gap: 24px; }
+        .ws-nav-links a {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #4B5563;
+            text-decoration: none;
+            padding: 6px 0;
+            border-bottom: 2px solid transparent;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .ws-nav-links a:hover,
+        .ws-nav-links a.active { color: #2563EB; border-bottom-color: #2563EB; }
+
+        /* ─── Profile Menu ─── */
+        .profile-menu-wrapper {
+            position: relative;
+        }
+        .profile-btn-ws {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: 10px;
+            transition: background 0.15s;
+        }
+        .profile-btn-ws:hover { background: rgba(37,99,235,0.06); }
+        .ws-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
+        }
+        .profile-btn-ws span {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #1F2937;
+        }
+        .profile-btn-ws i, .profile-btn-ws svg { width: 14px; height: 14px; color: #6B7280; }
+        .ws-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 200px;
+            background: rgba(255,255,255,0.98);
+            border: 1px solid rgba(0,0,0,0.08);
+            border-radius: 14px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            padding: 6px;
+            display: none;
+            z-index: 200;
+            animation: fadeInDown 0.18s ease;
+        }
+        .ws-dropdown-menu.open { display: block; }
+        @keyframes fadeInDown {
+            from { opacity:0; transform: translateY(-8px); }
+            to   { opacity:1; transform: translateY(0); }
+        }
+        .ws-dropdown-header {
+            padding: 10px 14px 8px;
+            border-bottom: 1px solid #F3F4F6;
+            margin-bottom: 4px;
+        }
+        .ws-dropdown-header strong { display: block; font-size: 0.9rem; color: #111827; }
+        .ws-dropdown-header span  { font-size: 0.78rem; color: #6B7280; }
+        .ws-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 9px 14px;
+            border: none;
+            background: none;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #374151;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.15s;
+        }
+        .ws-dropdown-item:hover { background: #F3F4F6; }
+        .ws-dropdown-item i, .ws-dropdown-item svg { width: 15px; height: 15px; }
+        .ws-dropdown-item.danger { color: #DC2626; }
+        .ws-dropdown-item.danger:hover { background: #FEF2F2; }
+
+        /* ─── Mobile nav toggle ─── */
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #374151;
+            padding: 4px;
+        }
+        .mobile-menu-btn i, .mobile-menu-btn svg { width: 22px; height: 22px; }
+        @media (max-width: 640px) {
+            .ws-navbar { padding: 0 16px; }
+            .ws-nav-links { display: none; }
+            .mobile-menu-btn { display: flex; }
+        }
+
+        /* ─── Main container ─── */
+        .ws-main {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px 80px;
+        }
+
+        /* ─── Page header ─── */
+        .ws-page-header {
+            text-align: center;
+            margin-bottom: 36px;
+        }
+        .ws-page-header h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2rem;
+            font-weight: 800;
+            color: #111827;
+            margin: 0 0 8px;
+            letter-spacing: -0.03em;
+        }
+        .ws-page-header p {
+            font-size: 0.95rem;
+            color: #6B7280;
+            margin: 0;
+        }
+
+        /* ─── Search bar ─── */
+        .ws-search-wrapper {
+            position: relative;
+            max-width: 480px;
+            margin: 0 auto 32px;
+        }
+        .ws-search-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9CA3AF;
+            pointer-events: none;
+        }
+        .ws-search-icon i, .ws-search-icon svg { width: 18px; height: 18px; }
+        .ws-search-input {
+            width: 100%;
+            padding: 13px 16px 13px 44px;
+            border: 1.5px solid rgba(37,99,235,0.15);
+            border-radius: 14px;
+            font-size: 0.9rem;
+            font-family: 'Inter', sans-serif;
+            background: rgba(255,255,255,0.9);
+            box-shadow: 0 2px 12px rgba(37,99,235,0.06);
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            box-sizing: border-box;
+        }
+        .ws-search-input:focus {
+            border-color: #2563EB;
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+        }
+
+        /* ─── Status bar ─── */
+        .ws-status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            padding: 0 2px;
+        }
+        .ws-status-bar .ws-count { font-size: 0.82rem; color: #6B7280; font-weight: 600; }
+        .ws-status-bar .ws-my-badge {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #2563EB;
+            background: rgba(37,99,235,0.08);
+            border-radius: 20px;
+            padding: 3px 12px;
+        }
+
+        /* ─── Workspace list ─── */
+        .ws-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* ─── Workspace card ─── */
+        .ws-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            background: rgba(255,255,255,0.92);
+            border: 1.5px solid rgba(0,0,0,0.06);
+            border-radius: 16px;
+            padding: 18px 22px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+            transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+        }
+        .ws-card:hover {
+            border-color: rgba(37,99,235,0.25);
+            box-shadow: 0 6px 24px rgba(37,99,235,0.08);
+            transform: translateY(-1px);
+        }
+        .ws-card.has-access {
+            border-left: 4px solid #2563EB;
+        }
+        .ws-card-left { display: flex; align-items: center; gap: 16px; flex: 1; min-width: 0; }
+        .ws-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: rgba(37,99,235,0.08);
+            color: #2563EB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .ws-icon i, .ws-icon svg { width: 20px; height: 20px; }
+        .ws-info { min-width: 0; }
+        .ws-info h3 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #111827;
+            margin: 0 0 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .ws-info p {
+            font-size: 0.8rem;
+            color: #6B7280;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .ws-code-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #2563EB;
+            background: rgba(37,99,235,0.08);
+            border-radius: 6px;
+            padding: 1px 7px;
+            letter-spacing: 0.06em;
+        }
+        .ws-access-tag {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #16A34A;
+            background: rgba(22,163,74,0.08);
+            border-radius: 6px;
+            padding: 1px 7px;
+            letter-spacing: 0.04em;
+        }
+        .ws-pending-tag {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #D97706;
+            background: rgba(217,119,6,0.08);
+            border-radius: 6px;
+            padding: 1px 7px;
+        }
+
+        /* ─── Action buttons ─── */
+        .ws-btn {
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 9px 18px;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.84rem;
+            font-weight: 700;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all 0.18s;
+            white-space: nowrap;
+        }
+        .ws-btn i, .ws-btn svg { width: 15px; height: 15px; }
+        .ws-btn-select {
+            background: #2563EB;
+            color: #fff;
+        }
+        .ws-btn-select:hover { background: #1D4ED8; transform: scale(1.02); }
+        .ws-btn-join {
+            background: rgba(37,99,235,0.08);
+            color: #2563EB;
+            border: 1.5px solid rgba(37,99,235,0.25);
+        }
+        .ws-btn-join:hover { background: rgba(37,99,235,0.14); }
+        .ws-btn-pending {
+            background: rgba(217,119,6,0.08);
+            color: #92400E;
+            border: 1.5px solid rgba(217,119,6,0.2);
+            cursor: not-allowed;
+        }
+
+        /* ─── Empty / loading state ─── */
+        .ws-empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6B7280;
+        }
+        .ws-empty i, .ws-empty svg { width: 48px; height: 48px; opacity: 0.3; margin-bottom: 12px; display: block; margin-inline: auto; }
+        .ws-empty h3 { font-size: 1rem; font-weight: 700; color: #374151; margin: 0 0 6px; }
+        .ws-empty p { font-size: 0.85rem; }
+
+        /* ─── Toast ─── */
+        .ws-toast {
+            position: fixed;
+            bottom: 28px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 13px 22px;
+            border-radius: 14px;
+            background: #111827;
+            color: #fff;
+            font-size: 0.875rem;
+            font-weight: 600;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 9999;
+            transition: opacity 0.2s, transform 0.2s;
+            white-space: nowrap;
+        }
+        .ws-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+        .ws-toast.success { background: #16A34A; }
+        .ws-toast.error   { background: #DC2626; }
+        .ws-toast.info    { background: #2563EB; }
+        .ws-toast i, .ws-toast svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 580px) {
+            .ws-card { flex-direction: column; align-items: flex-start; gap: 14px; }
+            .ws-btn  { width: 100%; justify-content: center; }
+            .ws-page-header h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+  <!-- Background decorative blobs -->
+  <div class="bg-blobs">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+  </div>
+
+  <!-- ─── Navbar ─── -->
+  <nav class="ws-navbar">
+    <a href="/dashboard" class="ws-brand">
+      <i data-lucide="waves"></i>
+      EYECO
+    </a>
+
+    <div class="ws-nav-links">
+      <a href="/select-workspace" class="active">Workspace</a>
+    </div>
+
+    <!-- Profile menu -->
+    <div class="profile-menu-wrapper" id="profile-menu-wrapper">
+      <button class="profile-btn-ws" id="profile-btn-ws">
+        <div class="ws-avatar" id="ws-avatar-display">U</div>
+        <span id="ws-username-display">Memuat...</span>
+        <i data-lucide="chevron-down"></i>
+      </button>
+      <div class="ws-dropdown-menu" id="ws-dropdown-menu">
+        <div class="ws-dropdown-header">
+          <strong id="ws-dropdown-name">—</strong>
+          <span id="ws-dropdown-role">USER</span>
+        </div>
+        <a href="/logout" class="ws-dropdown-item danger" id="ws-logout-btn">
+          <i data-lucide="log-out"></i> Keluar Sesi
+        </a>
+      </div>
+    </div>
+
+    <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Menu">
+      <i data-lucide="menu"></i>
+    </button>
+  </nav>
+
+  <!-- ─── Main ─── -->
+  <main class="ws-main">
+    <div class="ws-page-header">
+      <h1>Pilih Workspace</h1>
+      <p>Bergabung atau pilih workspace aktif untuk memantau laporan sungai</p>
+    </div>
+
+    <div class="ws-search-wrapper">
+      <div class="ws-search-icon"><i data-lucide="search"></i></div>
+      <input type="text" class="ws-search-input" id="ws-search-input" placeholder="Cari nama atau kode workspace...">
+    </div>
+
+    <div class="ws-status-bar">
+      <span class="ws-count" id="ws-count-label">Memuat...</span>
+    </div>
+
+    <div class="ws-list" id="ws-list">
+      <div class="ws-empty">
+        <i data-lucide="loader-circle"></i>
+        <h3>Memuat workspace...</h3>
+        <p>Harap tunggu</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Toast -->
+  <div class="ws-toast" id="ws-toast">
+    <i data-lucide="info"></i>
+    <span id="ws-toast-msg"></span>
+  </div>
+
+  <script>
+    // ─── Init icons ───
+    lucide.createIcons();
+
+    // ─── State ───
+    let allWorkspaces = [];
+    let currentUser = null;
+    let pendingRequestIds = new Set(); // workspace IDs user has pending requests for
+
+    // ─── Toast ───
+    function showToast(msg, type = 'info') {
+      const toast = document.getElementById('ws-toast');
+      const msgEl = document.getElementById('ws-toast-msg');
+      toast.className = `ws-toast show ${type}`;
+      msgEl.textContent = msg;
+      setTimeout(() => { toast.classList.remove('show'); }, 3500);
+    }
+
+    // ─── Profile dropdown ───
+    const profileBtn = document.getElementById('profile-btn-ws');
+    const dropdownMenu = document.getElementById('ws-dropdown-menu');
+    profileBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdownMenu.classList.toggle('open');
+      lucide.createIcons();
+    });
+    document.addEventListener('click', () => dropdownMenu.classList.remove('open'));
+
+    // ─── Load current user ───
+    async function loadCurrentUser() {
+      try {
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        if (!res.ok) {
+          window.location.href = '/login';
+          return null;
+        }
+        const user = await res.json();
+        currentUser = user;
+
+        // Populate profile
+        const initials = (user.username || 'U').substring(0, 2).toUpperCase();
+        document.getElementById('ws-avatar-display').textContent = initials;
+        document.getElementById('ws-username-display').textContent = user.name || user.username;
+        document.getElementById('ws-dropdown-name').textContent = user.name || user.username;
+        document.getElementById('ws-dropdown-role').textContent = (user.role || 'USER').toUpperCase();
+
+        // Redirect admins/superadmins who landed here by mistake
+        if (user.role === 'admin') { window.location.href = '/dashboard'; return null; }
+        if (user.role === 'superadmin') { window.location.href = '/superadmin'; return null; }
+
+        lucide.createIcons();
+        return user;
+      } catch (err) {
+        window.location.href = '/login';
+        return null;
+      }
+    }
+
+    // ─── Load pending join requests for this user ───
+    async function loadPendingRequests() {
+      try {
+        const res = await fetch('/api/workspaces/my-requests', { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const pending = data.requests || [];
+        pending.forEach(r => {
+          if (r.status === 'PENDING') pendingRequestIds.add(Number(r.workspaceId));
+        });
+      } catch (_) {
+        // Silently ignore — endpoint may not exist yet
+      }
+    }
+
+    // ─── Fetch all workspaces ───
+    async function fetchWorkspaces(search = '') {
+      try {
+        const url = search
+          ? `/api/workspaces/all?search=${encodeURIComponent(search)}`
+          : '/api/workspaces/all';
+        const res = await fetch(url, { credentials: 'include' });
+        if (!res.ok) throw new Error('Server error');
+        const data = await res.json();
+        // Support both { workspaces: [] } and plain array
+        return Array.isArray(data) ? data : (data.workspaces || []);
+      } catch (err) {
+        return null;
+      }
+    }
+
+    // ─── Render workspace list ───
+    function renderWorkspaces(workspaces) {
+      const list = document.getElementById('ws-list');
+      const countLabel = document.getElementById('ws-count-label');
+
+      if (!workspaces) {
+        list.innerHTML = `<div class="ws-empty">
+          <i data-lucide="alert-circle"></i>
+          <h3>Gagal memuat workspace</h3>
+          <p>Periksa koneksi server dan coba lagi.</p>
+        </div>`;
+        countLabel.textContent = '';
+        lucide.createIcons();
+        return;
+      }
+
+      if (workspaces.length === 0) {
+        list.innerHTML = `<div class="ws-empty">
+          <i data-lucide="inbox"></i>
+          <h3>Tidak ada workspace ditemukan</h3>
+          <p>Coba ubah kata kunci pencarian.</p>
+        </div>`;
+        countLabel.textContent = '0 workspace';
+        lucide.createIcons();
+        return;
+      }
+
+      const userWorkspaceIds = new Set(
+        (currentUser?.workspaceIds || []).map(Number)
+      );
+
+      countLabel.textContent = `${workspaces.length} workspace tersedia`;
+
+      list.innerHTML = workspaces.map(ws => {
+        const wsId = Number(ws.id || ws._id);
+        const name = ws.name || '—';
+        const company = ws.company || ws.orgName || '';
+        const code = ws.code || '';
+        const hasAccess = userWorkspaceIds.has(wsId);
+        const isPending = pendingRequestIds.has(wsId);
+
+        let actionBtn = '';
+        let accessTag = '';
+
+        if (hasAccess) {
+          accessTag = `<span class="ws-access-tag">✓ Akses Diterima</span>`;
+          actionBtn = `<button class="ws-btn ws-btn-select" onclick="selectWorkspace(${wsId})" id="ws-select-${wsId}">
+            <i data-lucide="log-in"></i> Pilih
+          </button>`;
+        } else if (isPending) {
+          accessTag = `<span class="ws-pending-tag">⏳ Menunggu Persetujuan</span>`;
+          actionBtn = `<button class="ws-btn ws-btn-pending" disabled>
+            <i data-lucide="clock"></i> Pending
+          </button>`;
+        } else {
+          actionBtn = `<button class="ws-btn ws-btn-join" onclick="requestJoin(${wsId})" id="ws-join-${wsId}">
+            <i data-lucide="user-plus"></i> Minta Bergabung
+          </button>`;
+        }
+
+        return `
+          <div class="ws-card ${hasAccess ? 'has-access' : ''}" id="ws-card-${wsId}">
+            <div class="ws-card-left">
+              <div class="ws-icon"><i data-lucide="building-2"></i></div>
+              <div class="ws-info">
+                <h3>${escapeHtml(name)}</h3>
+                <p>
+                  ${company ? escapeHtml(company) + ' &nbsp;·&nbsp; ' : ''}
+                  ${code ? `<span class="ws-code-badge">${escapeHtml(code)}</span>` : ''}
+                  ${accessTag}
+                </p>
+              </div>
+            </div>
+            ${actionBtn}
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    // ─── Select (activate) a workspace the user already has access to ───
+    async function selectWorkspace(workspaceId) {
+      const btn = document.getElementById(`ws-select-${workspaceId}`);
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader-circle"></i> Memproses...';
+        lucide.createIcons();
+      }
+      try {
+        const res = await fetch('/api/auth/select-workspace', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ workspaceId })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast('Workspace dipilih! Mengalihkan ke dashboard...', 'success');
+          setTimeout(() => { window.location.href = '/dashboard'; }, 1200);
+        } else {
+          showToast(data.error || 'Gagal memilih workspace', 'error');
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="log-in"></i> Pilih';
+            lucide.createIcons();
+          }
+        }
+      } catch (err) {
+        showToast('Kesalahan jaringan', 'error');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="log-in"></i> Pilih';
+          lucide.createIcons();
+        }
+      }
+    }
+
+    // ─── Request to join a workspace user does NOT have access to ───
+    async function requestJoin(workspaceId) {
+      const btn = document.getElementById(`ws-join-${workspaceId}`);
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader-circle"></i> Mengirim...';
+        lucide.createIcons();
+      }
+      try {
+        const res = await fetch('/api/workspaces/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ workspaceId })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          if (data.status === 'APPROVED') {
+            // User already had access — reload to reflect
+            showToast('Anda sudah memiliki akses! Memperbarui...', 'success');
+            setTimeout(() => location.reload(), 1000);
+          } else {
+            // Pending
+            pendingRequestIds.add(Number(workspaceId));
+            showToast('Permintaan bergabung telah dikirim. Menunggu persetujuan admin.', 'info');
+            // Update card UI inline
+            if (btn) {
+              btn.className = 'ws-btn ws-btn-pending';
+              btn.innerHTML = '<i data-lucide="clock"></i> Pending';
+              btn.disabled = true;
+              lucide.createIcons();
+            }
+            const card = document.getElementById(`ws-card-${workspaceId}`);
+            if (card) {
+              const infoP = card.querySelector('.ws-info p');
+              if (infoP && !infoP.querySelector('.ws-pending-tag')) {
+                const tag = document.createElement('span');
+                tag.className = 'ws-pending-tag';
+                tag.textContent = '⏳ Menunggu Persetujuan';
+                infoP.appendChild(tag);
+              }
+            }
+          }
+        } else {
+          showToast(data.error || 'Gagal mengirim permintaan', 'error');
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="user-plus"></i> Minta Bergabung';
+            lucide.createIcons();
+          }
+        }
+      } catch (err) {
+        showToast('Kesalahan jaringan', 'error');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="user-plus"></i> Minta Bergabung';
+          lucide.createIcons();
+        }
+      }
+    }
+
+    // ─── Escape HTML ───
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // ─── Search ───
+    let searchTimer = null;
+    document.getElementById('ws-search-input').addEventListener('input', (e) => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(async () => {
+        const term = e.target.value.trim();
+        const workspaces = await fetchWorkspaces(term);
+        renderWorkspaces(workspaces);
+      }, 320);
+    });
+
+    // ─── Boot ───
+    (async () => {
+      const user = await loadCurrentUser();
+      if (!user) return;
+      await loadPendingRequests();
+      const workspaces = await fetchWorkspaces();
+      allWorkspaces = workspaces || [];
+      renderWorkspaces(workspaces);
+    })();
+  </script>
+</body>
+</html>

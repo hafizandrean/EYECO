@@ -1,9 +1,13 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CctvHealthEngine = void 0;
 const Cctv_1 = require("../database/models/Cctv");
 const CctvRepository_1 = require("../database/repositories/CctvRepository");
 const CctvScanner_1 = require("./CctvScanner");
+const mongoose_1 = __importDefault(require("mongoose"));
 class CctvHealthEngine {
     static timer = null;
     static reconnectingCameras = new Set();
@@ -27,6 +31,10 @@ class CctvHealthEngine {
     // Perform status check for all active cameras
     static async checkAllCameras() {
         try {
+            if (mongoose_1.default.connection.readyState !== 1) {
+                console.warn('[CctvHealthEngine] MongoDB not connected. Skipping health check loop.');
+                return;
+            }
             const cameras = await Cctv_1.CctvModel.find({ isActive: true });
             for (const camera of cameras) {
                 // Skip default cameras (they are static local mock assets, always ONLINE)
@@ -115,6 +123,12 @@ class CctvHealthEngine {
             setTimeout(async () => {
                 try {
                     console.log(`[CctvHealthEngine] Reconnecting Camera ID ${id} (Attempt ${attempt + 1}/${retryDelays.length})...`);
+                    if (mongoose_1.default.connection.readyState !== 1) {
+                        console.warn(`[CctvHealthEngine] DB disconnected during reconnect loop for Camera ID ${id}. Retrying...`);
+                        attempt++;
+                        await runRetry();
+                        return;
+                    }
                     const camera = await Cctv_1.CctvModel.findOne({ id });
                     if (!camera || !camera.isActive) {
                         this.reconnectingCameras.delete(id);

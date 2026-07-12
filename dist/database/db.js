@@ -32,9 +32,38 @@ if (!process.env.MONGODB_URI) {
 if (!process.env.PORT) {
     console.warn('[WARNING] PORT is not defined in environment variables. Defaulting to 8000.');
 }
+async function ensureWorkspaceCodes() {
+    const missingCodeWorkspaces = await Workspace_1.WorkspaceModel.find({
+        $or: [{ code: { $exists: false } }, { code: null }, { code: '' }]
+    }).exec();
+    for (const workspace of missingCodeWorkspaces) {
+        workspace.code = undefined;
+        await workspace.save();
+        console.log(`[MIGRATION] Generated missing workspace code for workspace ${workspace.id}`);
+    }
+}
+// Drop stale/conflicting indexes left over from old schema versions
+async function dropStaleIndexes() {
+    try {
+        const db = mongoose_1.default.connection.db;
+        if (!db)
+            return;
+        // Drop stale indexes on 'workspaces' collection
+        try {
+            await db.collection('workspaces').dropIndex('gateUsername_1');
+            console.log('[MIGRATION] Dropped stale index: workspaces.gateUsername_1');
+        }
+        catch (_) {
+            // Index doesn't exist, that's fine
+        }
+    }
+    catch (err) {
+        console.warn('[MIGRATION] dropStaleIndexes encountered an error:', err);
+    }
+}
 async function connectDB() {
     const uri = process.env.MONGODB_URI;
-    const maxRetries = 3;
+    const maxRetries = 5;
     let attempt = 1;
     while (attempt <= maxRetries) {
         try {
@@ -43,6 +72,10 @@ async function connectDB() {
                 serverSelectionTimeoutMS: 5000,
             });
             console.log('[DATABASE SUCCESS] MongoDB connected successfully.');
+            // Drop stale/conflicting indexes from old schema
+            await dropStaleIndexes();
+            await ensureWorkspaceCodes();
+            await Workspace_1.WorkspaceModel.syncIndexes();
             // Run automatic migration from db.json
             await (0, migration_1.runMigration)();
             return;
@@ -50,12 +83,11 @@ async function connectDB() {
         catch (err) {
             console.error(`[DATABASE ERROR] MongoDB connection attempt ${attempt} failed:`, err);
             if (attempt === maxRetries) {
-                console.error('[DATABASE CRITICAL] Could not connect to MongoDB after maximum retries. Exiting.');
-                process.exit(1);
+                throw err;
             }
             attempt++;
-            // Wait 2 seconds before retrying
-            await new Promise((res) => setTimeout(res, 2000));
+            const delayMs = Math.min(30000, 1000 * Math.pow(2, attempt - 2));
+            await new Promise((res) => setTimeout(res, delayMs));
         }
     }
 }

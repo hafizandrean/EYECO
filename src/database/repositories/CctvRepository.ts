@@ -156,6 +156,22 @@ export class CctvRepository {
             ];
             await CctvModel.insertMany(defaultCameras);
           }
+          if (workspaceId !== undefined) {
+            const workspaceCameraCount = await CctvModel.countDocuments({ workspaceId });
+            if (workspaceCameraCount === 0) {
+              const seedCameras = await CctvModel.find({ isDefault: true }).sort({ id: 1 }).lean();
+              let maxCctv = await CctvModel.findOne({}).sort({ id: -1 }).lean();
+              let nextId = maxCctv ? maxCctv.id + 1 : 1;
+              await CctvModel.insertMany(seedCameras.map((camera) => ({
+                ...camera,
+                _id: undefined,
+                id: nextId++,
+                workspaceId,
+                createdAt: undefined,
+                updatedAt: undefined
+              })));
+            }
+          }
           const filter: any = {};
           if (workspaceId !== undefined) {
             filter.workspaceId = workspaceId;
@@ -167,9 +183,11 @@ export class CctvRepository {
         }
       }
     
-      static async getById(id: number): Promise<ICctv | null> {
+      static async getById(id: number, workspaceId?: number): Promise<ICctv | null> {
         try {
-          return await CctvModel.findOne({ id }).lean();
+          const query: Record<string, unknown> = { id };
+          if (workspaceId !== undefined) query.workspaceId = workspaceId;
+          return await CctvModel.findOne(query).lean();
         } catch (err) {
           console.error('[DATABASE ERROR] getCctvById failed:', err);
           throw err;
@@ -233,7 +251,7 @@ export class CctvRepository {
         }
       }
     
-      static async update(id: number, payload: Partial<ICctv>): Promise<ICctv> {
+      static async update(id: number, payload: Partial<ICctv>, workspaceId?: number): Promise<ICctv> {
         try {
           const updatePayload: any = { ...payload };
           
@@ -246,7 +264,7 @@ export class CctvRepository {
           }
 
           const updated = await CctvModel.findOneAndUpdate(
-            { id },
+            workspaceId !== undefined ? { id, workspaceId } : { id },
             { $set: updatePayload },
             { new: true }
           ).lean().exec();
@@ -262,9 +280,9 @@ export class CctvRepository {
         }
       }
     
-      static async delete(id: number): Promise<boolean> {
+      static async delete(id: number, workspaceId?: number): Promise<boolean> {
         try {
-          const cctv = await CctvModel.findOne({ id });
+          const cctv = await CctvModel.findOne(workspaceId !== undefined ? { id, workspaceId } : { id });
           if (!cctv) {
             throw new Error('CCTV tidak ditemukan.');
           }
@@ -273,7 +291,7 @@ export class CctvRepository {
             throw new Error('Kamera bawaan sistem tidak boleh dihapus.');
           }
     
-          await CctvModel.deleteOne({ id });
+          await CctvModel.deleteOne(workspaceId !== undefined ? { id, workspaceId } : { id });
           return true;
         } catch (err) {
           console.error('[DATABASE ERROR] deleteCctv failed:', err);

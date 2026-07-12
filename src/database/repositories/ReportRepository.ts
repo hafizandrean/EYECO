@@ -4,13 +4,17 @@ import mongoose from 'mongoose';
 import { WorkspaceModel } from '../models/Workspace';
 
 export class ReportRepository {
-  public static async findById(id: mongoose.Types.ObjectId | string): Promise<IReport | null> {
-    const report = await ReportModel.findOne({ _id: id, deletedAt: null }).exec();
+  public static async findById(id: mongoose.Types.ObjectId | string, workspaceId?: number): Promise<IReport | null> {
+    const query: Record<string, unknown> = { _id: id, deletedAt: null };
+    if (workspaceId !== undefined) query.workspaceId = workspaceId;
+    const report = await ReportModel.findOne(query).exec();
     return report;
   }
 
-  public static async findByLegacyId(id: number): Promise<IReport | null> {
-    const report = await ReportModel.findOne({ id, deletedAt: null }).exec();
+  public static async findByLegacyId(id: number, workspaceId?: number): Promise<IReport | null> {
+    const query: Record<string, unknown> = { id, deletedAt: null };
+    if (workspaceId !== undefined) query.workspaceId = workspaceId;
+    const report = await ReportModel.findOne(query).exec();
     return report;
   }
 
@@ -100,18 +104,13 @@ export class ReportRepository {
       const lastReport = await ReportModel.findOne().sort({ id: -1 }).exec();
       const nextId = lastReport ? lastReport.id + 1 : 1;
 
-      // Find user _id for the ref based on legacy creatorId
+      // Use the workspaceId from the user's active session
       const user = await UserModel.findOne({ id: creatorId }).lean().exec();
       const userObjectId = user ? (user._id as mongoose.Types.ObjectId) : new mongoose.Types.ObjectId();
+      const workspaceId = (user as any)?.workspaceId;
 
-      const workspaces = await WorkspaceModel.find({}).lean().exec();
-      let matchedWorkspaceId: number | undefined;
-      const reportLocationLower = report.location.toLowerCase();
-      for (const w of workspaces) {
-        if (reportLocationLower.includes(w.name.toLowerCase()) || reportLocationLower.includes(w.location.toLowerCase())) {
-          matchedWorkspaceId = w.id;
-          break;
-        }
+      if (!workspaceId) {
+        throw new Error('User has no active workspace selected');
       }
 
       const newReport = await ReportModel.create({
@@ -121,7 +120,7 @@ export class ReportRepository {
         timestamp: new Date(),
         adminStatus: 'MENUNGGU',
         adminNotes: '',
-        workspaceId: matchedWorkspaceId,
+        workspaceId: workspaceId,
         sla: {
           detectedAt: new Date(),
           validatedAt: null,
@@ -149,7 +148,8 @@ export class ReportRepository {
     status: 'VALID' | 'DIABAIKAN' | 'MENUNGGU', 
     notes: string,
     assignedOfficer?: string,
-    progressStatus?: 'NEW' | 'UNDER_REVIEW' | 'VALIDATED' | 'ASSIGNED' | 'ON_SITE' | 'IN_PROGRESS' | 'RESOLVED' | 'WAITING_APPROVAL' | 'CLOSED' | 'REJECTED'
+    progressStatus?: 'NEW' | 'UNDER_REVIEW' | 'VALIDATED' | 'ASSIGNED' | 'ON_SITE' | 'IN_PROGRESS' | 'RESOLVED' | 'WAITING_APPROVAL' | 'CLOSED' | 'REJECTED',
+    workspaceId?: number
   ): Promise<IReport | null> {
     try {
       const updateFields: any = { adminStatus: status, adminNotes: notes };
@@ -166,8 +166,11 @@ export class ReportRepository {
         }
       }
 
+      const query: Record<string, unknown> = { id };
+      if (workspaceId !== undefined) query.workspaceId = workspaceId;
+
       const updated = await ReportModel.findOneAndUpdate(
-        { id }, 
+        query, 
         updateFields, 
         { new: true }
       ).exec();
@@ -193,22 +196,22 @@ export class ReportRepository {
     try {
       const query: any = { deletedAt: null };
 
-      if (userContext.role === 'admin') {
-        const adminUser = await UserModel.findOne({ id: userContext.id }).lean().exec();
-        if (adminUser && adminUser.workspaceId) {
-          const ws = await WorkspaceModel.findOne({ id: adminUser.workspaceId }).lean().exec();
-          if (ws) {
-            query.$or = [
-              { workspaceId: adminUser.workspaceId },
-              { location: new RegExp(ws.name, 'i') },
-              { location: new RegExp(ws.location, 'i') }
-            ];
-          } else {
-            query.workspaceId = adminUser.workspaceId;
+      if (userContext.role === 'admin' || userContext.role === 'user') {
+        const user = await UserModel.findOne({ id: userContext.id }).lean().exec();
+        if (user && (user as any).workspaceId) {
+          query.workspaceId = (user as any).workspaceId;
+          if (userContext.role === 'user') {
+            query.userId = user._id;
           }
         } else {
+          // If no workspace is selected or found, return empty results
           query.workspaceId = -1;
         }
+      } else if (userContext.role === 'superadmin') {
+        // Superadmin only sees reports from workspaces they own
+        const ownedWorkspaces = await WorkspaceModel.find({ superadminId: userContext.id }).lean().exec();
+        const wsIds = ownedWorkspaces.map(w => w.id);
+        query.workspaceId = { $in: wsIds };
       }
 
       if (filters.date) {
@@ -264,9 +267,28 @@ export class ReportRepository {
     }
   }
 
+  private static async buildWorkspaceScope(userContext?: { id: number; role: string }): Promise<Record<string, unknown>> {
+    if (!userContext) return { workspaceId: -1 };
+
+    if (userContext.role === 'admin' || userContext.role === 'user') {
+      const user = await UserModel.findOne({ id: userContext.id }).lean().exec();
+      if (!user?.workspaceId) return { workspaceId: -1 };
+      return userContext.role === 'user'
+        ? { workspaceId: user.workspaceId, userId: user._id }
+        : { workspaceId: user.workspaceId };
+    }
+
+    if (userContext.role === 'superadmin') {
+      const ownedWorkspaces = await WorkspaceModel.find({ superadminId: userContext.id }).lean().exec();
+      return { workspaceId: { $in: ownedWorkspaces.map((workspace) => workspace.id) } };
+    }
+
+    return { workspaceId: -1 };
+  }
+
   public static async getStats(userContext?: { id: number; role: string }) {
     try {
-      const matchQuery: any = { deletedAt: null };
+      const matchQuery: any = { deletedAt: null, ...(await this.buildWorkspaceScope(userContext)) };
 
       const [total, valid, cancelled, pending] = await Promise.all([
         ReportModel.countDocuments(matchQuery),
@@ -314,7 +336,8 @@ export class ReportRepository {
   public static async addComment(
     reportId: number,
     userId: number,
-    text: string
+    text: string,
+    workspaceId?: number
   ): Promise<IComment> {
     try {
       const sanitized = text.replace(/<[^>]*>/g, '').trim();
@@ -323,7 +346,9 @@ export class ReportRepository {
         throw new Error('Komentar harus terdiri dari 2 hingga 500 karakter.');
       }
 
-      const report = await ReportModel.findOne({ id: reportId, deletedAt: null });
+      const query: Record<string, unknown> = { id: reportId, deletedAt: null };
+      if (workspaceId !== undefined) query.workspaceId = workspaceId;
+      const report = await ReportModel.findOne(query);
       if (!report) {
         throw new Error('Laporan tidak ditemukan.');
       }
@@ -350,10 +375,13 @@ export class ReportRepository {
     reportId: number,
     commentId: string,
     userId: number,
-    isAdmin: boolean
+    isAdmin: boolean,
+    workspaceId?: number
   ): Promise<IComment> {
     try {
-      const report = await ReportModel.findOne({ id: reportId, deletedAt: null });
+      const query: Record<string, unknown> = { id: reportId, deletedAt: null };
+      if (workspaceId !== undefined) query.workspaceId = workspaceId;
+      const report = await ReportModel.findOne(query);
       if (!report) {
         throw new Error('Laporan tidak ditemukan.');
       }
@@ -380,10 +408,13 @@ export class ReportRepository {
   public static async toggleLikeComment(
     reportId: number,
     commentId: string,
-    userId: number
+    userId: number,
+    workspaceId?: number
   ): Promise<IComment> {
     try {
-      const report = await ReportModel.findOne({ id: reportId, deletedAt: null });
+      const query: Record<string, unknown> = { id: reportId, deletedAt: null };
+      if (workspaceId !== undefined) query.workspaceId = workspaceId;
+      const report = await ReportModel.findOne(query);
       if (!report) {
         throw new Error('Laporan tidak ditemukan.');
       }

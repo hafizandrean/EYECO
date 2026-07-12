@@ -37,14 +37,43 @@ exports.WorkspaceModel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 const WorkspaceSchema = new mongoose_1.Schema({
     id: { type: Number, required: true, unique: true, index: true },
-    name: { type: String, required: true, trim: true },
+    code: {
+        type: String,
+        required: true,
+        unique: true,
+        trim: true,
+        uppercase: true,
+        match: [/^[A-Z0-9-]+$/, 'Kode workspace hanya boleh berisi huruf, angka, dan tanda hubung']
+    },
+    name: { type: String, required: true, trim: true, unique: true },
     company: { type: String, default: '', trim: true },
-    location: { type: String, default: '', trim: true },
     address: { type: String, default: '', trim: true },
     description: { type: String, default: '', trim: true },
-    adminId: { type: Number, index: true }
+    adminIds: [{ type: Number, index: true }],
+    superadminId: { type: Number, index: true }
 }, {
     timestamps: true
+});
+async function generateWorkspaceCode() {
+    const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    for (let attempt = 0; attempt < 25; attempt++) {
+        let result = 'WS-';
+        for (let i = 0; i < 6; i++) {
+            result += characters.charAt(Math.floor(Math.random() * characters.length));
+        }
+        const existing = await exports.WorkspaceModel.findOne({ code: result }).select('_id').lean().exec();
+        if (!existing)
+            return result;
+    }
+    throw new Error('Gagal membuat kode workspace unik');
+}
+WorkspaceSchema.pre('validate', async function () {
+    if (!this.code) {
+        this.code = await generateWorkspaceCode();
+    }
+    else {
+        this.code = this.code.trim().toUpperCase();
+    }
 });
 exports.WorkspaceModel = mongoose_1.default.models.Workspace
     || mongoose_1.default.model('Workspace', WorkspaceSchema);

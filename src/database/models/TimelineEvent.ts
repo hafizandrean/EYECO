@@ -13,6 +13,7 @@ export interface ITimelineMetadata {
 }
 
 export interface ITimelineEvent extends Document {
+  workspaceId: number;
   reportId: mongoose.Types.ObjectId;
   eventVersion: number;
   type: 'DETECTION' | 'REVIEW' | 'VALIDATED' | 'ASSIGNED' | 'ARRIVED' | 'RESOLVED' | 'CLOSED' | 'REJECTED' | 'APPROVAL_REQUESTED' | 'COMMENT_ADDED' | 'FILE_UPLOADED' | 'ASSIGNMENT_CHANGED' | 'RESOLUTION_REJECTED' | 'NOTIFICATION_SENT';
@@ -31,6 +32,7 @@ export interface ITimelineEvent extends Document {
 }
 
 const TimelineEventSchema = new Schema<ITimelineEvent>({
+  workspaceId: { type: Number, index: true },
   reportId: { type: Schema.Types.ObjectId, ref: 'Report', required: true, index: true },
   eventVersion: { type: Number, default: 1, required: true },
   type: {
@@ -58,6 +60,6 @@ const TimelineEventSchema = new Schema<ITimelineEvent>({
 });
 
 // Compound index for sorted timeline query
-TimelineEventSchema.index({ reportId: 1, createdAt: -1 });
+TimelineEventSchema.index({ workspaceId: 1, reportId: 1, createdAt: -1 });
 
 export const TimelineEventModel = mongoose.model<ITimelineEvent>('TimelineEvent', TimelineEventSchema);

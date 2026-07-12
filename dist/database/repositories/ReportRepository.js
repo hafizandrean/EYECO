@@ -9,12 +9,18 @@ const User_1 = require("../models/User");
 const mongoose_1 = __importDefault(require("mongoose"));
 const Workspace_1 = require("../models/Workspace");
 class ReportRepository {
-    static async findById(id) {
-        const report = await Report_1.ReportModel.findOne({ _id: id, deletedAt: null }).exec();
+    static async findById(id, workspaceId) {
+        const query = { _id: id, deletedAt: null };
+        if (workspaceId !== undefined)
+            query.workspaceId = workspaceId;
+        const report = await Report_1.ReportModel.findOne(query).exec();
         return report;
     }
-    static async findByLegacyId(id) {
-        const report = await Report_1.ReportModel.findOne({ id, deletedAt: null }).exec();
+    static async findByLegacyId(id, workspaceId) {
+        const query = { id, deletedAt: null };
+        if (workspaceId !== undefined)
+            query.workspaceId = workspaceId;
+        const report = await Report_1.ReportModel.findOne(query).exec();
         return report;
     }
     static async update(id, updateData, session) {
@@ -60,17 +66,12 @@ class ReportRepository {
         try {
             const lastReport = await Report_1.ReportModel.findOne().sort({ id: -1 }).exec();
             const nextId = lastReport ? lastReport.id + 1 : 1;
-            // Find user _id for the ref based on legacy creatorId
+            // Use the workspaceId from the user's active session
             const user = await User_1.UserModel.findOne({ id: creatorId }).lean().exec();
             const userObjectId = user ? user._id : new mongoose_1.default.Types.ObjectId();
-            const workspaces = await Workspace_1.WorkspaceModel.find({}).lean().exec();
-            let matchedWorkspaceId;
-            const reportLocationLower = report.location.toLowerCase();
-            for (const w of workspaces) {
-                if (reportLocationLower.includes(w.name.toLowerCase()) || reportLocationLower.includes(w.location.toLowerCase())) {
-                    matchedWorkspaceId = w.id;
-                    break;
-                }
+            const workspaceId = user?.workspaceId;
+            if (!workspaceId) {
+                throw new Error('User has no active workspace selected');
             }
             const newReport = await Report_1.ReportModel.create({
                 ...report,
@@ -79,7 +80,7 @@ class ReportRepository {
                 timestamp: new Date(),
                 adminStatus: 'MENUNGGU',
                 adminNotes: '',
-                workspaceId: matchedWorkspaceId,
+                workspaceId: workspaceId,
                 sla: {
                     detectedAt: new Date(),
                     validatedAt: null,
@@ -101,7 +102,7 @@ class ReportRepository {
             throw err;
         }
     }
-    static async updateVerification(id, status, notes, assignedOfficer, progressStatus) {
+    static async updateVerification(id, status, notes, assignedOfficer, progressStatus, workspaceId) {
         try {
             const updateFields = { adminStatus: status, adminNotes: notes };
             if (assignedOfficer !== undefined) {
@@ -118,7 +119,10 @@ class ReportRepository {
                     updateFields.status = 'REJECTED';
                 }
             }
-            const updated = await Report_1.ReportModel.findOneAndUpdate({ id }, updateFields, { new: true }).exec();
+            const query = { id };
+            if (workspaceId !== undefined)
+                query.workspaceId = workspaceId;
+            const updated = await Report_1.ReportModel.findOneAndUpdate(query, updateFields, { new: true }).exec();
             return updated;
         }
         catch (err) {
@@ -129,24 +133,24 @@ class ReportRepository {
     static async getFiltered(filters, userContext, page, limit) {
         try {
             const query = { deletedAt: null };
-            if (userContext.role === 'admin') {
-                const adminUser = await User_1.UserModel.findOne({ id: userContext.id }).lean().exec();
-                if (adminUser && adminUser.workspaceId) {
-                    const ws = await Workspace_1.WorkspaceModel.findOne({ id: adminUser.workspaceId }).lean().exec();
-                    if (ws) {
-                        query.$or = [
-                            { workspaceId: adminUser.workspaceId },
-                            { location: new RegExp(ws.name, 'i') },
-                            { location: new RegExp(ws.location, 'i') }
-                        ];
-                    }
-                    else {
-                        query.workspaceId = adminUser.workspaceId;
+            if (userContext.role === 'admin' || userContext.role === 'user') {
+                const user = await User_1.UserModel.findOne({ id: userContext.id }).lean().exec();
+                if (user && user.workspaceId) {
+                    query.workspaceId = user.workspaceId;
+                    if (userContext.role === 'user') {
+                        query.userId = user._id;
                     }
                 }
                 else {
+                    // If no workspace is selected or found, return empty results
                     query.workspaceId = -1;
                 }
+            }
+            else if (userContext.role === 'superadmin') {
+                // Superadmin only sees reports from workspaces they own
+                const ownedWorkspaces = await Workspace_1.WorkspaceModel.find({ superadminId: userContext.id }).lean().exec();
+                const wsIds = ownedWorkspaces.map(w => w.id);
+                query.workspaceId = { $in: wsIds };
             }
             if (filters.date) {
                 const start = new Date(filters.date);
@@ -199,9 +203,26 @@ class ReportRepository {
             throw err;
         }
     }
+    static async buildWorkspaceScope(userContext) {
+        if (!userContext)
+            return { workspaceId: -1 };
+        if (userContext.role === 'admin' || userContext.role === 'user') {
+            const user = await User_1.UserModel.findOne({ id: userContext.id }).lean().exec();
+            if (!user?.workspaceId)
+                return { workspaceId: -1 };
+            return userContext.role === 'user'
+                ? { workspaceId: user.workspaceId, userId: user._id }
+                : { workspaceId: user.workspaceId };
+        }
+        if (userContext.role === 'superadmin') {
+            const ownedWorkspaces = await Workspace_1.WorkspaceModel.find({ superadminId: userContext.id }).lean().exec();
+            return { workspaceId: { $in: ownedWorkspaces.map((workspace) => workspace.id) } };
+        }
+        return { workspaceId: -1 };
+    }
     static async getStats(userContext) {
         try {
-            const matchQuery = { deletedAt: null };
+            const matchQuery = { deletedAt: null, ...(await this.buildWorkspaceScope(userContext)) };
             const [total, valid, cancelled, pending] = await Promise.all([
                 Report_1.ReportModel.countDocuments(matchQuery),
                 Report_1.ReportModel.countDocuments({ ...matchQuery, adminStatus: 'VALID' }),
@@ -240,13 +261,16 @@ class ReportRepository {
         }
     }
     // --- COMMENT METHODS ---
-    static async addComment(reportId, userId, text) {
+    static async addComment(reportId, userId, text, workspaceId) {
         try {
             const sanitized = text.replace(/<[^>]*>/g, '').trim();
             if (sanitized.length < 2 || sanitized.length > 500) {
                 throw new Error('Komentar harus terdiri dari 2 hingga 500 karakter.');
             }
-            const report = await Report_1.ReportModel.findOne({ id: reportId, deletedAt: null });
+            const query = { id: reportId, deletedAt: null };
+            if (workspaceId !== undefined)
+                query.workspaceId = workspaceId;
+            const report = await Report_1.ReportModel.findOne(query);
             if (!report) {
                 throw new Error('Laporan tidak ditemukan.');
             }
@@ -266,9 +290,12 @@ class ReportRepository {
             throw err;
         }
     }
-    static async deleteComment(reportId, commentId, userId, isAdmin) {
+    static async deleteComment(reportId, commentId, userId, isAdmin, workspaceId) {
         try {
-            const report = await Report_1.ReportModel.findOne({ id: reportId, deletedAt: null });
+            const query = { id: reportId, deletedAt: null };
+            if (workspaceId !== undefined)
+                query.workspaceId = workspaceId;
+            const report = await Report_1.ReportModel.findOne(query);
             if (!report) {
                 throw new Error('Laporan tidak ditemukan.');
             }
@@ -288,9 +315,12 @@ class ReportRepository {
             throw err;
         }
     }
-    static async toggleLikeComment(reportId, commentId, userId) {
+    static async toggleLikeComment(reportId, commentId, userId, workspaceId) {
         try {
-            const report = await Report_1.ReportModel.findOne({ id: reportId, deletedAt: null });
+            const query = { id: reportId, deletedAt: null };
+            if (workspaceId !== undefined)
+                query.workspaceId = workspaceId;
+            const report = await Report_1.ReportModel.findOne(query);
             if (!report) {
                 throw new Error('Laporan tidak ditemukan.');
             }

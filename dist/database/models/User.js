@@ -49,7 +49,7 @@ const UserSchema = new mongoose_1.Schema({
     passwordHash: { type: String, required: true, select: false },
     role: {
         type: String,
-        enum: ['superadmin', 'admin', 'user', 'operator', 'supervisor', 'officer'],
+        enum: ['superadmin', 'admin', 'user'],
         required: true
     },
     status: {
@@ -60,8 +60,9 @@ const UserSchema = new mongoose_1.Schema({
     },
     name: { type: String, trim: true, default: '' },
     email: { type: String, trim: true, lowercase: true, default: '' },
-    agency: { type: String, trim: true, default: '' },
-    workspaceId: { type: Number, index: true }
+    phone: { type: String, trim: true, default: '' },
+    workspaceId: { type: Number, index: true, sparse: true },
+    workspaceIds: { type: [Number], default: [] }
 }, {
     timestamps: true
 });

@@ -3,1004 +3,1383 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EYECO - Super Admin Panel</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <title>EYECO — SuperAdmin Dashboard</title>
+  <meta name="description" content="Panel kontrol SuperAdmin EYECO untuk mengelola workspace dan administrator sistem.">
   <script src="https://unpkg.com/lucide@latest"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
   <style>
-    :root {
-      --primary-gradient: linear-gradient(135deg, #2f6bff 0%, #1e52db 100%);
-      --dark-glass: rgba(11, 15, 25, 0.65);
-      --glass-border: rgba(255, 255, 255, 0.08);
-      --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    html, body {
+      height: 100%;
+      overflow: hidden;
     }
-
     body {
-      background: radial-gradient(circle at top right, rgba(47, 107, 255, 0.18) 0%, rgba(9, 13, 22, 0) 60%), #090d16;
-      font-family: 'Inter', sans-serif;
-      color: #f3f4f6;
-      margin: 0;
-      padding: 0;
-    }
-
-    .superadmin-container {
-      max-width: 1200px;
-      margin: 40px auto;
-      padding: 0 20px 80px 20px;
-      animation: pageFadeIn 0.4s ease-out;
-    }
-
-    .dashboard-header {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 32px;
+      background: #F8FAFC;
+      overflow: hidden;
     }
-
-    .header-nav {
+    .main-wrapper {
+      flex: 1;
       display: flex;
-      gap: 12px;
-      margin-bottom: 24px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      padding-bottom: 12px;
+      flex-direction: column;
+      overflow: hidden;
     }
-
-    .nav-tab {
-      background: none;
-      border: none;
-      color: #9ca3af;
-      padding: 10px 20px;
-      font-family: 'Outfit', sans-serif;
-      font-weight: 700;
-      font-size: 1rem;
-      cursor: pointer;
-      border-radius: 8px;
-      transition: all 0.2s ease;
+    .content-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px;
+      background: #F8FAFC;
+    }
+    /* Page header */
+    .page-header { margin-bottom: 24px; }
+    .page-header h1 { font-size: 1.6rem; font-weight: 800; color: var(--text-dark); }
+    .page-header p  { color: var(--text-muted); font-size: 0.9rem; margin-top: 4px; }
+    /* Action row in tables */
+    .action-row {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
-
-    .nav-tab:hover {
-      color: #f3f4f6;
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    .nav-tab.active {
-      color: #2f6bff;
-      background: rgba(47, 107, 255, 0.15);
-    }
-
-    .admin-stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 20px;
-      margin-bottom: 32px;
-    }
-
-    .stat-card {
-      background: var(--dark-glass);
-      border: 1px solid var(--glass-border);
-      border-radius: 16px;
-      padding: 24px;
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      box-shadow: var(--card-shadow);
-      backdrop-filter: blur(12px);
-      transition: transform 0.2s ease;
-    }
-
-    .stat-card:hover {
-      transform: translateY(-2px);
-    }
-
-    .stat-icon {
-      width: 52px;
-      height: 52px;
-      border-radius: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(47, 107, 255, 0.12);
-      color: #2f6bff;
-    }
-
-    .stat-icon.green {
-      background: rgba(16, 185, 129, 0.12);
-      color: #10b981;
-    }
-
-    .stat-icon.purple {
-      background: rgba(139, 92, 246, 0.12);
-      color: #8b5cf6;
-    }
-
-    .stat-icon.orange {
-      background: rgba(245, 158, 11, 0.12);
-      color: #f59e0b;
-    }
-
-    .panel-card {
-      background: var(--dark-glass);
-      border: 1px solid var(--glass-border);
-      border-radius: 20px;
-      padding: 32px;
-      backdrop-filter: blur(12px);
-      box-shadow: var(--card-shadow);
-      margin-bottom: 24px;
-    }
-
-    .panel-header-action {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 24px;
-    }
-
-    .admin-table-wrapper {
-      overflow-x: auto;
-    }
-
-    .admin-table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-    }
-
-    .admin-table th, .admin-table td {
-      padding: 16px 20px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .admin-table th {
-      font-weight: 700;
-      color: #9ca3af;
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .admin-table td {
-      font-size: 0.95rem;
-    }
-
-    .admin-table tr:hover td {
-      background: rgba(255, 255, 255, 0.02);
-    }
-
-    .action-badge {
+    /* Username / ID monospace */
+    .mono { font-family: 'Courier New', monospace; font-size: 0.82rem; color: var(--text-muted); }
+    /* Workspace badge in admin table */
+    .ws-badge {
       display: inline-flex;
       align-items: center;
-      padding: 6px 12px;
-      border-radius: 50px;
+      padding: 3px 10px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border-radius: 20px;
       font-size: 0.75rem;
       font-weight: 700;
-      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
-
-    .badge-active {
-      background: rgba(16, 185, 129, 0.15);
-      color: #10b981;
-    }
-
-    .badge-workspace {
-      background: rgba(139, 92, 246, 0.15);
-      color: #a78bfa;
-    }
-
-    .table-actions {
-      display: flex;
-      gap: 8px;
-    }
-
-    .btn-action {
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      background: rgba(255, 255, 255, 0.05);
-      color: #f3f4f6;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .btn-action:hover {
-      background: #2f6bff;
-      color: white;
-      border-color: #2f6bff;
-      transform: translateY(-2px);
-    }
-
-    .btn-action.btn-danger-hover:hover {
-      background: #ef4444;
-      color: white;
-      border-color: #ef4444;
-    }
-
-    .btn-action.btn-warning-hover:hover {
-      background: #f59e0b;
-      color: white;
-      border-color: #f59e0b;
-    }
-
-    /* Modal Styling */
-    .admin-modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(8px);
-      z-index: 1000;
-      align-items: center;
-      justify-content: center;
-      animation: modalFadeIn 0.3s ease;
-    }
-
-    .modal-content {
-      width: 100%;
-      max-width: 480px;
-      background: #0f172a;
-      border: 1px solid var(--glass-border);
-      border-radius: 20px;
-      padding: 32px;
-      position: relative;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-    }
-
-    @keyframes modalFadeIn {
-      from { opacity: 0; transform: scale(0.95); }
-      to { opacity: 1; transform: scale(1); }
-    }
-
-    .close-modal {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      background: none;
-      border: none;
-      color: #9ca3af;
-      cursor: pointer;
-      font-size: 1.5rem;
-    }
-
-    .close-modal:hover {
-      color: #f3f4f6;
-    }
-
-    .form-group {
-      margin-bottom: 20px;
-    }
-
-    .form-label {
-      display: block;
-      margin-bottom: 8px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: #d1d5db;
-    }
-
-    .form-control {
-      width: 100%;
-      padding: 12px 16px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-      color: white;
-      font-family: inherit;
-      box-sizing: border-box;
-      transition: border-color 0.2s ease;
-    }
-
-    .form-control:focus {
-      outline: none;
-      border-color: #2f6bff;
-    }
-
-    /* Popup/Result Modal */
-    .credentials-popup {
-      background: rgba(47, 107, 255, 0.1);
-      border: 1px dashed rgba(47, 107, 255, 0.4);
-      padding: 20px;
-      border-radius: 12px;
-      margin-top: 16px;
-      text-align: left;
-    }
-
-    .copy-field {
+    /* Top nav user area */
+    .top-nav-right { display: flex; align-items: center; gap: 16px; }
+    .top-nav-user  { display: flex; align-items: center; gap: 10px; }
+    .top-nav-user span { font-weight: 600; font-size: 0.9rem; color: var(--text-dark); }
+    /* Dashboard greeting */
+    .dash-welcome {
+      background: linear-gradient(135deg, var(--primary) 0%, #3B82F6 100%);
+      color: #fff;
+      border-radius: 16px;
+      padding: 24px 28px;
+      margin-bottom: 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: rgba(0, 0, 0, 0.3);
-      padding: 10px 14px;
-      border-radius: 8px;
-      margin-top: 8px;
-      font-family: monospace;
-      font-size: 0.95rem;
-      color: #38bdf8;
     }
-
-    .btn-copy {
-      background: none;
-      border: none;
-      color: #9ca3af;
-      cursor: pointer;
-      padding: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    .dash-welcome h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: 4px; }
+    .dash-welcome p  { font-size: 0.88rem; opacity: 0.85; }
+    .dash-welcome-icon { opacity: 0.2; }
+    .dash-welcome-icon i, .dash-welcome-icon svg { width: 80px; height: 80px; }
+    /* empty state */
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--text-muted);
     }
-
-    .btn-copy:hover {
-      color: #f3f4f6;
-    }
+    .empty-state i, .empty-state svg { width: 40px; height: 40px; margin-bottom: 12px; opacity: 0.3; }
+    .empty-state p { font-size: 0.9rem; }
   </style>
 </head>
 <body>
 
-  <div class="layout-container" style="padding-bottom: 0;">
-    <header class="glass-card header-floating" style="margin-top: 10px; border-radius: 16px; background: var(--dark-glass);">
-      <div class="header-left-group">
-        <a href="/superadmin" class="brand-logo" style="text-decoration: none;">
-          <i data-lucide="waves" class="brand-icon" style="color: #2f6bff;"></i>
-          <span style="font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.4rem; letter-spacing: -0.5px; color: white;">EYECO SuperAdmin</span>
-        </a>
+  <!-- ════════ SIDEBAR ════════ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <i data-lucide="waves"></i>
+      EYECO
+    </div>
+
+    <nav class="nav-menu">
+      <div class="nav-item active" data-target="dashboard" id="nav-dashboard">
+        <i data-lucide="layout-dashboard"></i>
+        <span>Dashboard</span>
       </div>
-      <div class="header-right-group">
-        <button class="btn btn-glass btn-rounded" id="btn-logout" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.2);">
-          <i data-lucide="log-out"></i> Keluar
+      <div class="nav-item" data-target="workspaces" id="nav-workspaces">
+        <i data-lucide="building-2"></i>
+        <span>Workspace</span>
+      </div>
+      <div class="nav-item" data-target="admins" id="nav-admins">
+        <i data-lucide="shield-user"></i>
+        <span>Administrator</span>
+      </div>
+
+      <div class="nav-spacer"></div>
+
+      <div class="nav-item logout" id="logout-btn">
+        <i data-lucide="log-out"></i>
+        <span>Keluar</span>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- Mobile overlay -->
+  <div class="overlay" id="sidebar-overlay"></div>
+
+  <!-- ════════ MAIN ════════ -->
+  <div class="main-wrapper">
+
+    <!-- Top navigation bar -->
+    <header class="top-nav">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="mobile-toggle" id="mobile-toggle" aria-label="Toggle menu">
+          <i data-lucide="menu"></i>
         </button>
+        <span id="top-nav-title" style="font-weight:700;font-size:1rem;color:var(--text-dark);">Dashboard</span>
+      </div>
+
+      <div class="top-nav-right">
+        <div class="profile-menu" id="profile-menu">
+          <button class="profile-btn" id="profile-btn" aria-haspopup="true" aria-expanded="false">
+            <div class="profile-avatar" id="top-avatar">S</div>
+            <span id="top-username" style="font-weight: 600; color: var(--text-dark);">SuperAdmin</span>
+            <i data-lucide="chevron-down" style="width: 16px; height: 16px; color: var(--text-muted);"></i>
+          </button>
+          
+          <div class="dropdown-menu" id="dropdown-menu">
+            <div class="dropdown-header">
+              <strong id="dropdown-name">Loading...</strong>
+              <span id="dropdown-email">loading@eyeco.id</span>
+              <span id="dropdown-role" class="badge badge-blue" style="margin-top: 6px; display: inline-block;">SUPERADMIN</span>
+            </div>
+            
+            <a href="#" class="dropdown-item" id="btn-open-change-password">
+              <i data-lucide="key-round"></i>
+              Ubah Password
+            </a>
+            <a href="#" class="dropdown-item" id="btn-open-active-sessions">
+              <i data-lucide="smartphone"></i>
+              Sesi Aktif
+            </a>
+            
+            <div class="dropdown-divider"></div>
+            
+            <a href="#" class="dropdown-item" id="dropdown-logout" style="color: var(--error);">
+              <i data-lucide="log-out" style="color: var(--error);"></i>
+              Keluar
+            </a>
+          </div>
+        </div>
       </div>
     </header>
+
+    <!-- Content area -->
+    <main class="content-area">
+
+      <!-- ══ DASHBOARD SECTION ══ -->
+      <section id="dashboard" class="section-content active">
+        <div class="page-header">
+          <h1>Panel Kontrol Super Admin</h1>
+          <p>Kelola Workspace Sistem, Akun Administrator, serta Pantau Statistik Infrastruktur</p>
+        </div>
+
+        <div class="dash-welcome">
+          <div>
+            <h2>Selamat Datang kembali!</h2>
+            <p>Berikut ringkasan statistik sistem EYECO Anda.</p>
+          </div>
+          <div class="dash-welcome-icon">
+            <i data-lucide="shield-user"></i>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="glass-card stat-card">
+            <div class="stat-icon" style="background:rgba(37,99,235,0.1);color:var(--primary);">
+              <i data-lucide="shield-user"></i>
+            </div>
+            <div class="stat-info">
+              <h3>Total Admin</h3>
+              <p id="stat-admins">—</p>
+            </div>
+          </div>
+          <div class="glass-card stat-card">
+            <div class="stat-icon" style="background:rgba(16,185,129,0.1);color:#10b981;">
+              <i data-lucide="building-2"></i>
+            </div>
+            <div class="stat-info">
+              <h3>Total Workspace</h3>
+              <p id="stat-workspaces">—</p>
+            </div>
+          </div>
+          <div class="glass-card stat-card">
+            <div class="stat-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b;">
+              <i data-lucide="users-round"></i>
+            </div>
+            <div class="stat-info">
+              <h3>Total Warga</h3>
+              <p id="stat-users">—</p>
+            </div>
+          </div>
+          <div class="glass-card stat-card">
+            <div class="stat-icon" style="background:rgba(99,102,241,0.1);color:#6366f1;">
+              <i data-lucide="cctv"></i>
+            </div>
+            <div class="stat-info">
+              <h3>Total CCTV</h3>
+              <p id="stat-cctv">—</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══ WORKSPACE SECTION ══ -->
+      <section id="workspaces" class="section-content">
+        <div class="section-header">
+          <div>
+            <h2 style="font-size:1.4rem;font-weight:800;color:var(--text-dark);">Daftar Workspace</h2>
+            <p class="text-muted" style="margin-top:2px;">Kelola semua workspace dalam sistem.</p>
+          </div>
+          <div style="display:flex; gap: 12px; align-items: center;">
+            <div class="input-wrapper" style="width: 250px;">
+              <i data-lucide="search"></i>
+              <input type="text" id="ws-search" class="input-control" placeholder="Cari workspace..." style="padding-top: 9px; padding-bottom: 9px; font-size: 0.88rem;">
+            </div>
+            <select id="ws-filter" class="input-control" style="width: auto; padding-top: 9px; padding-bottom: 9px; font-size: 0.88rem;">
+              <option value="all">Semua</option>
+              <option value="name">Nama Workspace</option>
+              <option value="code">Kode</option>
+              <option value="address">Alamat</option>
+              <option value="company">Instansi</option>
+              <option value="id">ID</option>
+              <option value="date">Tanggal dibuat</option>
+            </select>
+            <button class="btn-primary btn-inline" id="btn-open-ws-create">
+              <i data-lucide="plus"></i> Tambah Workspace
+            </button>
+          </div>
+        </div>
+
+        <div class="glass-card table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nama Workspace</th>
+                <th>Kode</th>
+                <th>Perusahaan / Instansi</th>
+                <th>Alamat</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="workspaces-table">
+              <tr>
+                <td colspan="6" class="text-center" style="padding:40px;">
+                  <span class="spin" style="display:inline-block;"><i data-lucide="loader" style="width:20px;height:20px;"></i></span>
+                  <span style="margin-left:8px;color:var(--text-muted);">Memuat data...</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ══ ADMINS SECTION ══ -->
+      <section id="admins" class="section-content">
+        <div class="section-header">
+          <div>
+            <h2 style="font-size:1.4rem;font-weight:800;color:var(--text-dark);">Daftar Administrator</h2>
+            <p class="text-muted" style="margin-top:2px;">Kelola semua akun administrator.</p>
+          </div>
+          <div style="display:flex; gap: 12px; align-items: center;">
+            <div class="input-wrapper" style="width: 250px;">
+              <i data-lucide="search"></i>
+              <input type="text" id="admin-search" class="input-control" placeholder="Cari admin..." style="padding-top: 9px; padding-bottom: 9px; font-size: 0.88rem;">
+            </div>
+            <select id="admin-filter" class="input-control" style="width: auto; padding-top: 9px; padding-bottom: 9px; font-size: 0.88rem;">
+              <option value="all">Semua</option>
+              <option value="username">Username</option>
+              <option value="name">Nama</option>
+              <option value="workspace">Workspace</option>
+              <option value="id">ID</option>
+              <option value="date">Tanggal dibuat</option>
+            </select>
+            <button class="btn-primary btn-inline" id="btn-open-admin-create">
+              <i data-lucide="user-plus"></i> Tambah Admin
+            </button>
+          </div>
+        </div>
+
+        <div class="glass-card table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Nama Admin</th>
+                <th>Workspace</th>
+                <th>Tanggal Dibuat</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="admins-table">
+              <tr>
+                <td colspan="6" class="text-center" style="padding:40px;">
+                  <span class="spin" style="display:inline-block;"><i data-lucide="loader" style="width:20px;height:20px;"></i></span>
+                  <span style="margin-left:8px;color:var(--text-muted);">Memuat data...</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
   </div>
 
-  <div class="superadmin-container">
-    <div class="dashboard-header">
-      <div>
-        <h1 style="font-family: 'Outfit', sans-serif; font-size: 2.2rem; font-weight: 800; letter-spacing: -0.5px; margin: 0;">Panel Kontrol Super Admin</h1>
-        <p style="color: #9ca3af; margin-top: 6px;">Kelola Workspace Sistem, Akun Administrator, serta Pantau Kesehatan Infrastruktur</p>
-      </div>
-    </div>
+  <!-- ════════════════════════════════════════
+       MODALS
+  ════════════════════════════════════════ -->
 
-    <!-- Navigation Tabs -->
-    <div class="header-nav">
-      <button class="nav-tab active" onclick="switchTab('admins')">
-        <i data-lucide="shield-check"></i> Manajemen Admin
-      </button>
-      <button class="nav-tab" onclick="switchTab('workspaces')">
-        <i data-lucide="map-pin"></i> Manajemen Workspace
-      </button>
-    </div>
-
-    <!-- Stats Grid -->
-    <div class="admin-stats">
-      <div class="stat-card">
-        <div class="stat-icon">
-          <i data-lucide="users" style="width: 24px; height: 24px;"></i>
-        </div>
-        <div>
-          <span style="font-size: 0.8rem; font-weight: 600; color: #9ca3af; text-transform: uppercase;">Total Admin</span>
-          <h2 id="stat-total-admins" style="font-family: 'Outfit', sans-serif; font-size: 1.8rem; font-weight: 800; margin: 2px 0 0 0;">0</h2>
-        </div>
+  <!-- Create Workspace Modal -->
+  <div class="modal-overlay" id="modal-ws-create">
+    <div class="modal">
+      <div class="modal-header">
+        <h2><i data-lucide="building-2" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"></i>Tambah Workspace Baru</h2>
+        <button class="close-btn" data-close="modal-ws-create"><i data-lucide="x"></i></button>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon green">
-          <i data-lucide="map" style="width: 24px; height: 24px;"></i>
-        </div>
-        <div>
-          <span style="font-size: 0.8rem; font-weight: 600; color: #9ca3af; text-transform: uppercase;">Total Workspace</span>
-          <h2 id="stat-total-workspaces" style="font-family: 'Outfit', sans-serif; font-size: 1.8rem; font-weight: 800; margin: 2px 0 0 0;">0</h2>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon purple">
-          <i data-lucide="user-check" style="width: 24px; height: 24px;"></i>
-        </div>
-        <div>
-          <span style="font-size: 0.8rem; font-weight: 600; color: #9ca3af; text-transform: uppercase;">Total Warga</span>
-          <h2 id="stat-total-users" style="font-family: 'Outfit', sans-serif; font-size: 1.8rem; font-weight: 800; margin: 2px 0 0 0;">0</h2>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon orange">
-          <i data-lucide="video" style="width: 24px; height: 24px;"></i>
-        </div>
-        <div>
-          <span style="font-size: 0.8rem; font-weight: 600; color: #9ca3af; text-transform: uppercase;">Total CCTV</span>
-          <h2 id="stat-total-cctvs" style="font-family: 'Outfit', sans-serif; font-size: 1.8rem; font-weight: 800; margin: 2px 0 0 0;">0</h2>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tab 1: Manajemen Admin -->
-    <div id="tab-admins" class="panel-card tab-content">
-      <div class="panel-header-action">
-        <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.3rem; font-weight: 700; margin: 0;">Daftar Administrator</h3>
-        <button class="btn btn-primary btn-rounded" onclick="openCreateAdminModal()">
-          <i data-lucide="plus-circle" style="margin-right: 6px;"></i> Tambah Admin
-        </button>
-      </div>
-      <div class="admin-table-wrapper">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Nama Admin</th>
-              <th>Username</th>
-              <th>Workspace</th>
-              <th>Tanggal Dibuat</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody id="admins-list-body">
-            <!-- Dynamic data -->
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Tab 2: Manajemen Workspace -->
-    <div id="tab-workspaces" class="panel-card tab-content" style="display: none;">
-      <div class="panel-header-action">
-        <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.3rem; font-weight: 700; margin: 0;">Daftar Workspace</h3>
-        <button class="btn btn-primary btn-rounded" onclick="openCreateWorkspaceModal()">
-          <i data-lucide="plus-circle" style="margin-right: 6px;"></i> Tambah Workspace
-        </button>
-      </div>
-      <div class="admin-table-wrapper">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Nama Workspace</th>
-              <th>Lokasi</th>
-              <th>Deskripsi</th>
-              <th>Penanggung Jawab</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody id="workspaces-list-body">
-            <!-- Dynamic data -->
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Admin Modal (Create/Edit) -->
-  <div class="admin-modal" id="modal-admin">
-    <div class="modal-content">
-      <button class="close-modal" onclick="closeModal('admin')">&times;</button>
-      <h3 id="admin-modal-title" style="font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 800; margin-bottom: 20px;">Tambah Admin</h3>
-      <form id="form-admin" onsubmit="handleAdminSubmit(event)">
-        <input type="hidden" id="admin-id">
+      <form id="form-ws-create" novalidate>
         <div class="form-group">
-          <label class="form-label" for="admin-name">Nama Admin</label>
-          <input type="text" class="form-control" id="admin-name" required placeholder="Nama lengkap admin">
+          <label>Nama Workspace <span style="color:var(--error)">*</span></label>
+          <input type="text" id="ws-name" class="input-control" required placeholder="Misal: Bandung, Jakarta Hilir">
         </div>
         <div class="form-group">
-          <label class="form-label" for="admin-workspace">Workspace</label>
-          <select class="form-control" id="admin-workspace" style="background: #1e293b;">
-            <option value="">Pilih Workspace</option>
-            <!-- Dynamic workspaces options -->
-          </select>
+          <label>Nama Perusahaan / Instansi</label>
+          <input type="text" id="ws-company" class="input-control" placeholder="PT. Contoh Maju Bersama">
         </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; margin-top: 12px; font-weight: 700;">
-          Simpan Admin
-        </button>
+        <div class="form-group">
+          <label>Alamat</label>
+          <input type="text" id="ws-address" class="input-control" placeholder="Jl. Contoh No.1, Kota">
+        </div>
+        <div class="form-group">
+          <label>Deskripsi</label>
+          <textarea id="ws-description" class="input-control" rows="3" placeholder="Deskripsi ringkas workspace..."></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-outline" data-close="modal-ws-create">Batal</button>
+          <button type="submit" class="btn-primary" id="btn-ws-create-submit">
+            <i data-lucide="plus"></i> Buat Workspace
+          </button>
+        </div>
       </form>
     </div>
   </div>
 
-  <!-- Credentials Output Modal -->
-  <div class="admin-modal" id="modal-credentials">
-    <div class="modal-content" style="max-width: 440px; text-align: center;">
-      <button class="close-modal" onclick="closeModal('credentials')">&times;</button>
-      <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(16, 185, 129, 0.12); color: #10b981; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px;">
-        <i data-lucide="check-circle" style="width: 32px; height: 32px;"></i>
+  <!-- Edit Workspace Modal -->
+  <div class="modal-overlay" id="modal-ws-edit">
+    <div class="modal">
+      <div class="modal-header">
+        <h2><i data-lucide="pencil" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"></i>Edit Workspace</h2>
+        <button class="close-btn" data-close="modal-ws-edit"><i data-lucide="x"></i></button>
       </div>
-      <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.4rem; font-weight: 800; margin: 0 0 8px 0; color: white;">Akun Admin Berhasil Dibuat / Reset</h3>
-      <p style="color: #9ca3af; font-size: 0.85rem; margin: 0 0 20px 0;">Salin kredensial di bawah ini. Informasi password hanya ditampilkan SATU KALI.</p>
-      
-      <div class="credentials-popup">
-        <div style="font-size: 0.75rem; color: #9ca3af; font-weight: 600; text-transform: uppercase;">Username</div>
-        <div class="copy-field">
-          <span id="cred-username">admin_bandung_001</span>
-          <button class="btn-copy" onclick="copyText('cred-username')"><i data-lucide="copy" style="width: 16px; height: 16px;"></i></button>
-        </div>
-
-        <div style="font-size: 0.75rem; color: #9ca3af; font-weight: 600; text-transform: uppercase; margin-top: 14px;">Password Sementara</div>
-        <div class="copy-field">
-          <span id="cred-password">A7kP91Lm</span>
-          <button class="btn-copy" onclick="copyText('cred-password')"><i data-lucide="copy" style="width: 16px; height: 16px;"></i></button>
-        </div>
-      </div>
-
-      <button class="btn btn-primary" onclick="closeModal('credentials')" style="width: 100%; padding: 12px; margin-top: 20px; font-weight: 700;">
-        Selesai
-      </button>
-    </div>
-  </div>
-
-  <!-- Workspace Modal (Create / Edit) -->
-  <div class="admin-modal" id="modal-workspace">
-    <div class="modal-content">
-      <button class="close-modal" onclick="closeModal('workspace')">&times;</button>
-      <h3 id="workspace-modal-title" style="font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 800; margin-bottom: 20px;">Tambah Workspace</h3>
-      <form id="form-workspace" onsubmit="handleWorkspaceSubmit(event)">
-        <input type="hidden" id="workspace-id">
+      <form id="form-ws-edit" novalidate>
+        <input type="hidden" id="ws-edit-id">
         <div class="form-group">
-          <label class="form-label" for="ws-name">Nama Workspace</label>
-          <input type="text" class="form-control" id="ws-name" required placeholder="Misal: Bandung, Jakarta Hilir">
+          <label>Nama Workspace <span style="color:var(--error)">*</span></label>
+          <input type="text" id="ws-edit-name" class="input-control" required>
         </div>
         <div class="form-group">
-          <label class="form-label" for="ws-company">Nama Perusahaan / Instansi</label>
-          <input type="text" class="form-control" id="ws-company" placeholder="PT. Contoh Maju Bersama">
+          <label>Nama Perusahaan / Instansi</label>
+          <input type="text" id="ws-edit-company" class="input-control">
         </div>
         <div class="form-group">
-          <label class="form-label" for="ws-address">Alamat</label>
-          <input type="text" class="form-control" id="ws-address" placeholder="Jl. Contoh No. 1, Kota">
+          <label>Alamat</label>
+          <input type="text" id="ws-edit-address" class="input-control">
         </div>
         <div class="form-group">
-          <label class="form-label" for="ws-description">Deskripsi</label>
-          <input type="text" class="form-control" id="ws-description" placeholder="Deskripsi ringkas workspace">
+          <label>Deskripsi</label>
+          <textarea id="ws-edit-description" class="input-control" rows="3"></textarea>
         </div>
-        <div id="ws-edit-admin-group" class="form-group" style="display:none;">
-          <label class="form-label" for="ws-admin">Admin Penanggung Jawab</label>
-          <select class="form-control" id="ws-admin" style="background: #1e293b;">
-            <option value="">Pilih Admin</option>
-          </select>
+        <div class="modal-actions">
+          <button type="button" class="btn-outline" data-close="modal-ws-edit">Batal</button>
+          <button type="submit" class="btn-primary" id="btn-ws-edit-submit">
+            <i data-lucide="save"></i> Simpan Perubahan
+          </button>
         </div>
-        <button type="submit" id="btn-ws-submit" class="btn btn-primary" style="width: 100%; padding: 12px; margin-top: 12px; font-weight: 700;">
-          Buat Workspace
-        </button>
       </form>
     </div>
   </div>
 
-  <!-- Workspace Result Modal (tampil credential admin yang baru dibuat) -->
-  <div class="admin-modal" id="modal-workspace-result">
-    <div class="modal-content" style="max-width: 480px; text-align: center;">
-      <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(16, 185, 129, 0.12); color: #10b981; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px;">
-        <i data-lucide="check-circle" style="width: 34px; height: 34px;"></i>
+  <!-- Create Admin Modal -->
+  <div class="modal-overlay" id="modal-admin-create">
+    <div class="modal">
+      <div class="modal-header">
+        <h2><i data-lucide="user-plus" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"></i>Tambah Admin Baru</h2>
+        <button class="close-btn" data-close="modal-admin-create"><i data-lucide="x"></i></button>
       </div>
-      <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.4rem; font-weight: 800; margin: 0 0 8px 0; color: white;">Workspace Berhasil Dibuat!</h3>
-      <p style="color: #9ca3af; font-size: 0.85rem; margin: 0 0 20px 0;">Admin baru otomatis dibuat untuk workspace ini.<br><strong style="color: #f59e0b;">Catat password sekarang — hanya ditampilkan SATU KALI!</strong></p>
-
-      <div class="credentials-popup" style="text-align: left;">
-        <div style="font-size: 0.75rem; color: #9ca3af; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Nama Workspace</div>
-        <div class="copy-field">
-          <span id="ws-result-name">—</span>
+      <form id="form-admin-create" novalidate>
+        <div class="form-group">
+          <label>Nama Admin <span style="color:var(--error)">*</span></label>
+          <input type="text" id="admin-name" class="input-control" required placeholder="Nama lengkap admin">
         </div>
-
-        <div style="font-size: 0.75rem; color: #9ca3af; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 14px;">Username Admin</div>
-        <div class="copy-field">
-          <span id="ws-result-username">—</span>
-          <button class="btn-copy" title="Salin username" onclick="copyText('ws-result-username')">
-            <i data-lucide="copy" style="width: 16px; height: 16px;"></i>
+        <div class="form-group">
+          <label>Workspace <span style="color:var(--error)">*</span></label>
+          <select id="admin-workspace" class="input-control" required>
+            <option value="">— Pilih Workspace —</option>
+          </select>
+        </div>
+        <p style="font-size:0.8rem;color:var(--text-muted);margin-top:-10px;margin-bottom:16px;">
+          <i data-lucide="info" style="width:13px;height:13px;vertical-align:middle;"></i>
+          Username & password admin akan digenerate otomatis dan ditampilkan setelah dibuat.
+        </p>
+        <div class="modal-actions">
+          <button type="button" class="btn-outline" data-close="modal-admin-create">Batal</button>
+          <button type="submit" class="btn-primary" id="btn-admin-create-submit">
+            <i data-lucide="user-plus"></i> Simpan Admin
           </button>
         </div>
-
-        <div style="font-size: 0.75rem; color: #9ca3af; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 14px;">Password Admin</div>
-        <div class="copy-field">
-          <span id="ws-result-password">—</span>
-          <button class="btn-copy" title="Salin password" onclick="copyText('ws-result-password')">
-            <i data-lucide="copy" style="width: 16px; height: 16px;"></i>
-          </button>
-        </div>
-      </div>
-
-      <button class="btn btn-primary" onclick="closeModal('workspace-result')" style="width: 100%; padding: 12px; margin-top: 20px; font-weight: 700;">
-        Selesai
-      </button>
+      </form>
     </div>
   </div>
 
-  <!-- Toast Notifications Container -->
+  <!-- Edit Admin Modal -->
+  <div class="modal-overlay" id="modal-admin-edit">
+    <div class="modal">
+      <div class="modal-header">
+        <h2><i data-lucide="pencil" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"></i>Edit Admin</h2>
+        <button class="close-btn" data-close="modal-admin-edit"><i data-lucide="x"></i></button>
+      </div>
+      <form id="form-admin-edit" novalidate>
+        <input type="hidden" id="admin-edit-id">
+        <div class="form-group">
+          <label>Nama Admin</label>
+          <input type="text" id="admin-edit-name" class="input-control" placeholder="Nama lengkap admin">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-outline" data-close="modal-admin-edit">Batal</button>
+          <button type="submit" class="btn-primary">
+            <i data-lucide="save"></i> Simpan
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Result / Credentials Modal -->
+  <div class="modal-overlay" id="modal-result">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="result-title">Berhasil Dibuat!</h2>
+        <button class="close-btn" data-close="modal-result"><i data-lucide="x"></i></button>
+      </div>
+      <div id="result-body"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-primary" data-close="modal-result">
+          <i data-lucide="check"></i> Selesai
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change Password Modal -->
+  <div class="modal-overlay" id="modal-change-password">
+    <div class="modal">
+      <div class="modal-header">
+        <h2><i data-lucide="key-round" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"></i>Ubah Password</h2>
+        <button class="close-btn" data-close="modal-change-password"><i data-lucide="x"></i></button>
+      </div>
+      <form id="form-change-password" novalidate>
+        <div class="form-group">
+          <label>Password Saat Ini <span style="color:var(--error)">*</span></label>
+          <div class="input-wrapper">
+            <i data-lucide="lock"></i>
+            <input type="password" id="cp-current" class="input-control" required placeholder="Masukkan password saat ini">
+            <button type="button" class="toggle-password" onclick="togglePasswordVisibility('cp-current', this)"><i data-lucide="eye"></i></button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Password Baru <span style="color:var(--error)">*</span></label>
+          <div class="input-wrapper">
+            <i data-lucide="lock"></i>
+            <input type="password" id="cp-new" class="input-control" required placeholder="Minimal 6 karakter" oninput="checkPasswordStrength(this.value)">
+            <button type="button" class="toggle-password" onclick="togglePasswordVisibility('cp-new', this)"><i data-lucide="eye"></i></button>
+          </div>
+          <div class="strength-meter"><div id="cp-strength-bar"></div></div>
+          <div class="strength-text" id="cp-strength-text">Kekuatan: -</div>
+        </div>
+        <div class="form-group">
+          <label>Konfirmasi Password Baru <span style="color:var(--error)">*</span></label>
+          <div class="input-wrapper">
+            <i data-lucide="lock"></i>
+            <input type="password" id="cp-confirm" class="input-control" required placeholder="Ulangi password baru">
+            <button type="button" class="toggle-password" onclick="togglePasswordVisibility('cp-confirm', this)"><i data-lucide="eye"></i></button>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-outline" data-close="modal-change-password">Batal</button>
+          <button type="submit" class="btn-primary" id="btn-change-password-submit">
+            <i data-lucide="save"></i> Simpan Password
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Active Sessions Modal -->
+  <div class="modal-overlay" id="modal-active-sessions">
+    <div class="modal">
+      <div class="modal-header">
+        <h2><i data-lucide="smartphone" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"></i>Sesi Aktif</h2>
+        <button class="close-btn" data-close="modal-active-sessions"><i data-lucide="x"></i></button>
+      </div>
+      <div style="margin-bottom: 16px;">
+        <p style="font-size: 0.9rem; color: var(--text-muted);">Berikut adalah daftar perangkat yang saat ini masuk ke akun Anda.</p>
+        <button class="btn-danger" style="margin-top: 12px; width: 100%;" onclick="revokeAllSessions()">
+          <i data-lucide="log-out"></i> Keluarkan Semua Perangkat Lain
+        </button>
+      </div>
+      <div class="table-container" style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border);">
+        <table>
+          <thead>
+            <tr>
+              <th>Perangkat</th>
+              <th>Terakhir Aktif</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="sessions-table">
+            <tr><td colspan="3" class="text-center">Memuat sesi...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
   <div class="toast-container" id="toast-container"></div>
 
+  <!-- Generic Confirm Modal -->
+  <div class="modal-overlay" id="modal-confirm">
+    <div class="modal" style="max-width: 400px; text-align: center; padding: 32px 24px;">
+      <div style="color: var(--warning); margin-bottom: 16px;">
+        <i data-lucide="alert-triangle" style="width: 48px; height: 48px;"></i>
+      </div>
+      <h2 id="confirm-title" style="font-size: 1.25rem; font-weight: 700; color: var(--text-dark); margin-bottom: 8px;">Konfirmasi</h2>
+      <p id="confirm-message" style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.5;"></p>
+      <div class="modal-actions" style="justify-content: center; border-top: none; padding-top: 0; margin-top: 0;">
+        <button type="button" class="btn-outline" data-close="modal-confirm" id="btn-confirm-cancel">Batal</button>
+        <button type="button" class="btn-primary" id="btn-confirm-ok" style="background: var(--error); box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);">
+          Ya, Lanjutkan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       JAVASCRIPT
+  ════════════════════════════════════════ -->
   <script>
-    let adminsData = [];
-    let workspacesData = [];
+  'use strict';
 
-    // Switch Tabs helper
-    function switchTab(tabId) {
-      document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
-      document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
-      
-      document.getElementById(`tab-${tabId}`).style.display = 'block';
-      event.currentTarget.classList.add('active');
-    }
+  /* ── Init Lucide icons ─────────────────── */
+  lucide.createIcons();
 
-    // Toast helper
-    function showToast(message, type = 'success') {
-      const container = document.getElementById('toast-container');
-      const toast = document.createElement('div');
-      toast.className = `toast toast-${type}`;
-      toast.style.display = 'flex';
-      toast.style.alignItems = 'center';
-      toast.style.gap = '8px';
-      
-      const icon = type === 'success' ? 'check-circle' : 'alert-circle';
-      toast.innerHTML = `
-        <i data-lucide="${icon}" style="width: 18px; height: 18px; flex-shrink: 0;"></i>
-        <span>${message}</span>
-      `;
-      container.appendChild(toast);
-      if (window.lucide) window.lucide.createIcons();
-      
-      setTimeout(() => {
-        toast.style.animation = 'toastLeave var(--motion-toast) forwards';
-        setTimeout(() => toast.remove(), 300);
-      }, 3000);
-    }
+  /* ── Sidebar toggle ────────────────────── */
+  const sidebar       = document.getElementById('sidebar');
+  const sidebarOverlay = document.getElementById('sidebar-overlay');
+  const mobileToggle  = document.getElementById('mobile-toggle');
 
-    // Modal helpers
-    function openModal(modalId) {
-      document.getElementById(`modal-${modalId}`).style.display = 'flex';
-    }
+  function openSidebar()  { sidebar.classList.add('open');   sidebarOverlay.classList.add('active'); }
+  function closeSidebar() { sidebar.classList.remove('open'); sidebarOverlay.classList.remove('active'); }
+  function toggleSidebar(){ sidebar.classList.contains('open') ? closeSidebar() : openSidebar(); }
 
-    function closeModal(modalId) {
-      document.getElementById(`modal-${modalId}`).style.display = 'none';
-    }
+  mobileToggle.addEventListener('click', toggleSidebar);
+  sidebarOverlay.addEventListener('click', closeSidebar);
 
-    // Copy to clipboard helper
-    function copyText(elementId) {
-      const text = document.getElementById(elementId).innerText;
-      navigator.clipboard.writeText(text).then(() => {
-        showToast('Berhasil disalin ke clipboard!');
-      }).catch(err => {
-        showToast('Gagal menyalin text', 'danger');
+  /* ── Navigation (tab switching) ─────────── */
+  const navTitles = {
+    dashboard: 'Dashboard',
+    workspaces: 'Workspace',
+    admins: 'Administrator'
+  };
+
+  document.querySelectorAll('.nav-item[data-target]').forEach(item => {
+    item.addEventListener('click', () => {
+      if (window.innerWidth <= 768) closeSidebar();
+
+      // Update active nav item
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      item.classList.add('active');
+
+      // Update top bar title
+      const target = item.getAttribute('data-target');
+      document.getElementById('top-nav-title').textContent = navTitles[target] || target;
+
+      // Show the correct section
+      document.querySelectorAll('.section-content').forEach(s => s.classList.remove('active'));
+      document.getElementById(target).classList.add('active');
+
+      // Load section data
+      if (target === 'dashboard')  loadStats();
+      if (target === 'workspaces') loadWorkspaces();
+      if (target === 'admins')     loadAdmins();
+    });
+  });
+
+  /* ── Logout ─────────────────────────────── */
+  document.getElementById('logout-btn').addEventListener('click', async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (_) {}
+    window.location.href = '/logout';
+  });
+
+  /* ── Modal helpers ──────────────────────── */
+  function openModal(id)  { document.getElementById(id).classList.add('active'); lucide.createIcons(); }
+  function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+  // Close buttons via data-close attribute
+  document.querySelectorAll('[data-close]').forEach(btn => {
+    btn.addEventListener('click', () => closeModal(btn.getAttribute('data-close')));
+  });
+
+  // Close modal when clicking the overlay itself
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) closeModal(overlay.id);
+    });
+  });
+
+  // Close modal on ESC key
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-overlay.active').forEach(modal => {
+        closeModal(modal.id);
       });
     }
+  });
 
-    // Fetch and Load All Data
-    async function loadStats() {
-      try {
-        const res = await fetch('/api/superadmin/stats');
-        const data = await res.json();
-        if (res.ok && data.success) {
-          document.getElementById('stat-total-admins').innerText = data.stats.totalAdmins;
-          document.getElementById('stat-total-workspaces').innerText = data.stats.totalWorkspaces;
-          document.getElementById('stat-total-users').innerText = data.stats.totalUsers;
-          document.getElementById('stat-total-cctvs').innerText = data.stats.totalCCTVs;
-        }
-      } catch (err) {
-        console.error('Error fetching stats:', err);
-      }
+  // Generic Confirm Dialog
+  function showConfirm(title, message, onConfirm) {
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-message').innerHTML = String(message).replace(/\n/g, '<br>');
+    const btnOk = document.getElementById('btn-confirm-ok');
+    
+    // Remove old listeners
+    const newBtnOk = btnOk.cloneNode(true);
+    btnOk.parentNode.replaceChild(newBtnOk, btnOk);
+    
+    newBtnOk.addEventListener('click', () => {
+      closeModal('modal-confirm');
+      onConfirm();
+    });
+    
+    openModal('modal-confirm');
+  }
+
+  /* ── Toast notifications ────────────────── */
+  function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+
+    const icon = type === 'success' ? 'check-circle' : 'alert-circle';
+    toast.innerHTML = `<i data-lucide="${icon}"></i><span>${message}</span>`;
+    container.appendChild(toast);
+    lucide.createIcons();
+
+    setTimeout(() => {
+      toast.style.animation = 'toastOut 0.3s ease forwards';
+      setTimeout(() => toast.remove(), 300);
+    }, 3500);
+  }
+
+  /* ── API helper ─────────────────────────── */
+  async function api(url, options = {}) {
+    const res = await fetch(url, {
+      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      ...options
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const errMsg = data.error || data.message || `HTTP ${res.status}`;
+      throw new Error(errMsg);
+    }
+    return data;
+  }
+
+  /* ── Format date ─────────────────────────── */
+  function formatDate(dateStr) {
+    if (!dateStr) return '—';
+    try {
+      return new Intl.DateTimeFormat('id-ID', {
+        day: 'numeric', month: 'long', year: 'numeric'
+      }).format(new Date(dateStr));
+    } catch (_) { return dateStr; }
+  }
+
+  /* ═══════════════════════════════════════════
+     DASHBOARD STATS & ME
+  ═══════════════════════════════════════════ */
+  async function loadMe() {
+    try {
+      const user = await api('/api/auth/me');
+      document.getElementById('top-username').textContent = user.username || 'SuperAdmin';
+      document.getElementById('top-avatar').textContent = (user.name || user.username || 'S')[0].toUpperCase();
+      
+      document.getElementById('dropdown-name').textContent = user.name || user.username;
+      document.getElementById('dropdown-email').textContent = user.email || 'No email';
+    } catch (err) {
+      console.error('[loadMe]', err);
+    }
+  }
+
+  async function loadStats() {
+    try {
+      const data = await api('/api/superadmin/stats');
+      // The stats endpoint returns { stats: { totalAdmins, totalWorkspaces, totalUsers, totalCCTVs } }
+      const stats = data.stats || data.data || {};
+      document.getElementById('stat-admins').textContent     = stats.totalAdmins     ?? '—';
+      document.getElementById('stat-workspaces').textContent = stats.totalWorkspaces ?? '—';
+      document.getElementById('stat-users').textContent      = stats.totalUsers      ?? '—';
+      document.getElementById('stat-cctv').textContent       = stats.totalCCTVs      ?? '—';
+    } catch (err) {
+      console.error('[loadStats]', err);
+    }
+  }
+
+  /* ── Profile Dropdown Toggle ────────────────── */
+  const profileBtn = document.getElementById('profile-btn');
+  const dropdownMenu = document.getElementById('dropdown-menu');
+  profileBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isActive = dropdownMenu.classList.contains('active');
+    dropdownMenu.classList.toggle('active');
+    profileBtn.setAttribute('aria-expanded', !isActive);
+  });
+  document.addEventListener('click', (e) => {
+    if (!profileBtn.contains(e.target) && !dropdownMenu.contains(e.target)) {
+      dropdownMenu.classList.remove('active');
+      profileBtn.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  /* ── Password Utilities ──────────────────────── */
+  window.togglePasswordVisibility = function(inputId, btn) {
+    const input = document.getElementById(inputId);
+    const icon = btn.querySelector('i');
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.setAttribute('data-lucide', 'eye-off');
+    } else {
+      input.type = 'password';
+      icon.setAttribute('data-lucide', 'eye');
+    }
+    lucide.createIcons();
+  };
+
+  window.checkPasswordStrength = function(pwd) {
+    const bar = document.getElementById('cp-strength-bar');
+    const text = document.getElementById('cp-strength-text');
+    if (!pwd) {
+      bar.className = ''; text.textContent = 'Kekuatan: -'; return;
+    }
+    if (pwd.length < 6) {
+      bar.className = 'weak'; text.textContent = 'Kekuatan: Lemah';
+    } else if (pwd.length < 10 || !/\d/.test(pwd)) {
+      bar.className = 'medium'; text.textContent = 'Kekuatan: Sedang';
+    } else {
+      bar.className = 'strong'; text.textContent = 'Kekuatan: Kuat';
+    }
+  };
+
+  /* ── Change Password Modal ────────────────────── */
+  document.getElementById('btn-open-change-password').addEventListener('click', (e) => {
+    e.preventDefault();
+    dropdownMenu.classList.remove('active');
+    document.getElementById('form-change-password').reset();
+    checkPasswordStrength('');
+    openModal('modal-change-password');
+  });
+
+  document.getElementById('form-change-password').addEventListener('submit', async e => {
+    e.preventDefault();
+    const currentPassword = document.getElementById('cp-current').value;
+    const newPassword = document.getElementById('cp-new').value;
+    const confirmPassword = document.getElementById('cp-confirm').value;
+    const btn = document.getElementById('btn-change-password-submit');
+
+    if (newPassword !== confirmPassword) {
+      showToast('Konfirmasi password tidak cocok', 'error'); return;
     }
 
-    async function loadAdmins() {
-      try {
-        const res = await fetch('/api/superadmin/admins');
-        const data = await res.json();
-        if (res.ok && data.success) {
-          adminsData = data.admins || [];
-          renderAdmins();
-          updateAdminSelectOptions();
-        }
-      } catch (err) {
-        showToast('Gagal memuat admin', 'danger');
-      }
-    }
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin"><i data-lucide="loader" style="width:16px;height:16px;"></i></span> Menyimpan...';
+    lucide.createIcons();
 
-    async function loadWorkspaces() {
-      try {
-        const res = await fetch('/api/superadmin/workspaces');
-        const data = await res.json();
-        if (res.ok && data.success) {
-          workspacesData = data.workspaces || [];
-          renderWorkspaces();
-          updateWorkspaceSelectOptions();
-        }
-      } catch (err) {
-        showToast('Gagal memuat workspace', 'danger');
-      }
+    try {
+      await api('/api/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
+      });
+      closeModal('modal-change-password');
+      showToast('Password berhasil diubah!');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="save"></i> Simpan Password';
+      lucide.createIcons();
     }
+  });
 
-    // Render Admins
-    function renderAdmins() {
-      const body = document.getElementById('admins-list-body');
-      if (adminsData.length === 0) {
-        body.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#9ca3af; padding: 40px;">Belum ada admin terdaftar.</td></tr>`;
+  /* ── Active Sessions Modal ────────────────────── */
+  document.getElementById('btn-open-active-sessions').addEventListener('click', (e) => {
+    e.preventDefault();
+    dropdownMenu.classList.remove('active');
+    openModal('modal-active-sessions');
+    loadSessions();
+  });
+
+  async function loadSessions() {
+    const tbody = document.getElementById('sessions-table');
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center">Memuat sesi...</td></tr>';
+    try {
+      const res = await api('/api/auth/sessions');
+      const sessions = res.sessions || [];
+      if (sessions.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center">Tidak ada sesi aktif</td></tr>';
         return;
       }
-      body.innerHTML = adminsData.map(admin => {
-        const matchedWs = workspacesData.find(w => w.id === admin.workspaceId);
-        const wsName = matchedWs ? matchedWs.name : 'Belum Ditentukan';
-        return `
-          <tr>
-            <td style="font-weight:700;">#${admin.id}</td>
-            <td style="font-weight:600;">${admin.name || 'Admin Eyeco'}</td>
-            <td>${admin.username}</td>
-            <td><span class="action-badge badge-workspace">${wsName}</span></td>
-            <td>${new Date(admin.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</td>
-            <td>
-              <div class="table-actions">
-                <button class="btn-action" title="Edit Admin" onclick="openEditAdminModal(${admin.id})">
-                  <i data-lucide="edit-3" style="width: 16px; height: 16px;"></i>
-                </button>
-                <button class="btn-action btn-warning-hover" title="Reset Password" onclick="resetAdminPassword(${admin.id})">
-                  <i data-lucide="key" style="width: 16px; height: 16px;"></i>
-                </button>
-                <button class="btn-action btn-danger-hover" title="Hapus Admin" onclick="deleteAdmin(${admin.id}, '${admin.username}')">
-                  <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
-                </button>
-              </div>
-            </td>
-          </tr>
-        `;
-      }).join('');
-      if (window.lucide) window.lucide.createIcons();
+      tbody.innerHTML = sessions.map(s => `
+        <tr>
+          <td>
+            <div style="font-weight: 600;">${s.isCurrent ? '<span class="badge badge-green" style="margin-right: 4px;">Sesi Ini</span>' : ''}${escapeHtml(s.deviceInfo)}</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">${escapeHtml(s.ipAddress)}</div>
+          </td>
+          <td style="font-size: 0.8rem;">${formatDate(s.lastActive)}</td>
+          <td>
+            ${!s.isCurrent ? `<button class="btn-icon danger" title="Keluarkan Perangkat" onclick="revokeSession('${s.id}')"><i data-lucide="trash-2"></i></button>` : ''}
+          </td>
+        </tr>
+      `).join('');
+      lucide.createIcons();
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="3" class="text-center" style="color:var(--error);">Gagal memuat sesi: ${err.message}</td></tr>`;
     }
+  }
 
-    // Render Workspaces
-    function renderWorkspaces() {
-      const body = document.getElementById('workspaces-list-body');
-      if (workspacesData.length === 0) {
-        body.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#9ca3af; padding: 40px;">Belum ada workspace terdaftar.</td></tr>`;
-        return;
-      }
-      body.innerHTML = workspacesData.map(ws => {
-        const matchedAdmin = adminsData.find(a => a.id === ws.adminId);
-        const adminName = matchedAdmin ? matchedAdmin.name : 'Tidak ada';
-        return `
-          <tr>
-            <td style="font-weight:700;">#${ws.id}</td>
-            <td style="font-weight:600;">${ws.name}</td>
-            <td>${ws.location}</td>
-            <td>${ws.description || '-'}</td>
-            <td><span class="action-badge badge-active">${adminName}</span></td>
-            <td>
-              <div class="table-actions">
-                <button class="btn-action" title="Edit Workspace" onclick="openEditWorkspaceModal(${ws.id})">
-                  <i data-lucide="edit-3" style="width: 16px; height: 16px;"></i>
-                </button>
-                <button class="btn-action btn-danger-hover" title="Hapus Workspace" onclick="deleteWorkspace(${ws.id}, '${ws.name}')">
-                  <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
-                </button>
-              </div>
-            </td>
-          </tr>
-        `;
-      }).join('');
-      if (window.lucide) window.lucide.createIcons();
-    }
-
-    // Dynamic Select Populate
-    function updateWorkspaceSelectOptions() {
-      const select = document.getElementById('admin-workspace');
-      const curValue = select.value;
-      select.innerHTML = '<option value="">Pilih Workspace</option>' + 
-        workspacesData.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
-      select.value = curValue;
-    }
-
-    function updateAdminSelectOptions() {
-      const select = document.getElementById('ws-admin');
-      const curValue = select.value;
-      select.innerHTML = '<option value="">Pilih Admin</option>' + 
-        adminsData.map(a => `<option value="${a.id}">${a.name} (${a.username})</option>`).join('');
-      select.value = curValue;
-    }
-
-    // --- ADMIN CRUD ACTIONS ---
-    function openCreateAdminModal() {
-      document.getElementById('admin-modal-title').innerText = 'Tambah Admin Baru';
-      document.getElementById('admin-id').value = '';
-      document.getElementById('form-admin').reset();
-      openModal('admin');
-    }
-
-    function openEditAdminModal(id) {
-      const admin = adminsData.find(a => a.id === id);
-      if (!admin) return;
-      document.getElementById('admin-modal-title').innerText = 'Edit Administrator';
-      document.getElementById('admin-id').value = admin.id;
-      document.getElementById('admin-name').value = admin.name || '';
-      document.getElementById('admin-workspace').value = admin.workspaceId || '';
-      openModal('admin');
-    }
-
-    async function handleAdminSubmit(e) {
-      e.preventDefault();
-      const id = document.getElementById('admin-id').value;
-      const name = document.getElementById('admin-name').value;
-      const workspaceId = document.getElementById('admin-workspace').value;
-
-      const payload = { name, workspaceId: workspaceId ? Number(workspaceId) : null };
-      const isEdit = !!id;
-      const url = isEdit ? `/api/superadmin/admins/${id}` : '/api/superadmin/admins';
-      const method = isEdit ? 'PUT' : 'POST';
-
+  window.revokeSession = function(id) {
+    showConfirm('Keluarkan Perangkat', 'Keluarkan perangkat ini dari akun Anda?', async () => {
       try {
-        const res = await fetch(url, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        
-        if (res.ok) {
-          showToast(`Berhasil menyimpan admin.`);
-          closeModal('admin');
-          
-          if (!isEdit && data.passwordPlain) {
-            // New admin created, show credentials
-            document.getElementById('cred-username').innerText = data.admin.username;
-            document.getElementById('cred-password').innerText = data.passwordPlain;
-            openModal('credentials');
-          }
-
-          loadAll();
-        } else {
-          showToast(data.error || 'Gagal memproses admin', 'danger');
-        }
+        await api(`/api/auth/sessions/${id}`, { method: 'DELETE' });
+        showToast('Perangkat berhasil dikeluarkan');
+        loadSessions();
       } catch (err) {
-        showToast('Koneksi bermasalah', 'danger');
-      }
-    }
-
-    async function resetAdminPassword(id) {
-      if (!confirm('Apakah Anda yakin ingin me-reset password admin ini?')) return;
-      try {
-        const res = await fetch(`/api/superadmin/admins/${id}/reset-password`, {
-          method: 'POST'
-        });
-        const data = await res.json();
-        if (res.ok) {
-          showToast('Password admin berhasil direset.');
-          const admin = adminsData.find(a => a.id === id);
-          document.getElementById('cred-username').innerText = admin ? admin.username : 'admin';
-          document.getElementById('cred-password').innerText = data.passwordPlain;
-          openModal('credentials');
-        } else {
-          showToast(data.error || 'Gagal reset password', 'danger');
-        }
-      } catch (err) {
-        showToast('Koneksi bermasalah', 'danger');
-      }
-    }
-
-    async function deleteAdmin(id, username) {
-      if (!confirm(`Apakah Anda yakin ingin menghapus admin "${username}"?`)) return;
-      try {
-        const res = await fetch(`/api/superadmin/admins/${id}`, { method: 'DELETE' });
-        if (res.ok) {
-          showToast('Admin berhasil dihapus.');
-          loadAll();
-        } else {
-          const data = await res.json();
-          showToast(data.error || 'Gagal menghapus admin', 'danger');
-        }
-      } catch (err) {
-        showToast('Koneksi bermasalah', 'danger');
-      }
-    }
-
-    // --- WORKSPACE CRUD ACTIONS ---
-    function openCreateWorkspaceModal() {
-      document.getElementById('workspace-modal-title').innerText = 'Tambah Workspace Baru';
-      document.getElementById('workspace-id').value = '';
-      document.getElementById('form-workspace').reset();
-      // Hide edit-only admin selector; show create button label
-      document.getElementById('ws-edit-admin-group').style.display = 'none';
-      document.getElementById('btn-ws-submit').innerText = 'Buat Workspace';
-      openModal('workspace');
-    }
-
-    function openEditWorkspaceModal(id) {
-      const ws = workspacesData.find(w => w.id === id);
-      if (!ws) return;
-      document.getElementById('workspace-modal-title').innerText = 'Edit Workspace';
-      document.getElementById('workspace-id').value = ws.id;
-      document.getElementById('ws-name').value = ws.name;
-      document.getElementById('ws-company').value = ws.company || '';
-      document.getElementById('ws-address').value = ws.address || '';
-      document.getElementById('ws-description').value = ws.description || '';
-      // Show admin selector for edit mode
-      document.getElementById('ws-edit-admin-group').style.display = 'block';
-      document.getElementById('ws-admin').value = ws.adminId || '';
-      document.getElementById('btn-ws-submit').innerText = 'Simpan Perubahan';
-      openModal('workspace');
-    }
-
-    async function handleWorkspaceSubmit(e) {
-      e.preventDefault();
-      const id = document.getElementById('workspace-id').value;
-      const name = document.getElementById('ws-name').value;
-      const company = document.getElementById('ws-company').value;
-      const address = document.getElementById('ws-address').value;
-      const description = document.getElementById('ws-description').value;
-      const adminId = document.getElementById('ws-admin').value;
-
-      const isEdit = !!id;
-      const url = isEdit ? `/api/superadmin/workspaces/${id}` : '/api/superadmin/workspaces';
-      const method = isEdit ? 'PUT' : 'POST';
-
-      const payload = isEdit
-        ? { name, company, address, description, adminId: adminId ? Number(adminId) : null }
-        : { name, company, address, description };
-
-      const submitBtn = document.getElementById('btn-ws-submit');
-      submitBtn.disabled = true;
-      submitBtn.innerText = 'Memproses...';
-
-      try {
-        const res = await fetch(url, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-
-        if (res.ok) {
-          closeModal('workspace');
-          loadAll();
-
-          if (!isEdit && data.admin) {
-            // Tampilkan modal credential admin yang baru digenerate
-            document.getElementById('ws-result-name').innerText = name;
-            document.getElementById('ws-result-username').innerText = data.admin.username;
-            document.getElementById('ws-result-password').innerText = data.adminPasswordPlain;
-            openModal('workspace-result');
-            if (window.lucide) window.lucide.createIcons();
-          } else {
-            showToast('Workspace berhasil diperbarui.');
-          }
-        } else {
-          showToast(data.error || 'Gagal memproses workspace', 'danger');
-        }
-      } catch (err) {
-        showToast('Koneksi bermasalah', 'danger');
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerText = isEdit ? 'Simpan Perubahan' : 'Buat Workspace';
-      }
-    }
-
-    async function deleteWorkspace(id, name) {
-      if (!confirm(`Apakah Anda yakin ingin menghapus workspace "${name}"?`)) return;
-      try {
-        const res = await fetch(`/api/superadmin/workspaces/${id}`, { method: 'DELETE' });
-        if (res.ok) {
-          showToast('Workspace berhasil dihapus.');
-          loadAll();
-        } else {
-          const data = await res.json();
-          showToast(data.error || 'Gagal menghapus workspace', 'danger');
-        }
-      } catch (err) {
-        showToast('Koneksi bermasalah', 'danger');
-      }
-    }
-
-    // Main initializers
-    async function loadAll() {
-      await loadStats();
-      await loadWorkspaces(); // Load workspaces first so workspace names can resolve in admin table
-      await loadAdmins();
-    }
-
-    document.getElementById('btn-logout').addEventListener('click', async () => {
-      try {
-        await fetch('/api/auth/logout', { method: 'POST' });
-        window.location.href = '/login';
-      } catch (err) {
-        window.location.href = '/login';
+        showToast(err.message, 'error');
       }
     });
+  };
 
-    document.addEventListener('DOMContentLoaded', () => {
-      loadAll();
-      if (window.lucide) window.lucide.createIcons();
+  window.revokeAllSessions = function() {
+    showConfirm('Keluarkan Semua', 'Anda yakin ingin mengeluarkan SEMUA perangkat lain?', async () => {
+      try {
+        await api(`/api/auth/sessions`, { method: 'DELETE' });
+        showToast('Semua perangkat lain berhasil dikeluarkan');
+        loadSessions();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
     });
+  };
+
+  document.getElementById('dropdown-logout').addEventListener('click', async (e) => {
+    e.preventDefault();
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (_) {}
+    window.location.href = '/logout';
+  });
+
+  /* ── Init ────────────────────────────────────────────── */
+  loadMe();
+  loadStats();
+
+  /* ═══════════════════════════════════════════
+     WORKSPACES
+  ═══════════════════════════════════════════ */
+  let workspaceCache = [];
+
+  document.getElementById('ws-search').addEventListener('input', () => filterWorkspaces());
+  document.getElementById('ws-filter').addEventListener('change', () => filterWorkspaces());
+
+  function filterWorkspaces() {
+    const query = document.getElementById('ws-search').value.toLowerCase();
+    const filterBy = document.getElementById('ws-filter').value;
+
+    if (!query) {
+      renderWorkspacesTable(workspaceCache);
+      return;
+    }
+
+    const filtered = workspaceCache.filter(ws => {
+      if (filterBy === 'all') {
+        return (ws.name || '').toLowerCase().includes(query) ||
+               (ws.code || '').toLowerCase().includes(query) ||
+               (ws.address || '').toLowerCase().includes(query) ||
+               (ws.company || '').toLowerCase().includes(query) ||
+               String(ws.id).includes(query);
+      }
+      if (filterBy === 'name') return (ws.name || '').toLowerCase().includes(query);
+      if (filterBy === 'code') return (ws.code || '').toLowerCase().includes(query);
+      if (filterBy === 'address') return (ws.address || '').toLowerCase().includes(query);
+      if (filterBy === 'company') return (ws.company || '').toLowerCase().includes(query);
+      if (filterBy === 'id') return String(ws.id).includes(query);
+      if (filterBy === 'date') return formatDate(ws.createdAt).toLowerCase().includes(query);
+      return false;
+    });
+
+    renderWorkspacesTable(filtered);
+  }
+
+  async function loadWorkspaces() {
+    const tbody = document.getElementById('workspaces-table');
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="padding:40px;">
+      <span class="spin"><i data-lucide="loader" style="width:20px;height:20px;"></i></span>
+      <span style="margin-left:8px;color:var(--text-muted);">Memuat data...</span>
+    </td></tr>`;
+    lucide.createIcons();
+
+    try {
+      const res = await api('/api/superadmin/workspaces');
+      workspaceCache = res.data || res.workspaces || [];
+      filterWorkspaces();
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="padding:40px;color:var(--error);">
+        <i data-lucide="alert-circle" style="width:20px;height:20px;vertical-align:middle;"></i>
+        Gagal memuat data: ${err.message}
+      </td></tr>`;
+      lucide.createIcons();
+    }
+  }
+
+  function renderWorkspacesTable(list) {
+    const tbody = document.getElementById('workspaces-table');
+    if (!list || list.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">
+        <i data-lucide="building-2"></i>
+        <p>Belum ada workspace. Klik "Tambah Workspace" untuk membuat.</p>
+      </div></td></tr>`;
+      lucide.createIcons();
+      return;
+    }
+
+    tbody.innerHTML = list.map(ws => `
+      <tr>
+        <td data-label="ID"><span class="mono">#${ws.id ?? '—'}</span></td>
+        <td data-label="Nama Workspace"><strong>${escapeHtml(ws.name ?? '—')}</strong></td>
+        <td data-label="Kode Workspace"><span class="badge badge-blue">${escapeHtml(ws.code ?? '—')}</span></td>
+        <td data-label="Perusahaan">${escapeHtml(ws.company || '—')}</td>
+        <td data-label="Alamat">${escapeHtml(ws.address || '—')}</td>
+        <td data-label="Aksi">
+          <div class="action-row">
+            <a href="/superadmin/workspaces/${ws.id}" class="btn-icon" title="Detail Workspace" style="text-decoration: none;">
+              <i data-lucide="external-link"></i>
+            </a>
+            <button class="btn-icon" title="Edit Workspace" onclick="openEditWorkspace(${ws.id})">
+              <i data-lucide="pencil"></i>
+            </button>
+            <button class="btn-icon danger" title="Hapus Workspace" onclick="deleteWorkspace(${ws.id}, '${escapeHtml(ws.name ?? '')}')">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+    lucide.createIcons();
+  }
+
+  /* Open CREATE workspace modal */
+  document.getElementById('btn-open-ws-create').addEventListener('click', () => {
+    document.getElementById('form-ws-create').reset();
+    openModal('modal-ws-create');
+  });
+
+  /* CREATE workspace form submit */
+  document.getElementById('form-ws-create').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('btn-ws-create-submit');
+    const name        = document.getElementById('ws-name').value.trim();
+    const company     = document.getElementById('ws-company').value.trim();
+    const address     = document.getElementById('ws-address').value.trim();
+    const description = document.getElementById('ws-description').value.trim();
+
+    if (!name) { showToast('Nama workspace wajib diisi', 'error'); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin"><i data-lucide="loader" style="width:16px;height:16px;"></i></span> Menyimpan...';
+    lucide.createIcons();
+
+    try {
+      const res = await api('/api/superadmin/workspaces', {
+        method: 'POST',
+        body: JSON.stringify({ name, company, address, description })
+      });
+
+      closeModal('modal-ws-create');
+      document.getElementById('form-ws-create').reset();
+
+      // Show credentials modal
+      const data = res.data || {};
+      const ws = data.workspace || res.workspace || {};
+      document.getElementById('result-title').textContent = 'Workspace Berhasil Dibuat!';
+      document.getElementById('result-body').innerHTML = `
+        <div class="credentials-box">
+          <p><strong>Nama Workspace:</strong> ${escapeHtml(ws.name || name)}</p>
+          <p><strong>Kode Workspace:</strong> ${escapeHtml(data.code || ws.code || '—')}</p>
+          ${data.adminUsername ? `<p><strong>Username Admin:</strong> ${escapeHtml(data.adminUsername)}</p>` : ''}
+          ${data.adminPasswordPlain ? `<p><strong>Password Admin:</strong> <code class="font-mono">${escapeHtml(data.adminPasswordPlain)}</code></p>` : ''}
+        </div>
+        <p class="cred-note">⚠️ Simpan password admin di atas — tidak akan ditampilkan lagi.</p>
+      `;
+      openModal('modal-result');
+      showToast('Workspace berhasil dibuat!');
+      loadWorkspaces();
+      loadStats();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="plus"></i> Buat Workspace';
+      lucide.createIcons();
+    }
+  });
+
+  /* Open EDIT workspace modal */
+  function openEditWorkspace(id) {
+    const ws = workspaceCache.find(w => w.id === id);
+    if (!ws) { showToast('Workspace tidak ditemukan', 'error'); return; }
+
+    document.getElementById('ws-edit-id').value          = ws.id;
+    document.getElementById('ws-edit-name').value        = ws.name || '';
+    document.getElementById('ws-edit-company').value     = ws.company || '';
+    document.getElementById('ws-edit-address').value     = ws.address || '';
+    document.getElementById('ws-edit-description').value = ws.description || '';
+
+    openModal('modal-ws-edit');
+  }
+
+  /* EDIT workspace form submit */
+  document.getElementById('form-ws-edit').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('btn-ws-edit-submit');
+    const id = document.getElementById('ws-edit-id').value;
+    const name        = document.getElementById('ws-edit-name').value.trim();
+    const company     = document.getElementById('ws-edit-company').value.trim();
+    const address     = document.getElementById('ws-edit-address').value.trim();
+    const description = document.getElementById('ws-edit-description').value.trim();
+
+    if (!name) { showToast('Nama workspace wajib diisi', 'error'); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin"><i data-lucide="loader" style="width:16px;height:16px;"></i></span> Menyimpan...';
+    lucide.createIcons();
+
+    try {
+      await api(`/api/superadmin/workspaces/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ name, company, address, description })
+      });
+      closeModal('modal-ws-edit');
+      showToast('Workspace berhasil diperbarui!');
+      loadWorkspaces();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="save"></i> Simpan Perubahan';
+      lucide.createIcons();
+    }
+  });
+
+  /* DELETE workspace */
+  function deleteWorkspace(id, name) {
+    showConfirm('Hapus Workspace', `Hapus workspace "${escapeHtml(name)}"?\n\nSemua data terkait workspace ini akan dilepas dari admin.`, async () => {
+      try {
+        await api(`/api/superadmin/workspaces/${id}`, { method: 'DELETE' });
+        showToast('Workspace berhasil dihapus!');
+        loadWorkspaces();
+        loadStats();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+  }
+
+  /* ═══════════════════════════════════════════
+     ADMINS
+  ═══════════════════════════════════════════ */
+  let adminCache = [];
+
+  document.getElementById('admin-search').addEventListener('input', () => filterAdmins());
+  document.getElementById('admin-filter').addEventListener('change', () => filterAdmins());
+
+  function filterAdmins() {
+    const query = document.getElementById('admin-search').value.toLowerCase();
+    const filterBy = document.getElementById('admin-filter').value;
+
+    if (!query) {
+      renderAdminsTable(adminCache);
+      return;
+    }
+
+    const filtered = adminCache.filter(admin => {
+      if (filterBy === 'all') {
+        return (admin.username || '').toLowerCase().includes(query) ||
+               (admin.name || '').toLowerCase().includes(query) ||
+               (admin.workspaceName || admin.workspaceCode || '').toLowerCase().includes(query) ||
+               String(admin.id).includes(query);
+      }
+      if (filterBy === 'username') return (admin.username || '').toLowerCase().includes(query);
+      if (filterBy === 'name') return (admin.name || '').toLowerCase().includes(query);
+      if (filterBy === 'workspace') return (admin.workspaceName || admin.workspaceCode || '').toLowerCase().includes(query);
+      if (filterBy === 'id') return String(admin.id).includes(query);
+      if (filterBy === 'date') return formatDate(admin.createdAt).toLowerCase().includes(query);
+      return false;
+    });
+
+    renderAdminsTable(filtered);
+  }
+
+  async function loadAdmins() {
+    const tbody = document.getElementById('admins-table');
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="padding:40px;">
+      <span class="spin"><i data-lucide="loader" style="width:20px;height:20px;"></i></span>
+      <span style="margin-left:8px;color:var(--text-muted);">Memuat data...</span>
+    </td></tr>`;
+    lucide.createIcons();
+
+    try {
+      const res = await api('/api/superadmin/admins');
+      adminCache = res.data || res.admins || [];
+      filterAdmins();
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="padding:40px;color:var(--error);">
+        <i data-lucide="alert-circle" style="width:20px;height:20px;vertical-align:middle;"></i>
+        Gagal memuat data: ${err.message}
+      </td></tr>`;
+      lucide.createIcons();
+    }
+  }
+
+  function renderAdminsTable(list) {
+    const tbody = document.getElementById('admins-table');
+    if (!list || list.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">
+        <i data-lucide="users"></i>
+        <p>Belum ada administrator. Klik "Tambah Admin" untuk membuat.</p>
+      </div></td></tr>`;
+      lucide.createIcons();
+      return;
+    }
+
+    tbody.innerHTML = list.map(admin => {
+      const wsLabel = admin.workspaceName || admin.workspaceCode || '—';
+      const wsDisplay = (admin.workspaceName || admin.workspaceCode)
+        ? `<span class="ws-badge">${escapeHtml(wsLabel)}</span>`
+        : '<span style="color:var(--text-muted);">—</span>';
+
+      return `
+        <tr>
+          <td data-label="ID"><span class="mono">#${admin.id ?? '—'}</span></td>
+          <td data-label="Username">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <code class="font-mono" style="font-size:0.82rem;">${escapeHtml(admin.username ?? '—')}</code>
+              <button class="btn-icon" style="width:24px;height:24px;border:none;background:transparent;" title="Salin Username" onclick="copyToClipboard('${escapeHtml(admin.username ?? '')}')">
+                <i data-lucide="copy" style="width:14px;height:14px;"></i>
+              </button>
+            </div>
+          </td>
+          <td data-label="Nama Lengkap"><strong>${escapeHtml(admin.name || '—')}</strong></td>
+          <td data-label="Workspace">${wsDisplay}</td>
+          <td data-label="Terdaftar">${formatDate(admin.createdAt)}</td>
+          <td data-label="Aksi">
+            <div class="action-row">
+              <button class="btn-icon" title="Edit Admin" onclick="openEditAdmin('${admin.id}')">
+                <i data-lucide="pencil"></i>
+              </button>
+              <button class="btn-icon" title="Reset Password" onclick="resetAdminPassword('${admin.id}', '${escapeHtml(admin.username ?? '')}')">
+                <i data-lucide="key-round"></i>
+              </button>
+              <button class="btn-icon danger" title="Hapus Admin" onclick="deleteAdmin('${admin.id}', '${escapeHtml(admin.username ?? '')}')">
+                <i data-lucide="trash-2"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+    lucide.createIcons();
+  }
+
+  /* Open CREATE admin modal — populate workspace dropdown */
+  document.getElementById('btn-open-admin-create').addEventListener('click', async () => {
+    document.getElementById('form-admin-create').reset();
+    const select = document.getElementById('admin-workspace');
+    select.innerHTML = '<option value="">— Pilih Workspace —</option>';
+
+    // Use cached workspaces or fetch
+    let wsList = workspaceCache;
+    if (wsList.length === 0) {
+      try {
+        const res = await api('/api/superadmin/workspaces');
+        wsList = res.data || res.workspaces || [];
+        workspaceCache = wsList;
+      } catch (err) {
+        showToast('Gagal memuat daftar workspace: ' + err.message, 'error');
+      }
+    }
+
+    wsList.forEach(ws => {
+      const opt = document.createElement('option');
+      opt.value = ws.code;
+      opt.textContent = `${ws.name} (${ws.code})`;
+      select.appendChild(opt);
+    });
+
+    openModal('modal-admin-create');
+  });
+
+  /* CREATE admin form submit */
+  document.getElementById('form-admin-create').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('btn-admin-create-submit');
+    const name          = document.getElementById('admin-name').value.trim();
+    const workspaceCode = document.getElementById('admin-workspace').value;
+
+    if (!name)          { showToast('Nama admin wajib diisi', 'error');        return; }
+    if (!workspaceCode) { showToast('Pilih workspace terlebih dahulu', 'error'); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin"><i data-lucide="loader" style="width:16px;height:16px;"></i></span> Menyimpan...';
+    lucide.createIcons();
+
+    try {
+      const res = await api('/api/superadmin/admins', {
+        method: 'POST',
+        body: JSON.stringify({ name, workspaceCode })
+      });
+
+      closeModal('modal-admin-create');
+      document.getElementById('form-admin-create').reset();
+
+      // Show credentials
+      const data = res.data || {};
+      const admin = res.admin || {};
+      document.getElementById('result-title').textContent = 'Admin Berhasil Dibuat!';
+      document.getElementById('result-body').innerHTML = `
+        <div class="credentials-box">
+          <p><strong>Nama:</strong> ${escapeHtml(data.name || admin.name || name)}</p>
+          <p><strong>Username:</strong> <code class="font-mono">${escapeHtml(data.username || admin.username || '—')}</code></p>
+          <p><strong>Password:</strong> <code class="font-mono">${escapeHtml(res.passwordPlain || data.adminPasswordPlain || '—')}</code></p>
+          <p><strong>Workspace:</strong> ${escapeHtml(data.workspaceCode || admin.workspaceCode || workspaceCode)}</p>
+        </div>
+        <p class="cred-note">⚠️ Simpan password di atas — tidak akan ditampilkan lagi.</p>
+      `;
+      openModal('modal-result');
+      showToast('Admin berhasil dibuat!');
+      loadAdmins();
+      loadStats();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="user-plus"></i> Simpan Admin';
+      lucide.createIcons();
+    }
+  });
+
+  /* Open EDIT admin modal */
+  function openEditAdmin(id) {
+    const admin = adminCache.find(a => String(a.id) === String(id));
+    if (!admin) { showToast('Admin tidak ditemukan', 'error'); return; }
+    document.getElementById('admin-edit-id').value   = admin.id;
+    document.getElementById('admin-edit-name').value = admin.name || '';
+    openModal('modal-admin-edit');
+  }
+
+  /* EDIT admin form submit */
+  document.getElementById('form-admin-edit').addEventListener('submit', async e => {
+    e.preventDefault();
+    const id   = document.getElementById('admin-edit-id').value;
+    const name = document.getElementById('admin-edit-name').value.trim();
+
+    try {
+      await api(`/api/superadmin/admins/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ name })
+      });
+      closeModal('modal-admin-edit');
+      showToast('Admin berhasil diperbarui!');
+      loadAdmins();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  });
+
+  /* RESET admin password */
+  function resetAdminPassword(id, username) {
+    showConfirm('Reset Password', `Reset password untuk admin "${escapeHtml(username)}"?\n\nPassword baru akan digenerate otomatis.`, async () => {
+      try {
+        const res = await api(`/api/superadmin/admins/${id}/reset-password`, { method: 'POST' });
+        const data = res.data || {};
+        document.getElementById('result-title').textContent = 'Password Berhasil Direset!';
+        document.getElementById('result-body').innerHTML = `
+          <div class="credentials-box">
+            <p><strong>Username:</strong> <code class="font-mono" id="reset-uname">${escapeHtml(data.username || username)}</code> <button onclick="copyToClipboard('${escapeHtml(data.username || username)}')"><i data-lucide="copy" style="width:14px;height:14px;"></i></button></p>
+            <p><strong>Password Baru:</strong> <code class="font-mono" id="reset-pwd">${escapeHtml(data.newPasswordPlain || res.passwordPlain || '—')}</code> <button onclick="copyToClipboard('${escapeHtml(data.newPasswordPlain || res.passwordPlain || '')}')"><i data-lucide="copy" style="width:14px;height:14px;"></i></button></p>
+          </div>
+          <p class="cred-note">⚠️ Simpan password baru di atas — tidak akan ditampilkan lagi.</p>
+        `;
+        openModal('modal-result');
+        showToast('Password berhasil direset!');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+  }
+
+  /* DELETE admin */
+  function deleteAdmin(id, username) {
+    showConfirm('Hapus Admin', `Hapus admin "${escapeHtml(username)}"?\n\nTindakan ini tidak dapat dibatalkan.`, async () => {
+      try {
+        await api(`/api/superadmin/admins/${id}`, { method: 'DELETE' });
+        showToast('Admin berhasil dihapus!');
+        loadAdmins();
+        loadStats();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+  }
+
+  /* ── Clipboard API ──────────────────────── */
+  window.copyToClipboard = async function(text) {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('Berhasil disalin ke clipboard');
+    } catch (err) {
+      showToast('Gagal menyalin text', 'error');
+    }
+  };
+
+  /* ── XSS protection ─────────────────────── */
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  /* ── Initial load ────────────────────────── */
+  loadStats();
+
   </script>
 </body>
 </html>

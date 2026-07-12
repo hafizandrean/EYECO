@@ -12,8 +12,10 @@ export class TimelineRepository {
     return events.map(e => e.toObject() as ITimelineEvent);
   }
 
-  public static async findByReportId(reportId: mongoose.Types.ObjectId | string): Promise<ITimelineEvent[]> {
-    const events = await TimelineEventModel.find({ reportId })
+  public static async findByReportId(reportId: mongoose.Types.ObjectId | string, workspaceId?: number): Promise<ITimelineEvent[]> {
+    const query: Record<string, unknown> = { reportId };
+    if (workspaceId !== undefined) query.workspaceId = workspaceId;
+    const events = await TimelineEventModel.find(query)
       .sort({ createdAt: -1 })
       .lean()
       .exec();

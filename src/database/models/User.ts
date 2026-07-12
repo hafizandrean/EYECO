@@ -4,12 +4,13 @@ export interface IUser extends Document {
   id: number;
   username: string;
   passwordHash: string;
-  role: 'superadmin' | 'admin' | 'user' | 'operator' | 'supervisor' | 'officer';
+  role: 'superadmin' | 'admin' | 'user';
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   name: string;
   email: string;
-  agency: string;
+  phone?: string;
   workspaceId?: number;
+  workspaceIds: number[];
 }
 
 const UserSchema = new Schema<IUser>({
@@ -26,7 +27,7 @@ const UserSchema = new Schema<IUser>({
   passwordHash: { type: String, required: true, select: false },
   role: {
     type: String,
-    enum: ['superadmin', 'admin', 'user', 'operator', 'supervisor', 'officer'],
+    enum: ['superadmin', 'admin', 'user'],
     required: true
   },
   status: {
@@ -37,8 +38,9 @@ const UserSchema = new Schema<IUser>({
   },
   name: { type: String, trim: true, default: '' },
   email: { type: String, trim: true, lowercase: true, default: '' },
-  agency: { type: String, trim: true, default: '' },
-  workspaceId: { type: Number, index: true }
+  phone: { type: String, trim: true, default: '' },
+  workspaceId: { type: Number, index: true, sparse: true },
+  workspaceIds: { type: [Number], default: [] }
 }, {
   timestamps: true
 });

@@ -33,27 +33,16 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AssignmentModel = void 0;
+exports.JoinRequestModel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
-const AssignmentSchema = new mongoose_1.Schema({
-    workspaceId: { type: Number, index: true },
-    reportId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Report', required: true, index: true },
-    officerId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
-    officerName: { type: String, required: true },
-    agency: { type: String, required: true },
-    assignedById: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
-    assignedByName: { type: String, required: true },
-    assignedAt: { type: Date, default: Date.now, required: true },
-    endedAt: { type: Date, default: null },
-    status: {
-        type: String,
-        enum: ['ASSIGNED', 'ON_SITE', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'REASSIGNED'],
-        required: true
-    }
+const JoinRequestSchema = new mongoose_1.Schema({
+    userId: { type: Number, required: true, index: true },
+    workspaceId: { type: Number, required: true, index: true },
+    status: { type: String, enum: ['PENDING', 'APPROVED', 'REJECTED'], default: 'PENDING' }
 }, {
     timestamps: true
 });
-// Index to find active assignment and officer assignments quickly
-AssignmentSchema.index({ workspaceId: 1, reportId: 1, endedAt: 1 });
-AssignmentSchema.index({ officerId: 1, status: 1 });
-exports.AssignmentModel = mongoose_1.default.model('Assignment', AssignmentSchema);
+// Ensure a user can only have one pending request per workspace
+JoinRequestSchema.index({ userId: 1, workspaceId: 1, status: 1 });
+exports.JoinRequestModel = mongoose_1.default.models.JoinRequest
+    || mongoose_1.default.model('JoinRequest', JoinRequestSchema);

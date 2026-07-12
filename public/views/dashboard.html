@@ -9,6 +9,11 @@
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
+  <!-- Background decorative blobs -->
+  <div class="bg-blobs">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+  </div>
   
   <div class="layout-container">
     
@@ -44,9 +49,9 @@
 
       <!-- Right side: Actions Group (Export, Notifications, Darkmode, Profile) -->
       <div class="header-right-group">
-        <!-- Conditional Export Button -->
-        <button class="btn btn-glass btn-rounded header-export-btn" id="btn-header-export">
-          <i data-lucide="download"></i> Export CSV
+        <!-- Conditional Export Button (Icon only) -->
+        <button class="btn-icon-toggle header-export-btn" id="btn-header-export" title="Export CSV">
+          <i data-lucide="download"></i>
         </button>
 
         <!-- Theme Toggle Button -->

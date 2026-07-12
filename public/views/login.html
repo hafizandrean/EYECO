@@ -3,205 +3,159 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login - EYECO</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <title>EYECO — Login</title>
+  <meta name="description" content="Masuk ke sistem EYECO Incident Command Center.">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
-  <style>
-    body {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      padding: 20px;
-      background: radial-gradient(circle at top right, rgba(47, 107, 255, 0.15) 0%, rgba(9, 13, 22, 0) 65%), var(--bg-gradient);
-    }
-    
-    .login-card {
-      width: 100%;
-      max-width: 420px;
-      padding: 40px 32px;
-      animation: pageFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    .brand-header {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      margin-bottom: 28px;
-    }
-
-    .brand-icon-wrapper {
-      background: linear-gradient(135deg, var(--primary) 0%, #1e52db 100%);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 56px;
-      height: 56px;
-      border-radius: 16px;
-      color: white;
-      margin-bottom: 16px;
-      box-shadow: 0 8px 24px rgba(47, 107, 255, 0.3);
-      transition: transform var(--motion-hover);
-    }
-
-    .brand-icon-wrapper:hover {
-      transform: scale(1.05) rotate(5deg);
-    }
-
-    .password-wrapper {
-      position: relative;
-    }
-
-    .password-toggle-btn {
-      position: absolute;
-      right: 14px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 4px;
-      border-radius: 4px;
-      transition: color var(--motion-hover);
-    }
-
-    .password-toggle-btn:hover {
-      color: var(--text-primary);
-    }
-
-    .form-control {
-      transition: border-color var(--motion-hover), box-shadow var(--motion-hover);
-    }
-
-    .form-control:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 4px rgba(47, 107, 255, 0.12);
-    }
-  </style>
+  <link rel="stylesheet" href="/css/style.css">
 </head>
-<body>
-  
-  <main class="glass-card login-card">
-    
-    <div class="brand-header">
-      <div class="brand-icon-wrapper">
-        <i data-lucide="waves" style="width: 28px; height: 28px;"></i>
-      </div>
-      <h2 style="font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.8rem; letter-spacing: -0.5px;">Masuk EYECO</h2>
-      <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 6px;">Pantau aktivitas mencurigakan daerah aliran sungai</p>
+<body class="auth-page">
+
+  <div class="bg-blobs">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+  </div>
+
+  <div class="glass-card auth-card">
+    <div class="brand">
+      <h1><i data-lucide="waves"></i> EYECO</h1>
+      <p>Incident Command Center</p>
     </div>
 
-    <!-- Error message alert -->
-    <div id="error-alert" style="display: none; background: var(--danger-bg); border: 1px solid rgba(239, 68, 68, 0.25); color: var(--danger); padding: 12px 16px; border-radius: var(--radius-input); font-size: 0.85rem; font-weight: 600; margin-bottom: 20px; align-items: center; gap: 10px; animation: pageFadeIn 0.2s ease;">
-      <i data-lucide="alert-circle" style="width: 18px; height: 18px; flex-shrink: 0;"></i>
-      <span id="error-text">Kredensial tidak valid</span>
-    </div>
+    <div id="error-box"   class="error-msg"></div>
+    <div id="success-box" class="success-msg"></div>
 
-    <form id="login-form">
-      <div class="form-group" style="margin-bottom: 18px;">
-        <label class="form-label" for="login-username" style="font-weight: 600; font-size: 0.85rem;">Username</label>
-        <div style="position: relative;">
-          <input type="text" class="form-control" id="login-username" placeholder="Masukkan username" required style="width: 100%; padding-left: 42px; height: 46px; border-radius: var(--radius-input);">
-          <i data-lucide="user" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--text-muted);"></i>
+    <form id="login-form" novalidate>
+      <div class="form-group">
+        <label for="username">Email atau Username</label>
+        <div class="input-wrapper">
+          <i data-lucide="user"></i>
+          <input
+            type="text"
+            id="username"
+            class="input-control"
+            placeholder="Masukkan email atau username"
+            autocomplete="username"
+            required
+          >
         </div>
       </div>
 
-      <div class="form-group" style="margin-bottom: 24px;">
-        <label class="form-label" for="login-password" style="font-weight: 600; font-size: 0.85rem;">Password</label>
-        <div class="password-wrapper">
-          <input type="password" class="form-control" id="login-password" placeholder="Masukkan password" required style="width: 100%; padding-left: 42px; padding-right: 46px; height: 46px; border-radius: var(--radius-input);">
-          <i data-lucide="key" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--text-muted);"></i>
-          <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('login-password', this)">
-            <i data-lucide="eye" style="width: 18px; height: 18px;"></i>
-          </button>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label for="password">Password</label>
+        <div class="input-wrapper">
+          <i data-lucide="lock"></i>
+          <input
+            type="password"
+            id="password"
+            class="input-control"
+            placeholder="Masukkan password"
+            autocomplete="current-password"
+            required
+          >
+          <div class="toggle-password" id="toggle-password" role="button" tabindex="0" aria-label="Tampilkan password">
+            <i data-lucide="eye" style="width:18px;height:18px;"></i>
+          </div>
         </div>
       </div>
 
-      <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; height: 46px; border-radius: var(--radius-input); display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; font-size: 0.95rem; box-shadow: 0 4px 14px rgba(47, 107, 255, 0.25);">
-        Masuk <i data-lucide="log-in" style="width: 18px; height: 18px;"></i>
+      <div class="options-row">
+        <label for="remember-me">
+          <input type="checkbox" id="remember-me"> Ingat saya
+        </label>
+        <a href="#" onclick="alert('Silakan hubungi administrator untuk mereset password Anda.'); return false;">
+          Lupa Password?
+        </a>
+      </div>
+
+      <button type="submit" class="btn-primary" id="btn-submit">
+        <i data-lucide="log-in" style="width:18px;height:18px;"></i>
+        Masuk ke Sistem
       </button>
     </form>
 
-    <div style="text-align: center; margin-top: 24px; border-top: 1px solid var(--border); padding-top: 18px;">
-      <p style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 550;">
-        Belum punya akun? <a href="/register" style="color: var(--primary); text-decoration: none; font-weight: 700; transition: color var(--motion-hover);">Daftar Sekarang</a>
-      </p>
+    <div class="links">
+      <div>Belum punya akun masyarakat? <a href="/register">Daftar di sini</a></div>
+      <div class="divider"></div>
+      <div>Organisasi baru? <a href="/register-superadmin">Daftarkan Organisasi</a></div>
     </div>
-
-  </main>
+  </div>
 
   <script>
-    const form = document.getElementById('login-form');
-    const errorAlert = document.getElementById('error-alert');
-    const errorText = document.getElementById('error-text');
+    lucide.createIcons();
 
-    const usernameInput = document.getElementById('login-username');
-    const passwordInput = document.getElementById('login-password');
+    /* ── Toggle password visibility ── */
+    const togglePwd   = document.getElementById('toggle-password');
+    const passwordInput = document.getElementById('password');
 
-    function togglePasswordVisibility(inputId, btnEl) {
-      const input = document.getElementById(inputId);
-      const icon = btnEl.querySelector('i');
-      if (input.type === 'password') {
-        input.type = 'text';
-        icon.setAttribute('data-lucide', 'eye-off');
-      } else {
-        input.type = 'password';
-        icon.setAttribute('data-lucide', 'eye');
-      }
-      if (window.lucide) window.lucide.createIcons();
+    function togglePasswordVisibility() {
+      const isHidden = passwordInput.type === 'password';
+      passwordInput.type = isHidden ? 'text' : 'password';
+      togglePwd.innerHTML = isHidden
+        ? '<i data-lucide="eye-off" style="width:18px;height:18px;"></i>'
+        : '<i data-lucide="eye"     style="width:18px;height:18px;"></i>';
+      lucide.createIcons();
     }
 
-    form.addEventListener('submit', async (e) => {
+    togglePwd.addEventListener('click', togglePasswordVisibility);
+    togglePwd.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); togglePasswordVisibility(); }
+    });
+
+    /* ── Login form submit ── */
+    document.getElementById('login-form').addEventListener('submit', async e => {
       e.preventDefault();
-      errorAlert.style.display = 'none';
+
+      const btn        = document.getElementById('btn-submit');
+      const errorBox   = document.getElementById('error-box');
+      const successBox = document.getElementById('success-box');
+
+      errorBox.style.display   = 'none';
+      successBox.style.display = 'none';
+
+      btn.innerHTML = '<span class="spin"><i data-lucide="loader" style="width:18px;height:18px;"></i></span> Memproses...';
+      btn.disabled  = true;
+      lucide.createIcons();
 
       try {
         const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            username: usernameInput.value.trim(),
+            username: document.getElementById('username').value.trim(),
             password: passwordInput.value
           })
         });
 
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
 
-        if (!res.ok) {
-          if (data.statusCode === 'PENDING') {
-            errorText.innerText = 'Akun sedang menunggu persetujuan Admin.';
-          } else if (data.statusCode === 'REJECTED') {
-            errorText.innerText = 'Akun Anda ditolak Admin.';
-          } else {
-            errorText.innerText = data.error || 'Username atau password salah.';
-          }
-          errorAlert.style.display = 'flex';
-          return;
-        }
+        if (res.ok) {
+          successBox.textContent    = 'Login berhasil! Mengarahkan...';
+          successBox.style.display  = 'block';
 
-        const role = (data.role || '').toLowerCase();
-        if (role === 'superadmin') {
-          window.location.replace('/superadmin');
-        } else if (role === 'admin') {
-          window.location.replace('/dashboard');
+          setTimeout(() => {
+            if (data.role === 'superadmin') window.location.href = '/superadmin';
+            else if (data.role === 'admin') window.location.href = '/dashboard';
+            else window.location.href = '/select-workspace';
+          }, 900);
         } else {
-          window.location.replace('/dashboard-user');
+          errorBox.textContent   = data.error || data.message || 'Login gagal';
+          errorBox.style.display = 'block';
+          resetBtn();
         }
       } catch (err) {
-        console.error(err);
-        errorText.innerText = 'Tidak dapat terhubung ke server.';
-        errorAlert.style.display = 'flex';
+        errorBox.textContent   = 'Terjadi kesalahan jaringan. Periksa koneksi Anda.';
+        errorBox.style.display = 'block';
+        resetBtn();
       }
     });
 
-    document.addEventListener('DOMContentLoaded', () => {
-      if (window.lucide) window.lucide.createIcons();
-    });
+    function resetBtn() {
+      const btn = document.getElementById('btn-submit');
+      btn.innerHTML = '<i data-lucide="log-in" style="width:18px;height:18px;"></i> Masuk ke Sistem';
+      btn.disabled  = false;
+      lucide.createIcons();
+    }
   </script>
 </body>
 </html>
