@@ -5,9 +5,18 @@ import fs from 'fs';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import mongoose from 'mongoose';
+import cookieParser from 'cookie-parser';
 import { DatabaseManager, Report, BoundingBox, User, connectDB, disconnectDB, CctvModel, AiDetectionModel, AiEvidenceModel, SystemSettingsModel, SystemAuditLogModel } from './database/db';
 import { ReportModel } from './database/models/Report';
 import { UserModel } from './database/models/User';
+import { authMiddleware } from './auth/authMiddleware';
+import { roleGuard } from './auth/RoleMiddleware';
+import authRouter from './routes/authRoutes';
+import superadminRouter from './routes/superadminRoutes';
+import workspaceRouter from './routes/workspaceRoutes';
+import adminRouter from './routes/adminRoutes';
+import reportRouter from './routes/reportRoutes';
+import cctvRouter from './routes/cctvRoutes';
 import { CctvHealthEngine } from './cctv/CctvHealthEngine';
 import { CctvScanner } from './cctv/CctvScanner';
 import { CctvAdapter } from './cctv/CctvAdapter';
@@ -37,6 +46,7 @@ app.use('/api/auth/register', authLimiter);
 const sessions = new Map<string, number>();
 
 // Setup middleware
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
