@@ -3,8 +3,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AssignmentRepository = void 0;
 const Assignment_1 = require("../models/Assignment");
 class AssignmentRepository {
-    static async findById(id) {
-        const assignment = await Assignment_1.AssignmentModel.findById(id).lean().exec();
+    static async findById(id, workspaceId) {
+        const query = { _id: id };
+        if (workspaceId !== undefined)
+            query.workspaceId = workspaceId;
+        const assignment = await Assignment_1.AssignmentModel.findOne(query).lean().exec();
         return assignment;
     }
     static async create(assignmentData, session) {
@@ -12,19 +15,28 @@ class AssignmentRepository {
         const assignments = await Assignment_1.AssignmentModel.insertMany(assignmentData, options);
         return assignments.map(a => a.toObject());
     }
-    static async deactivateActive(reportId, status, session) {
+    static async deactivateActive(reportId, status, workspaceId, session) {
         const options = {};
         if (session) {
             Object.assign(options, { session });
         }
-        await Assignment_1.AssignmentModel.updateMany({ reportId, endedAt: null }, { $set: { endedAt: new Date(), status } }, options).exec();
+        const query = { reportId, endedAt: null };
+        if (workspaceId !== undefined)
+            query.workspaceId = workspaceId;
+        await Assignment_1.AssignmentModel.updateMany(query, { $set: { endedAt: new Date(), status } }, options).exec();
     }
-    static async findActiveByReportId(reportId) {
-        const assignment = await Assignment_1.AssignmentModel.findOne({ reportId, endedAt: null }).lean().exec();
+    static async findActiveByReportId(reportId, workspaceId) {
+        const query = { reportId, endedAt: null };
+        if (workspaceId !== undefined)
+            query.workspaceId = workspaceId;
+        const assignment = await Assignment_1.AssignmentModel.findOne(query).lean().exec();
         return assignment;
     }
-    static async findByReportId(reportId) {
-        const assignments = await Assignment_1.AssignmentModel.find({ reportId }).sort({ assignedAt: -1 }).lean().exec();
+    static async findByReportId(reportId, workspaceId) {
+        const query = { reportId };
+        if (workspaceId !== undefined)
+            query.workspaceId = workspaceId;
+        const assignments = await Assignment_1.AssignmentModel.find(query).sort({ assignedAt: -1 }).lean().exec();
         return assignments;
     }
 }

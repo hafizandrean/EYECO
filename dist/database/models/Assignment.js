@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AssignmentModel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 const AssignmentSchema = new mongoose_1.Schema({
+    workspaceId: { type: Number, index: true },
     reportId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Report', required: true, index: true },
     officerId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
     officerName: { type: String, required: true },
@@ -53,6 +54,6 @@ const AssignmentSchema = new mongoose_1.Schema({
     timestamps: true
 });
 // Index to find active assignment and officer assignments quickly
-AssignmentSchema.index({ reportId: 1, endedAt: 1 });
+AssignmentSchema.index({ workspaceId: 1, reportId: 1, endedAt: 1 });
 AssignmentSchema.index({ officerId: 1, status: 1 });
 exports.AssignmentModel = mongoose_1.default.model('Assignment', AssignmentSchema);

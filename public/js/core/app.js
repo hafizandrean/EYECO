@@ -71,13 +71,8 @@ class AppInitializer {
         const isAdmin = user?.role === 'admin';
 
         if (path === '/dashboard') {
-          if (isAdmin) {
-            this.currentPageInstance = Dashboard;
-            await Dashboard.render(this.viewport);
-          } else {
-            this.currentPageInstance = Home;
-            await Home.render(this.viewport);
-          }
+          this.currentPageInstance = Dashboard;
+          await Dashboard.render(this.viewport);
         } else if (path === '/dashboard/laporan') {
           this.currentPageInstance = Laporan;
           await Laporan.render(this.viewport);

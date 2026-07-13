@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IAssignment extends Document {
+  workspaceId: number;
   reportId: mongoose.Types.ObjectId;
   officerId: mongoose.Types.ObjectId;
   officerName: string;
@@ -13,6 +14,7 @@ export interface IAssignment extends Document {
 }
 
 const AssignmentSchema = new Schema<IAssignment>({
+  workspaceId: { type: Number, index: true },
   reportId: { type: Schema.Types.ObjectId, ref: 'Report', required: true, index: true },
   officerId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   officerName: { type: String, required: true },
@@ -31,7 +33,7 @@ const AssignmentSchema = new Schema<IAssignment>({
 });
 
 // Index to find active assignment and officer assignments quickly
-AssignmentSchema.index({ reportId: 1, endedAt: 1 });
+AssignmentSchema.index({ workspaceId: 1, reportId: 1, endedAt: 1 });
 AssignmentSchema.index({ officerId: 1, status: 1 });
 
 export const AssignmentModel = mongoose.model<IAssignment>('Assignment', AssignmentSchema);

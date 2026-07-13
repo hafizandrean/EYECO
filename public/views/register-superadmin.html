@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EYECO — Daftarkan Organisasi</title>
+  <meta name="description" content="Daftarkan organisasi Anda dan buat akun SuperAdmin EYECO.">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="auth-page" style="padding-top:40px;padding-bottom:40px;">
+
+  <div class="bg-blobs">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+  </div>
+
+  <div class="glass-card auth-card" style="max-width:600px;">
+    <div class="brand">
+      <h1><i data-lucide="waves"></i> EYECO</h1>
+      <p>Daftar Superadmin &amp; Organisasi</p>
+    </div>
+
+    <div id="error-box"   class="error-msg"></div>
+    <div id="success-box" class="success-msg"></div>
+
+    <form id="registerForm" novalidate>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="orgName">Nama Organisasi <span style="color:var(--error)">*</span></label>
+          <div class="input-wrapper">
+            <i data-lucide="building"></i>
+            <input type="text" name="orgName" id="orgName" class="input-control" required placeholder="PT Contoh">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="workspaceName">Nama Workspace Utama <span style="color:var(--error)">*</span></label>
+          <div class="input-wrapper">
+            <i data-lucide="layout"></i>
+            <input type="text" name="workspaceName" id="workspaceName" class="input-control" required placeholder="Pusat">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="picName">Nama Penanggung Jawab (PIC) <span style="color:var(--error)">*</span></label>
+          <div class="input-wrapper">
+            <i data-lucide="user"></i>
+            <input type="text" name="picName" id="picName" class="input-control" required placeholder="Nama Lengkap">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="email">Email PIC <span style="color:var(--error)">*</span></label>
+          <div class="input-wrapper">
+            <i data-lucide="mail"></i>
+            <input type="email" name="email" id="email" class="input-control" required placeholder="email@contoh.com" autocomplete="email">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="username">Username Superadmin <span style="color:var(--error)">*</span></label>
+        <div class="input-wrapper">
+          <i data-lucide="at-sign"></i>
+          <input type="text" name="username" id="username" class="input-control" required placeholder="superadmin1" autocomplete="username">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="password">Password <span style="color:var(--error)">*</span></label>
+          <div class="input-wrapper">
+            <i data-lucide="lock"></i>
+            <input type="password" name="password" id="password" class="input-control" required placeholder="Minimal 6 karakter" minlength="6" autocomplete="new-password">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="confirmPassword">Konfirmasi Password <span style="color:var(--error)">*</span></label>
+          <div class="input-wrapper">
+            <i data-lucide="check-circle"></i>
+            <input type="password" name="confirmPassword" id="confirmPassword" class="input-control" required placeholder="Ulangi password" minlength="6" autocomplete="new-password">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="address">Alamat Organisasi <span style="color:var(--error)">*</span></label>
+        <div class="input-wrapper">
+          <i data-lucide="map-pin"></i>
+          <input type="text" name="address" id="address" class="input-control" required placeholder="Alamat lengkap organisasi">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="description">Deskripsi Singkat</label>
+        <textarea name="description" id="description" class="input-control" rows="3" placeholder="Bergerak di bidang..."></textarea>
+      </div>
+
+      <button type="submit" class="btn-primary" id="btn-submit" style="margin-top:8px;">
+        <i data-lucide="building" style="width:18px;height:18px;"></i> Buat Organisasi
+      </button>
+    </form>
+
+    <div class="links">
+      Sudah punya organisasi? <a href="/login">Masuk di sini</a>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    document.getElementById('registerForm').addEventListener('submit', async e => {
+      e.preventDefault();
+
+      const btn        = document.getElementById('btn-submit');
+      const errorBox   = document.getElementById('error-box');
+      const successBox = document.getElementById('success-box');
+
+      errorBox.style.display   = 'none';
+      successBox.style.display = 'none';
+
+      const formData = new FormData(e.target);
+      const data     = Object.fromEntries(formData);
+
+      if (data.password !== data.confirmPassword) {
+        errorBox.textContent   = 'Password tidak cocok. Periksa kembali konfirmasi password.';
+        errorBox.style.display = 'block';
+        return;
+      }
+
+      btn.innerHTML = '<span class="spin"><i data-lucide="loader" style="width:18px;height:18px;"></i></span> Memproses...';
+      btn.disabled  = true;
+      lucide.createIcons();
+
+      try {
+        const response = await fetch('/api/auth/register-superadmin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        const resData = await response.json().catch(() => ({}));
+
+        if (response.ok) {
+          successBox.textContent   = 'Registrasi berhasil! Mengarahkan ke dashboard...';
+          successBox.style.display = 'block';
+          setTimeout(() => {
+            window.location.href = resData.redirect || '/superadmin';
+          }, 1500);
+        } else {
+          errorBox.textContent   = resData.error || resData.message || 'Gagal mendaftar';
+          errorBox.style.display = 'block';
+          resetBtn();
+        }
+      } catch (err) {
+        errorBox.textContent   = 'Terjadi kesalahan jaringan';
+        errorBox.style.display = 'block';
+        resetBtn();
+      }
+    });
+
+    function resetBtn() {
+      const btn = document.getElementById('btn-submit');
+      btn.innerHTML = '<i data-lucide="building" style="width:18px;height:18px;"></i> Buat Organisasi';
+      btn.disabled  = false;
+      lucide.createIcons();
+    }
+  </script>
+</body>
+</html>

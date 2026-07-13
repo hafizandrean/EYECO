@@ -19,6 +19,7 @@ export interface IAttachment {
 }
 
 export interface IResolution extends Document {
+  workspaceId: number;
   reportId: mongoose.Types.ObjectId;
   isCleaned: boolean;
   afterImages: IAttachment[];
@@ -54,6 +55,7 @@ const AttachmentSchema = new Schema<IAttachment>({
 });
 
 const ResolutionSchema = new Schema<IResolution>({
+  workspaceId: { type: Number, index: true },
   reportId: { type: Schema.Types.ObjectId, ref: 'Report', required: true, index: true },
   isCleaned: { type: Boolean, default: false, required: true },
   afterImages: [AttachmentSchema],
@@ -72,6 +74,6 @@ const ResolutionSchema = new Schema<IResolution>({
   timestamps: true
 });
 
-ResolutionSchema.index({ reportId: 1, status: 1 });
+ResolutionSchema.index({ workspaceId: 1, reportId: 1, status: 1 });
 
 export const ResolutionModel = mongoose.model<IResolution>('Resolution', ResolutionSchema);

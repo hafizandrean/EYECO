@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TimelineEventModel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 const TimelineEventSchema = new mongoose_1.Schema({
+    workspaceId: { type: Number, index: true },
     reportId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Report', required: true, index: true },
     eventVersion: { type: Number, default: 1, required: true },
     type: {
@@ -62,5 +63,5 @@ const TimelineEventSchema = new mongoose_1.Schema({
     timestamps: { createdAt: true, updatedAt: false } // Immutable
 });
 // Compound index for sorted timeline query
-TimelineEventSchema.index({ reportId: 1, createdAt: -1 });
+TimelineEventSchema.index({ workspaceId: 1, reportId: 1, createdAt: -1 });
 exports.TimelineEventModel = mongoose_1.default.model('TimelineEvent', TimelineEventSchema);

@@ -12,6 +12,7 @@ import { ResolutionModel, IResolution } from './models/Resolution';
 import { NotificationModel, INotification } from './models/Notification';
 import { OutboxEventModel, IOutboxEvent } from './models/OutboxEvent';
 import { SystemAuditLogModel, ISystemAuditLog } from './models/SystemAuditLog';
+import { WorkspaceModel, IWorkspace } from './models/Workspace';
 
 import { SystemSettingsModel, ISystemSettings } from './models/SystemSettings';
 import { AiModelModel, IAiModel } from './models/AiModel';
@@ -45,7 +46,8 @@ export {
   AiVerificationStateModel, IAiVerificationState as AiVerificationState,
   CameraHealthLogModel, ICameraHealthLog as CameraHealthLog,
   AiMetricModel, IAiMetric as AiMetric,
-  CameraEventModel, ICameraEvent as CameraEvent
+  CameraEventModel, ICameraEvent as CameraEvent,
+  WorkspaceModel, IWorkspace as Workspace
 };
 
 dotenv.config();
@@ -59,9 +61,40 @@ if (!process.env.PORT) {
   console.warn('[WARNING] PORT is not defined in environment variables. Defaulting to 8000.');
 }
 
+async function ensureWorkspaceCodes(): Promise<void> {
+  const missingCodeWorkspaces = await WorkspaceModel.find({
+    $or: [{ code: { $exists: false } }, { code: null }, { code: '' }]
+  }).exec();
+
+  for (const workspace of missingCodeWorkspaces) {
+    workspace.code = undefined as unknown as string;
+    await workspace.save();
+    console.log(`[MIGRATION] Generated missing workspace code for workspace ${workspace.id}`);
+  }
+}
+
+// Drop stale/conflicting indexes left over from old schema versions
+async function dropStaleIndexes(): Promise<void> {
+  try {
+    const db = mongoose.connection.db;
+    if (!db) return;
+
+    // Drop stale indexes on 'workspaces' collection
+    try {
+      await db.collection('workspaces').dropIndex('gateUsername_1');
+      console.log('[MIGRATION] Dropped stale index: workspaces.gateUsername_1');
+    } catch (_) {
+      // Index doesn't exist, that's fine
+    }
+
+  } catch (err) {
+    console.warn('[MIGRATION] dropStaleIndexes encountered an error:', err);
+  }
+}
+
 export async function connectDB() {
   const uri = process.env.MONGODB_URI!;
-  const maxRetries = 3;
+  const maxRetries = 5;
   let attempt = 1;
 
   while (attempt <= maxRetries) {
@@ -72,6 +105,11 @@ export async function connectDB() {
       });
       console.log('[DATABASE SUCCESS] MongoDB connected successfully.');
       
+      // Drop stale/conflicting indexes from old schema
+      await dropStaleIndexes();
+      await ensureWorkspaceCodes();
+      await WorkspaceModel.syncIndexes();
+      
       // Run automatic migration from db.json
       await runMigration();
 
@@ -81,12 +119,11 @@ export async function connectDB() {
     } catch (err) {
       console.error(`[DATABASE ERROR] MongoDB connection attempt ${attempt} failed:`, err);
       if (attempt === maxRetries) {
-        console.error('[DATABASE CRITICAL] Could not connect to MongoDB after maximum retries. Exiting.');
-        process.exit(1);
+        throw err;
       }
       attempt++;
-      // Wait 2 seconds before retrying
-      await new Promise((res) => setTimeout(res, 2000));
+      const delayMs = Math.min(30000, 1000 * Math.pow(2, attempt - 2));
+      await new Promise((res) => setTimeout(res, delayMs));
     }
   }
 }
@@ -802,7 +839,7 @@ export class DatabaseManager {
 
   // --- ENCRYPTION HELPERS ---
 
-  private static encryptCctvPassword(text: string): string {
+  public static encryptCctvPassword(text: string): string {
     try {
       const encryptionKey = crypto.scryptSync(process.env.JWT_SECRET || 'eyeco-secret-key', 'salt', 32);
       const iv = crypto.randomBytes(16);

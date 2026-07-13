@@ -3,120 +3,195 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Registrasi - EYECO</title>
+  <title>EYECO — Daftar Akun Masyarakat</title>
+  <meta name="description" content="Daftarkan akun masyarakat Anda untuk mengakses sistem EYECO.">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="stylesheet" href="/css/style.css">
-  <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
 </head>
-<body style="display: flex; align-items: center; justify-content: center; height: 100vh; padding: 20px;">
-  
-  <main class="glass-card" style="width: 100%; max-width: 420px; padding: 35px 30px;">
-    
-    <div style="text-align: center; margin-bottom: 24px;">
-      <div style="background: var(--success); display: inline-flex; align-items: center; justify-content: center; width: 60px; height: 60px; border-radius: 50%; color: white; margin-bottom: 12px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);">
-        <i data-feather="user-plus" style="width: 28px; height: 28px;"></i>
+<body class="auth-page" style="padding-top:40px;padding-bottom:40px;">
+
+  <div class="bg-blobs">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+  </div>
+
+  <div class="glass-card auth-card" style="max-width:500px;">
+    <div class="brand">
+      <h1><i data-lucide="waves"></i> EYECO</h1>
+      <p>Daftar Akun Masyarakat</p>
+    </div>
+
+    <div id="error-box"   class="error-msg"></div>
+    <div id="success-box" class="success-msg"></div>
+
+    <form id="register-form" novalidate>
+      <input type="hidden" id="workspaceId">
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="name">Nama Lengkap</label>
+          <div class="input-wrapper">
+            <i data-lucide="user"></i>
+            <input type="text" id="name" class="input-control" placeholder="Nama lengkap Anda" autocomplete="name" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="username">Username</label>
+          <div class="input-wrapper">
+            <i data-lucide="at-sign"></i>
+            <input type="text" id="username" class="input-control" placeholder="Username unik" autocomplete="username" required>
+          </div>
+        </div>
       </div>
-      <h2 style="font-weight: 800; font-size: 1.8rem; letter-spacing: -0.5px;">Registrasi Akun</h2>
-      <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; font-weight: 550;">Buat akun pelapor atau pemantau sungai</p>
-    </div>
 
-    <!-- Error message alert -->
-    <div id="error-alert" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: var(--danger); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; margin-bottom: 16px; align-items: center; gap: 8px;">
-      <i data-feather="alert-circle" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
-      <span id="error-text">Terjadi kesalahan</span>
-    </div>
-
-    <!-- Success message alert -->
-    <div id="success-alert" style="display: none; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: var(--success); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; margin-bottom: 16px; align-items: center; gap: 8px;">
-      <i data-feather="check-circle" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
-      <span>Registrasi berhasil! Mengalihkan ke login...</span>
-    </div>
-
-    <form id="register-form">
-      <div class="form-group">
-        <label class="form-label" for="reg-username">Username</label>
-        <div style="position: relative;">
-          <input type="text" class="form-control" id="reg-username" placeholder="Buat username baru" required style="width: 100%; padding-left: 40px;">
-          <i data-feather="user" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted);"></i>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <div class="input-wrapper">
+            <i data-lucide="mail"></i>
+            <input type="email" id="email" class="input-control" placeholder="Email aktif" autocomplete="email" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="phone">Nomor Telepon</label>
+          <div class="input-wrapper">
+            <i data-lucide="phone"></i>
+            <input type="tel" id="phone" class="input-control" placeholder="08xxxxxxxxxx" autocomplete="tel" required>
+          </div>
         </div>
       </div>
 
       <div class="form-group">
-        <label class="form-label" for="reg-password">Password</label>
-        <div style="position: relative;">
-          <input type="password" class="form-control" id="reg-password" placeholder="Buat password minimal 6 karakter" required style="width: 100%; padding-left: 40px;" minlength="6">
-          <i data-feather="key" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted);"></i>
+        <label for="password">Password</label>
+        <div class="input-wrapper">
+          <i data-lucide="lock"></i>
+          <input type="password" id="password" class="input-control" placeholder="Minimal 6 karakter" autocomplete="new-password" required minlength="6">
         </div>
+        <div class="strength-meter"><div id="strength-bar"></div></div>
+        <div class="strength-text" id="strength-text"></div>
       </div>
 
       <div class="form-group">
-        <label class="form-label" for="reg-role">Pilih Role Akun</label>
-        <div style="position: relative;">
-          <select class="form-control" id="reg-role" required style="width: 100%; padding-left: 40px; -webkit-appearance: none; -moz-appearance: none; appearance: none;">
-            <option value="user">User (Hanya Membuat Laporan Sungai)</option>
-            <option value="admin">Admin (Memantau Dashboard & Validasi)</option>
-          </select>
-          <i data-feather="shield" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted);"></i>
-          <i data-feather="chevron-down" style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted); pointer-events: none;"></i>
+        <label for="confirmPassword">Konfirmasi Password</label>
+        <div class="input-wrapper">
+          <i data-lucide="check-circle"></i>
+          <input type="password" id="confirmPassword" class="input-control" placeholder="Ulangi password" autocomplete="new-password" required minlength="6">
+          <div class="validation-icon" id="match-icon"></div>
         </div>
       </div>
 
-      <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; margin-top: 8px; background-color: var(--success); box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);">
-        Daftar Akun <i data-feather="user-check" style="width: 16px; height: 16px; margin-left: 4px;"></i>
+      <button type="submit" class="btn-primary" id="btn-submit" disabled>
+        <i data-lucide="user-plus" style="width:18px;height:18px;"></i> Daftar Sekarang
       </button>
     </form>
 
-    <div style="text-align: center; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 15px;">
-      <p style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 550;">
-        Sudah punya akun? <a href="/login" style="color: var(--primary); text-decoration: none; font-weight: 700;">Masuk di sini</a>
-      </p>
+    <div class="links">
+      Sudah punya akun? <a href="/login">Masuk di sini</a>
     </div>
-
-  </main>
+  </div>
 
   <script>
-    const form = document.getElementById('register-form');
-    const errorAlert = document.getElementById('error-alert');
-    const successAlert = document.getElementById('success-alert');
-    const errorText = document.getElementById('error-text');
+    lucide.createIcons();
 
-    form.addEventListener('submit', async (e) => {
+    /* ── Pre-fill workspace from query param ── */
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('join')) {
+      document.getElementById('workspaceId').value = urlParams.get('join');
+    }
+
+    const pwd         = document.getElementById('password');
+    const cpwd        = document.getElementById('confirmPassword');
+    const strengthBar = document.getElementById('strength-bar');
+    const strengthTxt = document.getElementById('strength-text');
+    const matchIcon   = document.getElementById('match-icon');
+    const submitBtn   = document.getElementById('btn-submit');
+
+    function checkPasswordStrength(val) {
+      if (!val) { strengthBar.className = ''; strengthTxt.textContent = ''; return 0; }
+      let score = 0;
+      if (val.length >= 6) score++;
+      if (val.length >= 8 && /[A-Z]/.test(val) && /[0-9]/.test(val)) score++;
+      if (val.length >= 10 && /[^A-Za-z0-9]/.test(val)) score++;
+
+      const labels = ['', 'Lemah', 'Sedang', 'Kuat'];
+      const classes = ['', 'weak', 'medium', 'strong'];
+      const colors  = ['', '#ef4444', '#eab308', '#22c55e'];
+      strengthBar.className      = classes[score] || '';
+      strengthTxt.textContent    = labels[score]  || '';
+      strengthTxt.style.color    = colors[score]  || '';
+      return score;
+    }
+
+    function checkMatch() {
+      const p1 = pwd.value;
+      const p2 = cpwd.value;
+      if (!p2) { matchIcon.innerHTML = ''; submitBtn.disabled = true; return; }
+      if (p1 === p2 && p1.length >= 6) {
+        matchIcon.innerHTML = '<i data-lucide="check" style="color:#22c55e;width:18px;height:18px;"></i>';
+        submitBtn.disabled = false;
+      } else {
+        matchIcon.innerHTML = '<i data-lucide="x" style="color:#ef4444;width:18px;height:18px;"></i>';
+        submitBtn.disabled = true;
+      }
+      lucide.createIcons();
+    }
+
+    pwd.addEventListener('input',  e => { checkPasswordStrength(e.target.value); checkMatch(); });
+    cpwd.addEventListener('input', checkMatch);
+
+    /* ── Form submit ── */
+    document.getElementById('register-form').addEventListener('submit', async e => {
       e.preventDefault();
-      errorAlert.style.display = 'none';
-      successAlert.style.display = 'none';
+      const btn        = document.getElementById('btn-submit');
+      const errorBox   = document.getElementById('error-box');
+      const successBox = document.getElementById('success-box');
 
-      const username = document.getElementById('reg-username').value;
-      const password = document.getElementById('reg-password').value;
-      const role = document.getElementById('reg-role').value;
+      errorBox.style.display = 'none';
+
+      btn.innerHTML = '<span class="spin"><i data-lucide="loader" style="width:18px;height:18px;"></i></span> Memproses...';
+      btn.disabled  = true;
+      lucide.createIcons();
 
       try {
         const res = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password, role })
+          body: JSON.stringify({
+            name:        document.getElementById('name').value.trim(),
+            username:    document.getElementById('username').value.trim(),
+            email:       document.getElementById('email').value.trim(),
+            phone:       document.getElementById('phone').value.trim(),
+            password:    pwd.value,
+            confirmPassword: cpwd.value,
+            workspaceId: document.getElementById('workspaceId').value || undefined
+          })
         });
 
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
 
         if (res.ok) {
-          successAlert.style.display = 'flex';
-          form.reset();
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 1500);
+          successBox.textContent   = 'Pendaftaran berhasil! Mengarahkan ke halaman login...';
+          successBox.style.display = 'block';
+          setTimeout(() => { window.location.href = '/login'; }, 2000);
         } else {
-          errorText.innerText = data.error || 'Gagal mendaftarkan akun.';
-          errorAlert.style.display = 'flex';
+          errorBox.textContent   = data.error || data.message || 'Gagal mendaftar';
+          errorBox.style.display = 'block';
+          resetBtn();
         }
       } catch (err) {
-        console.error('Error registering:', err);
-        errorText.innerText = 'Koneksi ke server gagal.';
-        errorAlert.style.display = 'flex';
+        errorBox.textContent   = 'Terjadi kesalahan jaringan';
+        errorBox.style.display = 'block';
+        resetBtn();
       }
     });
 
-    document.addEventListener('DOMContentLoaded', () => {
-      feather.replace();
-    });
+    function resetBtn() {
+      const btn = document.getElementById('btn-submit');
+      btn.innerHTML = '<i data-lucide="user-plus" style="width:18px;height:18px;"></i> Daftar Sekarang';
+      btn.disabled  = false;
+      lucide.createIcons();
+    }
   </script>
 </body>
 </html>

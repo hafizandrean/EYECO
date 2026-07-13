@@ -27,14 +27,16 @@ export class HeaderComponent {
       upload: this.container.querySelector('[data-tab="upload"]')
     };
 
-    // Bind tab clicks
+    // Bind tab clicks — use natural <a href> navigation (Express serves each route)
     Object.keys(this.tabs).forEach(key => {
       const tab = this.tabs[key];
       if (tab) {
-        tab.addEventListener('click', (e) => {
-          e.preventDefault();
+        // No preventDefault — let the browser follow the href naturally.
+        // The SPA router still handles in-page popstate events for the back button.
+        tab.addEventListener('click', () => {
           const targetPath = tab.getAttribute('href');
-          Router.navigate(targetPath);
+          AppState.set('lastActiveTab', this.getTabFromPath(window.location.pathname));
+          // Allow natural navigation — do NOT call Router.navigate()
         });
       }
     });
@@ -71,11 +73,15 @@ export class HeaderComponent {
       });
     }
 
-    // Logout Button
+    // Logout Button — use /logout route (server clears cookie, redirects to /login)
     const logoutBtn = document.getElementById('btn-dropdown-logout');
     if (logoutBtn) {
-      logoutBtn.addEventListener('click', () => {
-        AuthService.logout();
+      logoutBtn.addEventListener('click', async () => {
+        try {
+          // Best-effort API logout (kills session record)
+          await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+        } catch (_) {}
+        window.location.href = '/logout';
       });
     }
 
@@ -85,7 +91,8 @@ export class HeaderComponent {
       searchInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
           const query = searchInput.value.trim();
-          Router.navigate(`/dashboard/laporan?location=${encodeURIComponent(query)}`);
+          // Real navigation to laporan route with search param
+          window.location.href = `/dashboard/laporan?location=${encodeURIComponent(query)}`;
         }
       });
     }
@@ -97,7 +104,8 @@ export class HeaderComponent {
 
   // Menyelaraskan active tab dengan bubble penanda geser
   syncNavbarState() {
-    const currentPath = AppState.get('activePath');
+    // Use the real browser URL as the source of truth (full-page Express routing)
+    const currentPath = window.location.pathname || AppState.get('activePath');
     const user = AppState.get('user');
     const isAdmin = user?.role === 'admin';
     const exportBtn = document.getElementById('btn-header-export');
@@ -115,7 +123,7 @@ export class HeaderComponent {
     if (this.tabs.upload) this.tabs.upload.style.display = 'inline-flex';
     if (this.indicator) this.indicator.style.display = 'block';
 
-    // Export button visibility (Only on /dashboard/laporan)
+    // Export button visibility (Only on /dashboard/laporan for admins)
     if (exportBtn) {
       if (currentPath === '/dashboard/laporan' && isAdmin) {
         exportBtn.classList.add('visible');
@@ -144,11 +152,14 @@ export class HeaderComponent {
     const activeTab = this.tabs[activeKey];
     activeTab.classList.add('active');
 
-    // Geser bubble secara instan (agar selaras dengan perubahan warna teks!)
-    if (this.indicator) {
-      this.indicator.style.left = `${activeTab.offsetLeft}px`;
-      this.indicator.style.width = `${activeTab.offsetWidth}px`;
-    }
+    // Geser bubble setelah layout paint
+    requestAnimationFrame(() => {
+      if (this.indicator) {
+        this.indicator.style.left = `${activeTab.offsetLeft}px`;
+        this.indicator.style.width = `${activeTab.offsetWidth}px`;
+      }
+      if (window.lucide) window.lucide.createIcons();
+    });
   }
 
   // Render info user login di dropdown profile
@@ -175,6 +186,15 @@ export class HeaderComponent {
     const theme = AppState.get('theme');
     themeBtn.innerHTML = theme === 'dark' ? '<i data-lucide="sun"></i>' : '<i data-lucide="moon"></i>';
     if (window.lucide) window.lucide.createIcons();
+  }
+
+  // Helper: derive tab name from a URL path
+  getTabFromPath(path) {
+    if (path === '/dashboard') return 'dashboard';
+    if (path === '/dashboard/laporan') return 'laporan';
+    if (path === '/dashboard/upload') return 'upload';
+    if (path.startsWith('/dashboard/detections/')) return 'detail';
+    return 'dashboard';
   }
 }
 export const GlobalHeader = new HeaderComponent();

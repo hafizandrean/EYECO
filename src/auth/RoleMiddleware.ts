@@ -21,7 +21,7 @@ export function roleGuard(roles: string[]) {
       const role = req.userContext.role;
       if (role === 'superadmin') { res.redirect('/superadmin'); return; }
       if (role === 'admin') { res.redirect('/dashboard'); return; }
-      if (role === 'user') { res.redirect('/select-workspace'); return; }
+      if (['user', 'operator', 'supervisor', 'officer'].includes(role)) { res.redirect('/select-workspace'); return; }
       res.redirect('/login');
       return;
     }

@@ -49,7 +49,7 @@ export interface IReport extends Document {
   additionalNotes: string;
   adminNotes: string;
   boundingBoxes: IBoundingBox[];
-  comments: IComment[];
+  comments: mongoose.Types.DocumentArray<IComment & mongoose.Document>;
   assignedOfficer: string;
   status: 'NEW' | 'UNDER_REVIEW' | 'VALIDATED' | 'ASSIGNED' | 'ON_SITE' | 'IN_PROGRESS' | 'RESOLVED' | 'WAITING_APPROVAL' | 'CLOSED' | 'REJECTED';
   currentAssignmentId: mongoose.Types.ObjectId | null;
@@ -67,6 +67,7 @@ export interface IReport extends Document {
   createdAt: Date;
   updatedAt: Date;
   __v: number;
+  workspaceId?: number;
 }
 
 export interface ISourceMetadata {

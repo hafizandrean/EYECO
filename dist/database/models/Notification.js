@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.NotificationModel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 const NotificationSchema = new mongoose_1.Schema({
+    workspaceId: { type: Number, index: true },
     recipientId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     reportId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Report', required: true },
     type: { type: String, required: true },
@@ -52,7 +53,7 @@ const NotificationSchema = new mongoose_1.Schema({
     timestamps: true
 });
 // Compound index for sorted notifications query
-NotificationSchema.index({ recipientId: 1, read: 1, createdAt: -1 });
+NotificationSchema.index({ workspaceId: 1, recipientId: 1, read: 1, createdAt: -1 });
 // TTL index to automatically delete expired notifications (expiresAt contains the exact deletion Date)
 NotificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 exports.NotificationModel = mongoose_1.default.model('Notification', NotificationSchema);

@@ -12,9 +12,8 @@ router.get('/', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
     if (!user) return res.status(401).json({ error: 'Belum masuk' });
-    if (!user.workspaceId) return res.status(403).json({ error: 'Workspace aktif wajib dipilih' });
-
-    const cctvs = await CctvRepository.getAll(user.workspaceId);
+    const workspaceId = user.workspaceId || -1;
+    const cctvs = await CctvRepository.getAll(workspaceId);
     const processed = cctvs.map((c) => {
       const playTarget = CctvAdapter.getPlayTarget(c);
       return {
@@ -36,12 +35,10 @@ router.get('/:id', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
     if (!user) return res.status(401).json({ error: 'Belum masuk' });
-    if (!user.workspaceId) return res.status(403).json({ error: 'Workspace aktif wajib dipilih' });
-
+    const workspaceId = user.workspaceId || -1;
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: 'ID tidak valid' });
-
-    const c = await CctvRepository.getById(id, user.workspaceId);
+    const c = await CctvRepository.getById(id, workspaceId);
     if (!c) return res.status(404).json({ error: 'CCTV tidak ditemukan' });
 
     const decryptedPassword = user.role === 'admin' && c.password
@@ -156,10 +153,9 @@ router.get('/:id/snapshot', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
     if (!user) return res.status(401).send('Unauthorized');
-    if (!user.workspaceId) return res.status(403).send('Workspace aktif wajib dipilih');
-
+    const workspaceId = user.workspaceId || -1;
     const id = parseInt(req.params.id);
-    const camera = await CctvRepository.getById(id, user.workspaceId);
+    const camera = await CctvRepository.getById(id, workspaceId);
     if (!camera) return res.status(404).send('Camera not found');
 
     if (camera.isDefault || camera.protocol === 'HTTP Image') {

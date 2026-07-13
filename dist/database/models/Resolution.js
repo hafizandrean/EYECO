@@ -53,6 +53,7 @@ const AttachmentSchema = new mongoose_1.Schema({
     uploadedAt: { type: Date, default: Date.now, required: true }
 });
 const ResolutionSchema = new mongoose_1.Schema({
+    workspaceId: { type: Number, index: true },
     reportId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Report', required: true, index: true },
     isCleaned: { type: Boolean, default: false, required: true },
     afterImages: [AttachmentSchema],
@@ -70,5 +71,5 @@ const ResolutionSchema = new mongoose_1.Schema({
 }, {
     timestamps: true
 });
-ResolutionSchema.index({ reportId: 1, status: 1 });
+ResolutionSchema.index({ workspaceId: 1, reportId: 1, status: 1 });
 exports.ResolutionModel = mongoose_1.default.model('Resolution', ResolutionSchema);

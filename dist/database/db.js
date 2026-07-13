@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DatabaseManager = exports.disconnectDB = exports.CameraEventModel = exports.AiMetricModel = exports.CameraHealthLogModel = exports.AiVerificationStateModel = exports.AiEvidenceModel = exports.AiDetectionModel = exports.AiModelModel = exports.SystemSettingsModel = exports.SystemAuditLogModel = exports.OutboxEventModel = exports.NotificationModel = exports.ResolutionModel = exports.AssignmentModel = exports.TimelineEventModel = exports.ReportModel = exports.UserModel = exports.CctvModel = void 0;
+exports.DatabaseManager = exports.disconnectDB = exports.WorkspaceModel = exports.CameraEventModel = exports.AiMetricModel = exports.CameraHealthLogModel = exports.AiVerificationStateModel = exports.AiEvidenceModel = exports.AiDetectionModel = exports.AiModelModel = exports.SystemSettingsModel = exports.SystemAuditLogModel = exports.OutboxEventModel = exports.NotificationModel = exports.ResolutionModel = exports.AssignmentModel = exports.TimelineEventModel = exports.ReportModel = exports.UserModel = exports.CctvModel = void 0;
 exports.connectDB = connectDB;
 const mongoose_1 = __importDefault(require("mongoose"));
 const dotenv_1 = __importDefault(require("dotenv"));
@@ -28,6 +28,8 @@ const OutboxEvent_1 = require("./models/OutboxEvent");
 Object.defineProperty(exports, "OutboxEventModel", { enumerable: true, get: function () { return OutboxEvent_1.OutboxEventModel; } });
 const SystemAuditLog_1 = require("./models/SystemAuditLog");
 Object.defineProperty(exports, "SystemAuditLogModel", { enumerable: true, get: function () { return SystemAuditLog_1.SystemAuditLogModel; } });
+const Workspace_1 = require("./models/Workspace");
+Object.defineProperty(exports, "WorkspaceModel", { enumerable: true, get: function () { return Workspace_1.WorkspaceModel; } });
 const SystemSettings_1 = require("./models/SystemSettings");
 Object.defineProperty(exports, "SystemSettingsModel", { enumerable: true, get: function () { return SystemSettings_1.SystemSettingsModel; } });
 const AiModel_1 = require("./models/AiModel");
@@ -53,9 +55,38 @@ if (!process.env.MONGODB_URI) {
 if (!process.env.PORT) {
     console.warn('[WARNING] PORT is not defined in environment variables. Defaulting to 8000.');
 }
+async function ensureWorkspaceCodes() {
+    const missingCodeWorkspaces = await Workspace_1.WorkspaceModel.find({
+        $or: [{ code: { $exists: false } }, { code: null }, { code: '' }]
+    }).exec();
+    for (const workspace of missingCodeWorkspaces) {
+        workspace.code = undefined;
+        await workspace.save();
+        console.log(`[MIGRATION] Generated missing workspace code for workspace ${workspace.id}`);
+    }
+}
+// Drop stale/conflicting indexes left over from old schema versions
+async function dropStaleIndexes() {
+    try {
+        const db = mongoose_1.default.connection.db;
+        if (!db)
+            return;
+        // Drop stale indexes on 'workspaces' collection
+        try {
+            await db.collection('workspaces').dropIndex('gateUsername_1');
+            console.log('[MIGRATION] Dropped stale index: workspaces.gateUsername_1');
+        }
+        catch (_) {
+            // Index doesn't exist, that's fine
+        }
+    }
+    catch (err) {
+        console.warn('[MIGRATION] dropStaleIndexes encountered an error:', err);
+    }
+}
 async function connectDB() {
     const uri = process.env.MONGODB_URI;
-    const maxRetries = 3;
+    const maxRetries = 5;
     let attempt = 1;
     while (attempt <= maxRetries) {
         try {
@@ -64,6 +95,10 @@ async function connectDB() {
                 serverSelectionTimeoutMS: 5000,
             });
             console.log('[DATABASE SUCCESS] MongoDB connected successfully.');
+            // Drop stale/conflicting indexes from old schema
+            await dropStaleIndexes();
+            await ensureWorkspaceCodes();
+            await Workspace_1.WorkspaceModel.syncIndexes();
             // Run automatic migration from db.json
             await (0, migration_1.runMigration)();
             // Initialize AI Model Manager & Engines
@@ -73,12 +108,11 @@ async function connectDB() {
         catch (err) {
             console.error(`[DATABASE ERROR] MongoDB connection attempt ${attempt} failed:`, err);
             if (attempt === maxRetries) {
-                console.error('[DATABASE CRITICAL] Could not connect to MongoDB after maximum retries. Exiting.');
-                process.exit(1);
+                throw err;
             }
             attempt++;
-            // Wait 2 seconds before retrying
-            await new Promise((res) => setTimeout(res, 2000));
+            const delayMs = Math.min(30000, 1000 * Math.pow(2, attempt - 2));
+            await new Promise((res) => setTimeout(res, delayMs));
         }
     }
 }
