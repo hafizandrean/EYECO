@@ -12,7 +12,6 @@ import { Dashboard } from '../pages/dashboard.js';
 import { Laporan } from '../pages/laporan.js';
 import { Upload } from '../pages/upload.js';
 import { Detail } from '../pages/detail.js';
-import { Home } from '../pages/home.js';
 
 class AppInitializer {
   constructor() {

@@ -63,7 +63,7 @@ html { scroll-behavior: smooth; }
 
 body {
   font-family: 'Inter', sans-serif;
-  background: var(--bg-gradient);
+  background: #F0F4FF;
   color: var(--text-main);
   min-height: 100vh;
   overflow-x: hidden;
@@ -96,8 +96,8 @@ body.auth-page {
   animation: blobFloat 12s ease-in-out infinite alternate;
 }
 
-.blob-1 { top: -12%; left: -8%;  width: 55vw; height: 55vw; background: #DBEAFE; }
-.blob-2 { bottom: -12%; right: -8%; width: 45vw; height: 45vw; background: #E0E7FF; animation-delay: -6s; }
+.blob-1 { top: -12%; left: -8%;  width: 55vw; height: 55vw; background: linear-gradient(135deg, rgba(59,130,246,0.3) 0%, rgba(99,102,241,0.3) 100%); }
+.blob-2 { bottom: -12%; right: -8%; width: 45vw; height: 45vw; background: linear-gradient(135deg, rgba(139,92,246,0.2) 0%, rgba(236,72,153,0.2) 100%); animation-delay: -6s; }
 
 @keyframes blobFloat {
   from { transform: translate(0, 0) scale(1); }
@@ -2846,4 +2846,85 @@ tbody tr:hover { background: rgba(239, 246, 255, 0.5); }
   .nav-tabs {
     justify-content: center;
   }
+}
+
+/* ── Dashboard Specific Layout Fixes ── */
+.cc-hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  margin-bottom: var(--space-20);
+}
+.cc-hud-status, .cc-hud-metrics {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.control-panel-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  margin-bottom: var(--space-20);
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.control-left, .control-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.form-group-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ops-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: var(--space-24);
+}
+.ops-metric-card {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.ops-metric-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+.ops-metric-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.cctv-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.cctv-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 800;
+  font-size: 1.2rem;
 }

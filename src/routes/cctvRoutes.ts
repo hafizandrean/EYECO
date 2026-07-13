@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
     if (!user) return res.status(401).json({ error: 'Belum masuk' });
-    const workspaceId = user.workspaceId || -1;
+    const workspaceId = user.role === 'admin' ? undefined : (user.workspaceId || -1);
     const cctvs = await CctvRepository.getAll(workspaceId);
     const processed = cctvs.map((c) => {
       const playTarget = CctvAdapter.getPlayTarget(c);

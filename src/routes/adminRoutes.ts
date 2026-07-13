@@ -13,9 +13,7 @@ router.get('/users', authMiddleware, roleGuard(['admin']), async (req, res) => {
     const user = await getLoggedInUser(req as any);
     if (!user) return res.status(401).json({ error: 'Belum masuk' });
 
-    const workspaceId = user.workspaceId;
-    if (!workspaceId) return res.status(403).json({ error: 'Admin belum diassign ke workspace' });
-
+    const workspaceId = user.workspaceId || -1;
     const users = await UserModel.find({ role: 'user', workspaceIds: workspaceId }).select('-passwordHash').lean().exec();
     res.json({ users });
   } catch (err) {
@@ -30,10 +28,8 @@ router.get('/join-requests', authMiddleware, roleGuard(['admin']), async (req, r
     const user = await getLoggedInUser(req as any);
     if (!user) return res.status(401).json({ error: 'Belum masuk' });
 
-    const workspaceId = user.workspaceId;
-    if (!workspaceId) return res.status(403).json({ error: 'Admin belum diassign ke workspace' });
-
-    const requests = await JoinRequestModel.find({ workspaceId, status: 'PENDING' }).lean().exec();
+    const workspaceId = user.workspaceId || -1;
+    const requests = await JoinRequestModel.find({ workspaceId, status: 'PENDING' }).sort({ createdAt: -1 }).lean().exec();
     
     // Enrich with user data
     const userIds = requests.map(r => r.userId);

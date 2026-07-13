@@ -81,6 +81,7 @@ async function authMiddleware(req, res, next) {
 // roleGuard moved to RoleMiddleware.ts
 // Helper to get full user object from session
 async function getLoggedInUser(req) {
+    // 1. Try from already populated userContext
     if (req.userContext) {
         try {
             return await UserRepository_1.UserRepository.findByLegacyId(req.userContext.id);
@@ -90,5 +91,38 @@ async function getLoggedInUser(req) {
             return null;
         }
     }
-    return null;
+    // 2. Standalone parsing for routes without authMiddleware (like / and /login)
+    try {
+        let token = '';
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            token = authHeader.split(' ')[1];
+        }
+        if (!token) {
+            token = req.cookies?.session_token || '';
+        }
+        if (!token && req.headers.cookie) {
+            const cookiesObj = req.headers.cookie.split(';').reduce((acc, c) => {
+                const parts = c.trim().split('=');
+                if (parts[0] && parts[1])
+                    acc[parts[0]] = parts.slice(1).join('=');
+                return acc;
+            }, {});
+            token = cookiesObj['session_token'] || '';
+        }
+        if (!token)
+            return null;
+        const payload = (0, auth_service_1.verifyToken)(token);
+        if (!payload)
+            return null;
+        const tokenHash = crypto_1.default.createHash('sha256').update(token).digest('hex');
+        const session = await Session_1.SessionModel.findOne({ tokenHash });
+        if (!session)
+            return null;
+        return await UserRepository_1.UserRepository.findByLegacyId(payload.id);
+    }
+    catch (err) {
+        console.error('[AUTH] getLoggedInUser standalone parsing failed:', err);
+        return null;
+    }
 }

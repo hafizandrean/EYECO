@@ -3,7 +3,7 @@ import { AppState } from '../core/state.js';
 import { Router } from '../core/router.js';
 import { Formatter } from '../utils/formatter.js';
 import { EventBus } from '../core/eventBus.js';
-import api from '../services/api.js';
+import { API } from '../services/api.js';
 
 export class NotificationCenter {
   constructor() {
@@ -50,7 +50,7 @@ export class NotificationCenter {
     const user = AppState.get('user');
     if (user && user.role === 'admin') {
       try {
-        const res = await api.get('/workspaces/requests');
+        const res = await API.get('/api/workspaces/requests');
         if (res.success) {
           this.workspaceRequests = res.requests;
         }
@@ -63,7 +63,7 @@ export class NotificationCenter {
 
   async handleRequestAction(reqId, action) {
     try {
-      const res = await api.post(`/workspaces/requests/${reqId}/${action}`);
+      const res = await API.post(`/api/workspaces/requests/${reqId}/${action}`);
       if (res.success) {
         alert(`Request berhasil di${action === 'approve' ? 'setujui' : 'tolak'}`);
         await this.fetchWorkspaceRequests();
