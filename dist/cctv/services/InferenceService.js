@@ -31,9 +31,9 @@ class InferenceService {
             // 3. Asosiasikan ID pelacakan lintas-frame menggunakan Tracking Engine
             const trackedDetections = this.tracker.track(rawResults);
             // Tentukan tingkat bahaya (Severity) berdasarkan kelas deteksi
-            const hasTrash = trackedDetections.some(d => d.class === 'trash');
+            const hasTrash = trackedDetections.some(d => ['trash', 'plastic_bag', 'plastic_bottle', 'industrial_waste', 'chemical_foam', 'household_trash', 'organic_waste'].includes(d.class));
             const hasPerson = trackedDetections.some(d => d.class === 'person');
-            const hasBoat = trackedDetections.some(d => d.class === 'boat');
+            const hasBoat = trackedDetections.some(d => ['boat', 'debris', 'logs', 'oil_spill'].includes(d.class));
             let severity = 'LOW';
             if (hasTrash) {
                 severity = 'HIGH';

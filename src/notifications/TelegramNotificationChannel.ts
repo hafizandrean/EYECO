@@ -34,7 +34,7 @@ export class TelegramNotificationChannel implements INotificationChannel {
         outbox.status = 'PROCESSED';
         outbox.processedAt = new Date();
         await outbox.save();
-        return false;
+        return true;
       }
       // 3. Susun isi pesan HTML gabungan (Perpaduan Format Deteksi & Detail Insiden)
       const port = process.env.PORT || 8080;

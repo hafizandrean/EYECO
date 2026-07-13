@@ -39,7 +39,19 @@ const AiModelSchema = new mongoose_1.Schema({
     id: { type: String, required: true, unique: true, index: true },
     name: { type: String, required: true },
     version: { type: String, required: true },
-    isActive: { type: Boolean, default: true }
+    isActive: { type: Boolean, default: true },
+    checksum: { type: String, default: '' },
+    artifactSize: { type: Number, default: 0 },
+    minimumPython: { type: String, default: '3.8' },
+    minimumCuda: { type: String, default: '' },
+    minimumTorch: { type: String, default: '' },
+    minimumUltralytics: { type: String, default: '' },
+    framework: { type: String, default: 'YOLOv8' },
+    supportedTasks: { type: [String], default: ['DETECTION'] },
+    modelLoadLatencyMs: { type: Number, default: 0 },
+    warmupLatencyMs: { type: Number, default: 0 },
+    isRollbackCandidate: { type: Boolean, default: false },
+    workerId: { type: String, default: 'gpu-worker-01' }
 }, {
     timestamps: true
 });

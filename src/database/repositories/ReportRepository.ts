@@ -17,7 +17,7 @@ export class ReportRepository {
     updateData: Partial<IReport>, 
     session?: mongoose.mongo.ClientSession
   ): Promise<IReport | null> {
-    const options = { new: true, runValidators: true };
+    const options = { returnDocument: 'after' as const, runValidators: true };
     if (session) {
       Object.assign(options, { session });
     }
@@ -36,7 +36,7 @@ export class ReportRepository {
     reason: string,
     session?: mongoose.mongo.ClientSession
   ): Promise<IReport | null> {
-    const options = { new: true };
+    const options = { returnDocument: 'after' as const };
     if (session) {
       Object.assign(options, { session });
     }
@@ -60,7 +60,7 @@ export class ReportRepository {
     reason: string,
     session?: mongoose.mongo.ClientSession
   ): Promise<IReport | null> {
-    const options = { new: true };
+    const options = { returnDocument: 'after' as const };
     if (session) {
       Object.assign(options, { session });
     }

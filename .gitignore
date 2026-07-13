@@ -1,0 +1,23 @@
+# Node dependencies
+node_modules/
+
+# Python Virtual Environment
+.venv/
+ai_service/.venv/
+__pycache__/
+*.pyc
+
+# Local Environment Config
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE Configs
+.vscode/
+.idea/
+
+# Large model weights (optional, but good practice)
+*.pt
+*.onnx

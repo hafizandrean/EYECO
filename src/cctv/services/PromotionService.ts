@@ -74,49 +74,69 @@ export class PromotionService {
       const adminUser = await UserModel.findOne({ id: 1 });
       const adminObjectId = adminUser ? adminUser._id as mongoose.Types.ObjectId : new mongoose.Types.ObjectId('000000000000000000000001');
 
-      // Cari max integer ID Laporan
-      const lastReport = await ReportModel.findOne().sort({ id: -1 }).exec();
-      const nextReportId = lastReport ? lastReport.id + 1 : 1;
-
       let aiStatus: 'TINGGI' | 'SEDANG' | 'RENDAH' | 'Tidak Terindikasi' = 'Tidak Terindikasi';
       if (detection.severity === 'CRITICAL' || detection.severity === 'HIGH') aiStatus = 'TINGGI';
       else if (detection.severity === 'MEDIUM') aiStatus = 'SEDANG';
       else if (detection.severity === 'LOW') aiStatus = 'RENDAH';
 
-      const newReport = await ReportModel.create({
-        id: nextReportId,
-        userId: adminObjectId,
-        location: detection.location,
-        timestamp: new Date(),
-        aiStatus,
-        aiConfidence: Math.round(detection.confidence * 100),
-        adminStatus: 'MENUNGGU',
-        image: imagePath,
-        identity: `CCTV-CAM-${detection.cameraId.toString().padStart(2, '0')}`,
-        sourceType: 'AI_CCTV',
-        additionalNotes: `Deteksi otomatis oleh model AI di kamera ${detection.location}.`,
-        adminNotes: '',
-        boundingBoxes: detection.detections.map(d => ({
-          label: d.class,
-          confidence: d.confidence,
-          x: d.bbox[0],
-          y: d.bbox[1],
-          w: d.bbox[2],
-          h: d.bbox[3]
-        })),
-        status: 'NEW',
-        sla: {
-          detectedAt: new Date()
-        },
-        sourceMetadata: {
-          cameraId: detection.cameraId,
-          modelId: detection.modelId,
-          confidence: detection.confidence,
-          detectionId: detection.id,
-          ruleVersion: 'v1.0',
-          modelVersion: '1.0'
+      // Cari max integer ID Laporan dengan mekanisme retry jika terjadi tabrakan ID (race condition)
+      let attempts = 0;
+      let newReport = null;
+      while (attempts < 5) {
+        try {
+          const lastReport = await ReportModel.findOne().sort({ id: -1 }).exec();
+          const nextReportId = lastReport ? lastReport.id + 1 : 1;
+
+          newReport = await ReportModel.create({
+            id: nextReportId,
+            userId: adminObjectId,
+            location: detection.location,
+            timestamp: new Date(),
+            aiStatus,
+            aiConfidence: Math.round(detection.confidence * 100),
+            adminStatus: 'MENUNGGU',
+            image: imagePath,
+            identity: `CCTV-CAM-${detection.cameraId.toString().padStart(2, '0')}`,
+            sourceType: 'AI_CCTV',
+            additionalNotes: `Deteksi otomatis oleh model AI di kamera ${detection.location}.`,
+            adminNotes: '',
+            boundingBoxes: detection.detections.map(d => ({
+              label: d.class,
+              confidence: d.confidence,
+              x: d.bbox[0],
+              y: d.bbox[1],
+              w: d.bbox[2],
+              h: d.bbox[3]
+            })),
+            status: 'NEW',
+            sla: {
+              detectedAt: new Date()
+            },
+            sourceMetadata: {
+              cameraId: detection.cameraId,
+              modelId: detection.modelId,
+              confidence: detection.confidence,
+              detectionId: detection.id,
+              ruleVersion: 'v1.0',
+              modelVersion: '1.0'
+            }
+          });
+          break; // Sukses, keluar dari loop
+        } catch (createErr: any) {
+          if (createErr.code === 11000 || createErr.message.includes('E11000')) {
+            attempts++;
+            console.log(`[PromotionService] Duplicate key error on Report ID. Retrying ID generation (Attempt ${attempts}/5)...`);
+            // Beri delay acak kecil agar worker yang bersaing saling berpencar
+            await new Promise(resolve => setTimeout(resolve, Math.random() * 150 + 50));
+          } else {
+            throw createErr;
+          }
         }
-      });
+      }
+
+      if (!newReport) {
+        throw new Error('Gagal mempromosikan laporan karena tabrakan ID yang persisten setelah 5 percobaan.');
+      }
 
       // Link Report ID ke deteksi
       detection.promotedReportId = newReport.id;

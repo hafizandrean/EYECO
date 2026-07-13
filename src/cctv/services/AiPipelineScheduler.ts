@@ -71,7 +71,7 @@ export class AiPipelineScheduler {
             }
           }
         },
-        { new: true }
+        { returnDocument: 'after' }
       ).exec();
 
       if (!lockAcquired) {

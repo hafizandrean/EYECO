@@ -4,10 +4,25 @@ import { DatabaseManager } from '../database/db';
 export class CctvAdapter {
   // Translate camera details to frontend play/stream targets
   public static getPlayTarget(cctv: ICctv): { playUrl: string; playType: string } {
+    let playUrl = cctv.playUrl || cctv.streamUrl;
+
+    // Bersihkan suffix :port pada path lokal/uploads (misal: "/uploads/file.mp4:554")
+    if (playUrl && playUrl.startsWith('/uploads/')) {
+      playUrl = playUrl.replace(/:\d+$/, '');
+    }
+
+    const isVideoFile = /\.(mp4|mkv|webm|mov|avi|flv|m3u8)($|\?)/i.test(playUrl || '');
+
     // Default cameras (ID 1-8) use static local files
     if (cctv.isDefault) {
+      if (isVideoFile) {
+        return {
+          playUrl,
+          playType: 'Video'
+        };
+      }
       return {
-        playUrl: cctv.playUrl || cctv.streamUrl,
+        playUrl,
         playType: 'Image' // Default cameras map to static jpg image updates
       };
     }

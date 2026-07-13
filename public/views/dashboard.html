@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="/css/style.css">
   <!-- Load Lucide Icons CDN (Fork of Feather Icons) -->
   <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Load Hls.js CDN to support HLS video streaming in Chrome/Firefox/Edge -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
   
@@ -16,13 +18,11 @@
     <header class="glass-card header-floating" id="app-header">
       <!-- Left side: Brand Logo & Search Box -->
       <div class="header-left-group">
-        <a href="/dashboard" class="brand-logo" id="btn-brand-logo">
-          <i data-lucide="waves" class="brand-icon"></i>
+        <a href="/dashboard" class="brand-logo" id="btn-brand-logo" style="font-family: 'Outfit', sans-serif; font-weight: 800; letter-spacing: 2px; text-decoration: none; color: var(--primary); font-size: 1.2rem; display: flex; align-items: center; gap: 0;">
           <span>EYECO</span>
         </a>
         <div class="global-search-wrapper">
-          <i data-lucide="search" class="search-input-icon"></i>
-          <input type="text" id="header-global-search" class="header-search-control" placeholder="Cari lokasi, ID... (Ctrl + K)">
+          <input type="text" id="header-global-search" class="header-search-control" placeholder="Cari lokasi, ID... (Ctrl + K)" style="padding-left: 16px;">
         </div>
       </div>
 
@@ -31,13 +31,13 @@
         <div class="nav-tabs">
           <div class="nav-indicator"></div>
           <a href="/dashboard" class="nav-tab active" data-tab="dashboard">
-            <i data-lucide="layout-dashboard"></i> Dashboard
+            Dashboard
           </a>
           <a href="/dashboard/laporan" class="nav-tab" data-tab="laporan">
-            <i data-lucide="file-text"></i> Daftar Laporan
+            Daftar Laporan
           </a>
           <a href="/dashboard/upload" class="nav-tab" data-tab="upload">
-            <i data-lucide="upload-cloud"></i> Upload Bukti
+            Upload Bukti
           </a>
         </div>
       </nav>
@@ -45,20 +45,19 @@
       <!-- Right side: Actions Group (Export, Notifications, Darkmode, Profile) -->
       <div class="header-right-group">
         <!-- Conditional Export Button -->
-        <button class="btn btn-glass btn-rounded header-export-btn" id="btn-header-export">
-          <i data-lucide="download"></i> Export CSV
+        <button class="btn btn-glass btn-rounded header-export-btn" id="btn-header-export" style="font-size: 0.75rem; font-weight: 700; padding: 10px 14px;">
+          Export CSV
         </button>
 
         <!-- Theme Toggle Button -->
-        <button class="btn-icon-toggle" id="btn-theme" title="Ubah Tema (Gelar/Terang)">
-          <i data-lucide="moon"></i>
+        <button class="btn btn-glass btn-rounded" id="btn-theme" title="Ubah Tema" style="font-size: 0.75rem; font-weight: 700; padding: 10px 14px; min-width: 65px; text-align: center; text-transform: uppercase;">
+          DARK
         </button>
 
         <!-- Notification Bell Dropdown -->
         <div class="notification-bell-wrapper">
-          <button class="btn-icon-toggle btn-bell" id="btn-bell" title="Pusat Peringatan AI">
-            <i data-lucide="bell"></i>
-            <span class="bell-badge-count" id="bell-badge">0</span>
+          <button class="btn btn-glass btn-rounded btn-bell" id="btn-bell" title="Pusat Peringatan AI" style="font-size: 0.75rem; font-weight: 700; padding: 10px 14px; position: relative;">
+            ALERTS <span class="bell-badge-count" id="bell-badge">0</span>
           </button>
           <div class="notification-dropdown glass-card" id="notification-dropdown">
             <div class="notification-dropdown-header">
@@ -83,8 +82,12 @@
               <div class="user-info-role" id="dropdown-role">ADMIN</div>
             </div>
             <div class="divider-line"></div>
-            <button class="dropdown-item-btn text-danger" id="btn-dropdown-logout">
-              <i data-lucide="log-out"></i> Keluar Sesi
+            <a href="/profile" class="dropdown-item-btn" id="btn-dropdown-profile" style="text-decoration: none; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+              👤 Profil Saya
+            </a>
+            <div class="divider-line"></div>
+            <button class="dropdown-item-btn text-danger" id="btn-dropdown-logout" style="display: flex; align-items: center; gap: 8px;">
+              🚪 Logout
             </button>
           </div>
         </div>

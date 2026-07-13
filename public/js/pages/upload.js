@@ -71,12 +71,15 @@ export class UploadPage {
                 <input type="file" id="upload-input-file" accept="image/*,video/*" required style="display: none;">
                 
                 <!-- Initial State -->
-                <div class="drag-drop-content" id="drop-zone-content" style="text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: var(--space-24);">
+                <div class="drag-drop-content" id="drop-zone-content" style="text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: var(--space-24); width: 100%;">
                   <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(47,107,255,0.05); color: var(--primary); display: flex; align-items: center; justify-content: center;">
                     <i data-lucide="image" style="width: 24px; height: 24px;"></i>
                   </div>
                   <p style="font-size: 0.9rem; color: var(--text-primary); font-weight: 700; margin: 0;">Seret & lepas gambar di sini, atau klik untuk memilih</p>
                   <p style="font-size: 0.72rem; color: var(--text-secondary); margin: 0;">Mendukung format JPG, PNG, MP4 hingga 10MB</p>
+                  <button type="button" class="btn btn-glass btn-rounded" id="btn-webcam-record" style="margin-top: 8px; font-weight: 700; border-color: rgba(47,107,255,0.3); color: var(--primary);">
+                    Gunakan Kamera Laptop
+                  </button>
                 </div>
 
                 <!-- Preview Area -->
@@ -171,7 +174,8 @@ export class UploadPage {
 
     if (dropZone && fileInput) {
       // Click triggers file select
-      dropZone.addEventListener('click', () => {
+      dropZone.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
         if (!this.isScanning) fileInput.click();
       });
 
@@ -208,6 +212,8 @@ export class UploadPage {
     if (form) {
       form.addEventListener('submit', (e) => this.handleSubmit(e));
     }
+
+    this.initWebcamFeature();
   }
 
   autofillCurrentTime() {
@@ -262,12 +268,12 @@ export class UploadPage {
       };
       reader.readAsDataURL(file);
     } else {
-      // Video
+      // Video preview with local Object URL
+      const videoUrl = URL.createObjectURL(file);
+      this.videoPreviewUrl = videoUrl;
+      
       previewContainer.innerHTML = `
-        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; gap: 8px;">
-          <i data-lucide="video" style="width: 48px; height: 48px; color: var(--primary);"></i>
-          <span style="font-size:0.85rem; font-weight:700;">${file.name}</span>
-        </div>
+        <video src="${videoUrl}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:contain; border-radius:8px;"></video>
         <div class="scanning-bar" id="scan-line"></div>
         <button type="button" class="btn-remove-file" id="btn-clear-file" style="position:absolute; top:12px; right:12px; z-index:20; background:rgba(0,0,0,0.6); border:none; color:white; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; cursor:pointer;">&times;</button>
       `;
@@ -348,19 +354,33 @@ export class UploadPage {
     if (fieldsPanel) fieldsPanel.style.display = 'flex';
     if (scanLine) scanLine.remove(); // Clear animated scan line
 
-    // Render a mockup bounding box overlay on preview image
-    if (previewContainer && this.selectedFile.type.startsWith('image/')) {
-      const mockBox = document.createElement('div');
-      mockBox.className = 'yolo-mock-box';
-      mockBox.style.cssText = 'top: 35%; left: 30%; width: 40%; height: 35%;';
-      mockBox.innerHTML = `<span class="yolo-mock-label">PLASTIC BAG 92%</span>`;
-      previewContainer.appendChild(mockBox);
+    // Render a mockup bounding box overlay on preview image or video
+    if (previewContainer) {
+      if (this.selectedFile.type.startsWith('image/')) {
+        const mockBox = document.createElement('div');
+        mockBox.className = 'yolo-mock-box';
+        mockBox.style.cssText = 'top: 35%; left: 30%; width: 40%; height: 35%;';
+        mockBox.innerHTML = `<span class="yolo-mock-label">PLASTIC BAG 92%</span>`;
+        previewContainer.appendChild(mockBox);
+      } else if (this.selectedFile.type.startsWith('video/')) {
+        const mockBox = document.createElement('div');
+        mockBox.className = 'yolo-mock-box-moving';
+        mockBox.style.cssText = 'width: 140px; height: 110px;';
+        mockBox.innerHTML = `<span class="yolo-mock-label" style="background: #ef4444; color: white; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 2px 2px 0 0; align-self: flex-start;">PLASTIC BOTTLE 94%</span>`;
+        previewContainer.appendChild(mockBox);
+      }
     }
 
     if (window.lucide) window.lucide.createIcons();
   }
 
   clearFileSelection() {
+    if (this.videoPreviewUrl) {
+      try {
+        URL.revokeObjectURL(this.videoPreviewUrl);
+      } catch (err) {}
+      this.videoPreviewUrl = null;
+    }
     this.selectedFile = null;
     this.isScanning = false;
     this.scanCompleted = false;
@@ -407,11 +427,21 @@ export class UploadPage {
     formData.append('file', this.selectedFile);
 
     try {
-      const response = await ReportService.uploadReport(formData);
+      await ReportService.uploadReport(formData);
       EventBus.emit('toast:show', { message: 'Laporan berhasil divalidasi AI & disimpan!', type: 'success' });
       
-      // Instantly open the detailed incident lifecycle page
-      Router.navigate(`/dashboard/detections/${response.id}`);
+      // Clear forms and remain on the same page
+      const inputLoc = document.getElementById('input-location');
+      const inputNotes = document.getElementById('input-notes');
+      if (inputLoc) inputLoc.value = '';
+      if (inputNotes) inputNotes.value = '';
+      
+      this.clearFileSelection();
+      this.autofillCurrentTime();
+      await this.loadHistory();
+      
+      btnSubmit.disabled = false;
+      btnSubmit.innerHTML = origHtml;
     } catch (err) {
       EventBus.emit('toast:show', { message: `Gagal mengirim laporan: ${err.message}`, type: 'danger' });
       btnSubmit.disabled = false;
@@ -461,8 +491,11 @@ export class UploadPage {
             <div style="font-weight: 800; font-size: 0.88rem; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${report.location}</div>
             <div style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600;">${Formatter.formatDate(report.timestamp)}</div>
             <div style="display: flex; gap: 6px; align-items: center; margin-top: 2px;">
-              <span class="badge ${levelClass === 'high' ? 'bg-danger text-white' : (levelClass === 'medium' ? 'bg-warning text-white' : 'bg-primary text-white')}" style="font-size: 0.62rem; padding: 1px 6px;">AI: ${report.aiStatus}</span>
-              <span class="badge ${report.adminStatus === 'VALID' ? 'bg-success text-white' : (report.adminStatus === 'DIABAIKAN' ? 'bg-secondary text-white' : 'bg-warning text-white')}" style="font-size: 0.62rem; padding: 1px 6px;">${report.adminStatus}</span>
+              <span class="badge ${report.aiStatus === 'TINGGI' ? 'badge-high' : (report.aiStatus === 'SEDANG' ? 'badge-medium' : 'badge-low')}">
+                <span class="pill-dot" style="background-color: currentColor;"></span>
+                AI: ${report.aiStatus}
+              </span>
+              <span class="status-badge ${report.adminStatus === 'VALID' ? 'status-valid' : (report.adminStatus === 'DIABAIKAN' ? 'status-ignored' : 'status-pending')}">${report.adminStatus}</span>
             </div>
           </div>
           <i data-lucide="chevron-right" style="width: 16px; height: 16px; color: var(--text-secondary); opacity: 0.5;"></i>
@@ -481,8 +514,115 @@ export class UploadPage {
     }
   }
 
+  initWebcamFeature() {
+    const btnWebcam = document.getElementById('btn-webcam-record');
+    const dropZoneContent = document.getElementById('drop-zone-content');
+    if (!btnWebcam || !dropZoneContent) return;
+
+    this.originalZoneHtml = dropZoneContent.innerHTML;
+
+    btnWebcam.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        
+        dropZoneContent.innerHTML = `
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; position: relative; z-index: 10;">
+            <video id="webcam-live" autoplay muted playsinline style="width: 240px; height: 160px; object-fit: cover; border-radius: 8px; background: #000; border: 1px solid var(--border);"></video>
+            <div style="display: flex; gap: 8px; justify-content: center;">
+              <button type="button" class="btn btn-danger btn-rounded" id="btn-webcam-start" style="font-weight: 700;">Mulai Rekam</button>
+              <button type="button" class="btn btn-glass btn-rounded" id="btn-webcam-cancel" style="font-weight: 700;">Batal</button>
+            </div>
+          </div>
+        `;
+
+        const videoLive = document.getElementById('webcam-live');
+        if (videoLive) videoLive.srcObject = stream;
+
+        const btnStart = document.getElementById('btn-webcam-start');
+        const btnCancel = document.getElementById('btn-webcam-cancel');
+
+        let mediaRecorder = null;
+        let chunks = [];
+
+        btnStart.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          
+          if (btnStart.innerText === 'Mulai Rekam') {
+            chunks = [];
+            try {
+              mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+            } catch (err) {
+              mediaRecorder = new MediaRecorder(stream);
+            }
+
+            mediaRecorder.ondataavailable = (event) => {
+              if (event.data.size > 0) chunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = () => {
+              const blob = new Blob(chunks, { type: 'video/webm' });
+              const file = new File([blob], 'webcam_capture.webm', { type: 'video/webm' });
+              
+              // Stop camera track
+              stream.getTracks().forEach(track => track.stop());
+              
+              this.handleFileSelected(file);
+            };
+
+            mediaRecorder.start();
+            btnStart.innerText = 'Hentikan Rekam';
+            btnStart.className = 'btn btn-rounded';
+            btnStart.style.background = '#dc2626';
+            btnStart.style.color = '#fff';
+            btnCancel.disabled = true;
+
+            // Automatically stop recording after 5 seconds to keep simulation fast & small
+            this.webcamTimeout = setTimeout(() => {
+              if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+              }
+            }, 5000);
+
+          } else {
+            if (this.webcamTimeout) clearTimeout(this.webcamTimeout);
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+              mediaRecorder.stop();
+            }
+          }
+        });
+
+        btnCancel.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          stream.getTracks().forEach(track => track.stop());
+          if (this.webcamTimeout) clearTimeout(this.webcamTimeout);
+          this.restoreOriginalZone();
+        });
+
+      } catch (err) {
+        console.error('Webcam Access Error:', err);
+        EventBus.emit('toast:show', { message: 'Gagal mengakses kamera laptop Anda.', type: 'danger' });
+      }
+    });
+  }
+
+  restoreOriginalZone() {
+    const dropZoneContent = document.getElementById('drop-zone-content');
+    if (dropZoneContent && this.originalZoneHtml) {
+      dropZoneContent.innerHTML = this.originalZoneHtml;
+      this.initWebcamFeature();
+      if (window.lucide) window.lucide.createIcons();
+    }
+  }
+
   destroy() {
-    // Clean states
+    if (this.webcamTimeout) clearTimeout(this.webcamTimeout);
+    if (this.videoPreviewUrl) {
+      try {
+        URL.revokeObjectURL(this.videoPreviewUrl);
+      } catch (err) {}
+      this.videoPreviewUrl = null;
+    }
     this.selectedFile = null;
     this.isScanning = false;
     this.scanCompleted = false;

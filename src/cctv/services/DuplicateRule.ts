@@ -12,12 +12,11 @@ export class DuplicateRule implements IPromotionRule {
     try {
       const duplicateLimit = new Date(Date.now() - context.settings.duplicateTimeWindowSeconds * 1000);
 
-      // Cari laporan aktif pada kamera yang sama, dengan kelas deteksi yang sama, dalam jendela waktu duplikasi
+      // Cari laporan aktif pada kamera yang sama dalam jendela waktu duplikasi (tanpa memandang perbedaan label/kelas objek)
       const openReport = await ReportModel.findOne({
         status: { $nin: ['CLOSED', 'REJECTED'] },
         timestamp: { $gte: duplicateLimit },
-        'sourceMetadata.cameraId': detection.cameraId,
-        'boundingBoxes.label': context.mainClass
+        'sourceMetadata.cameraId': detection.cameraId
       });
 
       if (openReport) {

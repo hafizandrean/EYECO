@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profil Saya - EYECO</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      background-color: #0b0f19;
+      color: #f3f4f6;
+      font-family: 'Inter', sans-serif;
+    }
+    
+    .nav-back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin-bottom: 24px;
+      transition: color 0.2s;
+    }
+    .nav-back-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .profile-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    @media (min-width: 768px) {
+      .profile-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 18px;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .info-label {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    .info-value {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .role-badge {
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .role-admin {
+      background: rgba(16, 185, 129, 0.15);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .role-user {
+      background: rgba(59, 130, 246, 0.15);
+      color: #3b82f6;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    /* Modal Styling */
+    .profile-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(9, 13, 22, 0.6);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      z-index: 1200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .profile-modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .profile-modal-box {
+      width: 100%;
+      max-width: 480px;
+      background: var(--surface);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-modal);
+      padding: 28px;
+      transform: scale(0.95);
+      transition: transform 0.3s ease;
+      box-shadow: var(--glass-shadow);
+    }
+    .profile-modal-overlay.active .profile-modal-box {
+      transform: scale(1);
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .modal-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .modal-close-btn {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 4px;
+      transition: color 0.2s;
+    }
+    .modal-close-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+    .form-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+    .form-input {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-input);
+      color: var(--text-primary);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-submit:hover {
+      background: #2563eb;
+    }
+    .btn-submit:disabled {
+      background: var(--border);
+      color: var(--text-muted);
+      cursor: not-allowed;
+    }
+
+    .btn-danger-submit {
+      width: 100%;
+      padding: 14px;
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-danger-submit:hover {
+      background: #dc2626;
+    }
+    .btn-danger-submit:disabled {
+      background: #4b5563;
+      color: #9ca3af;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body class="dark-mode">
+  <script>
+    // Apply saved theme immediately before body renders to avoid light flash
+    const savedTheme = localStorage.getItem('eyeco-theme') || 'dark';
+    if (savedTheme === 'light') {
+      document.body.classList.remove('dark-mode');
+    }
+  </script>
+
+  <!-- Floating Header -->
+  <header class="app-header" id="app-header" style="position: sticky; top: 0; background: rgba(11, 15, 25, 0.7); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.05); z-index: 100; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;">
+    <a href="/dashboard" style="display: flex; align-items: center; gap: 0; text-decoration: none; color: white; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.25rem; letter-spacing: 2px;">
+      <span>EYECO</span>
+    </a>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <button class="btn btn-glass btn-rounded" id="btn-theme" title="Ubah Tema" style="text-transform: uppercase;">
+        DARK
+      </button>
+      <button class="btn btn-danger btn-rounded" id="btn-profile-logout" style="text-transform: uppercase;">
+        LOGOUT
+      </button>
+      <button class="btn btn-glass btn-rounded" id="btn-back-dashboard" style="text-transform: uppercase;">
+        Kembali
+      </button>
+    </div>
+  </header>
+
+  <div style="max-width: 800px; margin: 40px auto; padding: 0 24px;">
+    <!-- Back Navigation -->
+    <a href="#" id="back-link" class="nav-back-btn">
+      Kembali ke Dashboard
+    </a>
+
+    <div class="profile-grid" style="display: flex; flex-direction: column; gap: 24px;">
+      <!-- Card 1: Informasi Akun -->
+      <div class="section-card glass-card" style="padding: 28px;">
+        <div style="margin-bottom: 24px;">
+          <h2 class="section-title" style="margin: 0; font-size: 1.15rem;">Informasi Akun</h2>
+          <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;">Detail profil akun Anda</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="info-row">
+            <span class="info-label">Nama</span>
+            <span class="info-value" id="profile-name">—</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Email</span>
+            <span class="info-value" id="profile-email">—</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Role</span>
+            <span class="role-badge role-user" id="profile-role">USER</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Status Akun</span>
+            <span class="info-value" id="profile-status">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Keamanan & Aksi Akun -->
+      <div class="section-card glass-card" style="padding: 28px;">
+        <div style="margin-bottom: 24px;">
+          <h2 class="section-title" style="margin: 0; font-size: 1.15rem;">Keamanan & Aksi Akun</h2>
+          <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;">Kelola keamanan kredensial dan status akun Anda</div>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <!-- Row 1: Ganti Password -->
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: rgba(255, 255, 255, 0.02); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05);">
+            <div>
+              <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-primary);">Kata Sandi</div>
+              <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">Terakhir diubah: <span id="password-changed-at">—</span></div>
+            </div>
+            <button class="btn btn-primary btn-rounded" id="btn-trigger-password-modal" style="height: auto; padding: 10px 18px; font-size: 0.85rem;">Ganti Password</button>
+          </div>
+
+          <!-- Row 2: Tutup Akun -->
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: rgba(255, 255, 255, 0.02); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05);">
+            <div>
+              <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-primary);">Tutup Akun</div>
+               <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">Hapus atau nonaktifkan akun Anda secara permanen</div>
+            </div>
+            <button class="btn btn-danger btn-rounded" id="btn-trigger-close-modal" style="height: auto; padding: 10px 18px; font-size: 0.85rem;">Tutup Akun</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Ganti Password -->
+  <div class="profile-modal-overlay" id="password-modal-overlay">
+    <div class="profile-modal-box">
+      <div class="modal-header">
+        <div class="modal-title">Ganti Password</div>
+        <button class="modal-close-btn" id="btn-close-password-modal" style="font-size: 1.25rem; line-height: 1; font-weight: 700;">✕</button>
+      </div>
+      <form id="form-change-password">
+        <div class="form-group">
+          <label class="form-label" for="current-password">Password Lama</label>
+          <input type="password" id="current-password" class="form-input" placeholder="Masukkan password saat ini" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="new-password">Password Baru</label>
+          <input type="password" id="new-password" class="form-input" placeholder="Minimal 6 karakter" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="confirm-password">Konfirmasi Password Baru</label>
+          <input type="password" id="confirm-password" class="form-input" placeholder="Ulangi password baru" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-rounded" id="btn-password-submit" style="width: 100%; height: 48px; font-size: 0.95rem;">Perbarui Password</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Tutup Akun -->
+  <div class="profile-modal-overlay" id="close-modal-overlay">
+    <div class="profile-modal-box" style="max-width: 520px;">
+      <div class="modal-header">
+        <div class="modal-title" style="color: #ef4444;">Tutup Akun Anda</div>
+        <button class="modal-close-btn" id="btn-close-delete-modal" style="font-size: 1.25rem; line-height: 1; font-weight: 700;">✕</button>
+      </div>
+      <div style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; color: var(--danger); font-size: 0.85rem; line-height: 1.5; display: flex; gap: 10px; align-items: flex-start;">
+        <span>Peringatan: Tindakan ini akan menutup akses ke akun Anda dan mengeluarkan Anda dari seluruh perangkat. Hubungi superadmin untuk pembukaan kembali akun.</span>
+      </div>
+      <form id="form-close-account">
+        <div class="form-group">
+          <label class="form-label" for="delete-confirm-password">Password Konfirmasi</label>
+          <input type="password" id="delete-confirm-password" class="form-input" placeholder="Masukkan password Anda saat ini" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="delete-reason">Alasan Penutupan (Opsional)</label>
+          <textarea id="delete-reason" class="form-input" rows="3" maxlength="500" placeholder="Tulis alasan Anda (maks. 500 karakter)" style="resize: none; font-family: inherit;"></textarea>
+          <div style="text-align: right; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;"><span id="char-count">0</span>/500</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="delete-keyword">Ketik kata <strong style="color: #ef4444;">DELETE</strong> untuk konfirmasi</label>
+          <input type="text" id="delete-keyword" class="form-input" placeholder="Ketik DELETE" required autocomplete="off">
+        </div>
+        <button type="submit" class="btn btn-danger btn-rounded" id="btn-close-submit" disabled style="width: 100%; height: 48px; font-size: 0.95rem;">Saya paham, Tutup Akun Ini</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" style="position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;"></div>
+
+  <script>
+    // Theme Toggling & Initialization
+    const themeBtn = document.getElementById('btn-theme');
+    function updateThemeUI(theme) {
+      if (theme === 'dark') {
+        document.body.classList.add('dark-mode');
+        themeBtn.innerText = 'LIGHT';
+      } else {
+        document.body.classList.remove('dark-mode');
+        themeBtn.innerText = 'DARK';
+      }
+    }
+
+    const currentTheme = localStorage.getItem('eyeco-theme') || 'dark';
+    updateThemeUI(currentTheme);
+
+    themeBtn.addEventListener('click', () => {
+      const activeTheme = document.body.classList.contains('dark-mode') ? 'light' : 'dark';
+      localStorage.setItem('eyeco-theme', activeTheme);
+      updateThemeUI(activeTheme);
+    });
+
+    // Inisialisasi Lucide
+    if (window.lucide) window.lucide.createIcons();
+
+    // Elements
+    const passwordModal = document.getElementById('password-modal-overlay');
+    const closeModal = document.getElementById('close-modal-overlay');
+    const deleteKeywordInput = document.getElementById('delete-keyword');
+    const closeSubmitBtn = document.getElementById('btn-close-submit');
+    const deleteReasonTextarea = document.getElementById('delete-reason');
+    const charCountSpan = document.getElementById('char-count');
+
+    let userRole = '';
+
+    // Toast Alert
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const colors = {
+        success: { bg: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.3)', color: '#10b981' },
+        error: { bg: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.3)', color: '#ef4444' },
+        info: { bg: 'rgba(47,107,255,0.15)', border: 'rgba(47,107,255,0.3)', color: '#2f6bff' }
+      };
+      const c = colors[type] || colors.info;
+      toast.style.cssText = `background:${c.bg};border:1px solid ${c.border};color:${c.color};padding:12px 18px;border-radius:12px;font-size:0.875rem;font-weight:600;animation:pageFadeIn 0.3s ease;max-width:320px;box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 4000);
+    }
+
+    // Load Profile Data
+    async function loadProfile() {
+      try {
+        const res = await fetch('/api/profile');
+        if (!res.ok) {
+          window.location.replace('/login');
+          return;
+        }
+        const body = await res.json();
+        if (!body.success) {
+          showToast(body.message, 'error');
+          return;
+        }
+        const data = body.data;
+        userRole = data.role.toLowerCase();
+
+        // Update fields
+        document.getElementById('profile-name').textContent = data.username;
+        document.getElementById('profile-email').textContent = data.email || '—';
+        
+        const roleBadge = document.getElementById('profile-role');
+        roleBadge.textContent = data.role;
+        roleBadge.className = `role-badge role-${userRole === 'admin' || userRole === 'superadmin' ? 'admin' : 'user'}`;
+
+        document.getElementById('profile-status').textContent = data.accountStatus;
+        
+        const passChanged = data.security.passwordChangedAt;
+        document.getElementById('password-changed-at').textContent = passChanged ? new Date(passChanged).toLocaleDateString('id-ID', {
+          year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+        }) : 'Belum pernah diubah';
+
+        // Configure back buttons redirect URL
+        const backUrl = userRole === 'admin' || userRole === 'superadmin' ? '/dashboard' : '/dashboard-user';
+        document.getElementById('back-link').setAttribute('href', backUrl);
+        document.getElementById('btn-back-dashboard').addEventListener('click', () => {
+          window.location.href = backUrl;
+        });
+
+      } catch (err) {
+        console.error('Failed to load profile:', err);
+        window.location.replace('/login');
+      }
+    }
+
+    // Toggle Modals
+    function openModal(modal) {
+      modal.classList.add('active');
+    }
+    function closeModalWindow(modal) {
+      modal.classList.remove('active');
+      // Reset forms if any
+      const form = modal.querySelector('form');
+      if (form) form.reset();
+      if (modal === closeModal) {
+        closeSubmitBtn.disabled = true;
+        charCountSpan.textContent = '0';
+      }
+    }
+
+    document.getElementById('btn-trigger-password-modal').addEventListener('click', () => openModal(passwordModal));
+    document.getElementById('btn-close-password-modal').addEventListener('click', () => closeModalWindow(passwordModal));
+    
+    document.getElementById('btn-trigger-close-modal').addEventListener('click', () => {
+      if (userRole === 'admin' || userRole === 'superadmin') {
+        showToast('Administrator tidak dapat menutup akunnya sendiri.', 'error');
+        return;
+      }
+      openModal(closeModal);
+    });
+    document.getElementById('btn-close-delete-modal').addEventListener('click', () => closeModalWindow(closeModal));
+
+    // Closing account word verification
+    deleteKeywordInput.addEventListener('input', () => {
+      closeSubmitBtn.disabled = (deleteKeywordInput.value !== 'DELETE');
+    });
+
+    // Character counter for delete reason
+    deleteReasonTextarea.addEventListener('input', () => {
+      charCountSpan.textContent = deleteReasonTextarea.value.length;
+    });
+
+    // Form Change Password Submit
+    document.getElementById('form-change-password').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const currentPassword = document.getElementById('current-password').value;
+      const newPassword = document.getElementById('new-password').value;
+      const confirmPassword = document.getElementById('confirm-password').value;
+
+      if (newPassword !== confirmPassword) {
+        showToast('Konfirmasi password baru tidak cocok', 'error');
+        return;
+      }
+
+      const submitBtn = document.getElementById('btn-password-submit');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Menyimpan...';
+
+      try {
+        const res = await fetch('/api/profile/password', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentPassword, newPassword })
+        });
+        
+        const body = await res.json();
+        if (res.ok && body.success) {
+          showToast('Password berhasil diperbarui.', 'success');
+          closeModalWindow(passwordModal);
+          loadProfile();
+        } else {
+          showToast(body.message || 'Gagal mengubah password.', 'error');
+        }
+      } catch (err) {
+        showToast('Terjadi kesalahan koneksi server.', 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Perbarui Password';
+      }
+    });
+
+    // Form Close Account Submit
+    document.getElementById('form-close-account').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      if (deleteKeywordInput.value !== 'DELETE') {
+        showToast('Kata kunci konfirmasi tidak sesuai.', 'error');
+        return;
+      }
+
+      const password = document.getElementById('delete-confirm-password').value;
+      const feedback = deleteReasonTextarea.value;
+
+      const submitBtn = document.getElementById('btn-close-submit');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Menutup Akun...';
+
+      try {
+        const res = await fetch('/api/profile', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password, feedback })
+        });
+
+        const body = await res.json();
+        if (res.ok && body.success) {
+          showToast('Akun berhasil ditutup. Mengalihkan...', 'success');
+          setTimeout(() => {
+            window.location.replace('/login');
+          }, 2000);
+        } else {
+          showToast(body.message || 'Gagal menutup akun.', 'error');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Saya paham, Tutup Akun Ini';
+        }
+      } catch (err) {
+        showToast('Terjadi kesalahan koneksi server.', 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Saya paham, Tutup Akun Ini';
+      }
+    });
+
+    // Logout Handler
+    const logoutBtn = document.getElementById('btn-profile-logout');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        try {
+          const res = await fetch('/api/logout', { method: 'POST' });
+          if (res.ok) {
+            showToast('Berhasil logout. Mengalihkan...', 'success');
+            setTimeout(() => {
+              window.location.replace('/login');
+            }, 1000);
+          } else {
+            showToast('Gagal logout.', 'error');
+          }
+        } catch (err) {
+          showToast('Kesalahan koneksi.', 'error');
+        }
+      });
+    }
+
+    // Check query params to auto-open password modal
+    document.addEventListener('DOMContentLoaded', () => {
+      loadProfile().then(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('change-password') === 'true') {
+          openModal(passwordModal);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

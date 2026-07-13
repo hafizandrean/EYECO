@@ -49,12 +49,35 @@ const UserSchema = new mongoose_1.Schema({
     passwordHash: { type: String, required: true, select: false }, // Exclude by default
     role: {
         type: String,
-        enum: ['admin', 'user', 'operator', 'supervisor', 'officer'],
+        enum: ['superadmin', 'admin', 'user', 'operator', 'supervisor', 'officer'],
+        required: true
+    },
+    status: {
+        type: String,
+        enum: ['PENDING', 'APPROVED', 'REJECTED', 'CLOSED'],
+        default: 'PENDING',
         required: true
     },
     name: { type: String, trim: true, default: '' },
-    email: { type: String, trim: true, default: '' },
-    agency: { type: String, trim: true, default: '' }
+    email: { type: String, trim: true, lowercase: true, default: '' },
+    agency: { type: String, trim: true, default: '' },
+    workspaceId: { type: Number, index: true },
+    isDeleted: { type: Boolean, default: false },
+    closedAt: { type: Date, default: null },
+    closedReason: { type: String, default: null },
+    closureFeedback: { type: String, default: null },
+    closedBy: { type: Number, default: null },
+    lastLoginAt: { type: Date, default: null },
+    passwordChangedAt: { type: Date, default: null },
+    passwordHistory: {
+        type: [{ hash: String, changedAt: Date }],
+        default: []
+    },
+    preferencesVersion: { type: Number, default: 1 },
+    preferences: {
+        type: { theme: String, language: String, timezone: String },
+        default: { theme: 'dark', language: 'id', timezone: 'Asia/Jakarta' }
+    }
 }, {
     timestamps: true
 });

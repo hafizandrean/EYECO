@@ -64,12 +64,10 @@ export class NotificationCenter {
 
     if (notifications.length === 0) {
       listContainer.innerHTML = `
-        <div class="empty-notifications">
-          <i data-lucide="bell-off" style="width: 24px; height: 24px; color: var(--text-muted);"></i>
-          <p>Tidak ada notifikasi baru</p>
+        <div class="empty-notifications" style="text-align: center; padding: var(--space-24) 0; color: var(--text-muted); font-size: 0.8rem; font-weight: 500;">
+          Tidak ada notifikasi baru
         </div>
       `;
-      if (window.lucide) window.lucide.createIcons();
       return;
     }
 
@@ -89,13 +87,12 @@ export class NotificationCenter {
         else if (alert.isComment) level = 'comment';
       }
 
-      let icon = 'info';
-      if (level === 'high') icon = 'alert-triangle';
-      else if (level === 'medium') icon = 'alert-circle';
-      else if (level === 'low') icon = 'eye';
-      else if (level === 'success') icon = 'shield-check';
-      else if (level === 'comment') icon = 'message-square';
-      else icon = 'video';
+      let label = 'I';
+      if (level === 'high') label = 'H';
+      else if (level === 'medium') label = 'M';
+      else if (level === 'low') label = 'L';
+      else if (level === 'success') label = 'S';
+      else if (level === 'comment') label = 'C';
 
       const titleText = alert.location || 'Notifikasi Baru';
       const messageText = alert.message || (alert.isComment 
@@ -103,8 +100,8 @@ export class NotificationCenter {
         : `Terdeteksi indikasi ${alert.aiStatus || 'Aktif'} (${alert.aiConfidence || 0}%)`);
 
       item.innerHTML = `
-        <div class="notif-icon-wrapper ${level}">
-          <i data-lucide="${icon}"></i>
+        <div class="notif-icon-wrapper ${level}" style="display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 900; font-family: 'Outfit', sans-serif; flex-shrink: 0;">
+          ${label}
         </div>
         <div class="notification-item-body">
           <div class="notification-item-title">${titleText}</div>

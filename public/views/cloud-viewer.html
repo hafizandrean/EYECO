@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Krisbow Sync - Cloud Web Viewer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Load Hls.js CDN to support HLS video streaming in Chrome/Firefox/Edge -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --card-bg: rgba(20, 28, 45, 0.6);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+      --primary-color: #2f6bff;
+      --primary-glow: rgba(47, 107, 255, 0.4);
+      --success-color: #10b981;
+      --warning-color: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(47, 107, 255, 0.1) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 960px;
+      margin-top: 20px;
+    }
+
+    /* Header styling */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding: 16px 24px;
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+    }
+
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      background: linear-gradient(135deg, var(--primary-color), #4f46e5);
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 15px var(--primary-glow);
+    }
+
+    .logo-text {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 1.25rem;
+      letter-spacing: 1px;
+    }
+
+    .logo-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--success-color);
+      background: rgba(16, 185, 129, 0.1);
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .status-area {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--success-color);
+      background: rgba(16, 185, 129, 0.1);
+      padding: 6px 12px;
+      border-radius: 20px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background-color: var(--success-color);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--success-color);
+      animation: pulse 1.5s infinite;
+    }
+
+    /* Main Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+
+    @media (min-width: 768px) {
+      .grid {
+        grid-template-columns: 3fr 2fr;
+      }
+    }
+
+    /* Video Player Frame */
+    .player-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .player-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .player-title {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .player-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .icon-btn:hover {
+      background: rgba(255,255,255,0.05);
+      color: var(--text-primary);
+    }
+
+    .video-viewport {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: black;
+    }
+
+    .video-viewport video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .viewport-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px;
+      z-index: 5;
+    }
+
+    .overlay-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      font-weight: 800;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      padding: 4px 10px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .live-badge .dot {
+      width: 6px;
+      height: 6px;
+      background: #ef4444;
+      border-radius: 50%;
+      box-shadow: 0 0 6px #ef4444;
+    }
+
+    .overlay-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
+      margin: -16px;
+      padding: 16px;
+    }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: white;
+      font-size: 0.8rem;
+    }
+
+    /* Device Info Sidebar */
+    .info-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .info-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 12px;
+      font-size: 0.85rem;
+    }
+
+    .info-label {
+      color: var(--text-secondary);
+    }
+
+    .info-value {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .actions-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .action-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      cursor: pointer;
+      color: var(--text-primary);
+      font-weight: 600;
+      font-size: 0.75rem;
+      transition: all 0.2s;
+    }
+
+    .action-btn:hover {
+      background: rgba(47, 107, 255, 0.08);
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+      box-shadow: 0 0 10px rgba(47, 107, 255, 0.1);
+    }
+
+    .action-btn i {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* Dialog/Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: rgba(16, 185, 129, 0.95);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 100;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+      }
+      70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+      }
+      100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo-area">
+        <div class="logo-icon">
+          <i data-lucide="cloud"></i>
+        </div>
+        <div>
+          <span class="logo-text">Krisbow Sync</span>
+          <span style="font-size: 0.7rem; display: block; color: var(--text-secondary);">Web Remote Gateway</span>
+        </div>
+        <span class="logo-badge">EYECO INTEGRATED</span>
+      </div>
+
+      <div class="status-area">
+        <div class="status-pill">
+          <span class="status-dot"></span>
+          <span>CONNECTED</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="grid">
+      <!-- Player Area -->
+      <div class="player-card">
+        <div class="player-header">
+          <span class="player-title">CCTV Krisbow Sektor 9 (Tanggul Sungai)</span>
+          <div class="player-actions">
+            <button class="icon-btn" title="Refresh"><i data-lucide="refresh-cw" style="width:16px;height:16px;"></i></button>
+            <button class="icon-btn" title="Settings"><i data-lucide="settings" style="width:16px;height:16px;"></i></button>
+          </div>
+        </div>
+
+        <div class="video-viewport">
+          <video id="cloud-video" autoplay loop muted playsinline style="pointer-events: none; width: 100%; height: 100%; object-fit: cover;">
+            <source src="/uploads/orang buang sampah.mp4" type="video/mp4">
+            Video tidak didukung oleh browser Anda.
+          </video>
+          
+          <div class="viewport-overlay">
+            <div class="overlay-top">
+              <div class="live-badge">
+                <span class="dot"></span>
+                <span>LIVE</span>
+              </div>
+              <div style="font-size: 0.7rem; font-weight: 700; color: white; background: rgba(0,0,0,0.5); padding: 4px 8px; border-radius: 4px;">
+                99% Signal
+              </div>
+            </div>
+
+            <div class="overlay-bottom">
+              <div class="control-row">
+                <button class="icon-btn" id="play-pause-btn" style="color: white; width:24px;height:24px;"><i data-lucide="pause" style="width:16px;height:16px;"></i></button>
+                <button class="icon-btn" id="mute-btn" style="color: white; width:24px;height:24px;"><i data-lucide="volume-x" style="width:16px;height:16px;"></i></button>
+                <span style="opacity:0.6;">|</span>
+                <span>1080P HD</span>
+              </div>
+              <div style="font-size: 0.75rem; font-weight: 600; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="battery" style="width:14px;height:14px;color:var(--success-color);"></i> 85% Battery
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding: 16px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-secondary);">
+          <span>FPS: 24.0 | Bitrate: 420 Kbps</span>
+          <span>Waktu Perangkat: <strong id="device-time">—</strong></span>
+        </div>
+      </div>
+
+      <!-- Info Area -->
+      <div class="info-card">
+        <span class="card-title"><i data-lucide="cpu" style="color: var(--primary-color);"></i> Spesifikasi & Informasi</span>
+        
+        <div class="info-list">
+          <div class="info-item">
+            <span class="info-label">Virtual ID</span>
+            <span class="info-value" style="font-family: monospace;">eb2029fb460f49a894hzdu</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">IMEI</span>
+            <span class="info-value" style="font-family: monospace;">869100071032096</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">ICCID (SIM)</span>
+            <span class="info-value" style="font-family: monospace;">89103000000295253054</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">IP Address</span>
+            <span class="info-value">154.56.123.8</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Power Source</span>
+            <span class="info-value">Solar Panel & Battery</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Zona Waktu</span>
+            <span class="info-value">Asia/Jakarta (GMT+7)</span>
+          </div>
+        </div>
+
+        <div style="height: 1px; background: var(--border-color); margin: 8px 0;"></div>
+
+        <span class="card-title" style="font-size: 0.9rem;"><i data-lucide="sliders" style="color: var(--primary-color); width: 16px; height: 16px;"></i> Aksi Cepat Perangkat</span>
+        <div class="actions-grid">
+          <button class="action-btn" id="btn-snap">
+            <i data-lucide="camera"></i>
+            Ambil Snap
+          </button>
+          <button class="action-btn" id="btn-talk">
+            <i data-lucide="mic"></i>
+            Interkom (Bicara)
+          </button>
+          <button class="action-btn" id="btn-record">
+            <i data-lucide="video"></i>
+            Rekam Manual
+          </button>
+          <button class="action-btn" id="btn-ai">
+            <i data-lucide="brain"></i>
+            Run AI Box
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="info-toast">
+    <i data-lucide="check-circle-2"></i>
+    <span id="toast-message">Aksi berhasil diproses</span>
+  </div>
+
+  <script>
+    // Initialize icons
+    lucide.createIcons();
+
+    // Device time update
+    function updateDeviceTime() {
+      const dateEl = document.getElementById('device-time');
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB';
+      const dateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      dateEl.textContent = `${dateStr} ${timeStr}`;
+    }
+    setInterval(updateDeviceTime, 1000);
+    updateDeviceTime();
+
+    // Video controls
+    const video = document.getElementById('cloud-video');
+    const playPauseBtn = document.getElementById('play-pause-btn');
+    const muteBtn = document.getElementById('mute-btn');
+
+    playPauseBtn.addEventListener('click', () => {
+      if (video.paused) {
+        video.play();
+        playPauseBtn.innerHTML = '<i data-lucide="pause" style="width:16px;height:16px;"></i>';
+      } else {
+        video.pause();
+        playPauseBtn.innerHTML = '<i data-lucide="play" style="width:16px;height:16px;"></i>';
+      }
+      lucide.createIcons();
+    });
+
+    muteBtn.addEventListener('click', () => {
+      video.muted = !video.muted;
+      if (video.muted) {
+        muteBtn.innerHTML = '<i data-lucide="volume-x" style="width:16px;height:16px;"></i>';
+      } else {
+        muteBtn.innerHTML = '<i data-lucide="volume-2" style="width:16px;height:16px;"></i>';
+      }
+      lucide.createIcons();
+    });
+
+    // Action Toast triggers
+    const toast = document.getElementById('info-toast');
+    const toastMsg = document.getElementById('toast-message');
+
+    function showToast(message) {
+      toastMsg.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    document.getElementById('btn-snap').addEventListener('click', () => {
+      showToast('Snapshot disimpan ke galeri cloud.');
+    });
+
+    document.getElementById('btn-talk').addEventListener('click', () => {
+      showToast('Koneksi suara dua arah diaktifkan.');
+    });
+
+    document.getElementById('btn-record').addEventListener('click', () => {
+      showToast('Perekaman manual dimulai pada cloud storage.');
+    });
+
+    document.getElementById('btn-ai').addEventListener('click', () => {
+      showToast('Inisialisasi analisis YOLOv8 pada stream cloud...');
+    });
+  </script>
+</body>
+</html>

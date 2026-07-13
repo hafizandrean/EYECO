@@ -18,6 +18,14 @@ export async function seedSystemSettingsAndModels() {
         { key: 'ai.cooldown.minutes', value: 3, description: 'Masa cooldown (menit) setelah insiden ditutup agar tidak memicu insiden baru di lokasi yang sama.', updatedBy: 1 },
         { key: 'ai.verification.frames', value: 3, description: 'Jumlah frame positif berturut-turut yang dibutuhkan sebelum promosi insiden.', updatedBy: 1 },
         { key: 'ai.confidence.threshold', value: 0.7, description: 'Ambang batas nilai confidence (keyakinan) AI agar dapat dipromosikan (0.0 - 1.0).', updatedBy: 1 },
+        { key: 'ai.engine', value: 'MOCK', description: 'Mesin inferensi AI aktif (MOCK | FASTAPI | ONNX).', updatedBy: 1 },
+        { key: 'ai.queue.maxSize', value: 50, description: 'Batas kapasitas maksimal antrean inferensi AI.', updatedBy: 1 },
+        { 
+          key: 'ai.deployment.lock', 
+          value: { locked: false, lockedBy: null, fencingToken: 0, expiresAt: null, heartbeatAt: null }, 
+          description: 'Distributed lock untuk mencegah tabrakan proses deployment model AI.', 
+          updatedBy: 1 
+        },
         { 
           key: 'ai.rules', 
           value: {
@@ -39,6 +47,24 @@ export async function seedSystemSettingsAndModels() {
           value: { locked: false, lockedBy: null, expiresAt: null }, 
           description: 'Distributed lock untuk mencegah eksekusi paralel scheduler.', 
           updatedBy: 1 
+        },
+        {
+          key: 'eyeco.information',
+          value: {
+            about: "EYECO adalah platform monitoring aliran sungai berbasis AI berbasis Deep Learning (YOLOv8) untuk mendeteksi sampah dan aktivitas pembuangan sampah liar secara real-time.",
+            terkini: [
+              "Uji Coba Model AI Baru (yolov8-river-v1.1-canary) berhasil disebarkan di Sektor 7 Hulu.",
+              "Fitur laporan otomatis via bot telegram interaktif kini dapat digunakan oleh seluruh warga.",
+              "Pembersihan massal sungai Ciliwung bersama dinas kebersihan dijadwalkan pada hari Sabtu ini."
+            ],
+            sampah: [
+              "Daur Ulang Plastik: Plastik PET membutuhkan waktu hingga 450 tahun untuk terurai di alam bebas.",
+              "Bahaya Sampah Sungai: Penumpukan sampah organik di dasar sungai memicu eutrofikasi dan mengurangi oksigen air.",
+              "Kampanye Pilah Sampah: Memisahkan sampah organik dan anorganik dari rumah membantu mempercepat proses daur ulang."
+            ]
+          },
+          description: 'Informasi EYECO, pengumuman terkini, dan berita seputar sampah untuk landing page pengguna umum.',
+          updatedBy: 1
         }
       ]);
       console.log('[MIGRATION INFO] Seeded initial SystemSettings.');
@@ -68,6 +94,10 @@ export async function seedSystemSettingsAndModels() {
       if (!hasTelegramChatId) {
         await SystemSettingsModel.create({ key: 'telegram.chatId', value: '-1003941703215', description: 'ID Chat / Grup penerima notifikasi Telegram.', updatedBy: 1 });
       }
+      const hasMinLength = await SystemSettingsModel.findOne({ key: 'security.password.minLength' });
+      if (!hasMinLength) {
+        await SystemSettingsModel.create({ key: 'security.password.minLength', value: 6, description: 'Panjang minimal password baru untuk keamanan akun.', updatedBy: 1 });
+      }
       const hasLockSetting = await SystemSettingsModel.findOne({ key: 'scheduler.lock' });
       if (!hasLockSetting) {
         await SystemSettingsModel.create({ 
@@ -75,6 +105,54 @@ export async function seedSystemSettingsAndModels() {
           value: { locked: false, lockedBy: null, expiresAt: null }, 
           description: 'Distributed lock untuk mencegah eksekusi paralel scheduler.', 
           updatedBy: 1 
+        });
+      }
+      const hasAiEngine = await SystemSettingsModel.findOne({ key: 'ai.engine' });
+      if (!hasAiEngine) {
+        await SystemSettingsModel.create({
+          key: 'ai.engine',
+          value: 'MOCK',
+          description: 'Mesin inferensi AI aktif (MOCK | FASTAPI | ONNX).',
+          updatedBy: 1
+        });
+      }
+      const hasQueueSize = await SystemSettingsModel.findOne({ key: 'ai.queue.maxSize' });
+      if (!hasQueueSize) {
+        await SystemSettingsModel.create({
+          key: 'ai.queue.maxSize',
+          value: 50,
+          description: 'Batas kapasitas maksimal antrean inferensi AI.',
+          updatedBy: 1
+        });
+      }
+      const hasDeploymentLock = await SystemSettingsModel.findOne({ key: 'ai.deployment.lock' });
+      if (!hasDeploymentLock) {
+        await SystemSettingsModel.create({
+          key: 'ai.deployment.lock',
+          value: { locked: false, lockedBy: null, fencingToken: 0, expiresAt: null, heartbeatAt: null },
+          description: 'Distributed lock untuk mencegah tabrakan proses deployment model AI.',
+          updatedBy: 1
+        });
+      }
+      const hasEyecoInfo = await SystemSettingsModel.findOne({ key: 'eyeco.information' });
+      if (!hasEyecoInfo) {
+        await SystemSettingsModel.create({
+          key: 'eyeco.information',
+          value: {
+            about: "EYECO adalah platform monitoring aliran sungai berbasis AI berbasis Deep Learning (YOLOv8) untuk mendeteksi sampah dan aktivitas pembuangan sampah liar secara real-time.",
+            terkini: [
+              "Uji Coba Model AI Baru (yolov8-river-v1.1-canary) berhasil disebarkan di Sektor 7 Hulu.",
+              "Fitur laporan otomatis via bot telegram interaktif kini dapat digunakan oleh seluruh warga.",
+              "Pembersihan massal sungai Ciliwung bersama dinas kebersihan dijadwalkan pada hari Sabtu ini."
+            ],
+            sampah: [
+              "Daur Ulang Plastik: Plastik PET membutuhkan waktu hingga 450 tahun untuk terurai di alam bebas.",
+              "Bahaya Sampah Sungai: Penumpukan sampah organik di dasar sungai memicu eutrofikasi dan mengurangi oksigen air.",
+              "Kampanye Pilah Sampah: Memisahkan sampah organik dan anorganik dari rumah membantu mempercepat proses daur ulang."
+            ]
+          },
+          description: 'Informasi EYECO, pengumuman terkini, dan berita seputar sampah untuk landing page pengguna umum.',
+          updatedBy: 1
         });
       }
     }

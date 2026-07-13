@@ -21,6 +21,12 @@ import { AiVerificationStateModel, IAiVerificationState } from './models/AiVerif
 import { CameraHealthLogModel, ICameraHealthLog } from './models/CameraHealthLog';
 import { AiMetricModel, IAiMetric } from './models/AiMetric';
 import { CameraEventModel, ICameraEvent } from './models/CameraEvent';
+import { AiInferenceMetricsModel, IAiInferenceMetrics } from './models/AiInferenceMetrics';
+import { AiSystemMetricsModel, IAiSystemMetrics } from './models/AiSystemMetrics';
+import { DatasetFeedbackModel, IDatasetFeedback } from './models/DatasetFeedback';
+import { AiTrainingRunModel, IAiTrainingRun } from './models/AiTrainingRun';
+import { ModelDeploymentLogModel, IModelDeploymentLog } from './models/ModelDeploymentLog';
+import { AiConfigurationHistoryModel, IAiConfigurationHistory } from './models/AiConfigurationHistory';
 
 // Re-export types for legacy compatibility in server.ts
 export { 
@@ -45,7 +51,13 @@ export {
   AiVerificationStateModel, IAiVerificationState as AiVerificationState,
   CameraHealthLogModel, ICameraHealthLog as CameraHealthLog,
   AiMetricModel, IAiMetric as AiMetric,
-  CameraEventModel, ICameraEvent as CameraEvent
+  CameraEventModel, ICameraEvent as CameraEvent,
+  AiInferenceMetricsModel, IAiInferenceMetrics as AiInferenceMetrics,
+  AiSystemMetricsModel, IAiSystemMetrics as AiSystemMetrics,
+  DatasetFeedbackModel, IDatasetFeedback as DatasetFeedback,
+  AiTrainingRunModel, IAiTrainingRun as AiTrainingRun,
+  ModelDeploymentLogModel, IModelDeploymentLog as ModelDeploymentLog,
+  AiConfigurationHistoryModel, IAiConfigurationHistory as AiConfigurationHistory
 };
 
 dotenv.config();
@@ -74,6 +86,9 @@ export async function connectDB() {
       
       // Run automatic migration from db.json
       await runMigration();
+
+      // Seed default cameras if collection is completely empty
+      await DatabaseManager.seedDefaultCamerasIfEmpty();
 
       // Initialize AI Model Manager & Engines
       await AiModelManager.initialize();
@@ -263,7 +278,7 @@ export class DatabaseManager {
       const updated = await ReportModel.findOneAndUpdate(
         { id }, 
         updateFields, 
-        { new: true }
+        { returnDocument: 'after' }
       ).lean();
       return updated;
     } catch (err) {
@@ -507,7 +522,7 @@ export class DatabaseManager {
 
   // --- CCTV METHODS ---
 
-  public static async getAllCctv(): Promise<ICctv[]> {
+  public static async seedDefaultCamerasIfEmpty(): Promise<void> {
     try {
       let count = await CctvModel.countDocuments();
       if (count === 0) {
@@ -538,9 +553,9 @@ export class DatabaseManager {
             vendor: 'GENERIC',
             model: 'CCTV-G2',
             protocol: 'HTTP Image',
-            mediaType: 'Image',
-            streamUrl: '/uploads/detection_2.jpg',
-            playUrl: '/uploads/detection_2.jpg',
+            mediaType: 'Video',
+            streamUrl: '/uploads/orang buang sampah.mp4',
+            playUrl: '/uploads/orang buang sampah.mp4',
             capabilities: { rtsp: false, hls: false, snapshot: true, mjpeg: false, onvif: false, cloud: false },
             isDefault: true,
             status: 'ONLINE',
@@ -555,9 +570,9 @@ export class DatabaseManager {
             vendor: 'GENERIC',
             model: 'CCTV-G3',
             protocol: 'HTTP Image',
-            mediaType: 'Image',
-            streamUrl: '/uploads/detection_3.jpg',
-            playUrl: '/uploads/detection_3.jpg',
+            mediaType: 'Video',
+            streamUrl: '/uploads/orang buang sampah.mp4',
+            playUrl: '/uploads/orang buang sampah.mp4',
             capabilities: { rtsp: false, hls: false, snapshot: true, mjpeg: false, onvif: false, cloud: false },
             isDefault: true,
             status: 'ONLINE',
@@ -640,9 +655,9 @@ export class DatabaseManager {
             vendor: 'GENERIC',
             model: 'CCTV-G8',
             protocol: 'HTTP Image',
-            mediaType: 'Image',
-            streamUrl: '/uploads/detection_8.jpg',
-            playUrl: '/uploads/detection_8.jpg',
+            mediaType: 'Video',
+            streamUrl: '/uploads/orang buang sampah.mp4',
+            playUrl: '/uploads/orang buang sampah.mp4',
             capabilities: { rtsp: false, hls: false, snapshot: true, mjpeg: false, onvif: false, cloud: false },
             isDefault: true,
             status: 'ONLINE',
@@ -651,7 +666,28 @@ export class DatabaseManager {
           }
         ];
         await CctvModel.insertMany(defaultCameras);
+        console.log('[DATABASE INFO] Default CCTV channels seeded successfully.');
+      } else {
+        // Force update channels 2, 3, 8 to use video format in existing installations for dynamic AI tracking demo!
+        await CctvModel.updateMany(
+          { id: { $in: [2, 3, 8] } },
+          { 
+            $set: { 
+              mediaType: 'Video',
+              streamUrl: '/uploads/orang buang sampah.mp4',
+              playUrl: '/uploads/orang buang sampah.mp4'
+            } 
+          }
+        ).exec();
+        console.log('[DATABASE INFO] Force-updated Channels 2, 3, 8 to Video format for AI tracking demo.');
       }
+    } catch (err) {
+      console.error('[DATABASE ERROR] seedDefaultCamerasIfEmpty failed:', err);
+    }
+  }
+
+  public static async getAllCctv(): Promise<ICctv[]> {
+    try {
       return await CctvModel.find({}).sort({ id: 1 }).lean();
     } catch (err) {
       console.error('[DATABASE ERROR] getAllCctv failed:', err);
@@ -766,10 +802,7 @@ export class DatabaseManager {
         throw new Error('CCTV tidak ditemukan.');
       }
 
-      if (cctv.isDefault) {
-        throw new Error('Kamera bawaan sistem tidak boleh dihapus.');
-      }
-
+      // Allow deletion of default cameras for user workspace flexibility
       await CctvModel.deleteOne({ id });
       return true;
     } catch (err) {

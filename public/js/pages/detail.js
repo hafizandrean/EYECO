@@ -190,7 +190,9 @@ export class DetailPage {
           <div class="glass-card" style="padding: var(--space-16); border-radius: var(--radius-card); position: relative;">
             <div class="image-canvas-container" style="position: relative; width: 100%; aspect-ratio: 16/10; overflow: hidden; border-radius: 12px; background: #000; display:flex; align-items:center; justify-content:center;">
               <img id="detail-evidence-image" src="${report.image}" alt="Laporan Foto" style="width: 100%; height: 100%; object-fit: contain; transition: transform 0.25s ease;">
-              ${boxesHtml}
+              <div class="yolo-bounding-boxes-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4;">
+                ${boxesHtml}
+              </div>
             </div>
             <!-- Interactive Action buttons (Item 9) -->
             <div style="display:flex; justify-content:flex-end; gap:8px; margin-top: 12px;">
@@ -407,7 +409,7 @@ export class DetailPage {
                 <!-- Validate/Reject status -->
                 <div class="form-group">
                   <label class="form-label" style="font-size:0.75rem;" for="verify-status-select">Status Validasi</label>
-                  <select class="form-control select-rounded" id="verify-status-select" style="font-size:0.8rem; background:#ffffff; height:34px; margin-top:4px;" required>
+                  <select class="form-control select-rounded" id="verify-status-select" style="font-size:0.8rem; background: #0f172a; color: var(--text-primary); border: 1px solid var(--glass-border); height:34px; margin-top:4px;" required>
                     <option value="MENUNGGU" ${report.adminStatus === 'MENUNGGU' ? 'selected' : ''}>Menunggu (Belum Diverifikasi)</option>
                     <option value="VALID" ${report.adminStatus === 'VALID' ? 'selected' : ''}>Valid (Kirim Tindak Lanjut)</option>
                     <option value="DIABAIKAN" ${report.adminStatus === 'DIABAIKAN' ? 'selected' : ''}>Abaikan (Bukan Ancaman/Salah AI)</option>
@@ -417,7 +419,7 @@ export class DetailPage {
                 <!-- Incident Assignment -->
                 <div class="form-group">
                   <label class="form-label" style="font-size:0.75rem;" for="verify-assignment-select">Tugaskan Instansi</label>
-                  <select class="form-control select-rounded" id="verify-assignment-select" style="font-size:0.8rem; background:#ffffff; height:34px; margin-top:4px;">
+                  <select class="form-control select-rounded" id="verify-assignment-select" style="font-size:0.8rem; background: #0f172a; color: var(--text-primary); border: 1px solid var(--glass-border); height:34px; margin-top:4px;">
                     <option value="" ${!report.assignedOfficer ? 'selected' : ''}>-- Belum Ditunjuk --</option>
                     <option value="BBWS" ${report.assignedOfficer === 'BBWS' ? 'selected' : ''}>BBWS (River Authority)</option>
                     <option value="DLH" ${report.assignedOfficer === 'DLH' ? 'selected' : ''}>DLH (Dinas Lingkungan Hidup)</option>
@@ -428,7 +430,7 @@ export class DetailPage {
                 <!-- Workflow / Progress status -->
                 <div class="form-group">
                   <label class="form-label" style="font-size:0.75rem;" for="verify-progress-select">Alur Operasional / Progress</label>
-                  <select class="form-control select-rounded" id="verify-progress-select" style="font-size:0.8rem; background:#ffffff; height:34px; margin-top:4px;">
+                  <select class="form-control select-rounded" id="verify-progress-select" style="font-size:0.8rem; background: #0f172a; color: var(--text-primary); border: 1px solid var(--glass-border); height:34px; margin-top:4px;">
                     <option value="PENDING" ${report.status === 'PENDING' ? 'selected' : ''}>Menunggu Aksi (Pending)</option>
                     <option value="PROSES" ${report.status === 'PROSES' ? 'selected' : ''}>Dalam Penanganan (In Progress)</option>
                     <option value="SELESAI" ${report.status === 'SELESAI' ? 'selected' : ''}>Lokasi Pulih (Resolved)</option>
@@ -438,7 +440,7 @@ export class DetailPage {
 
                 <div class="form-group">
                   <label class="form-label" style="font-size:0.75rem;" for="verify-notes-input">Catatan Petugas (BBWS)</label>
-                  <textarea class="form-control textarea-rounded" id="verify-notes-input" style="font-size:0.8rem; background:#ffffff; padding: 10px; margin-top:4px;" placeholder="Instruksi rujukan dinas sosial atau petugas RT setempat..." rows="2">${report.adminNotes || ''}</textarea>
+                  <textarea class="form-control textarea-rounded" id="verify-notes-input" style="font-size:0.8rem; background: rgba(255,255,255,0.03); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 10px; margin-top:4px;" placeholder="Instruksi rujukan dinas sosial atau petugas RT setempat..." rows="2">${report.adminNotes || ''}</textarea>
                 </div>
 
                 <button type="submit" class="btn btn-primary btn-rounded" style="width: 100%; font-weight: 700; height: 38px; font-size: 0.8rem; margin-top: 4px;">
@@ -489,6 +491,62 @@ export class DetailPage {
         };
       }
 
+      // Dynamic alignment of bounding boxes to contain aspect ratio on Detail Page
+      const detailMediaEl = document.getElementById('detail-evidence-image');
+      const detailBoxContainer = document.querySelector('.yolo-bounding-boxes-container');
+      const detailMediaContainer = document.querySelector('.image-canvas-container');
+
+      if (detailMediaEl && detailBoxContainer && detailMediaContainer) {
+        const alignBoxes = () => {
+          const containerWidth = detailMediaContainer.clientWidth;
+          const containerHeight = detailMediaContainer.clientHeight;
+          if (containerWidth === 0 || containerHeight === 0) return;
+
+          const mediaWidth = detailMediaEl.naturalWidth;
+          const mediaHeight = detailMediaEl.naturalHeight;
+          if (mediaWidth === 0 || mediaHeight === 0) return;
+
+          const containerRatio = containerWidth / containerHeight;
+          const mediaRatio = mediaWidth / mediaHeight;
+
+          let displayedWidth = 0;
+          let displayedHeight = 0;
+          let displayedLeft = 0;
+          let displayedTop = 0;
+
+          // img has object-fit: contain style
+          if (mediaRatio > containerRatio) {
+            displayedWidth = containerWidth;
+            displayedHeight = containerWidth / mediaRatio;
+            displayedLeft = 0;
+            displayedTop = (containerHeight - displayedHeight) / 2;
+          } else {
+            displayedHeight = containerHeight;
+            displayedWidth = containerHeight * mediaRatio;
+            displayedLeft = (containerWidth - displayedWidth) / 2;
+            displayedTop = 0;
+          }
+
+          detailBoxContainer.style.left = `${displayedLeft}px`;
+          detailBoxContainer.style.top = `${displayedTop}px`;
+          detailBoxContainer.style.width = `${displayedWidth}px`;
+          detailBoxContainer.style.height = `${displayedHeight}px`;
+        };
+
+        detailMediaEl.addEventListener('load', alignBoxes);
+        
+        // Listen to container resizing
+        const resizeObserver = new ResizeObserver(() => alignBoxes());
+        resizeObserver.observe(detailMediaContainer);
+        
+        // Initial run
+        if (detailMediaEl.complete) {
+          alignBoxes();
+        } else {
+          setTimeout(alignBoxes, 50);
+        }
+      }
+
       // Load comments
       await this.loadComments(true);
 
@@ -512,38 +570,38 @@ export class DetailPage {
     if (!statusPill) return;
 
     let statusText = 'NEW';
-    let badgeClass = 'bg-primary text-white';
+    let badgeClass = 'status-new';
 
     if (this.report.adminStatus === 'MENUNGGU') {
       statusText = 'UNDER REVIEW';
-      badgeClass = 'bg-warning text-white';
+      badgeClass = 'status-pending';
     } else if (this.report.adminStatus === 'VALID') {
       statusText = 'VALIDATED';
-      badgeClass = 'bg-success text-white';
+      badgeClass = 'status-valid';
       
       if (this.report.assignedOfficer) {
         statusText = 'ASSIGNED';
-        badgeClass = 'bg-info text-white';
+        badgeClass = 'status-assigned';
       }
       if (this.report.status === 'PROSES') {
         statusText = 'IN PROGRESS';
-        badgeClass = 'bg-info text-white';
+        badgeClass = 'status-inprogress';
       }
       if (this.report.status === 'SELESAI') {
         statusText = 'RESOLVED';
-        badgeClass = 'bg-success text-white';
+        badgeClass = 'status-resolved';
       }
       if (this.report.status === 'CLOSED') {
         statusText = 'CLOSED';
-        badgeClass = 'bg-secondary text-white';
+        badgeClass = 'status-closed';
       }
     } else if (this.report.adminStatus === 'DIABAIKAN') {
       statusText = 'REJECTED';
-      badgeClass = 'bg-danger text-white';
+      badgeClass = 'status-rejected';
     }
 
     statusPill.innerText = statusText;
-    statusPill.className = `badge ${badgeClass}`;
+    statusPill.className = `status-badge ${badgeClass}`;
   }
 
   // Running SLA Timer

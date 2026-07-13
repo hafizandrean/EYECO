@@ -601,15 +601,15 @@ body.dark-mode .dropdown-item-btn:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-16) var(--space-24);
+  padding: var(--space-12) var(--space-20);
   flex-wrap: wrap;
-  gap: var(--space-16);
+  gap: var(--space-12);
 }
 
 .control-left, .control-right {
   display: flex;
   align-items: center;
-  gap: var(--space-24);
+  gap: var(--space-12);
 }
 
 .form-group-inline {
@@ -1206,22 +1206,58 @@ body.dark-mode .dropdown-item-btn:hover {
 /* Bounding box previews inside dashboard feeds */
 .yolo-preview-box {
   position: absolute;
-  border: 1px solid;
-  border-radius: 2px;
+  border: 1px dashed rgba(255, 255, 255, 0.4);
+  border-radius: 4px;
   pointer-events: none;
+  transition: top 1.5s linear, left 1.5s linear, width 1.5s linear, height 1.5s linear;
+  box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.08);
+}
+
+/* High-tech target HUD brackets */
+.yolo-preview-box::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 8px;
+  height: 8px;
+  border-left: 2px solid;
+  border-top: 2px solid;
+  border-color: inherit;
+}
+.yolo-preview-box::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid;
+  border-bottom: 2px solid;
+  border-color: inherit;
 }
 
 .yolo-preview-label {
   position: absolute;
   top: 0;
   left: 0;
-  font-size: 0.5rem;
+  font-size: 0.62rem;
   font-weight: 800;
+  font-family: 'Consolas', 'Monaco', monospace;
   color: white;
-  padding: 1px 3px;
+  padding: 2px 6px;
+  border-radius: 2px 2px 0 0;
   transform: translateY(-100%);
-  background: inherit;
+  white-space: nowrap;
+  box-shadow: 0 -2px 6px rgba(0,0,0,0.15);
+  display: flex;
+  align-items: center;
 }
+
+.yolo-person .yolo-preview-label { background: #3b82f6 !important; }
+.yolo-trash .yolo-preview-label { background: #ef4444 !important; }
+.yolo-boat .yolo-preview-label { background: #06b6d4 !important; }
+.yolo-default .yolo-preview-label { background: #10b981 !important; }
 
 /* Timeline "Aktivitas Terbaru" Widget */
 .timeline {
@@ -1429,8 +1465,10 @@ body.dark-mode .dropdown-item-btn:hover {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-8);
   width: 80px;
+  height: 100%;
 }
 
 .chart-value {
@@ -1649,6 +1687,12 @@ body.dark-mode .badge-none { background: rgba(255,255,255,0.05); }
 .status-pending { background: rgba(245, 158, 11, 0.1); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.2); }
 .status-valid { background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.2); }
 .status-ignored { background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); }
+.status-new { background: rgba(47, 107, 255, 0.1); color: var(--primary); border: 1px solid rgba(47, 107, 255, 0.2); }
+.status-assigned { background: rgba(6, 182, 212, 0.1); color: var(--info); border: 1px solid rgba(6, 182, 212, 0.2); }
+.status-inprogress { background: rgba(6, 182, 212, 0.1); color: var(--info); border: 1px solid rgba(6, 182, 212, 0.2); }
+.status-resolved { background: rgba(34, 197, 94, 0.1); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.2); }
+.status-closed { background: rgba(100, 116, 139, 0.1); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.2); }
+.status-rejected { background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); }
 
 .action-group {
   display: flex;
@@ -2643,6 +2687,8 @@ body.dark-mode .skeleton-detail-form { background-color: rgba(255,255,255,0.02);
 }
 .chart-bar-wrapper {
   width: 90px !important;
+  height: 100% !important;
+  justify-content: flex-end !important;
 }
 
 /* Merapikan kartu stats vertikal di Laporan agar seimbang */
@@ -3817,4 +3863,53 @@ body.dark-mode .vms-fs-event-row:hover {
 }
 .hover-action-btn:hover {
   transform: scale(1.15) !important;
+}
+
+/* Premium typography-driven ultra-minimalist style: hide all decorative icons, logo symbols, and their empty background container squares */
+i[data-lucide],
+svg.lucide,
+.welcome-icon,
+.info-card-icon,
+.stat-card-icon,
+.section-icon,
+.upload-zone-icon,
+.card-icon,
+.modal-header-icon {
+  display: none !important;
+}
+
+/* Animated Bounding Box for Real-time Video Tracking Simulation */
+@keyframes boxMoveDrift {
+  0% {
+    top: 25%;
+    left: 20%;
+  }
+  25% {
+    top: 32%;
+    left: 45%;
+  }
+  50% {
+    top: 48%;
+    left: 60%;
+  }
+  75% {
+    top: 38%;
+    left: 35%;
+  }
+  100% {
+    top: 25%;
+    left: 20%;
+  }
+}
+.yolo-mock-box-moving {
+  position: absolute;
+  border: 2px solid #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.5);
+  border-radius: 4px;
+  animation: boxMoveDrift 10s infinite linear;
+  z-index: 10;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
 }

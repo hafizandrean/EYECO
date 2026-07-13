@@ -5,9 +5,13 @@ import fs from 'fs';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import mongoose from 'mongoose';
-import { DatabaseManager, Report, BoundingBox, User, connectDB, disconnectDB, CctvModel, AiDetectionModel, AiEvidenceModel, SystemSettingsModel, SystemAuditLogModel } from './database/db';
+import bcrypt from 'bcrypt';
+import crypto from 'crypto';
+import cookieParser from 'cookie-parser';
+import { DatabaseManager, Report, BoundingBox, User, connectDB, WorkspaceModel, SystemSettingsModel } from './database/db';
 import { ReportModel } from './database/models/Report';
 import { UserModel } from './database/models/User';
+import { CctvModel } from './database/models/Cctv';
 import { CctvHealthEngine } from './cctv/CctvHealthEngine';
 import { CctvScanner } from './cctv/CctvScanner';
 import { CctvAdapter } from './cctv/CctvAdapter';
@@ -15,8 +19,121 @@ import { AiPipelineScheduler } from './cctv/services/AiPipelineScheduler';
 import { AiEngineHealthMonitor } from './cctv/services/AiEngineHealthMonitor';
 import { OutboxWorker } from './notifications/OutboxWorker';
 import { TelegramNotificationChannel } from './notifications/TelegramNotificationChannel';
+import { MaintenanceScheduler } from './cctv/services/MaintenanceScheduler';
+import { SessionService } from './services/SessionService';
+import { AuditLogService, AuditAction } from './services/AuditLogService';
+import { ApiResponse } from './services/ApiResponse';
+
+declare global {
+  namespace Express {
+    interface Request {
+      requestId?: string;
+      userContext?: {
+        id: number;
+        username: string;
+        role: string;
+      };
+    }
+  }
+}
 
 dotenv.config();
+
+// Tuya API integration for dynamic cloud camera streams (e.g. CCTV Krisbow Solar)
+let tuyaTokenCache: { token: string; expiresAt: number } | null = null;
+let tuyaStreamCache: { [deviceId: string]: { url: string; expiresAt: number } } = {};
+
+async function getTuyaToken(): Promise<string | null> {
+  const clientId = 'r5vap3snnr339dyeua5j';
+  const secret = '5a93707b474b41b9b888b1e2a12ed1c9';
+  const baseUrl = 'https://openapi-sg.iotbing.com';
+
+  if (tuyaTokenCache && tuyaTokenCache.expiresAt > Date.now()) {
+    return tuyaTokenCache.token;
+  }
+
+  try {
+    const t = Date.now().toString();
+    const tokenUrl = '/v1.0/token?grant_type=1';
+    const contentSha256 = crypto.createHash('sha256').update('').digest('hex');
+    const tokenStringToSign = `GET\n${contentSha256}\n\n${tokenUrl}`;
+    const tokenStr = `${clientId}${t}${tokenStringToSign}`;
+    const tokenSign = crypto.createHmac('sha256', secret).update(tokenStr).digest('hex').toUpperCase();
+
+    const tokenResponse = await fetch(`${baseUrl}${tokenUrl}`, {
+      method: 'GET',
+      headers: {
+        'client_id': clientId,
+        'sign': tokenSign,
+        't': t,
+        'sign_method': 'HMAC-SHA256'
+      }
+    });
+    const tokenData = await tokenResponse.json() as any;
+    if (tokenData.success && tokenData.result) {
+      tuyaTokenCache = {
+        token: tokenData.result.access_token,
+        expiresAt: Date.now() + (tokenData.result.expire_time - 60) * 1000
+      };
+      return tuyaTokenCache.token;
+    }
+  } catch (err) {
+    console.error('[TUYA API] Token fetch failed:', err);
+  }
+  return null;
+}
+
+async function getTuyaStreamUrl(deviceId: string): Promise<string | null> {
+  const clientId = 'r5vap3snnr339dyeua5j';
+  const secret = '5a93707b474b41b9b888b1e2a12ed1c9';
+  const baseUrl = 'https://openapi-sg.iotbing.com';
+
+  if (tuyaStreamCache[deviceId] && tuyaStreamCache[deviceId].expiresAt > Date.now()) {
+    return tuyaStreamCache[deviceId].url;
+  }
+
+  const token = await getTuyaToken();
+  if (!token) return null;
+
+  try {
+    const t2 = Date.now().toString();
+    const httpMethod = 'POST';
+    const bodyObj = { type: 'hls' };
+    const bodyStr = JSON.stringify(bodyObj);
+    const contentSha256 = crypto.createHash('sha256').update(bodyStr).digest('hex');
+    const allocateUrl = `/v1.0/devices/${deviceId}/stream/actions/allocate`;
+    
+    const stringToSign = `${httpMethod}\n${contentSha256}\n\n${allocateUrl}`;
+    const str = `${clientId}${token}${t2}${stringToSign}`;
+    const sign = crypto.createHmac('sha256', secret).update(str).digest('hex').toUpperCase();
+
+    const response = await fetch(`${baseUrl}${allocateUrl}`, {
+      method: 'POST',
+      headers: {
+        'client_id': clientId,
+        'access_token': token,
+        'sign': sign,
+        't': t2,
+        'sign_method': 'HMAC-SHA256',
+        'Content-Type': 'application/json'
+      },
+      body: bodyStr
+    });
+    const data = await response.json() as any;
+    if (data.success && data.result && data.result.url) {
+      tuyaStreamCache[deviceId] = {
+        url: data.result.url,
+        expiresAt: Date.now() + 5400 * 1000 // Cache for 1.5 hours
+      };
+      return data.result.url;
+    } else {
+      console.warn('[TUYA API] HLS stream allocation failed or not subscribed:', data.msg || data.error);
+    }
+  } catch (err) {
+    console.error('[TUYA API] HLS stream allocation error:', err);
+  }
+  return null;
+}
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -33,8 +150,13 @@ const authLimiter = rateLimit({
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 
-// In-memory Session Store (Session Token -> User ID)
-const sessions = new Map<string, number>();
+// Request ID middleware
+app.use((req, res, next) => {
+  const reqId = crypto.randomUUID();
+  req.requestId = reqId;
+  res.setHeader('X-Request-ID', reqId);
+  next();
+});
 
 // Setup middleware
 app.use(express.json());
@@ -83,11 +205,15 @@ async function getLoggedInUser(req: express.Request): Promise<User | null> {
   const token = cookies['session_token'];
   if (!token) return null;
   
-  const userId = sessions.get(token);
+  const userId = await SessionService.getUserId(token);
   if (userId === undefined) return null;
   
   try {
-    return (await DatabaseManager.getUserById(userId)) || null;
+    const user = await DatabaseManager.getUserById(userId);
+    if (!user || user.isDeleted || user.status === 'CLOSED') {
+      return null;
+    }
+    return user;
   } catch (err) {
     console.error('[SERVER ERROR] Failed to fetch session user:', err);
     return null;
@@ -185,9 +311,18 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Username atau password salah' });
     }
 
-    // Create session
-    const token = 'sess_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    sessions.set(token, user.id);
+    // Check CLOSED or isDeleted status
+    if (user.isDeleted || user.status === 'CLOSED') {
+      return res.status(403).json({ error: 'Akun Anda telah ditutup.' });
+    }
+
+    // Update lastLoginAt
+    await UserModel.updateOne({ id: user.id }, { lastLoginAt: new Date() });
+
+    // Create session (default 24h TTL)
+    const token = 'sess_' + crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await SessionService.createSession(token, user.id, expiresAt);
 
     // Set Cookie
     res.setHeader('Set-Cookie', `session_token=${token}; Path=/; HttpOnly; SameSite=Lax`);
@@ -199,7 +334,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // Logout API
-app.post('/api/auth/logout', (req, res) => {
+app.post('/api/auth/logout', async (req, res) => {
   const cookieHeader = req.headers.cookie || '';
   const cookies = cookieHeader.split(';').reduce((acc, c) => {
     const [key, val] = c.trim().split('=');
@@ -209,7 +344,22 @@ app.post('/api/auth/logout', (req, res) => {
   
   const token = cookies['session_token'];
   if (token) {
-    sessions.delete(token);
+    const userId = await SessionService.getUserId(token);
+    if (userId !== undefined) {
+      const userObj = await DatabaseManager.getUserById(userId);
+      if (userObj) {
+        await AuditLogService.log({
+          action: AuditAction.LOGOUT,
+          actorId: userObj._id,
+          actorName: userObj.username,
+          status: 'SUCCESS',
+          requestId: req.requestId,
+          ipAddress: req.ip || '',
+          userAgent: req.headers['user-agent'] || ''
+        });
+      }
+    }
+    await SessionService.deleteSession(token);
   }
 
   res.setHeader('Set-Cookie', 'session_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly');
@@ -229,14 +379,359 @@ app.get('/api/auth/me', async (req, res) => {
   }
 });
 
+// POST /api/logout
+app.post('/api/logout', async (req, res) => {
+  try {
+    const cookieHeader = req.headers.cookie || '';
+    const cookies = cookieHeader.split(';').reduce((acc, c) => {
+      const [key, val] = c.trim().split('=');
+      if (key && val) acc[key] = val;
+      return acc;
+    }, {} as Record<string, string>);
+    
+    const token = cookies['session_token'];
+    if (token) {
+      const userId = await SessionService.getUserId(token);
+      if (userId !== undefined) {
+        const userObj = await DatabaseManager.getUserById(userId);
+        if (userObj) {
+          await AuditLogService.log({
+            action: AuditAction.LOGOUT,
+            actorId: userObj._id,
+            actorName: userObj.username,
+            status: 'SUCCESS',
+            requestId: req.requestId,
+            ipAddress: req.ip || '',
+            userAgent: req.headers['user-agent'] || ''
+          });
+        }
+      }
+      await SessionService.deleteSession(token);
+    }
+    res.setHeader('Set-Cookie', 'session_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly');
+    return ApiResponse.success(res, 'Berhasil keluar sesi.', null, req.requestId);
+  } catch (err) {
+    return ApiResponse.error(res, 'Gagal keluar sesi.', 'LOGOUT_FAILED', req.requestId, 500);
+  }
+});
+
+// GET /api/profile
+app.get('/api/profile', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) {
+      return ApiResponse.error(res, 'Belum masuk', 'UNAUTHORIZED', req.requestId, 401);
+    }
+
+    return ApiResponse.success(res, 'Profil berhasil dimuat.', {
+      id: String(user.id),
+      username: user.username,
+      email: user.email || null,
+      role: user.role.toUpperCase(),
+      accountStatus: user.status || 'APPROVED',
+      createdAt: (user as any).createdAt || null,
+      avatar: null,
+      security: {
+        passwordChangedAt: user.passwordChangedAt || null,
+        lastLoginAt: user.lastLoginAt || null
+      },
+      preferencesVersion: user.preferencesVersion || 1,
+      preferences: user.preferences || {
+        theme: 'dark',
+        language: 'id',
+        timezone: 'Asia/Jakarta'
+      }
+    }, req.requestId);
+  } catch (err: any) {
+    return ApiResponse.error(res, err.message || 'Internal Server Error', 'INTERNAL_SERVER_ERROR', req.requestId, 500);
+  }
+});
+
+// PATCH /api/profile/password
+app.patch('/api/profile/password', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) {
+      return ApiResponse.error(res, 'Belum masuk', 'UNAUTHORIZED', req.requestId, 401);
+    }
+
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return ApiResponse.error(res, 'Password lama dan baru wajib diisi', 'BAD_REQUEST', req.requestId, 400);
+    }
+
+    // Get minLength dynamic setting
+    const minLengthSetting = await SystemSettingsModel.findOne({ key: 'security.password.minLength' }).exec();
+    const minLength = minLengthSetting ? Number(minLengthSetting.value) : 6;
+    if (newPassword.length < minLength) {
+      await AuditLogService.log({
+        action: AuditAction.PASSWORD_CHANGED,
+        actorId: user._id,
+        actorName: user.username,
+        status: 'FAILED',
+        requestId: req.requestId,
+        ipAddress: req.ip || '',
+        userAgent: req.headers['user-agent'] || '',
+        details: { userId: user.id, error: 'Password too short' }
+      });
+      return ApiResponse.error(res, `Password baru minimal ${minLength} karakter`, 'PASSWORD_TOO_SHORT', req.requestId, 400);
+    }
+
+    if (currentPassword === newPassword) {
+      return ApiResponse.error(res, 'Password baru tidak boleh sama dengan password lama', 'PASSWORD_SAME', req.requestId, 400);
+    }
+
+    // Find user document to verify current password
+    const userDoc = await UserModel.findOne({ id: user.id }).select('+passwordHash').exec();
+    if (!userDoc) {
+      return ApiResponse.error(res, 'User tidak ditemukan', 'USER_NOT_FOUND', req.requestId, 404);
+    }
+
+    const isBcrypt = userDoc.passwordHash.startsWith('$2');
+    let match = false;
+    if (isBcrypt) {
+      match = await bcrypt.compare(currentPassword, userDoc.passwordHash);
+    } else {
+      const sha256Hash = crypto.createHash('sha256').update(currentPassword).digest('hex');
+      match = (sha256Hash === userDoc.passwordHash);
+    }
+
+    if (!match) {
+      await AuditLogService.log({
+        action: AuditAction.PASSWORD_CHANGED,
+        actorId: user._id,
+        actorName: user.username,
+        status: 'FAILED',
+        requestId: req.requestId,
+        ipAddress: req.ip || '',
+        userAgent: req.headers['user-agent'] || '',
+        details: { userId: user.id, error: 'Invalid current password' }
+      });
+      return ApiResponse.error(res, 'Password lama salah', 'INVALID_CURRENT_PASSWORD', req.requestId, 400);
+    }
+
+    // Check Password History (compare with last 3 passwords)
+    if (userDoc.passwordHistory && userDoc.passwordHistory.length > 0) {
+      for (const historyItem of userDoc.passwordHistory) {
+        let historyMatch = false;
+        const histIsBcrypt = historyItem.hash.startsWith('$2');
+        if (histIsBcrypt) {
+          historyMatch = await bcrypt.compare(newPassword, historyItem.hash);
+        } else {
+          const sha256Hash = crypto.createHash('sha256').update(newPassword).digest('hex');
+          historyMatch = (sha256Hash === historyItem.hash);
+        }
+        if (historyMatch) {
+          await AuditLogService.log({
+            action: AuditAction.PASSWORD_CHANGED,
+            actorId: user._id,
+            actorName: user.username,
+            status: 'FAILED',
+            requestId: req.requestId,
+            ipAddress: req.ip || '',
+            userAgent: req.headers['user-agent'] || '',
+            details: { userId: user.id, error: 'Password reused' }
+          });
+          return ApiResponse.error(res, 'Password baru tidak boleh sama dengan 3 password terakhir yang digunakan', 'PASSWORD_REUSED', req.requestId, 400);
+        }
+      }
+    }
+
+    // Update password
+    const hashed = await bcrypt.hash(newPassword, 10);
+    const oldHash = userDoc.passwordHash;
+    
+    // Add current password to history
+    if (!userDoc.passwordHistory) {
+      userDoc.passwordHistory = [];
+    }
+    userDoc.passwordHistory.unshift({ hash: oldHash, changedAt: new Date() });
+    if (userDoc.passwordHistory.length > 3) {
+      userDoc.passwordHistory = userDoc.passwordHistory.slice(0, 3);
+    }
+
+    userDoc.passwordHash = hashed;
+    userDoc.passwordChangedAt = new Date();
+    await userDoc.save();
+
+    await AuditLogService.log({
+      action: AuditAction.PASSWORD_CHANGED,
+      actorId: user._id,
+      actorName: user.username,
+      status: 'SUCCESS',
+      requestId: req.requestId,
+      ipAddress: req.ip || '',
+      userAgent: req.headers['user-agent'] || '',
+      details: { userId: user.id }
+    });
+
+    return ApiResponse.success(res, 'Password berhasil diperbarui.', null, req.requestId);
+  } catch (err: any) {
+    return ApiResponse.error(res, err.message || 'Internal Server Error', 'INTERNAL_SERVER_ERROR', req.requestId, 500);
+  }
+});
+
+// PATCH /api/profile/preferences
+app.patch('/api/profile/preferences', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) {
+      return ApiResponse.error(res, 'Belum masuk', 'UNAUTHORIZED', req.requestId, 401);
+    }
+
+    const { theme, language, timezone } = req.body;
+    
+    // Validation
+    if (theme && !['dark', 'light', 'system'].includes(theme)) {
+      return ApiResponse.error(res, 'Tema tidak valid', 'INVALID_THEME', req.requestId, 400);
+    }
+    if (language && !['id', 'en'].includes(language)) {
+      return ApiResponse.error(res, 'Bahasa tidak valid', 'INVALID_LANGUAGE', req.requestId, 400);
+    }
+    if (timezone) {
+      try {
+        Intl.DateTimeFormat(undefined, { timeZone: timezone });
+      } catch (e) {
+        return ApiResponse.error(res, 'Timezone tidak valid', 'INVALID_TIMEZONE', req.requestId, 400);
+      }
+    }
+
+    // Merge preferences
+    const userDoc = await UserModel.findOne({ id: user.id }).exec();
+    if (!userDoc) {
+      return ApiResponse.error(res, 'User tidak ditemukan', 'USER_NOT_FOUND', req.requestId, 404);
+    }
+
+    userDoc.preferences = {
+      theme: theme !== undefined ? theme : (userDoc.preferences?.theme || 'dark'),
+      language: language !== undefined ? language : (userDoc.preferences?.language || 'id'),
+      timezone: timezone !== undefined ? timezone : (userDoc.preferences?.timezone || 'Asia/Jakarta')
+    };
+
+    await userDoc.save();
+
+    await AuditLogService.log({
+      action: AuditAction.PREFERENCES_UPDATED,
+      actorId: user._id,
+      actorName: user.username,
+      status: 'SUCCESS',
+      requestId: req.requestId,
+      ipAddress: req.ip || '',
+      userAgent: req.headers['user-agent'] || '',
+      details: { preferences: userDoc.preferences }
+    });
+
+    return ApiResponse.success(res, 'Preferensi berhasil diperbarui.', userDoc.preferences, req.requestId);
+  } catch (err: any) {
+    return ApiResponse.error(res, err.message || 'Internal Server Error', 'INTERNAL_SERVER_ERROR', req.requestId, 500);
+  }
+});
+
+// DELETE /api/profile
+app.delete('/api/profile', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) {
+      return ApiResponse.error(res, 'Belum masuk', 'UNAUTHORIZED', req.requestId, 401);
+    }
+
+    if (user.role === 'admin' || user.role === 'superadmin') {
+      await AuditLogService.log({
+        action: AuditAction.ACCOUNT_CLOSED,
+        actorId: user._id,
+        actorName: user.username,
+        status: 'FAILED',
+        requestId: req.requestId,
+        ipAddress: req.ip || '',
+        userAgent: req.headers['user-agent'] || '',
+        details: { error: 'Administrator self deletion forbidden' }
+      });
+      return ApiResponse.error(res, 'Administrator tidak dapat menutup akunnya sendiri.', 'ADMIN_SELF_DELETE_FORBIDDEN', req.requestId, 403);
+    }
+
+    const { password, feedback } = req.body;
+    if (!password) {
+      return ApiResponse.error(res, 'Password konfirmasi wajib diisi', 'PASSWORD_REQUIRED', req.requestId, 400);
+    }
+
+    // Verify password
+    const userDoc = await UserModel.findOne({ id: user.id }).select('+passwordHash').exec();
+    if (!userDoc) {
+      return ApiResponse.error(res, 'User tidak ditemukan', 'USER_NOT_FOUND', req.requestId, 404);
+    }
+
+    const isBcrypt = userDoc.passwordHash.startsWith('$2');
+    let match = false;
+    if (isBcrypt) {
+      match = await bcrypt.compare(password, userDoc.passwordHash);
+    } else {
+      const sha256Hash = crypto.createHash('sha256').update(password).digest('hex');
+      match = (sha256Hash === userDoc.passwordHash);
+    }
+
+    if (!match) {
+      await AuditLogService.log({
+        action: AuditAction.ACCOUNT_CLOSED,
+        actorId: user._id,
+        actorName: user.username,
+        status: 'FAILED',
+        requestId: req.requestId,
+        ipAddress: req.ip || '',
+        userAgent: req.headers['user-agent'] || '',
+        details: { error: 'Invalid password confirm' }
+      });
+      return ApiResponse.error(res, 'Password konfirmasi salah', 'INVALID_PASSWORD', req.requestId, 400);
+    }
+
+    // Limit feedback to 500 characters
+    const closureFeedback = feedback ? String(feedback).substring(0, 500) : '';
+
+    // Soft delete
+    userDoc.isDeleted = true;
+    userDoc.status = 'CLOSED';
+    userDoc.closedReason = 'USER_REQUEST';
+    userDoc.closureFeedback = closureFeedback;
+    userDoc.closedBy = user.id;
+    userDoc.closedAt = new Date();
+    await userDoc.save();
+
+    // Invalidate sessions mass-device
+    await SessionService.invalidateAllUserSessions(user.id);
+
+    // Audit log
+    await AuditLogService.log({
+      action: AuditAction.ACCOUNT_CLOSED,
+      actorId: user._id,
+      actorName: user.username,
+      status: 'SUCCESS',
+      requestId: req.requestId,
+      ipAddress: req.ip || '',
+      userAgent: req.headers['user-agent'] || '',
+      details: { closedReason: 'USER_REQUEST', closureFeedback }
+    });
+
+    res.setHeader('Set-Cookie', 'session_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly');
+    return ApiResponse.success(res, 'Akun berhasil ditutup.', null, req.requestId);
+  } catch (err: any) {
+    return ApiResponse.error(res, err.message || 'Internal Server Error', 'INTERNAL_SERVER_ERROR', req.requestId, 500);
+  }
+});
+
 
 // --- VIEW ROUTING & GUARDS ---
+
+// Helper to get redirect path based on role
+function getRedirectPath(role: string): string {
+  if (role === 'superadmin') return '/superadmin';
+  if (role === 'admin') return '/dashboard';
+  return '/dashboard-user';
+}
 
 app.get('/login', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
     if (user) {
-      return res.redirect(user.role === 'admin' ? '/dashboard' : '/dashboard/upload');
+      return res.redirect(getRedirectPath(user.role));
     }
     res.sendFile(path.join(__dirname, '../public/views/login.html'));
   } catch (err) {
@@ -248,7 +743,7 @@ app.get('/register', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
     if (user) {
-      return res.redirect(user.role === 'admin' ? '/dashboard' : '/dashboard/upload');
+      return res.redirect(getRedirectPath(user.role));
     }
     res.sendFile(path.join(__dirname, '../public/views/register.html'));
   } catch (err) {
@@ -260,7 +755,7 @@ app.get('/', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
     if (!user) return res.redirect('/login');
-    res.redirect(user.role === 'admin' ? '/dashboard' : '/dashboard/upload');
+    res.redirect(getRedirectPath(user.role));
   } catch (err) {
     res.redirect('/login');
   }
@@ -270,19 +765,59 @@ app.get(['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/de
   try {
     const user = await getLoggedInUser(req);
     if (!user) return res.redirect('/login');
-    
-    // Normal user can only access /dashboard/upload, /dashboard/laporan, and /dashboard/detections/:id.
-    // If they try to access other admin dashboard pages, redirect them to /dashboard/upload
-    if (user.role !== 'admin' && 
-        req.path !== '/dashboard/upload' && 
-        req.path !== '/dashboard/laporan' && 
-        !req.path.startsWith('/dashboard/detections/')) {
-      return res.redirect('/dashboard/upload');
+    if (user.role !== 'admin') {
+      return res.redirect(getRedirectPath(user.role));
     }
-    
     res.sendFile(path.join(__dirname, '../public/views/dashboard.html'));
   } catch (err) {
     console.error('[SERVER ERROR] Dashboard view routing failed:', err);
+    res.redirect('/login');
+  }
+});
+
+app.get('/dashboard-user', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.redirect('/login');
+    if (user.role === 'admin' || user.role === 'superadmin') {
+      return res.redirect(getRedirectPath(user.role));
+    }
+    res.sendFile(path.join(__dirname, '../public/views/dashboard-user.html'));
+  } catch (err) {
+    res.redirect('/login');
+  }
+});
+
+app.get('/cloud-viewer', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.redirect('/login');
+    res.sendFile(path.join(__dirname, '../public/views/cloud-viewer.html'));
+  } catch (err) {
+    res.redirect('/login');
+  }
+});
+
+app.get(['/superadmin', '/superadmin/dashboard', '/superadmin/admins', '/superadmin/workspaces'], async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.redirect('/login');
+    if (user.role !== 'superadmin') {
+      return res.redirect(getRedirectPath(user.role));
+    }
+    res.sendFile(path.join(__dirname, '../public/views/superadmin.html'));
+  } catch (err) {
+    res.redirect('/login');
+  }
+});
+
+// GET /profile page route
+app.get('/profile', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.redirect('/login');
+    res.sendFile(path.join(__dirname, '../public/views/profile.html'));
+  } catch (err) {
     res.redirect('/login');
   }
 });
@@ -390,6 +925,116 @@ app.post('/api/detections/:id/verify', async (req, res) => {
     );
     if (!updatedReport) {
       return res.status(404).json({ error: 'Laporan tidak ditemukan' });
+    }
+
+    // MLOps Dataset Feedback Loop
+    try {
+      const { DatasetFeedbackModel } = require('./database/models/DatasetFeedback');
+      const fs = require('fs');
+      const path = require('path');
+      const crypto = require('crypto');
+      
+      const sourcePath = path.join(process.cwd(), 'public', updatedReport.image);
+      
+      if (fs.existsSync(sourcePath)) {
+        // Calculate SHA256 of image
+        const fileBuffer = fs.readFileSync(sourcePath);
+        const imageHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+        
+        // Parse Image Dimensions
+        let imageWidth = 1280;
+        let imageHeight = 720;
+        try {
+          if (fileBuffer[0] === 0xFF && fileBuffer[1] === 0xD8) {
+            let i = 2;
+            while (i < fileBuffer.length) {
+              const marker = fileBuffer.readUInt16BE(i);
+              i += 2;
+              if (marker === 0xFFC0 || marker === 0xFFC2) {
+                i += 3;
+                imageHeight = fileBuffer.readUInt16BE(i);
+                i += 2;
+                imageWidth = fileBuffer.readUInt16BE(i);
+                break;
+              } else {
+                const length = fileBuffer.readUInt16BE(i);
+                i += length;
+              }
+            }
+          }
+        } catch (dimErr) {
+          console.warn('[MLOps] Failed to parse image dimensions, using fallback:', dimErr);
+        }
+        
+        // Ensure datasets directory exists
+        const datasetsDir = path.join(process.cwd(), 'public', 'datasets');
+        if (!fs.existsSync(datasetsDir)) {
+          fs.mkdirSync(datasetsDir, { recursive: true });
+        }
+        
+        // Copy/Hardlink frame
+        const imageExt = path.extname(sourcePath) || '.jpg';
+        const targetFileName = `${updatedReport.id}_${imageHash.substring(0, 16)}${imageExt}`;
+        const targetPath = path.join(datasetsDir, targetFileName);
+        
+        try {
+          fs.linkSync(sourcePath, targetPath);
+          console.log(`[MLOps] Hardlinked frame to ${targetPath}`);
+        } catch (linkErr) {
+          try {
+            fs.copyFileSync(sourcePath, targetPath);
+            console.log(`[MLOps] Copied frame to ${targetPath} (fallback)`);
+          } catch (copyErr: any) {
+            console.error('[MLOps] Failed to copy frame file:', copyErr.message);
+          }
+        }
+        
+        // Map detections & ground truth
+        const originalDetections = (updatedReport.boundingBoxes || []).map((b: any) => ({
+          class: b.label,
+          confidence: (b.confidence || 0) / 100,
+          bbox: [b.x, b.y, b.w, b.h]
+        }));
+        
+        const operatorLabel = req.body.operatorLabel || (status === 'VALID' ? 'APPROVED' : 'REJECTED');
+        const groundTruth = operatorLabel === 'APPROVED' ? originalDetections.map((d: any) => ({
+          class: d.class,
+          bbox: d.bbox
+        })) : [];
+        
+        const cameraId = updatedReport.sourceMetadata?.cameraId || parseInt(updatedReport.identity?.replace(/\D/g, '')) || 1;
+        const modelId = updatedReport.sourceMetadata?.modelId || 'yolov8-river-v1.0';
+        const modelVersion = updatedReport.sourceMetadata?.modelVersion || '1.0';
+        
+        const rand = Math.random();
+        const datasetPartition = rand < 0.8 ? 'TRAIN' : 'VALIDATION';
+        
+        await DatasetFeedbackModel.create({
+          reportId: updatedReport.id,
+          reportObjectId: updatedReport._id,
+          cameraId,
+          imageHash,
+          imageWidth,
+          imageHeight,
+          originalDetections,
+          groundTruth,
+          modelId,
+          modelVersion,
+          operatorLabel,
+          reviewStatus: status === 'VALID' ? 'APPROVED' : 'REJECTED',
+          datasetPartition,
+          feedbackSource: 'OPERATOR_REVIEW',
+          operatorId: user._id,
+          qualityScore: operatorLabel === 'APPROVED' ? 100 : 0,
+          reviewedAt: new Date(),
+          reviewedBy: user.username,
+          processedForRetraining: false
+        });
+        
+        console.log(`[MLOps] Saved DatasetFeedback for Report #${updatedReport.id}`);
+      }
+    } catch (mopsErr: any) {
+      console.error('[MLOps ERROR] Dataset feedback loop failed:', mopsErr.message);
     }
 
     // Rekam audit log aksi manual override verifikasi admin
@@ -828,16 +1473,28 @@ app.get('/api/cctv', async (req, res) => {
     const cctvs = await DatabaseManager.getAllCctv();
     
     // Decrypt / enrich each CCTV config with playUrl dynamically
-    const processed = cctvs.map(c => {
+    const processed = await Promise.all(cctvs.map(async (c) => {
       const playTarget = CctvAdapter.getPlayTarget(c as any);
+      let playUrl = playTarget.playUrl;
+      let mediaType = playTarget.playType;
+
+      if (c.protocol === 'CLOUD_VIEWER') {
+        const deviceId = 'a368caa9d0ba8c2813gfir';
+        const tuyaUrl = await getTuyaStreamUrl(deviceId);
+        if (tuyaUrl) {
+          playUrl = tuyaUrl;
+          mediaType = 'Video'; // Dynamic HLS stream plays as HTML5 Video
+        }
+      }
+
       return {
         ...c,
-        playUrl: playTarget.playUrl,
-        mediaType: playTarget.playType,
+        playUrl,
+        mediaType,
         // Hide password in listing
         password: c.password ? '••••••••' : ''
       };
-    });
+    }));
 
     res.json({ success: true, data: processed });
   } catch (err) {
@@ -870,13 +1527,24 @@ app.get('/api/cctv/:id', async (req, res) => {
       : '';
 
     const playTarget = CctvAdapter.getPlayTarget(c as any);
+    let playUrl = playTarget.playUrl;
+    let mediaType = playTarget.playType;
+
+    if (c.protocol === 'CLOUD_VIEWER') {
+      const deviceId = 'a368caa9d0ba8c2813gfir';
+      const tuyaUrl = await getTuyaStreamUrl(deviceId);
+      if (tuyaUrl) {
+        playUrl = tuyaUrl;
+        mediaType = 'Video';
+      }
+    }
 
     res.json({
       success: true,
       data: {
         ...c,
-        playUrl: playTarget.playUrl,
-        mediaType: playTarget.playType,
+        playUrl: playUrl,
+        mediaType: mediaType,
         password: decryptedPassword
       }
     });
@@ -1043,6 +1711,83 @@ app.get('/api/cctv/:id/snapshot', async (req, res) => {
   }
 });
 
+// Store the last retrieved HLS base URL in memory for segment forwarding
+let tuyaBaseUrlCache: { [deviceId: string]: string } = {};
+
+// GET /api/cctv/:id/stream.m3u8 - HLS Stream Proxy
+app.get('/api/cctv/:id/stream.m3u8', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const camera = await DatabaseManager.getCctvById(id);
+    if (!camera || camera.protocol !== 'CLOUD_VIEWER') {
+      return res.status(404).send('Not a cloud camera');
+    }
+
+    const deviceId = 'a368caa9d0ba8c2813gfir';
+    const tuyaUrl = await getTuyaStreamUrl(deviceId);
+    if (!tuyaUrl) {
+      console.warn('[HLS PROXY] Tuya stream unavailable, redirecting to local fallback video');
+      return res.redirect('/uploads/orang buang sampah.mp4');
+    }
+
+    // Save the base URL of the HLS stream (up to the last slash)
+    const lastSlashIdx = tuyaUrl.lastIndexOf('/');
+    if (lastSlashIdx !== -1) {
+      tuyaBaseUrlCache[deviceId] = tuyaUrl.substring(0, lastSlashIdx + 1);
+    }
+
+    // Fetch the .m3u8 file content
+    const response = await fetch(tuyaUrl);
+    if (!response.ok) {
+      console.error('[HLS PROXY] Failed to fetch .m3u8 from Tuya:', response.statusText);
+      return res.redirect('/uploads/orang buang sampah.mp4');
+    }
+
+    const m3u8Text = await response.text();
+    
+    // Set headers
+    res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.send(m3u8Text);
+  } catch (err: any) {
+    console.error('[HLS PROXY] Error proxying .m3u8:', err.message);
+    res.redirect('/uploads/orang buang sampah.mp4');
+  }
+});
+
+// GET /api/cctv/:id/:filename.ts - HLS TS Segment Proxy
+app.get('/api/cctv/:id/:filename.ts', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const filename = req.params.filename;
+    const deviceId = 'a368caa9d0ba8c2813gfir';
+    
+    const baseUrl = tuyaBaseUrlCache[deviceId];
+    if (!baseUrl) {
+      return res.status(404).send('Base URL not cached');
+    }
+
+    // Reconstruct the full query string
+    const queryStr = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+    const targetUrl = `${baseUrl}${filename}.ts${queryStr}`;
+
+    const response = await fetch(targetUrl);
+    if (!response.ok) {
+      return res.status(response.status).send(response.statusText);
+    }
+
+    // Forward the binary stream
+    res.setHeader('Content-Type', 'video/mp2t');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    
+    const arrayBuffer = await response.arrayBuffer();
+    res.send(Buffer.from(arrayBuffer));
+  } catch (err: any) {
+    console.error('[HLS PROXY] Error proxying segment:', err.message);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
 // POST /api/cctv/monitoring - Global toggle monitoring
 app.post('/api/cctv/monitoring', async (req, res) => {
   try {
@@ -1093,6 +1838,42 @@ app.patch('/api/cctv/:id/monitoring', async (req, res) => {
     res.json({ success: true, cameraId: id, monitoringEnabled: enabled });
   } catch (err) {
     console.error('[SERVER ERROR] PATCH /api/cctv/:id/monitoring failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// PATCH /api/cctv/:id/active - Per-camera toggle active/standby status
+app.patch('/api/cctv/:id/active', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden: Hanya Admin yang dapat memodifikasi status aktif CCTV.' });
+    }
+
+    const id = parseInt(req.params.id);
+    const { isActive } = req.body;
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({ error: 'Parameter "isActive" wajib boolean.' });
+    }
+
+    const camera = await CctvModel.findOne({ id });
+    if (!camera) {
+      return res.status(404).json({ error: 'Camera not found' });
+    }
+
+    camera.isActive = isActive;
+    if (!isActive) {
+      camera.monitoringEnabled = false;
+      camera.status = 'PAUSED';
+    } else {
+      camera.status = 'ONLINE';
+    }
+    await camera.save();
+
+    console.log(`[SERVER INFO] Camera ID ${id} active state set to ${isActive} by user ${user.username}`);
+    res.json({ success: true, cameraId: id, data: camera });
+  } catch (err) {
+    console.error('[SERVER ERROR] PATCH /api/cctv/:id/active failed:', err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -1168,6 +1949,20 @@ app.post('/api/system-settings', async (req, res) => {
     setting.updatedBy = user.id;
     await setting.save();
 
+    // Hot-swap AI engine instantly if key is ai.engine
+    if (key === 'ai.engine') {
+      try {
+        const { AiModelManager } = require('./cctv/services/AiModelManager');
+        const { AiModelModel } = require('./database/models/AiModel');
+        const activeModel = await AiModelModel.findOne({ isActive: true }).exec();
+        const modelId = activeModel ? activeModel.id : 'yolov8-river-v1.0';
+        await AiModelManager.swapActiveModel(modelId, value);
+        console.log(`[SystemSettings] Hot-swapped active engine to: ${value} with model ${modelId}`);
+      } catch (err: any) {
+        console.error('[SystemSettings] Failed to trigger hot-swap on settings update:', err.message);
+      }
+    }
+
     // Rekam log audit perubahan konfigurasi sistem (Before, After, Reason, Approved By)
     await SystemAuditLogModel.create({
       tenantId: 'BBWS',
@@ -1185,10 +1980,177 @@ app.post('/api/system-settings', async (req, res) => {
       }
     });
 
+    // MLOps Configuration History Audit
+    try {
+      const { AiConfigurationHistoryModel } = require('./database/models/AiConfigurationHistory');
+      await AiConfigurationHistoryModel.create({
+        key,
+        oldValue,
+        newValue: value,
+        changedBy: user._id,
+        changedByName: user.username,
+        reason: reason || 'Pembaruan parameter ambang batas deteksi AI.',
+        timestamp: new Date()
+      });
+      console.log(`[MLOps Configuration Audit] Logged settings change for key: ${key}`);
+    } catch (confHistoryErr: any) {
+      console.error('[MLOps ERROR] Failed to record configuration history audit:', confHistoryErr.message);
+    }
+
     console.log(`[SERVER INFO] Configuration setting "${key}" updated from "${JSON.stringify(oldValue)}" to "${JSON.stringify(value)}" by user ${user.username}`);
     res.json({ success: true, key, value });
   } catch (err) {
     console.error('[SERVER ERROR] POST /api/system-settings failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// GET /api/ai/models - Get list of models
+app.get('/api/ai/models', async (req, res) => {
+  try {
+    const { AiModelModel } = require('./database/models/AiModel');
+    const models = await AiModelModel.find().sort({ createdAt: -1 }).lean();
+    res.json(models);
+  } catch (err) {
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// GET /api/ai/feedback-count - Get total operator feedback samples count
+app.get('/api/ai/feedback-count', async (req, res) => {
+  try {
+    const { DatasetFeedbackModel } = require('./database/models/DatasetFeedback');
+    const count = await DatasetFeedbackModel.countDocuments();
+    res.json({ count });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// GET /api/ai/training-runs - Get training runs history
+app.get('/api/ai/training-runs', async (req, res) => {
+  try {
+    const { AiTrainingRunModel } = require('./database/models/AiTrainingRun');
+    const runs = await AiTrainingRunModel.find().sort({ createdAt: -1 }).lean();
+    res.json(runs);
+  } catch (err) {
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// POST /api/ai/train - Start simulated AI model training
+app.post('/api/ai/train', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden: Hanya Admin yang dapat memulai training model AI.' });
+    }
+
+    const { datasetSize, epochs, notes } = req.body;
+    const numSize = parseInt(datasetSize) || 1000;
+    const numEpochs = parseInt(epochs) || 50;
+
+    const { AiTrainingRunModel } = require('./database/models/AiTrainingRun');
+    const { AiModelModel } = require('./database/models/AiModel');
+
+    // Create a new model ID based on dataset size and epochs
+    const modelSuffix = numSize >= 10000 ? 'ultra' : (numSize >= 5000 ? 'high' : 'precision');
+    const modelId = `yolov8-${modelSuffix}-v${(2 + Math.floor(Math.random() * 9))}.0`;
+    
+    // Calculate simulated metrics (larger datasets yield higher precision!)
+    const baseMetric = numSize >= 10000 ? 0.96 : (numSize >= 5000 ? 0.93 : 0.90);
+    const randomShift = Math.random() * 0.03;
+    const precision = parseFloat((baseMetric + randomShift).toFixed(3));
+    const recall = parseFloat((baseMetric - 0.02 + randomShift).toFixed(3));
+    const mAP50 = parseFloat((baseMetric + 0.01 + randomShift).toFixed(3));
+    const mAP50_95 = parseFloat((baseMetric - 0.15 + randomShift).toFixed(3));
+
+    // Save training run record
+    const trainingRun = await AiTrainingRunModel.create({
+      datasetVersion: `ds-river-v${(1 + Math.floor(Math.random() * 5))}.0`,
+      modelVersion: modelId,
+      trainingStart: new Date(Date.now() - 1000 * 60 * 3), // simulated 3 mins ago
+      trainingEnd: new Date(),
+      epochs: numEpochs,
+      precision,
+      recall,
+      mAP50,
+      mAP50_95,
+      bestWeightsPath: `/weights/${modelId}.pt`,
+      artifactSize: 14200000 + Math.floor(Math.random() * 2000000), // ~14-16MB
+      notes: notes || `Optimasi otomatis YOLOv8 pada ${numSize} sampel data sungai.`
+    });
+
+    // Save model to registry so it can be deployed!
+    await AiModelModel.create({
+      id: modelId,
+      name: `YOLOv8 River ${modelSuffix.toUpperCase()} Model`,
+      version: `${(2 + Math.floor(Math.random() * 9))}.0`,
+      isActive: false,
+      checksum: crypto.randomBytes(16).toString('hex'),
+      artifactSize: trainingRun.artifactSize,
+      framework: 'YOLOv8',
+      supportedTasks: ['DETECTION']
+    });
+
+    res.json({ success: true, trainingRun });
+  } catch (err) {
+    console.error('[SERVER ERROR] POST /api/ai/train failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// POST /api/ai/deploy - Deploy a trained model
+app.post('/api/ai/deploy', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden: Hanya Admin yang dapat men-deploy model AI.' });
+    }
+
+    const { modelId } = req.body;
+    if (!modelId) {
+      return res.status(400).json({ error: 'Parameter "modelId" wajib diisi.' });
+    }
+
+    const { AiModelModel } = require('./database/models/AiModel');
+    const { ModelDeploymentLogModel } = require('./database/models/ModelDeploymentLog');
+
+    // Find target model
+    const targetModel = await AiModelModel.findOne({ id: modelId });
+    if (!targetModel) {
+      return res.status(404).json({ error: 'Model AI tidak ditemukan di registry.' });
+    }
+
+    // Set all other models to isActive: false, and target model to isActive: true
+    await AiModelModel.updateMany({ id: { $ne: modelId } }, { isActive: false });
+    targetModel.isActive = true;
+    await targetModel.save();
+
+    // Log deployment
+    await ModelDeploymentLogModel.create({
+      deploymentId: `deploy-manual-${Date.now()}`,
+      modelId,
+      status: 'SUCCESS',
+      notes: `Deployment manual model ${modelId} melalui panel superadmin oleh ${user.username}`,
+      deployedBy: user._id,
+      timestamp: new Date()
+    });
+
+    // Hot-swap AI engine instantly!
+    try {
+      const { AiModelManager } = require('./cctv/services/AiModelManager');
+      const engineSetting = await SystemSettingsModel.findOne({ key: 'ai.engine' }).exec();
+      const engineType = engineSetting ? (engineSetting.value as string) : 'MOCK';
+      await AiModelManager.swapActiveModel(modelId, engineType);
+      console.log(`[MLOps Deployment] Hot-swapped active model to: ${modelId} via engine: ${engineType}`);
+    } catch (swapErr: any) {
+      console.error('[MLOps Deployment] Failed to swap model:', swapErr.message);
+    }
+
+    res.json({ success: true, modelId });
+  } catch (err) {
+    console.error('[SERVER ERROR] POST /api/ai/deploy failed:', err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -1199,6 +2161,7 @@ let serverInstance: any;
 connectDB().then(() => {
   CctvHealthEngine.start();
   AiPipelineScheduler.start();
+  MaintenanceScheduler.start();
   OutboxWorker.start();
   serverInstance = app.listen(PORT, () => {
     console.log(`Server EYECO berjalan di http://localhost:${PORT}`);
@@ -1218,6 +2181,14 @@ const gracefulShutdown = async (signal: string) => {
     await AiPipelineScheduler.stop();
   } catch (err: any) {
     console.error('[SERVER ERROR] Failed to stop AiPipelineScheduler:', err.message);
+  }
+
+  // 1.5 Stop Maintenance Scheduler
+  try {
+    console.log('[SERVER] Stopping Maintenance Scheduler...');
+    MaintenanceScheduler.stop();
+  } catch (err: any) {
+    console.error('[SERVER ERROR] Failed to stop MaintenanceScheduler:', err.message);
   }
 
   // 2. Stop CCTV Health Engine

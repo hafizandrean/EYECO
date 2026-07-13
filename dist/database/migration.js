@@ -23,6 +23,14 @@ async function seedSystemSettingsAndModels() {
                 { key: 'ai.cooldown.minutes', value: 3, description: 'Masa cooldown (menit) setelah insiden ditutup agar tidak memicu insiden baru di lokasi yang sama.', updatedBy: 1 },
                 { key: 'ai.verification.frames', value: 3, description: 'Jumlah frame positif berturut-turut yang dibutuhkan sebelum promosi insiden.', updatedBy: 1 },
                 { key: 'ai.confidence.threshold', value: 0.7, description: 'Ambang batas nilai confidence (keyakinan) AI agar dapat dipromosikan (0.0 - 1.0).', updatedBy: 1 },
+                { key: 'ai.engine', value: 'MOCK', description: 'Mesin inferensi AI aktif (MOCK | FASTAPI | ONNX).', updatedBy: 1 },
+                { key: 'ai.queue.maxSize', value: 50, description: 'Batas kapasitas maksimal antrean inferensi AI.', updatedBy: 1 },
+                {
+                    key: 'ai.deployment.lock',
+                    value: { locked: false, lockedBy: null, fencingToken: 0, expiresAt: null, heartbeatAt: null },
+                    description: 'Distributed lock untuk mencegah tabrakan proses deployment model AI.',
+                    updatedBy: 1
+                },
                 {
                     key: 'ai.rules',
                     value: {
@@ -74,12 +82,43 @@ async function seedSystemSettingsAndModels() {
             if (!hasTelegramChatId) {
                 await SystemSettings_1.SystemSettingsModel.create({ key: 'telegram.chatId', value: '-1003941703215', description: 'ID Chat / Grup penerima notifikasi Telegram.', updatedBy: 1 });
             }
+            const hasMinLength = await SystemSettings_1.SystemSettingsModel.findOne({ key: 'security.password.minLength' });
+            if (!hasMinLength) {
+                await SystemSettings_1.SystemSettingsModel.create({ key: 'security.password.minLength', value: 6, description: 'Panjang minimal password baru untuk keamanan akun.', updatedBy: 1 });
+            }
             const hasLockSetting = await SystemSettings_1.SystemSettingsModel.findOne({ key: 'scheduler.lock' });
             if (!hasLockSetting) {
                 await SystemSettings_1.SystemSettingsModel.create({
                     key: 'scheduler.lock',
                     value: { locked: false, lockedBy: null, expiresAt: null },
                     description: 'Distributed lock untuk mencegah eksekusi paralel scheduler.',
+                    updatedBy: 1
+                });
+            }
+            const hasAiEngine = await SystemSettings_1.SystemSettingsModel.findOne({ key: 'ai.engine' });
+            if (!hasAiEngine) {
+                await SystemSettings_1.SystemSettingsModel.create({
+                    key: 'ai.engine',
+                    value: 'MOCK',
+                    description: 'Mesin inferensi AI aktif (MOCK | FASTAPI | ONNX).',
+                    updatedBy: 1
+                });
+            }
+            const hasQueueSize = await SystemSettings_1.SystemSettingsModel.findOne({ key: 'ai.queue.maxSize' });
+            if (!hasQueueSize) {
+                await SystemSettings_1.SystemSettingsModel.create({
+                    key: 'ai.queue.maxSize',
+                    value: 50,
+                    description: 'Batas kapasitas maksimal antrean inferensi AI.',
+                    updatedBy: 1
+                });
+            }
+            const hasDeploymentLock = await SystemSettings_1.SystemSettingsModel.findOne({ key: 'ai.deployment.lock' });
+            if (!hasDeploymentLock) {
+                await SystemSettings_1.SystemSettingsModel.create({
+                    key: 'ai.deployment.lock',
+                    value: { locked: false, lockedBy: null, fencingToken: 0, expiresAt: null, heartbeatAt: null },
+                    description: 'Distributed lock untuk mencegah tabrakan proses deployment model AI.',
                     updatedBy: 1
                 });
             }

@@ -20,10 +20,25 @@ class MockAIEngine {
         if (!this.isInitialized) {
             throw new Error('MockAIEngine is not initialized.');
         }
+        const detections = [];
+        // Jika ini adalah kamera video tes (CH 08), buat deteksi stabil & confidence tinggi
+        // agar lolos aturan Verification Rule (3 frame beruntun) dan Duplicate Rule
+        if (frame.cameraId === 8) {
+            detections.push({
+                class: 'person',
+                confidence: 0.89,
+                bbox: [42, 25, 20, 55] // Koordinat persentase [x, y, w, h] yang pas dengan pelaku di video
+            });
+            detections.push({
+                class: 'trash',
+                confidence: 0.84,
+                bbox: [48, 70, 15, 12] // Pas dengan botol/sampah di bawahnya
+            });
+            return detections;
+        }
         const hasPerson = Math.random() > 0.4;
         const hasTrash = Math.random() > 0.7; // 30% chance of trash
         const hasBoat = Math.random() > 0.85;
-        const detections = [];
         if (hasPerson) {
             detections.push({
                 class: 'person',

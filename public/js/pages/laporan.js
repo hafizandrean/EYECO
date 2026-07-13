@@ -372,8 +372,8 @@ export class LaporanPage {
       const isAdmin = currentUser?.role === 'admin';
       if (isAdmin && report.adminStatus === 'MENUNGGU') {
         actionButtons = `
-          <button class="btn btn-glass btn-sm btn-quick-verify" data-id="${report.id}" data-action="VALID" title="Verifikasi Valid">Valid</button>
-          <button class="btn btn-glass btn-sm btn-quick-verify" data-id="${report.id}" data-action="DIABAIKAN" title="Abaikan Laporan">Abaikan</button>
+          <button class="btn btn-glass btn-sm btn-quick-verify" data-id="${report.id}" data-action="VALID" title="Verifikasi Valid" style="border-color: rgba(34, 197, 94, 0.3); color: #16a34a; background: rgba(34, 197, 94, 0.05); font-weight: 700; margin-right: 6px;">Valid</button>
+          <button class="btn btn-glass btn-sm btn-quick-verify" data-id="${report.id}" data-action="DIABAIKAN" title="Abaikan Laporan" style="border-color: rgba(239, 68, 68, 0.3); color: #dc2626; background: rgba(239, 68, 68, 0.05); font-weight: 700; margin-right: 6px;">Abaikan</button>
         `;
       }
 

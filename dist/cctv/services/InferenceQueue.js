@@ -2,9 +2,11 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.InferenceQueue = void 0;
 const InferenceService_1 = require("./InferenceService");
+const SystemSettings_1 = require("../../database/models/SystemSettings");
 class InferenceQueue {
     static queue = [];
-    static maxQueueSize = 50;
+    static cachedMaxQueueSize = 50;
+    static lastSettingsSync = 0;
     static minWorkers = 2;
     static maxWorkers = 8;
     static activeWorkers = 0;
@@ -12,6 +14,7 @@ class InferenceQueue {
     static accepting = true;
     // Observability metrics
     static droppedFramesCount = 0;
+    static expiredFramesCount = 0;
     static totalProcessedCount = 0;
     static busyWorkers = 0;
     static waitingTimes = [];
@@ -37,13 +40,15 @@ class InferenceQueue {
      * Enqueues a captured frame with a given priority/weight.
      * Leverages backpressure to drop the oldest frame of the lowest priority if overloaded.
      */
-    static enqueue(frame, priority = 'NORMAL', customWeight) {
+    static async enqueue(frame, priority = 'NORMAL', customWeight) {
         if (!this.accepting) {
             return Promise.reject(new Error('SHUTTING_DOWN: Queue is not accepting new frames.'));
         }
+        // Dynamic queue size mapping from database (with cache & 10s TTL)
+        const maxSize = await this.getMaxSize();
         return new Promise((resolve, reject) => {
             const weight = customWeight !== undefined ? customWeight : (this.priorityWeightsRecord[priority] || 50);
-            // Push item into the queue first so we can evaluate the entire set of items (including incoming)
+            // Push item into the queue first so we can evaluate the entire set of items
             this.queue.push({
                 frame,
                 priority,
@@ -53,7 +58,7 @@ class InferenceQueue {
                 queuedAt: Date.now()
             });
             // Backpressure: if queue exceeds capacity, drop the oldest item of the lowest priority
-            if (this.queue.length > this.maxQueueSize) {
+            if (this.queue.length > maxSize) {
                 let dropIndex = -1;
                 let minPriorityWeight = Infinity;
                 let oldestQueuedAt = Infinity;
@@ -77,12 +82,11 @@ class InferenceQueue {
                     if (dropped) {
                         this.droppedFramesCount++;
                         dropped.reject(new Error('QUEUE_OVERLOAD: Frame dropped due to backpressure.'));
-                        console.warn(`[InferenceQueue] Backpressure triggered. Dropped frame from Camera #${dropped.frame.cameraId} (Priority: ${dropped.priority}, Weight: ${dropped.priorityWeight}, QueuedAt: ${new Date(dropped.queuedAt).toISOString()})`);
+                        console.warn(`[InferenceQueue] Backpressure triggered. Dropped frame from Camera #${dropped.frame.cameraId} (Priority: ${dropped.priority}, Weight: ${dropped.priorityWeight})`);
                     }
                 }
             }
             // Sort queue so highest priority is at the end (for fast pop())
-            // If priority weight matches, older frames processed first (FIFO: put older frames at the end)
             this.queue.sort((a, b) => {
                 const weightDiff = a.priorityWeight - b.priorityWeight;
                 if (weightDiff !== 0)
@@ -122,6 +126,13 @@ class InferenceQueue {
                     continue;
                 // Metric tracking: calculate wait time
                 const waitingTime = Date.now() - item.queuedAt;
+                // Frame TTL Check (500ms): Expire frame instantly if wait time exceeded
+                if (waitingTime > 500) {
+                    this.expiredFramesCount++;
+                    item.reject(new Error('FRAME_TTL_EXPIRED: Frame waiting time exceeded 500ms'));
+                    console.warn(`[InferenceQueue] Frame from Camera #${item.frame.cameraId} expired (waited ${waitingTime}ms)`);
+                    continue;
+                }
                 this.waitingTimes.push(waitingTime);
                 if (this.waitingTimes.length > 100)
                     this.waitingTimes.shift();
@@ -155,6 +166,25 @@ class InferenceQueue {
             await new Promise(res => setTimeout(res, 500));
         }
         console.log('[InferenceQueue] AI Queue completely cleared. Graceful shutdown finished.');
+    }
+    /**
+     * Helper to retrieve maxSize setting dynamically from MongoDB with 10s local caching
+     */
+    static async getMaxSize() {
+        const now = Date.now();
+        if (now - this.lastSettingsSync > 10000) {
+            this.lastSettingsSync = now;
+            try {
+                const setting = await SystemSettings_1.SystemSettingsModel.findOne({ key: 'ai.queue.maxSize' }).exec();
+                if (setting && typeof setting.value === 'number') {
+                    this.cachedMaxQueueSize = setting.value;
+                }
+            }
+            catch (err) {
+                // fallback to cache
+            }
+        }
+        return this.cachedMaxQueueSize;
     }
     // Getter methods for metrics and observability
     static getQueueLength() {

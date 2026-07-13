@@ -9,10 +9,16 @@ export enum EngineState {
   FAILED = 'FAILED'
 }
 
+export interface IGeometry {
+  type: 'bbox' | 'polygon' | 'keypoints';
+  value: number[];
+}
+
 export interface IDetectionResult {
   class: string;
   confidence: number;
   bbox: [number, number, number, number]; // [x, y, w, h]
+  geometry?: IGeometry;
 }
 
 export interface IAIEngine {

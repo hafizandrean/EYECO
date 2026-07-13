@@ -138,7 +138,7 @@ export class HomePage {
         card.innerHTML = `
           <div style="width: 100%; aspect-ratio: 16/10; border-radius: 8px; overflow: hidden; background: #000; position: relative;">
             <img src="${report.image}" alt="Bukti" style="width: 100%; height: 100%; object-fit: cover;">
-            <span class="badge ${report.adminStatus === 'VALID' ? 'bg-success text-white' : 'bg-warning text-white'}" style="position: absolute; bottom: 8px; right: 8px; font-size: 0.65rem;">
+            <span class="status-badge ${report.adminStatus === 'VALID' ? 'status-valid' : 'status-pending'}" style="position: absolute; bottom: 8px; right: 8px; font-size: 0.65rem; padding: 2px 6px;">
               ${report.adminStatus === 'VALID' ? 'Diverifikasi' : 'Ditinjau'}
             </span>
           </div>

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DatabaseManager = exports.disconnectDB = exports.CameraEventModel = exports.AiMetricModel = exports.CameraHealthLogModel = exports.AiVerificationStateModel = exports.AiEvidenceModel = exports.AiDetectionModel = exports.AiModelModel = exports.SystemSettingsModel = exports.SystemAuditLogModel = exports.OutboxEventModel = exports.NotificationModel = exports.ResolutionModel = exports.AssignmentModel = exports.TimelineEventModel = exports.ReportModel = exports.UserModel = exports.CctvModel = void 0;
+exports.DatabaseManager = exports.disconnectDB = exports.AiConfigurationHistoryModel = exports.ModelDeploymentLogModel = exports.AiTrainingRunModel = exports.DatasetFeedbackModel = exports.AiSystemMetricsModel = exports.AiInferenceMetricsModel = exports.CameraEventModel = exports.AiMetricModel = exports.CameraHealthLogModel = exports.AiVerificationStateModel = exports.AiEvidenceModel = exports.AiDetectionModel = exports.AiModelModel = exports.SystemSettingsModel = exports.SystemAuditLogModel = exports.OutboxEventModel = exports.NotificationModel = exports.ResolutionModel = exports.AssignmentModel = exports.TimelineEventModel = exports.ReportModel = exports.UserModel = exports.CctvModel = void 0;
 exports.connectDB = connectDB;
 const mongoose_1 = __importDefault(require("mongoose"));
 const dotenv_1 = __importDefault(require("dotenv"));
@@ -44,6 +44,18 @@ const AiMetric_1 = require("./models/AiMetric");
 Object.defineProperty(exports, "AiMetricModel", { enumerable: true, get: function () { return AiMetric_1.AiMetricModel; } });
 const CameraEvent_1 = require("./models/CameraEvent");
 Object.defineProperty(exports, "CameraEventModel", { enumerable: true, get: function () { return CameraEvent_1.CameraEventModel; } });
+const AiInferenceMetrics_1 = require("./models/AiInferenceMetrics");
+Object.defineProperty(exports, "AiInferenceMetricsModel", { enumerable: true, get: function () { return AiInferenceMetrics_1.AiInferenceMetricsModel; } });
+const AiSystemMetrics_1 = require("./models/AiSystemMetrics");
+Object.defineProperty(exports, "AiSystemMetricsModel", { enumerable: true, get: function () { return AiSystemMetrics_1.AiSystemMetricsModel; } });
+const DatasetFeedback_1 = require("./models/DatasetFeedback");
+Object.defineProperty(exports, "DatasetFeedbackModel", { enumerable: true, get: function () { return DatasetFeedback_1.DatasetFeedbackModel; } });
+const AiTrainingRun_1 = require("./models/AiTrainingRun");
+Object.defineProperty(exports, "AiTrainingRunModel", { enumerable: true, get: function () { return AiTrainingRun_1.AiTrainingRunModel; } });
+const ModelDeploymentLog_1 = require("./models/ModelDeploymentLog");
+Object.defineProperty(exports, "ModelDeploymentLogModel", { enumerable: true, get: function () { return ModelDeploymentLog_1.ModelDeploymentLogModel; } });
+const AiConfigurationHistory_1 = require("./models/AiConfigurationHistory");
+Object.defineProperty(exports, "AiConfigurationHistoryModel", { enumerable: true, get: function () { return AiConfigurationHistory_1.AiConfigurationHistoryModel; } });
 dotenv_1.default.config();
 // Validate Environment Variables
 if (!process.env.MONGODB_URI) {
@@ -66,6 +78,8 @@ async function connectDB() {
             console.log('[DATABASE SUCCESS] MongoDB connected successfully.');
             // Run automatic migration from db.json
             await (0, migration_1.runMigration)();
+            // Seed default cameras if collection is completely empty
+            await DatabaseManager.seedDefaultCamerasIfEmpty();
             // Initialize AI Model Manager & Engines
             await AiModelManager_1.AiModelManager.initialize();
             return;
@@ -420,7 +434,7 @@ class DatabaseManager {
         }
     }
     // --- CCTV METHODS ---
-    static async getAllCctv() {
+    static async seedDefaultCamerasIfEmpty() {
         try {
             let count = await Cctv_1.CctvModel.countDocuments();
             if (count === 0) {
@@ -451,9 +465,9 @@ class DatabaseManager {
                         vendor: 'GENERIC',
                         model: 'CCTV-G2',
                         protocol: 'HTTP Image',
-                        mediaType: 'Image',
-                        streamUrl: '/uploads/detection_2.jpg',
-                        playUrl: '/uploads/detection_2.jpg',
+                        mediaType: 'Video',
+                        streamUrl: '/uploads/orang buang sampah.mp4',
+                        playUrl: '/uploads/orang buang sampah.mp4',
                         capabilities: { rtsp: false, hls: false, snapshot: true, mjpeg: false, onvif: false, cloud: false },
                         isDefault: true,
                         status: 'ONLINE',
@@ -468,9 +482,9 @@ class DatabaseManager {
                         vendor: 'GENERIC',
                         model: 'CCTV-G3',
                         protocol: 'HTTP Image',
-                        mediaType: 'Image',
-                        streamUrl: '/uploads/detection_3.jpg',
-                        playUrl: '/uploads/detection_3.jpg',
+                        mediaType: 'Video',
+                        streamUrl: '/uploads/orang buang sampah.mp4',
+                        playUrl: '/uploads/orang buang sampah.mp4',
                         capabilities: { rtsp: false, hls: false, snapshot: true, mjpeg: false, onvif: false, cloud: false },
                         isDefault: true,
                         status: 'ONLINE',
@@ -553,9 +567,9 @@ class DatabaseManager {
                         vendor: 'GENERIC',
                         model: 'CCTV-G8',
                         protocol: 'HTTP Image',
-                        mediaType: 'Image',
-                        streamUrl: '/uploads/detection_8.jpg',
-                        playUrl: '/uploads/detection_8.jpg',
+                        mediaType: 'Video',
+                        streamUrl: '/uploads/orang buang sampah.mp4',
+                        playUrl: '/uploads/orang buang sampah.mp4',
                         capabilities: { rtsp: false, hls: false, snapshot: true, mjpeg: false, onvif: false, cloud: false },
                         isDefault: true,
                         status: 'ONLINE',
@@ -564,7 +578,26 @@ class DatabaseManager {
                     }
                 ];
                 await Cctv_1.CctvModel.insertMany(defaultCameras);
+                console.log('[DATABASE INFO] Default CCTV channels seeded successfully.');
             }
+            else {
+                // Force update channels 2, 3, 8 to use video format in existing installations for dynamic AI tracking demo!
+                await Cctv_1.CctvModel.updateMany({ id: { $in: [2, 3, 8] } }, {
+                    $set: {
+                        mediaType: 'Video',
+                        streamUrl: '/uploads/orang buang sampah.mp4',
+                        playUrl: '/uploads/orang buang sampah.mp4'
+                    }
+                }).exec();
+                console.log('[DATABASE INFO] Force-updated Channels 2, 3, 8 to Video format for AI tracking demo.');
+            }
+        }
+        catch (err) {
+            console.error('[DATABASE ERROR] seedDefaultCamerasIfEmpty failed:', err);
+        }
+    }
+    static async getAllCctv() {
+        try {
             return await Cctv_1.CctvModel.find({}).sort({ id: 1 }).lean();
         }
         catch (err) {
@@ -680,9 +713,7 @@ class DatabaseManager {
             if (!cctv) {
                 throw new Error('CCTV tidak ditemukan.');
             }
-            if (cctv.isDefault) {
-                throw new Error('Kamera bawaan sistem tidak boleh dihapus.');
-            }
+            // Allow deletion of default cameras for user workspace flexibility
             await Cctv_1.CctvModel.deleteOne({ id });
             return true;
         }

@@ -55,25 +55,33 @@ export class DashboardPage {
               <option value="semua">Semua Saluran</option>
             </select>
           </div>
+          ${isAdmin ? `
+          <div class="form-group-inline" style="margin-left: 16px;">
+            <label for="ai-engine-select" class="caption-label">AI Engine</label>
+            <select id="ai-engine-select" class="filter-control select-rounded" style="border-color: rgba(47, 107, 255, 0.3); color: var(--primary); font-weight: 700;">
+              <option value="MOCK">MOCK (Simulation)</option>
+              <option value="FASTAPI">FASTAPI (Microservice)</option>
+              <option value="ONNX">ONNX (Local)</option>
+            </select>
+          </div>
+          ` : ''}
+          <div id="ai-hud-metrics" style="display: flex; align-items: center; gap: 16px; margin-left: 20px; padding: 6px 12px; background: rgba(47, 107, 255, 0.05); border-radius: 8px; border: 1px solid rgba(47, 107, 255, 0.1); font-size: 0.72rem; font-weight: 600; color: var(--text-secondary);">
+            <div><span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--success); margin-right: 6px; vertical-align: middle;" id="hud-engine-dot"></span>Engine: <span id="hud-engine-status" style="color: var(--success); font-weight: 800;">READY</span></div>
+            <div>Queue: <span id="hud-queue-depth" style="font-weight: 800; color: var(--primary);">0</span>/<span id="hud-queue-capacity">50</span></div>
+            <div>FPS: <span id="hud-inference-fps" style="font-weight: 800; color: var(--info);">0.0</span></div>
+            <div>Model: <span id="hud-active-model" style="font-weight: 800;">yolov8-river-v1.0</span></div>
+          </div>
         </div>
         <div class="control-right" style="position: relative;">
           ${isAdmin ? `
+            <button id="btn-edit-eyeco-info" class="btn btn-glass btn-rounded" style="border-color: rgba(47, 107, 255, 0.3); color: var(--primary); margin-right: 8px;">
+              <i data-lucide="edit-3"></i> Edit Info EYECO
+            </button>
             <button id="btn-connect-cctv" class="btn btn-glass btn-rounded" style="border-color: rgba(47, 107, 255, 0.3); color: var(--primary);">
               <i data-lucide="plus-circle"></i> Hubungkan CCTV
             </button>
           ` : ''}
-          <div class="toggle-wrapper" style="position: relative; margin-right: 8px;">
-            <!-- Notification popover trigger button -->
-            <button id="btn-dashboard-notifications" class="btn btn-glass btn-rounded" style="padding: 10px 14px; position: relative;">
-              <i data-lucide="bell" style="width: 16px; height: 16px;"></i>
-              <span id="notif-badge-count" style="position: absolute; top: -4px; right: -4px; background: var(--danger); color: white; font-size: 0.6rem; font-weight: 800; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">3</span>
-            </button>
-            <!-- Dropdown Menu -->
-            <div id="dashboard-notif-popover" class="glass-card" style="display: none; position: absolute; top: 44px; right: 0; width: 280px; z-index: 100; padding: 12px; border-radius: 12px; box-shadow: var(--glass-shadow); border: 1px solid var(--border); background: #ffffff;">
-              <h5 style="margin: 0 0 10px 0; font-size: 0.85rem; font-weight: 800; color: var(--text-primary); border-bottom: 1.5px solid rgba(0,0,0,0.05); padding-bottom: 6px;">Alerts</h5>
-              <div style="display: flex; flex-direction: column; gap: 8px;" id="dashboard-notif-list"></div>
-            </div>
-          </div>
+
           <div class="toggle-wrapper" style="margin-right: 12px;">
             <span class="caption-label">Telegram Alerts</span>
             <label class="switch">
@@ -292,6 +300,41 @@ export class DashboardPage {
         </div>
       </div>
 
+      <!-- Edit EYECO Info Modal Overlay -->
+      <div id="edit-eyeco-info-modal" class="modal-overlay" style="display: none;">
+        <div class="glass-card modal-container" style="max-width: 600px;">
+          <div class="modal-header">
+            <h3><i data-lucide="edit-3"></i> Edit Informasi EYECO</h3>
+            <button class="btn-close-modal" id="btn-close-eyeco-modal">&times;</button>
+          </div>
+          <div class="modal-body">
+            <form id="edit-eyeco-info-form">
+              <div class="form-group" style="margin-bottom: 16px;">
+                <label class="form-label">Tentang EYECO</label>
+                <textarea id="eyeco-input-about" class="filter-control input-rounded" style="width: 100%; min-height: 80px;" required></textarea>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 16px;">
+                <label class="form-label">Informasi Terkini (Satu baris per pengumuman)</label>
+                <textarea id="eyeco-input-terkini" class="filter-control input-rounded" style="width: 100%; min-height: 100px; font-family: inherit;" placeholder="Tulis pengumuman baru baris demi baris..." required></textarea>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 16px;">
+                <label class="form-label">Berita & Informasi Seputar Sampah (Satu baris per berita)</label>
+                <textarea id="eyeco-input-sampah" class="filter-control input-rounded" style="width: 100%; min-height: 100px; font-family: inherit;" placeholder="Tulis berita sampah baru baris demi baris..." required></textarea>
+              </div>
+
+              <div class="modal-actions-row" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 12px;">
+                <button type="button" class="btn btn-glass btn-rounded" id="btn-cancel-eyeco-modal">Batal</button>
+                <button type="submit" class="btn btn-primary btn-rounded" id="btn-save-eyeco-info">
+                  <i data-lucide="save"></i> Simpan Informasi
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
       <!-- CCTV Fullscreen VMS View (Image 2 style) -->
       <div id="vms-fullscreen-page" class="vms-fullscreen-view" style="display: none;">
         <!-- Header -->
@@ -346,37 +389,23 @@ export class DashboardPage {
         </div>
 
         <!-- Control Row -->
-        <div class="vms-fs-controls-row">
-          <button class="vms-fs-ctrl-btn" id="vms-fs-btn-play"><i data-lucide="pause"></i></button>
-          <button class="vms-fs-ctrl-btn" id="vms-fs-btn-mute"><i data-lucide="volume-2"></i></button>
+        <div class="vms-fs-controls-row" style="gap: 12px; font-weight: 800; font-size: 0.72rem;">
+          <button class="vms-fs-ctrl-btn" id="vms-fs-btn-play" style="font-weight: 800; font-size: 0.72rem;">PAUSE</button>
+          <button class="vms-fs-ctrl-btn" id="vms-fs-btn-mute" style="font-weight: 800; font-size: 0.72rem;">MUTE</button>
           <button class="vms-fs-ctrl-badge" id="vms-fs-btn-quality">HD</button>
-          <button class="vms-fs-ctrl-btn" id="vms-fs-btn-grid"><i data-lucide="layout-grid"></i></button>
-          <button class="vms-fs-ctrl-btn" id="vms-fs-btn-rotate"><i data-lucide="screen-share"></i></button>
+          <button class="vms-fs-ctrl-btn" id="vms-fs-btn-grid" style="font-weight: 800; font-size: 0.72rem;">GRID</button>
+          <button class="vms-fs-ctrl-btn" id="vms-fs-btn-rotate" style="font-weight: 800; font-size: 0.72rem;">ROTATE</button>
         </div>
 
         <!-- Action & Content area (No scroll, fixed bottom panel) -->
         <div class="vms-fs-bottom-panel">
           <!-- Actions Row (Pill + Circle buttons) -->
-          <div class="vms-fs-actions-row">
-            <button class="vms-fs-pill-btn" id="vms-fs-action-playback">
-              <i data-lucide="history"></i> Playback
-            </button>
-            
-            <button class="vms-fs-circle-btn" id="vms-fs-action-snapshot" title="Ambil Foto Snapshot">
-              <i data-lucide="camera"></i>
-            </button>
-            
-            <button class="vms-fs-circle-btn" id="vms-fs-action-record" title="Mulai Rekam Video">
-              <i data-lucide="video"></i>
-            </button>
-            
-            <button class="vms-fs-circle-btn" id="vms-fs-action-mic" title="Interkom Suara">
-              <i data-lucide="mic"></i>
-            </button>
-            
-            <button class="vms-fs-circle-btn" id="vms-fs-action-ai" title="Deteksi AI Bounding Boxes">
-              <i data-lucide="scan-eye"></i>
-            </button>
+          <div class="vms-fs-actions-row" style="gap: var(--space-8);">
+            <button class="vms-fs-pill-btn" id="vms-fs-action-playback" style="font-weight: 700;">Playback</button>
+            <button class="vms-fs-pill-btn" id="vms-fs-action-snapshot" title="Ambil Foto Snapshot" style="font-weight: 700;">Snap</button>
+            <button class="vms-fs-pill-btn" id="vms-fs-action-record" title="Mulai Rekam Video" style="font-weight: 700;">Rec</button>
+            <button class="vms-fs-pill-btn" id="vms-fs-action-mic" title="Interkom Suara" style="font-weight: 700;">Talk</button>
+            <button class="vms-fs-pill-btn" id="vms-fs-action-ai" title="Deteksi AI Bounding Boxes" style="font-weight: 700;">AI Box</button>
           </div>
 
           <!-- Playback Timeline slider (Visible in Playback mode) -->
@@ -433,6 +462,7 @@ export class DashboardPage {
 
   bindEvents() {
     const selectCam = document.getElementById('cctv-select-camera');
+    const selectEngine = document.getElementById('ai-engine-select');
     const toggleTelegram = document.getElementById('toggle-telegram-alerts');
     const toggleMonitoring = document.getElementById('btn-toggle-monitoring');
     const searchInput = document.getElementById('incident-search-input');
@@ -446,6 +476,30 @@ export class DashboardPage {
 
     if (selectCam) {
       selectCam.addEventListener('change', () => this.filterCCTVChannels(selectCam.value));
+    }
+
+    if (selectEngine) {
+      selectEngine.addEventListener('change', async () => {
+        const engineVal = selectEngine.value;
+        try {
+          await API.post('/api/system-settings', {
+            key: 'ai.engine',
+            value: engineVal,
+            reason: 'Engine hot-swapped via Dashboard Selector',
+            approvedBy: 'Admin'
+          });
+          EventBus.emit('toast:show', {
+            message: `AI Engine berhasil diganti ke ${engineVal}.`,
+            type: 'success'
+          });
+        } catch (err) {
+          console.error('Failed to update AI engine setting:', err);
+          EventBus.emit('toast:show', {
+            message: `Gagal mengganti AI Engine: ${err.message}`,
+            type: 'danger'
+          });
+        }
+      });
     }
 
     if (toggleTelegram) {
@@ -466,7 +520,7 @@ export class DashboardPage {
           });
         } catch (err) {
           console.error('Failed to update telegram setting:', err);
-          EventBus.emit('toast:show', { message: 'Gagal memperbarui konfigurasi Telegram di server.', type: 'danger' });
+          EventBus.emit('toast:show', { message: `Gagal memperbarui konfigurasi Telegram: ${err.message}`, type: 'danger' });
           // Revert UI switch
           toggleTelegram.checked = !isChecked;
           AppState.set('telegramAlerts', !isChecked);
@@ -565,21 +619,11 @@ export class DashboardPage {
       });
     }
 
-    // Notification Popover toggle handler
-    if (notifBtn && notifPopover) {
-      notifBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const isHidden = notifPopover.style.display === 'none' || !notifPopover.style.display;
-        notifPopover.style.display = isHidden ? 'block' : 'none';
-      });
-      document.addEventListener('click', () => {
-        notifPopover.style.display = 'none';
-      });
-      notifPopover.addEventListener('click', (e) => e.stopPropagation());
-    }
+
 
     // Initialize Connection Modal Form
     this.initCctvModal();
+    this.initEyecoInfoModal();
   }
 
   initCctvModal() {
@@ -806,6 +850,99 @@ export class DashboardPage {
     }
   }
 
+  initEyecoInfoModal() {
+    const btnEdit = document.getElementById('btn-edit-eyeco-info');
+    const modal = document.getElementById('edit-eyeco-info-modal');
+    const btnClose = document.getElementById('btn-close-eyeco-modal');
+    const btnCancel = document.getElementById('btn-cancel-eyeco-modal');
+    const form = document.getElementById('edit-eyeco-info-form');
+    const btnSave = document.getElementById('btn-save-eyeco-info');
+
+    const inputAbout = document.getElementById('eyeco-input-about');
+    const inputTerkini = document.getElementById('eyeco-input-terkini');
+    const inputSampah = document.getElementById('eyeco-input-sampah');
+
+    if (!modal) return;
+
+    const openModal = async () => {
+      modal.style.display = 'flex';
+      
+      try {
+        const settings = await API.get('/api/system-settings');
+        const infoSetting = settings.find(s => s.key === 'eyeco.information');
+        
+        if (infoSetting && infoSetting.value) {
+          const val = infoSetting.value;
+          inputAbout.value = val.about || '';
+          inputTerkini.value = Array.isArray(val.terkini) ? val.terkini.join('\n') : '';
+          inputSampah.value = Array.isArray(val.sampah) ? val.sampah.join('\n') : '';
+        } else {
+          inputAbout.value = "EYECO adalah platform monitoring aliran sungai berbasis AI berbasis Deep Learning (YOLOv8) untuk mendeteksi sampah dan aktivitas pembuangan sampah liar secara real-time.";
+          inputTerkini.value = [
+            "Uji Coba Model AI Baru (yolov8-river-v1.1-canary) berhasil disebarkan di Sektor 7 Hulu.",
+            "Fitur laporan otomatis via bot telegram interaktif kini dapat digunakan oleh seluruh warga.",
+            "Pembersihan massal sungai Ciliwung bersama dinas kebersihan dijadwalkan pada hari Sabtu ini."
+          ].join('\n');
+          inputSampah.value = [
+            "Daur Ulang Plastik: Plastik PET membutuhkan waktu hingga 450 tahun untuk terurai di alam bebas.",
+            "Bahaya Sampah Sungai: Penumpukan sampah organik di dasar sungai memicu eutrofikasi dan mengurangi oksigen air.",
+            "Kampanye Pilah Sampah: Memisahkan sampah organik dan anorganik dari rumah membantu mempercepat proses daur ulang."
+          ].join('\n');
+        }
+      } catch (err) {
+        console.error('Failed to load EYECO information settings:', err);
+      }
+    };
+
+    const closeModal = () => {
+      modal.style.display = 'none';
+    };
+
+    if (btnEdit) {
+      btnEdit.addEventListener('click', openModal);
+    }
+    if (btnClose) {
+      btnClose.addEventListener('click', closeModal);
+    }
+    if (btnCancel) {
+      btnCancel.addEventListener('click', closeModal);
+    }
+
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        btnSave.disabled = true;
+
+        const about = inputAbout.value.trim();
+        const terkini = inputTerkini.value.split('\n').map(l => l.trim()).filter(Boolean);
+        const sampah = inputSampah.value.split('\n').map(l => l.trim()).filter(Boolean);
+
+        try {
+          await API.post('/api/system-settings', {
+            key: 'eyeco.information',
+            value: { about, terkini, sampah },
+            reason: 'Updated via EYECO Info Management Modal',
+            approvedBy: 'Admin'
+          });
+
+          EventBus.emit('toast:show', {
+            message: 'Informasi EYECO berhasil diperbarui.',
+            type: 'success'
+          });
+          closeModal();
+        } catch (err) {
+          console.error('Failed to save EYECO information settings:', err);
+          EventBus.emit('toast:show', {
+            message: `Gagal memperbarui informasi: ${err.message}`,
+            type: 'danger'
+          });
+        } finally {
+          btnSave.disabled = false;
+        }
+      });
+    }
+  }
+
   openEditCctvModal(ch) {
     this.editingCctvId = ch.id;
     const modal = document.getElementById('connect-cctv-modal');
@@ -884,9 +1021,21 @@ export class DashboardPage {
 
   async takeCCTVSnapshot(id) {
     try {
+      const ch = this.cctvList.find(c => c.id === id);
+      if (!ch) return;
       EventBus.emit('toast:show', { message: `Mengambil foto snapshot dari kamera...`, type: 'info' });
-      // Call mock snapshot helper or trigger DB refresh
-      EventBus.emit('toast:show', { message: `Snapshot berhasil disimpan ke log verifikasi.`, type: 'success' });
+      
+      const matchReport = this.latestReports.find(r => r.location.toLowerCase().includes(ch.name.toLowerCase()));
+      const imageSrc = matchReport ? matchReport.image : (ch.isDefault ? ch.streamUrl : '/uploads/detection_1.jpg');
+
+      const a = document.createElement('a');
+      a.href = imageSrc;
+      a.download = `Snapshot_${ch.name}_${new Date().toISOString().slice(0, 10)}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      EventBus.emit('toast:show', { message: `Snapshot "${ch.name}" berhasil disimpan!`, type: 'success' });
       await this.loadData();
     } catch (err) {
       console.error(err);
@@ -924,19 +1073,21 @@ export class DashboardPage {
       <div class="drawer-body" style="padding: 20px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px;">
         <!-- Preview image / player -->
         <div class="drawer-feed-container" style="width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden; position: relative; border: 1px solid rgba(0,0,0,0.05);">
-          ${isChActive ? `
-            <img id="drawer-preview-img" style="width:100%; height:100%; object-fit: cover;" src="${imageSrc}" />
+          ${isChActive ? (ch.mediaType === 'Video' ? `
+            <video id="drawer-preview-video" style="width:100%; height:100%; object-fit: cover;" src="${ch.playUrl}" autoplay loop muted playsinline></video>
           ` : `
+            <img id="drawer-preview-img" style="width:100%; height:100%; object-fit: cover;" src="${imageSrc}" />
+          `) : `
             <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #111; color: #666; font-size: 0.8rem; font-weight: 700;">
               MONITORING INACTIVE
             </div>
           `}
           <div class="drawer-rec-hud" style="position: absolute; top: 12px; left: 12px; display: flex; gap: 6px;">
-            <span class="badge bg-danger text-white" style="font-size: 0.65rem; font-weight: 800; border-radius: 4px; padding: 2px 6px; display: flex; align-items: center; gap: 4px;">
+            <span class="badge" style="background: var(--danger); color: white; font-size: 0.65rem; font-weight: 800; border-radius: 4px; padding: 2px 6px; display: flex; align-items: center; gap: 4px;">
               <span style="width: 6px; height: 6px; background: white; border-radius: 50%; display: inline-block; animation: pulse-cloud 1s infinite;"></span>
               REC
             </span>
-            <span class="badge bg-primary text-white" style="font-size: 0.65rem; font-weight: 800; border-radius: 4px; padding: 2px 6px;">HD</span>
+            <span class="badge" style="background: var(--primary); color: white; font-size: 0.65rem; font-weight: 800; border-radius: 4px; padding: 2px 6px;">HD</span>
           </div>
         </div>
 
@@ -969,6 +1120,12 @@ export class DashboardPage {
               <span style="color: var(--text-secondary); font-weight: 600;">Reconnect Queue</span>
               <strong id="drawer-health-reconnect">0 Antrean</strong>
             </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; border-top: 1px solid rgba(0,0,0,0.05); padding-top: var(--space-8); margin-top: 2px;">
+              <span style="color: var(--text-secondary); font-weight: 600;">Pemantauan AI</span>
+              <strong id="drawer-health-ai" style="color: ${ch.monitoringEnabled ? 'var(--success)' : 'var(--danger)'};">
+                ${ch.monitoringEnabled ? 'AKTIF' : 'PAUSED'}
+              </strong>
+            </div>
           </div>
         </div>
 
@@ -988,6 +1145,10 @@ export class DashboardPage {
             </button>
             <button class="btn btn-glass btn-rounded" id="drawer-btn-maintenance" style="font-size: 0.78rem; font-weight: 700; border-color: rgba(0,0,0,0.1); color: var(--text-primary); justify-content: center; display:flex; align-items:center; gap:6px; padding: 10px 0;">
               <i data-lucide="settings" style="width: 14px; height: 14px;"></i> Settings
+            </button>
+            <button class="btn ${ch.monitoringEnabled ? 'btn-danger' : 'btn-success'} btn-rounded" id="drawer-btn-toggle-ai" style="grid-column: span 2; font-size: 0.78rem; font-weight: 700; justify-content: center; display:flex; align-items:center; gap:6px; padding: 10px 0; color: white;">
+              <i data-lucide="${ch.monitoringEnabled ? 'video-off' : 'video'}" style="width: 14px; height: 14px;"></i> 
+              ${ch.monitoringEnabled ? 'Hentikan Pemantauan AI' : 'Mulai Pemantauan AI'}
             </button>
           </div>
         </div>
@@ -1048,6 +1209,26 @@ export class DashboardPage {
       this.openEditCctvModal(ch);
     };
 
+    const btnToggleAi = drawer.querySelector('#drawer-btn-toggle-ai');
+    if (btnToggleAi) {
+      btnToggleAi.onclick = async () => {
+        const nextState = !ch.monitoringEnabled;
+        try {
+          await CctvService.toggleCameraMonitoring(ch.id, nextState);
+          EventBus.emit('toast:show', {
+            message: nextState ? `Pemantauan AI aktif untuk ${ch.name}!` : `Pemantauan AI dinonaktifkan untuk ${ch.name}!`,
+            type: nextState ? 'success' : 'warning'
+          });
+          // Reload local list and redraw drawer
+          this.cctvList = await CctvService.getCctvList();
+          this.openCCTVDetailDrawer(ch.id);
+          this.renderCCTVGrid();
+        } catch (err) {
+          EventBus.emit('toast:show', { message: 'Gagal mengubah status pemantauan kamera.', type: 'danger' });
+        }
+      };
+    }
+
     if (window.lucide) window.lucide.createIcons();
 
     // Slide open
@@ -1107,6 +1288,7 @@ export class DashboardPage {
     let isAiActive = true;
     let isRecording = false;
     let recordInterval = null;
+    let micStream = null;
 
     const matchReport = this.latestReports.find(r => r.location.toLowerCase().includes(ch.name.toLowerCase()));
     const imageSrc = matchReport ? matchReport.image : (ch.isDefault ? ch.streamUrl : '/uploads/detection_1.jpg');
@@ -1115,19 +1297,41 @@ export class DashboardPage {
     const renderActivePlayer = () => {
       let playerHtml = '';
       if (ch.mediaType === 'Cloud') {
+        const playUrl = ch.playUrl && ch.playUrl !== '/cloud-viewer' ? ch.playUrl : '/uploads/orang buang sampah.mp4';
         playerHtml = `
-          <div class="cctv-cloud-overlay" style="background: rgba(9, 13, 22, 0.95); height: 100%; width: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px;">
-            <i data-lucide="cloud" class="cloud-icon" style="color: var(--primary); width: 48px; height: 48px;"></i>
-            <span class="cloud-title" style="font-size: 1.15rem; font-weight: 700; color: white;">Mode Cloud Vendor</span>
-            <span class="cloud-desc" style="color: rgba(255,255,255,0.6); max-width: 320px; font-size: 0.75rem; text-align: center; margin-bottom: 12px;">Kamera Krisbow Sync Battery Solar terhubung ke Server Cloud Krisbow.</span>
-            <a href="${ch.streamUrl || '#'}" target="_blank" class="btn btn-primary btn-rounded btn-cloud-action" onclick="event.stopPropagation();">
-              <i data-lucide="external-link"></i> Buka Cloud App
+          <video src="${playUrl}" id="vms-fs-media-element" autoplay loop ${isMuted ? 'muted' : ''} playsinline style="width:100%; height:100%; object-fit:contain;"></video>
+          <div style="position: absolute; top: 12px; right: 16px; z-index: 10;">
+            <a href="${ch.streamUrl || '#'}" target="_blank" class="btn btn-primary btn-sm btn-rounded btn-cloud-action" onclick="event.stopPropagation();" style="display: flex; align-items: center; gap: 6px; font-weight: 600; background: var(--primary) !important; color: white !important; text-decoration: none;">
+              <i data-lucide="cloud" style="width: 14px; height: 14px;"></i> Buka Cloud App
             </a>
           </div>
+          <!-- Video overlay stats ala mobile -->
+          <div style="position: absolute; top: 12px; left: 16px; display: flex; align-items: center; gap: 8px; font-size: 0.72rem; color: white; background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 4px;">
+            <span style="width: 6px; height: 6px; background: #22c55e; border-radius: 50%;"></span>
+            <span>Live</span>
+            <span style="opacity: 0.5;">|</span>
+            <span>1.75 KB/s</span>
+          </div>
+          <div class="vms-rec-badge" id="vms-fs-rec-badge" style="display:none; position:absolute; top:12px; right:16px; background:rgba(239,68,68,0.85); color:white; font-size:0.7rem; font-weight:800; padding:3px 8px; border-radius:4px; align-items:center; gap:5px; z-index: 10;">
+            <span class="rec-dot" style="width:6px; height:6px; background:white; border-radius:50%; display:inline-block; animation: pulse-cloud 1s infinite;"></span>
+            REC <span id="vms-fs-rec-timer">00:00</span>
+          </div>
+          <div id="vms-fs-yolo-overlay" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index: 5;"></div>
         `;
       } else if (ch.mediaType === 'Video') {
+        let cloudOverlayHtml = '';
+        if (ch.protocol === 'CLOUD_VIEWER') {
+          cloudOverlayHtml = `
+            <div style="position: absolute; top: 12px; right: 16px; z-index: 10;">
+              <a href="${ch.streamUrl || '#'}" target="_blank" class="btn btn-primary btn-sm btn-rounded btn-cloud-action" onclick="event.stopPropagation();" style="display: flex; align-items: center; gap: 6px; font-weight: 600; background: var(--primary) !important; color: white !important; text-decoration: none;">
+                <i data-lucide="cloud" style="width: 14px; height: 14px;"></i> Buka Cloud App
+              </a>
+            </div>
+          `;
+        }
         playerHtml = `
           <video src="${ch.playUrl}" id="vms-fs-media-element" autoplay loop ${isMuted ? 'muted' : ''} playsinline style="width:100%; height:100%; object-fit:contain;"></video>
+          ${cloudOverlayHtml}
           <!-- Video overlay stats ala mobile -->
           <div style="position: absolute; top: 12px; left: 16px; display: flex; align-items: center; gap: 8px; font-size: 0.72rem; color: white; background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 4px;">
             <span style="width: 6px; height: 6px; background: #22c55e; border-radius: 50%;"></span>
@@ -1160,11 +1364,34 @@ export class DashboardPage {
       }
       playerContainer.innerHTML = playerHtml;
 
+      // Check and attach HLS to fullscreen player
+      if (ch.playUrl && ch.playUrl.includes('.m3u8')) {
+        const videoEl = document.getElementById('vms-fs-media-element');
+        if (videoEl && videoEl.tagName === 'VIDEO') {
+          videoEl.removeAttribute('src');
+          if (window.Hls && window.Hls.isSupported()) {
+            const hls = new window.Hls({
+              maxBufferSize: 0,
+              maxBufferLength: 2,
+              liveSyncDurationCount: 3
+            });
+            hls.loadSource(ch.playUrl);
+            hls.attachMedia(videoEl);
+            hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+              videoEl.play().catch(e => console.log('HLS fs play fail:', e));
+            });
+            videoEl._hlsInstance = hls;
+          } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+            videoEl.src = ch.playUrl;
+          }
+        }
+      }
+
       setTimeout(() => {
         renderYoloBoxes();
       }, 50);
 
-      if (window.lucide) window.lucide.createIcons();
+      this.activeRenderYoloBoxes = renderYoloBoxes;
     };
 
     const renderYoloBoxes = () => {
@@ -1173,8 +1400,59 @@ export class DashboardPage {
       yoloOverlay.innerHTML = '';
       if (!isAiActive) return;
 
-      if (matchReport && matchReport.boundingBoxes) {
-        matchReport.boundingBoxes.forEach(box => {
+      // Align overlay container precisely with the actual displayed media boundaries (contain math)
+      const mediaEl = document.getElementById('vms-fs-media-element');
+      const mediaContainer = playerContainer;
+
+      if (mediaEl && mediaContainer) {
+        const containerWidth = mediaContainer.clientWidth;
+        const containerHeight = mediaContainer.clientHeight;
+        if (containerWidth > 0 && containerHeight > 0) {
+          const mediaWidth = mediaEl.naturalWidth || mediaEl.videoWidth || 1280;
+          const mediaHeight = mediaEl.naturalHeight || mediaEl.videoHeight || 720;
+          
+          if (mediaWidth > 0 && mediaHeight > 0) {
+            const containerRatio = containerWidth / containerHeight;
+            const mediaRatio = mediaWidth / mediaHeight;
+
+            let displayedWidth = 0;
+            let displayedHeight = 0;
+            let displayedLeft = 0;
+            let displayedTop = 0;
+
+            if (mediaRatio > containerRatio) {
+              displayedWidth = containerWidth;
+              displayedHeight = containerWidth / mediaRatio;
+              displayedLeft = 0;
+              displayedTop = (containerHeight - displayedHeight) / 2;
+            } else {
+              displayedHeight = containerHeight;
+              displayedWidth = containerHeight * mediaRatio;
+              displayedLeft = (containerWidth - displayedWidth) / 2;
+              displayedTop = 0;
+            }
+
+            yoloOverlay.style.left = `${displayedLeft}px`;
+            yoloOverlay.style.top = `${displayedTop}px`;
+            yoloOverlay.style.width = `${displayedWidth}px`;
+            yoloOverlay.style.height = `${displayedHeight}px`;
+          }
+        }
+
+        // Attach listeners to trigger realignment once metadata/dimensions are loaded
+        if (!mediaEl.hasAttribute('data-aligned-listener')) {
+          mediaEl.setAttribute('data-aligned-listener', 'true');
+          const reAlign = () => {
+            renderYoloBoxes();
+          };
+          mediaEl.addEventListener('loadedmetadata', reAlign);
+          mediaEl.addEventListener('load', reAlign);
+        }
+      }
+
+      const currentReport = this.latestReports.find(r => r.location.toLowerCase().includes(ch.name.toLowerCase()));
+      if (currentReport && currentReport.boundingBoxes) {
+        currentReport.boundingBoxes.forEach(box => {
           let boxColorClass = 'yolo-default';
           if (box.label === 'person') boxColorClass = 'yolo-person';
           if (box.label === 'trash') boxColorClass = 'yolo-trash';
@@ -1182,15 +1460,16 @@ export class DashboardPage {
 
           const el = document.createElement('div');
           el.className = `yolo-preview-box ${boxColorClass}`;
+          el.setAttribute('data-camera-id', ch.id);
+          el.setAttribute('data-confidence', `${Math.round(box.confidence * 100)}%`);
           el.style.cssText = `
             position: absolute;
             top: ${box.y}%; 
             left: ${box.x}%; 
             width: ${box.w}%; 
             height: ${box.h}%;
-            border: 2px solid var(--primary);
           `;
-          el.innerHTML = `<span class="yolo-preview-label" style="background:var(--primary); color:white; font-size:0.6rem; font-weight:800; padding:1px 4px; border-radius:2px; position:absolute; top:-16px; left:-2px; white-space:nowrap;">${box.label}</span>`;
+          el.innerHTML = `<span class="yolo-preview-label">${box.label.toUpperCase().replace('_', ' ')} [${Math.round(box.confidence * 100)}%]</span>`;
           yoloOverlay.appendChild(el);
         });
       }
@@ -1204,6 +1483,19 @@ export class DashboardPage {
       const hours = Math.floor(val / 60).toString().padStart(2, '0');
       const minutes = (val % 60).toString().padStart(2, '0');
       timestampLabel.innerText = `${hours}:${minutes}:00`;
+
+      // Scrub simulation
+      const media = document.getElementById('vms-fs-media-element');
+      if (media) {
+        if (ch.mediaType === 'Video') {
+          if (media.duration) {
+            media.currentTime = (val / 1440) * media.duration;
+          }
+        } else if (ch.mediaType === 'Image') {
+          const frameIndex = (val % 4) + 1;
+          media.src = `/uploads/detection_${frameIndex}.jpg`;
+        }
+      }
     };
     timelineSlider.oninput = updateSeekerProgress;
 
@@ -1215,6 +1507,7 @@ export class DashboardPage {
       if (recordInterval) {
         clearInterval(recordInterval);
       }
+      this.activeRenderYoloBoxes = null;
       this.loadData();
     };
     btnBack.onclick = handleClose;
@@ -1225,16 +1518,15 @@ export class DashboardPage {
       if (!media) return;
       if (isPlaying) {
         if (ch.mediaType === 'Video') media.pause();
-        btnPlay.innerHTML = '<i data-lucide="play"></i>';
+        btnPlay.innerText = 'PLAY';
         isPlaying = false;
         EventBus.emit('toast:show', { message: 'Video dijeda.', type: 'info' });
       } else {
         if (ch.mediaType === 'Video') media.play();
-        btnPlay.innerHTML = '<i data-lucide="pause"></i>';
+        btnPlay.innerText = 'PAUSE';
         isPlaying = true;
         EventBus.emit('toast:show', { message: 'Video dilanjutkan.', type: 'info' });
       }
-      if (window.lucide) window.lucide.createIcons();
     };
 
     btnMute.onclick = () => {
@@ -1242,16 +1534,15 @@ export class DashboardPage {
       if (!media) return;
       if (isMuted) {
         if (ch.mediaType === 'Video') media.muted = false;
-        btnMute.innerHTML = '<i data-lucide="volume-x"></i>';
+        btnMute.innerText = 'MUTE';
         isMuted = false;
         EventBus.emit('toast:show', { message: 'Suara aktif.', type: 'info' });
       } else {
         if (ch.mediaType === 'Video') media.muted = true;
-        btnMute.innerHTML = '<i data-lucide="volume-2"></i>';
+        btnMute.innerText = 'SOUND';
         isMuted = true;
         EventBus.emit('toast:show', { message: 'Suara dimatikan.', type: 'info' });
       }
-      if (window.lucide) window.lucide.createIcons();
     };
 
     btnQuality.onclick = () => {
@@ -1268,14 +1559,45 @@ export class DashboardPage {
     };
 
     btnRotate.onclick = () => {
-      const media = document.getElementById('vms-fs-media-element');
-      if (!media) return;
-      if (media.requestFullscreen) {
-        media.requestFullscreen();
-      } else if (media.webkitRequestFullscreen) {
-        media.webkitRequestFullscreen();
+      if (!document.fullscreenElement) {
+        if (page.requestFullscreen) {
+          page.requestFullscreen();
+        } else if (page.webkitRequestFullscreen) {
+          page.webkitRequestFullscreen();
+        }
+        btnRotate.innerHTML = '<i data-lucide="minimize"></i>';
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+        btnRotate.innerHTML = '<i data-lucide="screen-share"></i>';
       }
+      if (window.lucide) window.lucide.createIcons();
     };
+
+    const onFsChange = () => {
+      if (!document.fullscreenElement) {
+        btnRotate.innerHTML = '<i data-lucide="screen-share"></i>';
+      } else {
+        btnRotate.innerHTML = '<i data-lucide="minimize"></i>';
+      }
+      if (window.lucide) window.lucide.createIcons();
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+
+    const originalHandleClose = handleClose;
+    handleClose = () => {
+      document.removeEventListener('fullscreenchange', onFsChange);
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+      if (micStream) {
+        micStream.getTracks().forEach(track => track.stop());
+        micStream = null;
+      }
+      originalHandleClose();
+    };
+    btnBack.onclick = handleClose;
 
     // 6. Action Row Bindings
     btnActPlayback.onclick = () => {
@@ -1331,17 +1653,55 @@ export class DashboardPage {
           clearInterval(recordInterval);
           recordInterval = null;
         }
-        EventBus.emit('toast:show', { message: 'Klip rekaman disimpan ke galeri lokal.', type: 'success' });
+
+        // Download stream/recording simulation file
+        if (ch.mediaType === 'Video') {
+          const a = document.createElement('a');
+          a.href = ch.playUrl;
+          a.download = `Rekaman_${ch.name}_${new Date().toISOString().slice(0, 10)}.mp4`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        } else {
+          const a = document.createElement('a');
+          a.href = imageSrc;
+          a.download = `Rekaman_${ch.name}_${new Date().toISOString().slice(0, 10)}.jpg`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+        EventBus.emit('toast:show', { message: 'Klip rekaman berhasil disimpan ke galeri lokal.', type: 'success' });
       }
     };
 
-    btnActMic.onclick = () => {
+    btnActMic.onclick = async () => {
       btnActMic.classList.toggle('active');
       const isActive = btnActMic.classList.contains('active');
-      EventBus.emit('toast:show', { 
-        message: isActive ? 'Interkom suara aktif. Tekan untuk bicara.' : 'Interkom suara dinonaktifkan.', 
-        type: isActive ? 'success' : 'info' 
-      });
+      
+      if (isActive) {
+        try {
+          micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          EventBus.emit('toast:show', { 
+            message: 'Interkom suara aktif. Mikrofon terhubung.', 
+            type: 'success' 
+          });
+        } catch (err) {
+          btnActMic.classList.remove('active');
+          EventBus.emit('toast:show', { 
+            message: 'Akses mikrofon ditolak atau tidak tersedia.', 
+            type: 'danger' 
+          });
+        }
+      } else {
+        if (micStream) {
+          micStream.getTracks().forEach(track => track.stop());
+          micStream = null;
+        }
+        EventBus.emit('toast:show', { 
+          message: 'Interkom suara dinonaktifkan.', 
+          type: 'info' 
+        });
+      }
     };
 
     btnActAi.onclick = () => {
@@ -1426,11 +1786,11 @@ export class DashboardPage {
       };
     }
 
-    // Show/hide delete option in dropdown based on whether it is default
+    // Show/hide delete option in dropdown
     const user = AppState.get('user');
     const isAdmin = user?.role === 'admin';
     if (dropDeleteContainer) {
-      dropDeleteContainer.style.display = (isAdmin && !ch.isDefault) ? 'block' : 'none';
+      dropDeleteContainer.style.display = isAdmin ? 'block' : 'none';
     }
 
     if (dropDelete) {
@@ -1468,6 +1828,43 @@ export class DashboardPage {
       // Load CCTV list
       this.cctvList = await CctvService.getCctvList();
       this.updateCameraSelectOptions();
+
+      // Load AI Engine Telemetry for HUD
+      try {
+        const readyStatus = await API.get('/health/ready');
+        if (readyStatus && readyStatus.aiEngine) {
+          const ai = readyStatus.aiEngine;
+          const hudStatus = document.getElementById('hud-engine-status');
+          const hudDot = document.getElementById('hud-engine-dot');
+          const hudQueue = document.getElementById('hud-queue-depth');
+          const hudCap = document.getElementById('hud-queue-capacity');
+          const hudFps = document.getElementById('hud-inference-fps');
+          const hudModel = document.getElementById('hud-active-model');
+
+          if (hudStatus) {
+            hudStatus.innerText = ai.status || 'HEALTHY';
+            if (ai.status === 'SLOW') {
+              hudStatus.style.color = 'var(--warning)';
+              if (hudDot) hudDot.style.background = 'var(--warning)';
+            } else if (ai.status === 'DEGRADED') {
+              hudStatus.style.color = 'var(--danger)';
+              if (hudDot) hudDot.style.background = 'var(--danger)';
+            } else if (ai.status === 'OFFLINE') {
+              hudStatus.style.color = 'var(--text-muted)';
+              if (hudDot) hudDot.style.background = 'var(--text-muted)';
+            } else {
+              hudStatus.style.color = 'var(--success)';
+              if (hudDot) hudDot.style.background = 'var(--success)';
+            }
+          }
+          if (hudQueue) hudQueue.innerText = ai.queueLength ?? '0';
+          if (hudCap) hudCap.innerText = ai.queueCapacity ?? '50';
+          if (hudFps) hudFps.innerText = (ai.fpsThroughput !== undefined ? ai.fpsThroughput : 0.0).toFixed(1);
+          if (hudModel) hudModel.innerText = ai.activeModelName || 'yolov8-river-v1.0';
+        }
+      } catch (hudErr) {
+        console.warn('Failed to load AI HUD telemetry status:', hudErr);
+      }
       
       // Load system settings for telegram alerts
       try {
@@ -1480,6 +1877,13 @@ export class DashboardPage {
             const toggleTelegram = document.getElementById('toggle-telegram-alerts');
             if (toggleTelegram) {
               toggleTelegram.checked = isEnabled;
+            }
+          }
+          const engineSetting = sysSettings.find(s => s.key === 'ai.engine');
+          if (engineSetting) {
+            const selectEngine = document.getElementById('ai-engine-select');
+            if (selectEngine) {
+              selectEngine.value = engineSetting.value || 'MOCK';
             }
           }
         }
@@ -1568,6 +1972,9 @@ export class DashboardPage {
       this.animateStats();
       this.renderCCTVGrid();
       this.renderLiveAlerts();
+      if (this.activeRenderYoloBoxes) {
+        this.activeRenderYoloBoxes();
+      }
     } catch (err) {
       console.error('[DashboardPage] loadData failed:', err);
       this.renderError();
@@ -1792,7 +2199,7 @@ export class DashboardPage {
     }
 
     // 2. Camera Online count
-    const totalCams = this.cctvList.length || 1;
+    const totalCams = this.cctvList.length;
     const onlineCount = isMon ? this.cctvList.filter(c => c.status === 'ONLINE').length : 0;
     
     // Active Alerts count (all non-resolved waiting + in progress)
@@ -1832,7 +2239,7 @@ export class DashboardPage {
     if (briefLast) briefLast.innerText = lastIncidentText;
 
     // Camera Health
-    const camHealth = isMon ? Math.round((onlineCount / totalCams) * 100) : 0;
+    const camHealth = isMon ? (totalCams > 0 ? Math.round((onlineCount / totalCams) * 100) : 100) : 0;
     const camValEl = document.getElementById('stat-camera-health-val');
     const camBarEl = document.getElementById('stat-camera-health-bar');
     const camDescEl = document.getElementById('stat-camera-health-desc');
@@ -1993,17 +2400,17 @@ export class DashboardPage {
     if (this.cctvList.length === 0) {
       container.classList.remove('single-channel-active');
       container.innerHTML = `
-        <div class="glass-card empty-state-card" style="padding: var(--space-48); text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--space-16); width: 100%; border: 1px dashed rgba(47,107,255,0.2);">
+        <div class="glass-card empty-state-card" style="grid-column: 1 / -1; display: flex !important; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-20); padding: var(--space-48); text-align: center; width: 100%; border: 1px dashed rgba(47,107,255,0.25); background: var(--surface); border-radius: var(--radius-card); box-shadow: var(--glass-shadow);">
           <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(47, 107, 255, 0.05); color: var(--primary); display: flex; align-items: center; justify-content: center;">
             <i data-lucide="video-off" style="width: 32px; height: 32px;"></i>
           </div>
           <div>
-            <h4 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin: 0;">Belum Ada Kamera Terhubung</h4>
-            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 6px; max-width: 320px; line-height: 1.5; margin-bottom: 0;">Sambungkan kamera pemantauan baru untuk memulai pengawasan real-time sungai.</p>
+            <h4 style="font-family: 'Outfit', sans-serif; font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin: 0;">Belum Ada Kamera Terhubung</h4>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px; max-width: 340px; line-height: 1.5; margin-bottom: 0;">Sambungkan kamera pemantauan baru untuk memulai pengawasan real-time sungai.</p>
           </div>
           ${isAdmin ? `
-            <button class="btn btn-primary btn-rounded" id="btn-empty-connect-cctv" style="font-weight: 700; padding: 10px 20px;">
-              Hubungkan Kamera
+            <button class="btn btn-primary btn-rounded" id="btn-empty-connect-cctv" style="font-weight: 700; padding: 10px 24px; display: inline-flex; align-items: center; gap: 8px;">
+              <i data-lucide="plus-circle" style="width: 16px; height: 16px;"></i> Hubungkan Kamera
             </button>
           ` : ''}
         </div>
@@ -2056,13 +2463,16 @@ export class DashboardPage {
           if (box.label === 'boat') boxColorClass = 'yolo-boat';
 
           boundingBoxesHtml += `
-            <div class="yolo-preview-box ${boxColorClass}" style="
-              top: ${box.y}%; 
-              left: ${box.x}%; 
-              width: ${box.w}%; 
-              height: ${box.h}%;
-            ">
-              <span class="yolo-preview-label">${box.label}</span>
+            <div class="yolo-preview-box ${boxColorClass}" 
+              data-camera-id="${ch.id}" 
+              data-confidence="${Math.round(box.confidence * 100)}%" 
+              style="
+                top: ${box.y}%; 
+                left: ${box.x}%; 
+                width: ${box.w}%; 
+                height: ${box.h}%;
+              ">
+              <span class="yolo-preview-label">${box.label.toUpperCase().replace('_', ' ')} [${Math.round(box.confidence * 100)}%]</span>
             </div>
           `;
         });
@@ -2080,29 +2490,48 @@ export class DashboardPage {
             </div>
           `;
         } else if (ch.mediaType === 'Cloud') {
-          // Cloud vendor mode rendering
+          // Cloud vendor mode - play video simulation loop with overlay button
+          const playUrl = ch.playUrl && ch.playUrl !== '/cloud-viewer' ? ch.playUrl : '/uploads/orang buang sampah.mp4';
           mediaHtml = `
-            <div class="cctv-cloud-overlay">
-              <i data-lucide="cloud" class="cloud-icon" style="color: var(--primary);"></i>
-              <span class="cloud-title">Mode Cloud Vendor</span>
-              <a href="${ch.streamUrl}" target="_blank" class="btn btn-primary btn-sm btn-rounded btn-cloud-action" onclick="event.stopPropagation();" style="margin-bottom: 20px;">
-                <i data-lucide="external-link"></i> Buka Cloud App
+            <video src="${playUrl}" autoplay loop muted playsinline class="cctv-feed-img"></video>
+            <div class="cloud-action-overlay" style="position: absolute; top: 12px; right: 12px; z-index: 10;">
+              <a href="${ch.streamUrl || '#'}" target="_blank" class="btn btn-primary btn-xs btn-rounded btn-cloud-action" onclick="event.stopPropagation();" style="font-size: 0.65rem; padding: 4px 8px; display: flex; align-items: center; gap: 4px; background: var(--primary) !important; color: white !important; text-decoration: none;">
+                <i data-lucide="cloud" style="width: 10px; height: 10px;"></i> Buka Cloud App
               </a>
+            </div>
+            <div class="cctv-overlay-gradient"></div>
+            <div class="yolo-bounding-boxes-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4;">
+              ${boundingBoxesHtml}
             </div>
           `;
         } else if (ch.mediaType === 'Video') {
           // HTML5 Video Loop streaming simulation (support mp4, HLS)
+          let cloudBtnHtml = '';
+          if (ch.protocol === 'CLOUD_VIEWER') {
+            cloudBtnHtml = `
+              <div class="cloud-action-overlay" style="position: absolute; top: 12px; right: 12px; z-index: 10;">
+                <a href="${ch.streamUrl || '#'}" target="_blank" class="btn btn-primary btn-xs btn-rounded btn-cloud-action" onclick="event.stopPropagation();" style="font-size: 0.65rem; padding: 4px 8px; display: flex; align-items: center; gap: 4px; background: var(--primary) !important; color: white !important; text-decoration: none;">
+                  <i data-lucide="cloud" style="width: 10px; height: 10px;"></i> Buka Cloud App
+                </a>
+              </div>
+            `;
+          }
           mediaHtml = `
             <video src="${ch.playUrl}" autoplay loop muted playsinline class="cctv-feed-img"></video>
+            ${cloudBtnHtml}
             <div class="cctv-overlay-gradient"></div>
-            ${boundingBoxesHtml}
+            <div class="yolo-bounding-boxes-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4;">
+              ${boundingBoxesHtml}
+            </div>
           `;
         } else {
           // Default Image snapshot rendering
           mediaHtml = `
             <img src="${imageSrc}" alt="Kamera ${ch.name}" class="cctv-feed-img" loading="lazy" decoding="async">
             <div class="cctv-overlay-gradient"></div>
-            ${boundingBoxesHtml}
+            <div class="yolo-bounding-boxes-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4;">
+              ${boundingBoxesHtml}
+            </div>
           `;
         }
       } else {
@@ -2149,6 +2578,9 @@ export class DashboardPage {
             <button class="hover-action-btn toggle-mon" style="width:36px; height:36px; border-radius:50%; border:none; background: ${ch.monitoringEnabled ? 'var(--danger)' : 'var(--success)'}; color: white; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: transform 0.1s;" title="${ch.monitoringEnabled ? 'Hentikan Pemantauan AI' : 'Mulai Pemantauan AI'}">
               <i data-lucide="${ch.monitoringEnabled ? 'video-off' : 'video'}" style="width: 16px; height: 16px;"></i>
             </button>
+            <button class="hover-action-btn toggle-active" style="width:36px; height:36px; border-radius:50%; border:none; background: ${ch.isActive ? 'rgba(239, 68, 68, 0.9)' : 'rgba(16, 185, 129, 0.9)'}; color: white; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: transform 0.1s;" title="${ch.isActive ? 'Nonaktifkan Saluran CCTV' : 'Aktifkan Saluran CCTV'}">
+              <i data-lucide="power" style="width: 16px; height: 16px;"></i>
+            </button>
           ` : ''}
           <button class="hover-action-btn detail" style="width:36px; height:36px; border-radius:50%; border:none; background: var(--primary); color: white; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: transform 0.1s;" title="Open detail VMS Drawer">
             <i data-lucide="info" style="width: 16px; height: 16px;"></i>
@@ -2164,23 +2596,23 @@ export class DashboardPage {
           <!-- Corner Badges -->
           <div class="cctv-corner-badges" style="position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; z-index: 5;">
             ${isChActive ? `
-              <span class="badge bg-danger text-white" style="font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; display: flex; align-items: center; gap: 4px;">
+              <span class="badge" style="background: var(--danger); color: white; font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; display: flex; align-items: center; gap: 4px;">
                 <span class="rec-dot" style="width:6px; height:6px; background:white; border-radius:50%; display:inline-block; animation: pulse-cloud 1s infinite;"></span>
                 REC
               </span>
-              <span class="badge bg-primary text-white" style="font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">LIVE</span>
-              <span class="badge bg-info text-white" style="font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">HD</span>
+              <span class="badge" style="background: var(--primary); color: white; font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">LIVE</span>
+              <span class="badge" style="background: var(--info); color: white; font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">HD</span>
               ${isAlert ? `
-                <span class="badge bg-warning text-white" style="font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; display: flex; align-items: center; gap: 4px; animation: pulse-cloud 1.5s infinite;">
+                <span class="badge" style="background: var(--warning); color: white; font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; display: flex; align-items: center; gap: 4px; animation: pulse-cloud 1.5s infinite;">
                   <i data-lucide="scan-eye" style="width: 10px; height: 10px;"></i> AI DETECTING
                 </span>
               ` : ''}
             ` : `
-              <span class="badge bg-secondary text-white" style="font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">STANDBY</span>
+              <span class="badge" style="background: #64748b; color: white; font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">STANDBY</span>
             `}
           </div>
 
-          ${isAdmin && !ch.isDefault ? `
+          ${isAdmin ? `
             <button class="btn-disconnect-cctv" data-id="${ch.id}" title="Putuskan CCTV" style="position: absolute; top: 12px; right: 12px; z-index: 15; background: rgba(0,0,0,0.5); border: none; border-radius: 50%; width: 28px; height: 28px; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer;">
               <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
             </button>
@@ -2262,7 +2694,7 @@ export class DashboardPage {
       }
 
       // Bind delete action
-      if (isAdmin && !ch.isDefault) {
+      if (isAdmin) {
         const btnDelete = card.querySelector('.btn-disconnect-cctv');
         if (btnDelete) {
           btnDelete.addEventListener('click', async (e) => {
@@ -2279,9 +2711,125 @@ export class DashboardPage {
             }
           });
         }
+
+        // Bind toggle active (power) action
+        const btnToggleActive = card.querySelector('.hover-action-btn.toggle-active');
+        if (btnToggleActive) {
+          btnToggleActive.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const nextActiveState = !ch.isActive;
+            try {
+              await CctvService.toggleCameraActive(ch.id, nextActiveState);
+              EventBus.emit('toast:show', { 
+                message: `Saluran CCTV "${ch.name}" berhasil ${nextActiveState ? 'diaktifkan' : 'dinonaktifkan'}.`, 
+                type: 'success' 
+              });
+              await this.loadData();
+            } catch (err) {
+              EventBus.emit('toast:show', { message: `Gagal mengubah status aktif CCTV: ${err.message}`, type: 'danger' });
+            }
+          });
+        }
       }
 
       container.appendChild(card);
+
+      // Check if HLS stream is used, and initialize Hls.js if browser doesn't support it natively
+      if (ch.playUrl && ch.playUrl.includes('.m3u8')) {
+        const videoEl = card.querySelector('.cctv-feed-img');
+        if (videoEl && videoEl.tagName === 'VIDEO') {
+          videoEl.removeAttribute('src');
+          if (window.Hls && window.Hls.isSupported()) {
+            const hls = new window.Hls({
+              maxBufferSize: 0,
+              maxBufferLength: 2,
+              liveSyncDurationCount: 3
+            });
+            hls.loadSource(ch.playUrl);
+            hls.attachMedia(videoEl);
+            hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+              videoEl.play().catch(e => console.log('HLS play fail:', e));
+            });
+            videoEl._hlsInstance = hls;
+          } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+            videoEl.src = ch.playUrl;
+          }
+        }
+      }
+
+      // Dynamic alignment of bounding boxes to contain aspect ratio
+      const mediaEl = card.querySelector('.cctv-feed-img');
+      const boxContainer = card.querySelector('.yolo-bounding-boxes-container');
+      const mediaContainer = card.querySelector('.cctv-media-container');
+
+      if (mediaEl && boxContainer && mediaContainer) {
+        const alignBoxes = () => {
+          const containerWidth = mediaContainer.clientWidth;
+          const containerHeight = mediaContainer.clientHeight;
+          if (containerWidth === 0 || containerHeight === 0) return;
+
+          let mediaWidth = 0;
+          let mediaHeight = 0;
+          if (mediaEl.tagName === 'VIDEO') {
+            mediaWidth = mediaEl.videoWidth;
+            mediaHeight = mediaEl.videoHeight;
+          } else if (mediaEl.tagName === 'IMG') {
+            mediaWidth = mediaEl.naturalWidth;
+            mediaHeight = mediaEl.naturalHeight;
+          }
+
+          if (mediaWidth === 0 || mediaHeight === 0) return;
+
+          const containerRatio = containerWidth / containerHeight;
+          const mediaRatio = mediaWidth / mediaHeight;
+
+          let displayedWidth = 0;
+          let displayedHeight = 0;
+          let displayedLeft = 0;
+          let displayedTop = 0;
+
+          // Check if object-fit is contain (especially for single channel view or vertical videos)
+          const fitMode = window.getComputedStyle(mediaEl).objectFit;
+          if (fitMode === 'contain') {
+            if (mediaRatio > containerRatio) {
+              displayedWidth = containerWidth;
+              displayedHeight = containerWidth / mediaRatio;
+              displayedLeft = 0;
+              displayedTop = (containerHeight - displayedHeight) / 2;
+            } else {
+              displayedHeight = containerHeight;
+              displayedWidth = containerHeight * mediaRatio;
+              displayedLeft = (containerWidth - displayedWidth) / 2;
+              displayedTop = 0;
+            }
+          } else {
+            // cover
+            displayedWidth = containerWidth;
+            displayedHeight = containerHeight;
+            displayedLeft = 0;
+            displayedTop = 0;
+          }
+
+          boxContainer.style.left = `${displayedLeft}px`;
+          boxContainer.style.top = `${displayedTop}px`;
+          boxContainer.style.width = `${displayedWidth}px`;
+          boxContainer.style.height = `${displayedHeight}px`;
+        };
+
+        // Attach listeners for dynamic loading
+        if (mediaEl.tagName === 'VIDEO') {
+          mediaEl.addEventListener('loadedmetadata', alignBoxes);
+        } else if (mediaEl.tagName === 'IMG') {
+          mediaEl.addEventListener('load', alignBoxes);
+        }
+        
+        // Also observe resizing (e.g. window resize or container toggle)
+        const resizeObserver = new ResizeObserver(() => alignBoxes());
+        resizeObserver.observe(mediaContainer);
+        
+        // Initial run
+        setTimeout(alignBoxes, 50);
+      }
     });
 
     if (window.lucide) window.lucide.createIcons();
@@ -2386,10 +2934,6 @@ export class DashboardPage {
 
       row.addEventListener('click', (e) => {
         e.stopPropagation();
-        // Hide popover first
-        const notifPopover = document.getElementById('dashboard-notif-popover');
-        if (notifPopover) notifPopover.style.display = 'none';
-
         if (a.type === 'incident') {
           Router.navigate(`/dashboard/detections/${a.id}`);
         } else if (a.type === 'camera') {
@@ -2429,6 +2973,68 @@ export class DashboardPage {
     this.pollingTimer = setInterval(() => {
       this.loadData();
     }, CONFIG.POLLING_INTERVAL);
+
+    this.startTrackingSimulation();
+  }
+
+  getCameraBoundary(cameraId) {
+    switch (cameraId) {
+      case 2: // Sektor 7 Hulu (River is on the left, shack is on the right)
+        return { minLeft: 10, maxLeft: 35, minTop: 25, maxTop: 75 };
+      case 4: // Aliran Kampung Melayu (River center)
+        return { minLeft: 42, maxLeft: 72, minTop: 30, maxTop: 70 };
+      case 6: // Kali Ciliwung Depok (River is center-right)
+        return { minLeft: 40, maxLeft: 78, minTop: 25, maxTop: 75 };
+      case 7: // Pintu Air Karet (River center)
+        return { minLeft: 30, maxLeft: 70, minTop: 35, maxTop: 70 };
+      case 8: // Sektor 12 Hilir (River is left-center)
+        return { minLeft: 15, maxLeft: 55, minTop: 25, maxTop: 75 };
+      default: // General default (River center-middle)
+        return { minLeft: 20, maxLeft: 75, minTop: 25, maxTop: 75 };
+    }
+  }
+
+  startTrackingSimulation() {
+    if (this.trackingTimer) clearInterval(this.trackingTimer);
+    
+    this.trackingTimer = setInterval(() => {
+      const boxes = document.querySelectorAll('.yolo-preview-box');
+      boxes.forEach(box => {
+        let currentTop = parseFloat(box.style.top);
+        let currentLeft = parseFloat(box.style.left);
+        
+        if (isNaN(currentTop) || isNaN(currentLeft)) return;
+
+        // Read metadata
+        const cameraId = parseInt(box.getAttribute('data-camera-id')) || 0;
+        const boundary = this.getCameraBoundary(cameraId);
+
+        // Apply a small random walk to simulate drifting/moving objects
+        const maxDrift = 4;
+        let nextTop = currentTop + (Math.random() - 0.5) * maxDrift;
+        let nextLeft = currentLeft + (Math.random() - 0.5) * maxDrift;
+
+        // Clamp inside camera-specific river stream boundary visually
+        nextTop = Math.max(boundary.minTop, Math.min(boundary.maxTop, nextTop));
+        nextLeft = Math.max(boundary.minLeft, Math.min(boundary.maxLeft, nextLeft));
+
+        // Update box position styles
+        box.style.top = `${nextTop}%`;
+        box.style.left = `${nextLeft}%`;
+
+        // Live Telemetry Hud update: update coordinates text in real-time!
+        const label = box.querySelector('.yolo-preview-label');
+        if (label) {
+          const rawText = label.getAttribute('data-raw-text') || label.innerText.split('[')[0].trim();
+          if (!label.hasAttribute('data-raw-text')) {
+            label.setAttribute('data-raw-text', rawText);
+          }
+          const conf = box.getAttribute('data-confidence') || '92%';
+          
+          label.innerHTML = `${rawText} [${conf}] <span style="font-size:0.5rem; opacity:0.8; font-family:monospace; margin-left:6px; color:rgba(255,255,255,0.95); background:rgba(0,0,0,0.25); padding:1px 3px; border-radius:2px;">X:${Math.round(nextLeft * 10)} Y:${Math.round(nextTop * 10)}</span>`;
+        }
+      });
+    }, 1500);
   }
 
   // Destructor called when page changes
@@ -2436,6 +3042,10 @@ export class DashboardPage {
     if (this.pollingTimer) {
       clearInterval(this.pollingTimer);
       this.pollingTimer = null;
+    }
+    if (this.trackingTimer) {
+      clearInterval(this.trackingTimer);
+      this.trackingTimer = null;
     }
   }
 }

@@ -126,5 +126,19 @@ export const CctvService = {
       console.error(`[CctvService] toggleCameraMonitoring failed for ID ${id}:`, err);
       throw err;
     }
+  },
+
+  // Ubah status aktif/nonaktif per-kamera tertentu
+  async toggleCameraActive(id, isActive) {
+    try {
+      const response = await API.patch(`/api/cctv/${id}/active`, { isActive });
+      if (response && response.success) {
+        return response.data.isActive;
+      }
+      throw new Error(response?.error || 'Gagal mengubah status aktif kamera');
+    } catch (err) {
+      console.error(`[CctvService] toggleCameraActive failed for ID ${id}:`, err);
+      throw err;
+    }
   }
 };
