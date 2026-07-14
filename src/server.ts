@@ -40,16 +40,18 @@ declare global {
 dotenv.config();
 
 // Tuya API integration for dynamic cloud camera streams (e.g. CCTV Krisbow Solar)
-let tuyaTokenCache: { token: string; expiresAt: number } | null = null;
-let tuyaStreamCache: { [deviceId: string]: { url: string; expiresAt: number } } = {};
+let tuyaTokenCache: { [clientId: string]: { token: string; expiresAt: number } } = {};
+let tuyaStreamCache: { [cacheKey: string]: { url: string; expiresAt: number } } = {};
 
-async function getTuyaToken(): Promise<string | null> {
-  const clientId = 'r5vap3snnr339dyeua5j';
-  const secret = '5a93707b474b41b9b888b1e2a12ed1c9';
+async function getTuyaToken(
+  clientId: string = 'r5vap3snnr339dyeua5j',
+  secret: string = '5a93707b474b41b9b888b1e2a12ed1c9'
+): Promise<string | null> {
   const baseUrl = 'https://openapi-sg.iotbing.com';
 
-  if (tuyaTokenCache && tuyaTokenCache.expiresAt > Date.now()) {
-    return tuyaTokenCache.token;
+  const cached = tuyaTokenCache[clientId];
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.token;
   }
 
   try {
@@ -71,11 +73,11 @@ async function getTuyaToken(): Promise<string | null> {
     });
     const tokenData = await tokenResponse.json() as any;
     if (tokenData.success && tokenData.result) {
-      tuyaTokenCache = {
+      tuyaTokenCache[clientId] = {
         token: tokenData.result.access_token,
         expiresAt: Date.now() + (tokenData.result.expire_time - 60) * 1000
       };
-      return tuyaTokenCache.token;
+      return tokenData.result.access_token;
     }
   } catch (err) {
     console.error('[TUYA API] Token fetch failed:', err);
@@ -83,22 +85,26 @@ async function getTuyaToken(): Promise<string | null> {
   return null;
 }
 
-async function getTuyaStreamUrl(deviceId: string): Promise<string | null> {
-  const clientId = 'r5vap3snnr339dyeua5j';
-  const secret = '5a93707b474b41b9b888b1e2a12ed1c9';
+async function getTuyaStreamUrl(
+  deviceId: string,
+  definition: 'hd' | 'sd' = 'hd',
+  clientId: string = 'r5vap3snnr339dyeua5j',
+  secret: string = '5a93707b474b41b9b888b1e2a12ed1c9'
+): Promise<string | null> {
   const baseUrl = 'https://openapi-sg.iotbing.com';
+  const cacheKey = `${deviceId}_${definition}`;
 
-  if (tuyaStreamCache[deviceId] && tuyaStreamCache[deviceId].expiresAt > Date.now()) {
-    return tuyaStreamCache[deviceId].url;
+  if (tuyaStreamCache[cacheKey] && tuyaStreamCache[cacheKey].expiresAt > Date.now()) {
+    return tuyaStreamCache[cacheKey].url;
   }
 
-  const token = await getTuyaToken();
+  const token = await getTuyaToken(clientId, secret);
   if (!token) return null;
 
   try {
     const t2 = Date.now().toString();
     const httpMethod = 'POST';
-    const bodyObj = { type: 'hls' };
+    const bodyObj = { type: 'hls', definition: definition };
     const bodyStr = JSON.stringify(bodyObj);
     const contentSha256 = crypto.createHash('sha256').update(bodyStr).digest('hex');
     const allocateUrl = `/v1.0/devices/${deviceId}/stream/actions/allocate`;
@@ -121,7 +127,7 @@ async function getTuyaStreamUrl(deviceId: string): Promise<string | null> {
     });
     const data = await response.json() as any;
     if (data.success && data.result && data.result.url) {
-      tuyaStreamCache[deviceId] = {
+      tuyaStreamCache[cacheKey] = {
         url: data.result.url,
         expiresAt: Date.now() + 5400 * 1000 // Cache for 1.5 hours
       };
@@ -1479,10 +1485,12 @@ app.get('/api/cctv', async (req, res) => {
       let mediaType = playTarget.playType;
 
       if (c.protocol === 'CLOUD_VIEWER') {
-        const deviceId = 'a368caa9d0ba8c2813gfir';
-        const tuyaUrl = await getTuyaStreamUrl(deviceId);
+        const deviceId = c.playUrl || 'a368caa9d0ba8c2813gfir';
+        const clientId = c.username || 'r5vap3snnr339dyeua5j';
+        const secret = c.password ? DatabaseManager.decryptCctvPassword(c.password) : '5a93707b474b41b9b888b1e2a12ed1c9';
+        const tuyaUrl = await getTuyaStreamUrl(deviceId, 'hd', clientId, secret);
         if (tuyaUrl) {
-          playUrl = tuyaUrl;
+          playUrl = `/api/cctv/${c.id}/stream.m3u8`;
           mediaType = 'Video'; // Dynamic HLS stream plays as HTML5 Video
         }
       }
@@ -1531,10 +1539,12 @@ app.get('/api/cctv/:id', async (req, res) => {
     let mediaType = playTarget.playType;
 
     if (c.protocol === 'CLOUD_VIEWER') {
-      const deviceId = 'a368caa9d0ba8c2813gfir';
-      const tuyaUrl = await getTuyaStreamUrl(deviceId);
+      const deviceId = c.playUrl || 'a368caa9d0ba8c2813gfir';
+      const clientId = c.username || 'r5vap3snnr339dyeua5j';
+      const secret = c.password ? DatabaseManager.decryptCctvPassword(c.password) : '5a93707b474b41b9b888b1e2a12ed1c9';
+      const tuyaUrl = await getTuyaStreamUrl(deviceId, 'hd', clientId, secret);
       if (tuyaUrl) {
-        playUrl = tuyaUrl;
+        playUrl = `/api/cctv/${c.id}/stream.m3u8`;
         mediaType = 'Video';
       }
     }
@@ -1678,6 +1688,16 @@ app.post('/api/cctv/:id/reconnect', async (req, res) => {
       return res.status(400).json({ error: 'ID tidak valid' });
     }
 
+    const camera = await DatabaseManager.getCctvById(id);
+    if (camera && camera.protocol === 'CLOUD_VIEWER') {
+      const deviceId = camera.playUrl || 'a368caa9d0ba8c2813gfir';
+      delete tuyaStreamCache[`${deviceId}_hd`];
+      delete tuyaStreamCache[`${deviceId}_sd`];
+      delete tuyaBaseUrlCache[`${deviceId}_hd`];
+      delete tuyaBaseUrlCache[`${deviceId}_sd`];
+      console.log(`[TUYA API] Cleared stream cache for device ${deviceId} via manual reconnect.`);
+    }
+
     const success = await CctvHealthEngine.manualReconnect(id);
     if (success) {
       res.json({ success: true, message: 'Reconnection triggered' });
@@ -1712,7 +1732,7 @@ app.get('/api/cctv/:id/snapshot', async (req, res) => {
 });
 
 // Store the last retrieved HLS base URL in memory for segment forwarding
-let tuyaBaseUrlCache: { [deviceId: string]: string } = {};
+let tuyaBaseUrlCache: { [cacheKey: string]: string } = {};
 
 // GET /api/cctv/:id/stream.m3u8 - HLS Stream Proxy
 app.get('/api/cctv/:id/stream.m3u8', async (req, res) => {
@@ -1723,23 +1743,30 @@ app.get('/api/cctv/:id/stream.m3u8', async (req, res) => {
       return res.status(404).send('Not a cloud camera');
     }
 
-    const deviceId = 'a368caa9d0ba8c2813gfir';
-    const tuyaUrl = await getTuyaStreamUrl(deviceId);
+    const quality = req.query.quality === 'SD' ? 'sd' : 'hd';
+    const deviceId = camera.playUrl || 'a368caa9d0ba8c2813gfir';
+    const clientId = camera.username || 'r5vap3snnr339dyeua5j';
+    const secret = camera.password ? DatabaseManager.decryptCctvPassword(camera.password) : '5a93707b474b41b9b888b1e2a12ed1c9';
+    const tuyaUrl = await getTuyaStreamUrl(deviceId, quality, clientId, secret);
     if (!tuyaUrl) {
-      console.warn('[HLS PROXY] Tuya stream unavailable, redirecting to local fallback video');
+      console.warn(`[HLS PROXY] Tuya stream (${quality}) unavailable, redirecting to local fallback video`);
       return res.redirect('/uploads/orang buang sampah.mp4');
     }
 
     // Save the base URL of the HLS stream (up to the last slash)
     const lastSlashIdx = tuyaUrl.lastIndexOf('/');
     if (lastSlashIdx !== -1) {
-      tuyaBaseUrlCache[deviceId] = tuyaUrl.substring(0, lastSlashIdx + 1);
+      const cacheKey = `${deviceId}_${quality}`;
+      tuyaBaseUrlCache[cacheKey] = tuyaUrl.substring(0, lastSlashIdx + 1);
     }
 
     // Fetch the .m3u8 file content
     const response = await fetch(tuyaUrl);
     if (!response.ok) {
-      console.error('[HLS PROXY] Failed to fetch .m3u8 from Tuya:', response.statusText);
+      console.error(`[HLS PROXY] Failed to fetch .m3u8 (${quality}) from Tuya:`, response.statusText);
+      const cacheKey = `${deviceId}_${quality}`;
+      delete tuyaStreamCache[cacheKey];
+      delete tuyaBaseUrlCache[cacheKey];
       return res.redirect('/uploads/orang buang sampah.mp4');
     }
 
@@ -1760,9 +1787,13 @@ app.get('/api/cctv/:id/:filename.ts', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const filename = req.params.filename;
-    const deviceId = 'a368caa9d0ba8c2813gfir';
+    const camera = await DatabaseManager.getCctvById(id);
+    const deviceId = camera?.playUrl || 'a368caa9d0ba8c2813gfir';
     
-    const baseUrl = tuyaBaseUrlCache[deviceId];
+    const quality = req.query.quality === 'SD' ? 'sd' : 'hd';
+    const cacheKey = `${deviceId}_${quality}`;
+    
+    const baseUrl = tuyaBaseUrlCache[cacheKey] || tuyaBaseUrlCache[`${deviceId}_hd`] || tuyaBaseUrlCache[`${deviceId}_sd`];
     if (!baseUrl) {
       return res.status(404).send('Base URL not cached');
     }

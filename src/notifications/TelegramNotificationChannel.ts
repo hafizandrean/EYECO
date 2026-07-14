@@ -27,6 +27,9 @@ export class TelegramNotificationChannel implements INotificationChannel {
       const isEnabled = isEnabledSetting ? isEnabledSetting.value === true : true;
       const chatId = chatIdSetting ? chatIdSetting.value : null;
 
+      const logMsg = `[${new Date().toISOString()}] Report #${report.id} | isEnabled: ${isEnabled} | botToken: ${botToken ? 'SET' : 'MISSING'} | chatId: ${chatId}\n`;
+      fs.appendFileSync(path.join(process.cwd(), 'telegram_debug.log'), logMsg);
+
       console.log(`[TelegramChannelDebug] isEnabled: ${isEnabled}, botToken: ${botToken ? 'SET' : 'MISSING'}, chatId: ${chatId}`);
 
       if (!isEnabled || !botToken || !chatId) {
@@ -104,6 +107,8 @@ export class TelegramNotificationChannel implements INotificationChannel {
         const errorText = await response.text();
         throw new Error(`Telegram API responded with status ${response.status}: ${errorText}`);
       }
+
+      fs.appendFileSync(path.join(process.cwd(), 'telegram_debug.log'), `[${new Date().toISOString()}] Telegram API success for Report #${report.id}\n`);
 
       // 4. Perbarui status Outbox Event menjadi PROCESSED jika sukses
       outbox.status = 'PROCESSED';

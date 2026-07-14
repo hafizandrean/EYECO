@@ -1025,7 +1025,7 @@ export class DashboardPage {
       if (!ch) return;
       EventBus.emit('toast:show', { message: `Mengambil foto snapshot dari kamera...`, type: 'info' });
       
-      const matchReport = this.latestReports.find(r => r.location.toLowerCase().includes(ch.name.toLowerCase()));
+      const matchReport = this.latestReports.find(r => (r.sourceMetadata?.cameraId === ch.id) || r.location.toLowerCase().includes(ch.name.toLowerCase()));
       const imageSrc = matchReport ? matchReport.image : (ch.isDefault ? ch.streamUrl : '/uploads/detection_1.jpg');
 
       const a = document.createElement('a');
@@ -1052,7 +1052,7 @@ export class DashboardPage {
 
     const isMon = AppState.get('isMonitoring');
     const isChActive = isMon && ch.isActive;
-    const matchReport = this.latestReports.find(r => r.location.toLowerCase().includes(ch.name.toLowerCase()));
+    const matchReport = this.latestReports.find(r => (r.sourceMetadata?.cameraId === ch.id) || r.location.toLowerCase().includes(ch.name.toLowerCase()));
     const imageSrc = matchReport ? matchReport.image : (ch.isDefault ? ch.streamUrl : '/uploads/detection_1.jpg');
     const statusText = isChActive ? (ch.status === 'ONLINE' ? 'ONLINE' : ch.status) : 'STANDBY';
     const statusColor = statusText === 'ONLINE' ? 'var(--success)' : 'var(--danger)';
@@ -1166,7 +1166,7 @@ export class DashboardPage {
     // Bind event log items
     const historyList = drawer.querySelector('#drawer-camera-history');
     if (historyList) {
-      const cameraReports = this.latestReports.filter(r => r.location.toLowerCase().includes(ch.name.toLowerCase()));
+      const cameraReports = this.latestReports.filter(r => (r.sourceMetadata?.cameraId === ch.id) || r.location.toLowerCase().includes(ch.name.toLowerCase()));
       if (cameraReports.length === 0) {
         historyList.innerHTML = `<div style="font-size: 0.75rem; color: var(--text-secondary);">No events logged for this sector.</div>`;
       } else {
@@ -1231,6 +1231,29 @@ export class DashboardPage {
 
     if (window.lucide) window.lucide.createIcons();
 
+    // Check and attach HLS to drawer preview video
+    if (isChActive && ch.mediaType === 'Video' && ch.playUrl && ch.playUrl.includes('.m3u8')) {
+      const videoEl = drawer.querySelector('#drawer-preview-video');
+      if (videoEl && videoEl.tagName === 'VIDEO') {
+        videoEl.removeAttribute('src');
+        if (window.Hls && window.Hls.isSupported()) {
+          const hls = new window.Hls({
+            maxBufferSize: 0,
+            maxBufferLength: 2,
+            liveSyncDurationCount: 3
+          });
+          hls.loadSource(ch.playUrl);
+          hls.attachMedia(videoEl);
+          hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+            videoEl.play().catch(e => console.log('HLS drawer play fail:', e));
+          });
+          videoEl._hlsInstance = hls;
+        } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+          videoEl.src = ch.playUrl;
+        }
+      }
+    }
+
     // Slide open
     drawer.style.right = '0px';
   }
@@ -1290,7 +1313,7 @@ export class DashboardPage {
     let recordInterval = null;
     let micStream = null;
 
-    const matchReport = this.latestReports.find(r => r.location.toLowerCase().includes(ch.name.toLowerCase()));
+    const matchReport = this.latestReports.find(r => (r.sourceMetadata?.cameraId === ch.id) || r.location.toLowerCase().includes(ch.name.toLowerCase()));
     const imageSrc = matchReport ? matchReport.image : (ch.isDefault ? ch.streamUrl : '/uploads/detection_1.jpg');
 
     // 1. Render Active player view
@@ -1450,7 +1473,7 @@ export class DashboardPage {
         }
       }
 
-      const currentReport = this.latestReports.find(r => r.location.toLowerCase().includes(ch.name.toLowerCase()));
+      const currentReport = this.latestReports.find(r => (r.sourceMetadata?.cameraId === ch.id) || r.location.toLowerCase().includes(ch.name.toLowerCase()));
       if (currentReport && currentReport.boundingBoxes) {
         currentReport.boundingBoxes.forEach(box => {
           let boxColorClass = 'yolo-default';
@@ -1551,6 +1574,36 @@ export class DashboardPage {
       btnQuality.style.borderColor = isHd ? 'var(--primary)' : '#718096';
       btnQuality.style.color = isHd ? 'var(--primary)' : '#718096';
       EventBus.emit('toast:show', { message: `Kualitas streaming diatur ke ${isHd ? 'High Definition (HD)' : 'Standard Definition (SD)'}`, type: 'info' });
+
+      // Reload player with quality parameter
+      const media = document.getElementById('vms-fs-media-element');
+      if (media && media.tagName === 'VIDEO') {
+        const qualityParam = isHd ? 'HD' : 'SD';
+        const newUrl = `${ch.playUrl}?quality=${qualityParam}`;
+        
+        // Destruct existing hls instance
+        if (media._hlsInstance) {
+          media._hlsInstance.destroy();
+          media._hlsInstance = null;
+        }
+
+        media.removeAttribute('src');
+        if (window.Hls && window.Hls.isSupported() && ch.playUrl.includes('.m3u8')) {
+          const hls = new window.Hls({
+            maxBufferSize: 0,
+            maxBufferLength: 2,
+            liveSyncDurationCount: 3
+          });
+          hls.loadSource(newUrl);
+          hls.attachMedia(media);
+          hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+            media.play().catch(e => console.log('HLS quality play fail:', e));
+          });
+          media._hlsInstance = hls;
+        } else {
+          media.src = newUrl;
+        }
+      }
     };
 
     btnGrid.onclick = () => {
@@ -1558,21 +1611,14 @@ export class DashboardPage {
       handleClose();
     };
 
+    let rotationDegrees = 0;
     btnRotate.onclick = () => {
-      if (!document.fullscreenElement) {
-        if (page.requestFullscreen) {
-          page.requestFullscreen();
-        } else if (page.webkitRequestFullscreen) {
-          page.webkitRequestFullscreen();
-        }
-        btnRotate.innerHTML = '<i data-lucide="minimize"></i>';
-      } else {
-        if (document.exitFullscreen) {
-          document.exitFullscreen();
-        }
-        btnRotate.innerHTML = '<i data-lucide="screen-share"></i>';
-      }
-      if (window.lucide) window.lucide.createIcons();
+      const media = document.getElementById('vms-fs-media-element');
+      if (!media) return;
+      rotationDegrees = (rotationDegrees + 180) % 360;
+      media.style.transform = `rotate(${rotationDegrees}deg)`;
+      media.style.transition = 'transform 0.3s ease';
+      EventBus.emit('toast:show', { message: `Rotasi video diatur ke ${rotationDegrees} derajat.`, type: 'info' });
     };
 
     const onFsChange = () => {
@@ -2137,6 +2183,7 @@ export class DashboardPage {
       let metaLine = this.formatCameraUptime(ch);
 
       const camReports = this.latestReports.filter(r =>
+        (r.sourceMetadata?.cameraId === ch.id) ||
         r.location.toLowerCase().includes(ch.name.toLowerCase()) ||
         r.location.toLowerCase().includes(ch.location.toLowerCase())
       );
@@ -2446,7 +2493,7 @@ export class DashboardPage {
       }
       const isChActive = isMon && ch.isActive;
       // Find matching report from DB for this location
-      const matchReport = this.latestReports.find(r => r.location.toLowerCase().includes(ch.name.toLowerCase()));
+      const matchReport = this.latestReports.find(r => (r.sourceMetadata?.cameraId === ch.id) || r.location.toLowerCase().includes(ch.name.toLowerCase()));
       const isAlert = matchReport ? (matchReport.aiStatus === 'TINGGI' || matchReport.aiStatus === 'SEDANG') : false;
       const imageSrc = matchReport ? matchReport.image : (ch.isDefault ? ch.streamUrl : '/uploads/detection_1.jpg');
       
