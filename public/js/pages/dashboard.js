@@ -36,7 +36,7 @@ export class DashboardPage {
       <div class="cc-hud glass-card" id="command-center-hud">
         <div class="cc-hud-status">
           <span class="status-pulse-dot green" id="cc-hud-pulse"></span>
-          <span id="brief-system-status">🟢 MONITORING ACTIVE</span>
+          <span id="brief-system-status"><i data-lucide="monitor" style="width:14px;height:14px;color:var(--success);"></i> MONITORING ACTIVE</span>
         </div>
         <div class="cc-hud-metrics">
           <div class="cc-hud-metric"><i data-lucide="video" style="width:14px;height:14px;"></i> <strong id="brief-online-count">0</strong> Cameras Online</div>
@@ -670,7 +670,7 @@ export class DashboardPage {
           const appendStep = (text, success) => {
             const li = document.createElement('li');
             li.innerHTML = `
-              <span class="step-icon ${success ? 'success' : 'failed'}">${success ? '✓' : '✗'}</span>
+              <span class="step-icon ${success ? 'success' : 'failed'}">${success ? '<i data-lucide="check" style="width:12px;height:12px;"></i>' : '<i data-lucide="x" style="width:12px;height:12px;"></i>'}</span>
               <span>${text}</span>
             `;
             stepsList.appendChild(li);
@@ -735,7 +735,7 @@ export class DashboardPage {
 
         } catch (err) {
           stepsList.innerHTML += `
-            <li class="error-step"><span class="step-icon failed">✗</span> Gagal memindai: ${err.message}</li>
+            <li class="error-step"><span class="step-icon failed"><i data-lucide="x" style="width:12px;height:12px;"></i></span> Gagal memindai: ${err.message}</li>
           `;
           EventBus.emit('toast:show', { message: 'Pemindaian kamera gagal.', type: 'danger' });
         } finally {
@@ -1499,12 +1499,12 @@ export class DashboardPage {
           if (topReport.aiStatus === 'TINGGI' || topReport.aiStatus === 'SEDANG') {
             AppState.set('unreadNotifications', (AppState.get('unreadNotifications') || 0) + 1);
             EventBus.emit('toast:show', {
-              message: `🚨 Peringatan Baru: Terdeteksi ancaman ${topReport.aiStatus} di ${topReport.location}!`,
+              message: `Peringatan Baru: Terdeteksi ancaman ${topReport.aiStatus} di ${topReport.location}!`,
               type: 'danger'
             });
           } else {
             EventBus.emit('toast:show', {
-              message: `📷 CCTV: Aktivitas terdeteksi di ${topReport.location}`,
+              message: `CCTV: Aktivitas terdeteksi di ${topReport.location}`,
               type: 'info'
             });
           }
@@ -1699,7 +1699,7 @@ export class DashboardPage {
 
     container.innerHTML = active.slice(0, 4).map(r => {
       const onSite = r.status === 'PROSES';
-      const dot = onSite ? '🟢' : '🔵';
+      const dot = onSite ? '<i data-lucide="map-pin" style="width:12px;height:12px;color:var(--success);"></i>' : '<i data-lucide="circle" style="width:12px;height:12px;color:var(--primary);"></i>';
       const state = onSite ? 'On Site' : 'Assigned';
       const time = Formatter.formatTime(r.timestamp);
       return `
@@ -1726,7 +1726,7 @@ export class DashboardPage {
       let statusLabel = 'Offline';
       let statusColor = 'var(--text-muted)';
       let statusBg = 'rgba(0, 0, 0, 0.05)';
-      let dotEmoji = '⚪';
+      let dotEmoji = '<i data-lucide="circle" style="width:10px;height:10px;color:var(--text-muted);"></i>';
       let metaLine = this.formatCameraUptime(ch);
 
       const camReports = this.latestReports.filter(r =>
@@ -1742,19 +1742,19 @@ export class DashboardPage {
             statusLabel = 'Incident Active';
             statusColor = 'var(--danger)';
             statusBg = 'rgba(239, 68, 68, 0.08)';
-            dotEmoji = '🔴';
+            dotEmoji = '<i data-lucide="alert-triangle" style="width:10px;height:10px;color:var(--danger);"></i>';
             metaLine = `AI ${activeIncident.aiConfidence}% · ${alertCount} alert`;
           } else {
             statusLabel = 'Online';
             statusColor = 'var(--success)';
             statusBg = 'rgba(34, 197, 94, 0.08)';
-            dotEmoji = '🟢';
+            dotEmoji = '<i data-lucide="circle" style="width:10px;height:10px;color:var(--success);"></i>';
           }
         } else {
           statusLabel = 'Offline';
           statusColor = 'var(--danger)';
           statusBg = 'rgba(239, 68, 68, 0.06)';
-          dotEmoji = '⚪';
+          dotEmoji = '<i data-lucide="circle" style="width:10px;height:10px;color:var(--text-muted);"></i>';
         }
       }
 
@@ -1811,7 +1811,7 @@ export class DashboardPage {
     if (briefOnline) briefOnline.innerText = `${onlineCount}`;
     if (briefAlerts) briefAlerts.innerText = `${activeAlerts}`;
     if (briefSystem) {
-      briefSystem.innerText = isMon ? '🟢 MONITORING ACTIVE' : '🔴 MONITORING INACTIVE';
+      briefSystem.innerHTML = isMon ? '<i data-lucide="monitor" style="width:14px;height:14px;color:var(--success);"></i> MONITORING ACTIVE' : '<i data-lucide="monitor-off" style="width:14px;height:14px;color:var(--danger);"></i> MONITORING INACTIVE';
     }
     if (hudPulse) {
       hudPulse.className = isMon ? 'status-pulse-dot green' : 'status-pulse-dot grey';
@@ -1884,7 +1884,7 @@ export class DashboardPage {
           const category = r.boundingBoxes && r.boundingBoxes[0] ? r.boundingBoxes[0].label : 'Sampah';
           const labelText = category === 'person' ? 'Pelaku membuang sampah' : `Illegal Dumping · ${category}`;
           
-          const severityText = isHigh ? '🔥 HIGH' : (isMed ? '🟠 MEDIUM' : '🔵 LOW');
+          const severityText = isHigh ? '<i data-lucide="flame" style="width:10px;height:10px;color:var(--danger);"></i> HIGH' : (isMed ? '<span style="display:inline-flex;align-items:center;gap:2px;"><i data-lucide="circle" style="width:8px;height:8px;color:var(--warning);fill:var(--warning);"></i> MEDIUM</span>' : '<span style="display:inline-flex;align-items:center;gap:2px;"><i data-lucide="circle" style="width:8px;height:8px;color:var(--info);fill:var(--info);"></i> LOW</span>');
           const severityColor = isHigh ? 'var(--danger)' : (isMed ? 'var(--warning)' : 'var(--info)');
 
           let workflowState = 'WAITING';
@@ -1912,11 +1912,11 @@ export class DashboardPage {
           let officerHtml = '';
           if (r.assignedOfficer) {
             if (r.status === 'PROSES') {
-              officerHtml = `<span class="officer-status-chip on-site">🟢 ${r.assignedOfficer} · Cleaning · ${Formatter.formatTime(r.timestamp)}</span>`;
+              officerHtml = `<span class="officer-status-chip on-site"><i data-lucide="map-pin" style="width:12px;height:12px;color:var(--success);"></i> ${r.assignedOfficer} · Cleaning · ${Formatter.formatTime(r.timestamp)}</span>`;
             } else if (r.status === 'SELESAI') {
-              officerHtml = `<span class="officer-status-chip done">✓ ${r.assignedOfficer} · Selesai</span>`;
+              officerHtml = `<span class="officer-status-chip done"><i data-lucide="check" style="width:12px;height:12px;color:var(--success);"></i> ${r.assignedOfficer} · Selesai</span>`;
             } else {
-              officerHtml = `<span class="officer-status-chip assigned">🔵 DLH · ${r.assignedOfficer} · Assigned</span>`;
+              officerHtml = `<span class="officer-status-chip assigned"><i data-lucide="briefcase" style="width:12px;height:12px;color:var(--primary);"></i> DLH · ${r.assignedOfficer} · Assigned</span>`;
             }
           }
 
@@ -2041,7 +2041,7 @@ export class DashboardPage {
       // Find matching report from DB for this location
       const matchReport = this.latestReports.find(r => r.location.toLowerCase().includes(ch.name.toLowerCase()));
       const isAlert = matchReport ? (matchReport.aiStatus === 'TINGGI' || matchReport.aiStatus === 'SEDANG') : false;
-      const imageSrc = matchReport ? matchReport.image : (ch.isDefault ? ch.streamUrl : '/uploads/detection_1.jpg');
+      const imageSrc = matchReport ? matchReport.image : null;
       
       const card = document.createElement('div');
       card.className = `cctv-card glass-card ${isAlert ? 'cctv-card-alert' : ''}`;
@@ -2199,11 +2199,11 @@ export class DashboardPage {
             </span>
           </div>
           <div style="font-size: 0.72rem; color: var(--text-secondary); display: flex; gap: 8px; font-weight: 600; opacity: 0.85;">
-            <span>Latency: ${ch.health.latency ? `${ch.health.latency} ms` : '52 ms'}</span>
+            <span>Latency: ${ch.health && ch.health.latency ? `${ch.health.latency} ms` : '-'}</span>
             <span>|</span>
             <span>Res: 1080p</span>
             <span>|</span>
-            <span>Last Motion: ${matchReport ? '2 mins ago' : 'No motion'}</span>
+            <span>Last Motion: ${matchReport ? 'Detected' : 'No motion'}</span>
           </div>
         </div>
       `;
@@ -2325,7 +2325,7 @@ export class DashboardPage {
       this.cctvList.forEach(ch => {
         if (ch.status === 'OFFLINE' || ch.status === 'ERROR' || ch.status === 'DISCONNECTED') {
           alerts.push({
-            icon: '🔴',
+            icon: '<i data-lucide="alert-triangle" style="width:14px;height:14px;color:var(--danger);"></i>',
             color: 'var(--danger)',
             title: `Camera Offline: CAM-${ch.id.toString().padStart(2, '0')}`,
             desc: `${ch.name} terputus dari jaringan.`,
@@ -2337,7 +2337,7 @@ export class DashboardPage {
 
       this.latestReports.filter(r => r.adminStatus === 'MENUNGGU').slice(0, 3).forEach(r => {
         alerts.push({
-          icon: '🚨',
+          icon: '<i data-lucide="bell-alert" style="width:14px;height:14px;color:var(--warning);"></i>',
           color: 'var(--warning)',
           title: 'New Incident',
           desc: `#${r.id.toString().padStart(4, '0')} · ${r.location} · AI ${r.aiConfidence}%`,
@@ -2348,7 +2348,7 @@ export class DashboardPage {
 
       this.latestReports.filter(r => r.status === 'SELESAI').slice(0, 2).forEach(r => {
         alerts.push({
-          icon: '✓',
+          icon: '<i data-lucide="check-circle" style="width:14px;height:14px;color:var(--success);"></i>',
           color: 'var(--success)',
           title: 'Officer Finished',
           desc: `Kasus #${r.id.toString().padStart(4, '0')} selesai ditangani${r.assignedOfficer ? ` · ${r.assignedOfficer}` : ''}.`,
@@ -2399,6 +2399,9 @@ export class DashboardPage {
 
       container.appendChild(row);
     });
+
+    // Initialize Lucide icons for the alerts popover
+    if (window.lucide) window.lucide.createIcons();
   }
 
   renderError() {

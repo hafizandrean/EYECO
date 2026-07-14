@@ -103,6 +103,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/superadmin', superadminRouter);
 app.use('/api/workspaces', workspaceRouter);
 app.use('/admin', adminRouter);
+app.use('/api', reportRouter);
 
 // --- HEALTH CHECK ENDPOINTS ---
 app.get('/health/live', (req, res) => {
@@ -451,7 +452,7 @@ app.get('/superadmin/workspaces/:id', authMiddleware, roleGuard(['superadmin']),
 
 // Dashboard — unified for admin AND user
 app.get(
-  ['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/users', '/dashboard/cctv', '/dashboard/join-requests'],
+  ['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/profile', '/dashboard/users', '/dashboard/cctv', '/dashboard/join-requests'],
   authMiddleware,
   roleGuard(['admin', 'user', 'operator', 'supervisor', 'officer']),
   (req, res) => {
@@ -487,7 +488,6 @@ app.get('/join/:code', async (req, res) => {
 });
 
 // --- FEATURE ROUTES ---
-app.use('/api', reportRouter);
 app.use('/api/cctv', cctvRouter);
 
 function listenWithFallback(port: number, attempts = 10): Promise<number> {

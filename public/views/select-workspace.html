@@ -627,12 +627,12 @@
         let accessTag = '';
 
         if (hasAccess) {
-          accessTag = `<span class="ws-access-tag">✓ Akses Diterima</span>`;
+          accessTag = `<span class="ws-access-tag"><i data-lucide="check-circle" style="width:14px;height:14px;"></i> Akses Diterima</span>`;
           actionBtn = `<button class="ws-btn ws-btn-select" onclick="selectWorkspace(${wsId})" id="ws-select-${wsId}">
             <i data-lucide="log-in"></i> Pilih
           </button>`;
         } else if (isPending) {
-          accessTag = `<span class="ws-pending-tag">⏳ Menunggu Persetujuan</span>`;
+          accessTag = `<span class="ws-pending-tag"><i data-lucide="clock" style="width:14px;height:14px;"></i> Menunggu Persetujuan</span>`;
           actionBtn = `<button class="ws-btn ws-btn-pending" disabled>
             <i data-lucide="clock"></i> Pending
           </button>`;
@@ -738,7 +738,8 @@
               if (infoP && !infoP.querySelector('.ws-pending-tag')) {
                 const tag = document.createElement('span');
                 tag.className = 'ws-pending-tag';
-                tag.textContent = '⏳ Menunggu Persetujuan';
+                tag.innerHTML = '<i data-lucide="clock" style="width:14px;height:14px;"></i> Menunggu Persetujuan';
+                if (window.lucide) window.lucide.createIcons();
                 infoP.appendChild(tag);
               }
             }

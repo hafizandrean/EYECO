@@ -20,8 +20,14 @@ function base64UrlDecode(str: string): string {
 
 export function generateToken(payload: { id: number; username: string; role: string }): string {
   const header = { alg: 'HS256', typ: 'JWT' };
+  // Add iat (issued-at) and a random jti so each login produces a unique token
+  const fullPayload = {
+    ...payload,
+    iat: Math.floor(Date.now() / 1000),
+    jti: crypto.randomBytes(8).toString('hex'),
+  };
   const part1 = base64UrlEncode(JSON.stringify(header));
-  const part2 = base64UrlEncode(JSON.stringify(payload));
+  const part2 = base64UrlEncode(JSON.stringify(fullPayload));
   
   const hmac = crypto.createHmac('sha256', SECRET);
   hmac.update(`${part1}.${part2}`);

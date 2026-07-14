@@ -16,45 +16,6 @@ export class UploadPage {
   // Merender halaman form upload & riwayat
   async render(container) {
     container.innerHTML = `
-      <style>
-        @keyframes scanLineAnim {
-          0% { top: 0%; opacity: 0.8; }
-          50% { top: 98%; opacity: 1; }
-          100% { top: 0%; opacity: 0.8; }
-        }
-        .scanning-bar {
-          position: absolute;
-          left: 0;
-          width: 100%;
-          height: 6px;
-          background: linear-gradient(180deg, transparent, var(--primary), transparent);
-          box-shadow: 0 0 16px var(--primary);
-          animation: scanLineAnim 2.2s ease-in-out infinite;
-          z-index: 10;
-        }
-        .yolo-mock-box {
-          position: absolute;
-          border: 2px solid var(--danger);
-          box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
-          background: rgba(239, 68, 68, 0.1);
-          z-index: 5;
-          pointer-events: none;
-          animation: pageFadeIn 0.3s ease forwards;
-        }
-        .yolo-mock-label {
-          position: absolute;
-          top: -22px;
-          left: -2px;
-          background: var(--danger);
-          color: white;
-          font-size: 0.65rem;
-          font-weight: 800;
-          padding: 2px 6px;
-          border-radius: 4px;
-          text-transform: uppercase;
-        }
-      </style>
-
       <div class="upload-container-layout" style="animation: pageFadeIn var(--motion-open);">
         <!-- Left: Upload Form Card -->
         <main class="glass-card upload-card" id="upload-main-card" style="padding: var(--space-32);">
@@ -86,32 +47,7 @@ export class UploadPage {
               </div>
             </div>
 
-            <!-- AI Real-Time Scan Matrix HUD (Shows during and after drop/select) -->
-            <div id="ai-scanner-hud" class="glass-card" style="display: none; padding: var(--space-16); border-radius: 12px; background: rgba(255,255,255,0.6); flex-direction: column; gap: var(--space-12);">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.82rem; color: var(--text-primary);">
-                  <span id="scan-status-dot" class="status-pulse-dot" style="width:6px; height:6px; background: var(--primary); border-radius:50%; display:inline-block;"></span>
-                  <span id="scan-status-text">Scanning image...</span>
-                </div>
-                <span id="scan-confidence-badge" style="font-size: 0.72rem; font-weight: 800; color: var(--primary); background: rgba(47,107,255,0.08); padding: 2px 8px; border-radius: var(--radius-pill); display: none;">0% Confidence</span>
-              </div>
-              <div class="progress-bar-flat" style="width: 100%; height: 6px; background: rgba(0,0,0,0.05); border-radius: 3px; overflow: hidden;">
-                <div id="scan-progress-fill" style="width: 0%; height: 100%; background: var(--primary); transition: width 0.3s ease;"></div>
-              </div>
-              
-              <!-- Checklist Findings -->
-              <div id="scan-findings-list" style="display: none; flex-wrap: wrap; gap: 8px; margin-top: 4px;">
-                <span style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 700; width: 100%;">AI Findings:</span>
-                <span style="font-size: 0.75rem; font-weight: 700; color: var(--danger); background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.15); padding: 4px 10px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px;">
-                  <i data-lucide="check" style="width: 12px; height: 12px;"></i> Plastik Terdeteksi
-                </span>
-                <span style="font-size: 0.75rem; font-weight: 700; color: var(--primary); background: rgba(47, 107, 255, 0.08); border: 1px solid rgba(47, 107, 255, 0.15); padding: 4px 10px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px;">
-                  <i data-lucide="check" style="width: 12px; height: 12px;"></i> Air Sungai
-                </span>
-              </div>
-            </div>
-
-            <!-- Metadata Fields (Initially hidden, revealed after scan completes) -->
+            <!-- Metadata Fields (shown immediately after file select) -->
             <div id="form-metadata-fields" style="display: none; flex-direction: column; gap: var(--space-16); animation: pageFadeIn 0.3s ease;">
               <!-- Location Input -->
               <div class="form-group">
@@ -223,13 +159,35 @@ export class UploadPage {
   }
 
   handleFileSelected(file) {
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'video/mp4'];
+    const allowedExts = ['.jpg', '.jpeg', '.png', '.mp4'];
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+
+    if (!allowedTypes.includes(file.type) && !allowedExts.includes(ext)) {
+      EventBus.emit('toast:show', {
+        message: 'Format file tidak didukung. Gunakan JPG, JPEG, PNG, atau MP4.',
+        type: 'warning'
+      });
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      EventBus.emit('toast:show', {
+        message: 'Ukuran file maksimal 10MB. Pilih file yang lebih kecil.',
+        type: 'warning'
+      });
+      return;
+    }
+
     this.selectedFile = file;
 
     const previewContainer = document.getElementById('file-preview');
     const zoneContent = document.getElementById('drop-zone-content');
-    const scannerHud = document.getElementById('ai-scanner-hud');
 
-    if (!previewContainer || !zoneContent || !scannerHud) return;
+    if (!previewContainer || !zoneContent) return;
 
     zoneContent.style.display = 'none';
     previewContainer.style.display = 'flex';
@@ -248,7 +206,6 @@ export class UploadPage {
       reader.onload = (e) => {
         previewContainer.innerHTML = `
           <img src="${e.target.result}" alt="Preview" style="width:100%; height:100%; object-fit:contain;">
-          <div class="scanning-bar" id="scan-line"></div>
           <button type="button" class="btn-remove-file" id="btn-clear-file" style="position:absolute; top:12px; right:12px; z-index:20; background:rgba(0,0,0,0.6); border:none; color:white; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; cursor:pointer;">&times;</button>
         `;
         
@@ -257,8 +214,8 @@ export class UploadPage {
           this.clearFileSelection();
         });
 
-        // Trigger AI simulated scan
-        this.runSimulatedAIScan();
+        // Show metadata fields directly
+        this.showMetadataFields();
       };
       reader.readAsDataURL(file);
     } else {
@@ -268,7 +225,6 @@ export class UploadPage {
           <i data-lucide="video" style="width: 48px; height: 48px; color: var(--primary);"></i>
           <span style="font-size:0.85rem; font-weight:700;">${file.name}</span>
         </div>
-        <div class="scanning-bar" id="scan-line"></div>
         <button type="button" class="btn-remove-file" id="btn-clear-file" style="position:absolute; top:12px; right:12px; z-index:20; background:rgba(0,0,0,0.6); border:none; color:white; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; cursor:pointer;">&times;</button>
       `;
       
@@ -278,86 +234,14 @@ export class UploadPage {
       });
       if (window.lucide) window.lucide.createIcons();
 
-      // Trigger AI simulated scan
-      this.runSimulatedAIScan();
+      // Show metadata fields directly
+      this.showMetadataFields();
     }
   }
 
-  runSimulatedAIScan() {
-    this.isScanning = true;
-    this.scanCompleted = false;
-
-    const hud = document.getElementById('ai-scanner-hud');
-    const statusText = document.getElementById('scan-status-text');
-    const progressFill = document.getElementById('scan-progress-fill');
-    const statusDot = document.getElementById('scan-status-dot');
-    const confBadge = document.getElementById('scan-confidence-badge');
-    const findings = document.getElementById('scan-findings-list');
-
-    if (!hud || !statusText || !progressFill) return;
-
-    // Reset scanner states
-    hud.style.display = 'flex';
-    statusText.innerText = 'Initializing YOLOv8 Engine...';
-    statusDot.style.background = 'var(--primary)';
-    progressFill.style.width = '0%';
-    confBadge.style.display = 'none';
-    findings.style.display = 'none';
-
-    const stages = [
-      { text: 'Loading river classification weight matrices...', fill: '25%' },
-      { text: 'Running spatial pixel scans for anomalies...', fill: '60%' },
-      { text: 'Analyzing bounding box confidence ratings...', fill: '85%' },
-      { text: 'Scan Complete.', fill: '100%' }
-    ];
-
-    let currentStage = 0;
-    const interval = setInterval(() => {
-      if (currentStage >= stages.length) {
-        clearInterval(interval);
-        this.finishAIScan();
-        return;
-      }
-      statusText.innerText = stages[currentStage].text;
-      progressFill.style.width = stages[currentStage].fill;
-      currentStage++;
-    }, 600);
-  }
-
-  finishAIScan() {
-    this.isScanning = false;
-    this.scanCompleted = true;
-
-    const statusText = document.getElementById('scan-status-text');
-    const statusDot = document.getElementById('scan-status-dot');
-    const confBadge = document.getElementById('scan-confidence-badge');
-    const findings = document.getElementById('scan-findings-list');
+  showMetadataFields() {
     const fieldsPanel = document.getElementById('form-metadata-fields');
-    const previewContainer = document.getElementById('file-preview');
-    const scanLine = document.getElementById('scan-line');
-
-    if (statusText) statusText.innerText = 'Object Scan Complete';
-    if (statusDot) statusDot.style.background = 'var(--success)';
-    
-    // Show mock labels & confidence
-    if (confBadge) {
-      confBadge.innerText = '92% Confidence';
-      confBadge.style.display = 'inline-block';
-    }
-    if (findings) findings.style.display = 'flex';
     if (fieldsPanel) fieldsPanel.style.display = 'flex';
-    if (scanLine) scanLine.remove(); // Clear animated scan line
-
-    // Render a mockup bounding box overlay on preview image
-    if (previewContainer && this.selectedFile.type.startsWith('image/')) {
-      const mockBox = document.createElement('div');
-      mockBox.className = 'yolo-mock-box';
-      mockBox.style.cssText = 'top: 35%; left: 30%; width: 40%; height: 35%;';
-      mockBox.innerHTML = `<span class="yolo-mock-label">PLASTIC BAG 92%</span>`;
-      previewContainer.appendChild(mockBox);
-    }
-
-    if (window.lucide) window.lucide.createIcons();
   }
 
   clearFileSelection() {
@@ -370,12 +254,10 @@ export class UploadPage {
     
     const previewContainer = document.getElementById('file-preview');
     const zoneContent = document.getElementById('drop-zone-content');
-    const scannerHud = document.getElementById('ai-scanner-hud');
     const fieldsPanel = document.getElementById('form-metadata-fields');
 
     if (previewContainer) previewContainer.style.display = 'none';
     if (zoneContent) zoneContent.style.display = 'flex';
-    if (scannerHud) scannerHud.style.display = 'none';
     if (fieldsPanel) fieldsPanel.style.display = 'none';
   }
 
@@ -383,8 +265,8 @@ export class UploadPage {
   async handleSubmit(e) {
     e.preventDefault();
 
-    if (!this.selectedFile || !this.scanCompleted) {
-      EventBus.emit('toast:show', { message: 'Silakan pilih dan tunggu AI scan selesai.', type: 'warning' });
+    if (!this.selectedFile) {
+      EventBus.emit('toast:show', { message: 'Silakan pilih file gambar/video terlebih dahulu.', type: 'warning' });
       return;
     }
 
@@ -393,16 +275,32 @@ export class UploadPage {
     btnSubmit.disabled = true;
     btnSubmit.innerHTML = `<span class="status-pulse-dot" style="width:8px; height:8px; background:white; border-radius:50%; display:inline-block; margin-right:6px;"></span> Mengirim Laporan...`;
 
-    const location = document.getElementById('input-location').value;
+    const location = document.getElementById('input-location').value.trim();
     const time = document.getElementById('input-time').value;
-    const notes = document.getElementById('input-notes').value;
+    const notes = document.getElementById('input-notes').value.trim();
+
+    // Validate required fields
+    if (!location) {
+      EventBus.emit('toast:show', { message: 'Lokasi sungai wajib diisi.', type: 'warning' });
+      btnSubmit.disabled = false;
+      btnSubmit.innerHTML = origHtml;
+      return;
+    }
+    if (!time) {
+      EventBus.emit('toast:show', { message: 'Waktu pengamatan wajib diisi.', type: 'warning' });
+      btnSubmit.disabled = false;
+      btnSubmit.innerHTML = origHtml;
+      return;
+    }
 
     // Prepare Multipart Form Data
     const formData = new FormData();
     formData.append('location', location);
     formData.append('identity', 'Citizen');
-    formData.append('timestamp', new Date(time).toISOString());
-    formData.append('sourceType', 'Gambar');
+    // Guard against invalid date input
+    const parsedDate = new Date(time);
+    formData.append('timestamp', isNaN(parsedDate.getTime()) ? new Date().toISOString() : parsedDate.toISOString());
+    formData.append('sourceType', this.selectedFile.type.startsWith('video/') ? 'Video' : 'Gambar');
     formData.append('additionalNotes', notes);
     formData.append('file', this.selectedFile);
 
@@ -410,8 +308,14 @@ export class UploadPage {
       const response = await ReportService.uploadReport(formData);
       EventBus.emit('toast:show', { message: 'Laporan berhasil divalidasi AI & disimpan!', type: 'success' });
       
-      // Instantly open the detailed incident lifecycle page
-      Router.navigate(`/dashboard/detections/${response.id}`);
+      // Navigate using the returned report id — response may be wrapped in { success: true, data: { ... } }
+      const report = response.data || response;
+      const reportId = report.id || report._id;
+      if (reportId) {
+        Router.navigate(`/dashboard/detections/${reportId}`);
+      } else {
+        EventBus.emit('toast:show', { message: 'Laporan tersimpan, namun ID tidak ditemukan di respons.', type: 'info' });
+      }
     } catch (err) {
       EventBus.emit('toast:show', { message: `Gagal mengirim laporan: ${err.message}`, type: 'danger' });
       btnSubmit.disabled = false;

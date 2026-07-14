@@ -20,7 +20,6 @@ export class HeaderComponent {
     this.container = document.getElementById('app-header');
     if (!this.container) return;
 
-    this.indicator = this.container.querySelector('.nav-indicator');
     this.tabs = {
       dashboard: this.container.querySelector('[data-tab="dashboard"]'),
       laporan: this.container.querySelector('[data-tab="laporan"]'),
@@ -121,7 +120,6 @@ export class HeaderComponent {
     }
     if (this.tabs.laporan) this.tabs.laporan.style.display = 'inline-flex';
     if (this.tabs.upload) this.tabs.upload.style.display = 'inline-flex';
-    if (this.indicator) this.indicator.style.display = 'block';
 
     // Export button visibility (Only on /dashboard/laporan for admins)
     if (exportBtn) {
@@ -145,21 +143,13 @@ export class HeaderComponent {
     });
 
     if (!activeKey || !this.tabs[activeKey]) {
-      if (this.indicator) this.indicator.style.width = '0px';
       return;
     }
 
     const activeTab = this.tabs[activeKey];
     activeTab.classList.add('active');
 
-    // Geser bubble setelah layout paint
-    requestAnimationFrame(() => {
-      if (this.indicator) {
-        this.indicator.style.left = `${activeTab.offsetLeft}px`;
-        this.indicator.style.width = `${activeTab.offsetWidth}px`;
-      }
-      if (window.lucide) window.lucide.createIcons();
-    });
+    if (window.lucide) window.lucide.createIcons();
   }
 
   // Render info user login di dropdown profile

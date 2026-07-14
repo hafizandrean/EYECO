@@ -10,7 +10,6 @@ const path_1 = __importDefault(require("path"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const User_1 = require("./models/User");
 const Report_1 = require("./models/Report");
-const TimelineEvent_1 = require("./models/TimelineEvent");
 const SystemSettings_1 = require("./models/SystemSettings");
 const AiModel_1 = require("./models/AiModel");
 const DB_PATH = path_1.default.join(__dirname, 'db.json');
@@ -157,37 +156,6 @@ async function runMigration() {
         email: `${u.username}@eyeco.gov.id`,
         agency: u.username === 'admin' ? 'EYECO Command Center' : 'Masyarakat Umum'
     }));
-    // Add new simulation users for Enterprise Multi-Role demo
-    const simulationUsers = [
-        {
-            id: 4,
-            username: 'hafiz',
-            passwordHash: '240eb518361bcf7061919cfdec98f98d7b328a6fcf4a3a60c0429f526279f647', // admin123
-            role: 'operator',
-            name: 'Hafiz Andrean',
-            email: 'hafiz@eyeco.gov.id',
-            agency: 'BBWS Ciliwung'
-        },
-        {
-            id: 5,
-            username: 'budi',
-            passwordHash: '240eb518361bcf7061919cfdec98f98d7b328a6fcf4a3a60c0429f526279f647', // admin123
-            role: 'supervisor',
-            name: 'Budi Santoso',
-            email: 'budi@eyeco.gov.id',
-            agency: 'BBWS Pusat'
-        },
-        {
-            id: 6,
-            username: 'andre',
-            passwordHash: '0b0213d2f9e414c81a5c68ad1d5f2a1b9487c679237071e6ad650041d8e13636', // user123
-            role: 'officer',
-            name: 'Andre Saputra',
-            email: 'andre@eyeco.gov.id',
-            agency: 'DLH Jakarta Selatan'
-        }
-    ];
-    userDocs.push(...simulationUsers);
     // Helper mapping and insertion function
     const executeMigration = async (session) => {
         // 1. Insert Users
@@ -265,150 +233,6 @@ async function runMigration() {
             };
         });
         const insertedReports = await Report_1.ReportModel.insertMany(reportDocs, options);
-        // 4. Generate Timeline Events for each report to seed immutable logs
-        const timelineEvents = [];
-        insertedReports.forEach(r => {
-            // Detection Event
-            timelineEvents.push({
-                reportId: r._id,
-                eventVersion: 1,
-                type: 'DETECTION',
-                actorId: idMap.get(1), // default admin
-                actorName: 'YOLOv8',
-                actorRole: 'AI',
-                title: 'Deteksi AI',
-                description: `Sistem mendeteksi ancaman dengan status ${r.aiStatus} di ${r.location}.`,
-                metadata: { confidence: r.aiConfidence || 85, camera: 'CCTV-' + r.id },
-                requestId: 'req_init_' + r.id,
-                traceId: 'tr_init_' + r.id,
-                correlationId: 'corr_' + r.id,
-                ipAddress: '127.0.0.1',
-                userAgent: 'EYECO System Scanner',
-                createdAt: r.sla.detectedAt
-            });
-            // Review Event
-            timelineEvents.push({
-                reportId: r._id,
-                eventVersion: 1,
-                type: 'REVIEW',
-                actorId: idMap.get(1),
-                actorName: 'System',
-                actorRole: 'AI',
-                title: 'Tinjauan Antrean',
-                description: 'Laporan masuk antrean verifikasi operator.',
-                metadata: {},
-                requestId: 'req_init_' + r.id,
-                traceId: 'tr_init_' + r.id,
-                correlationId: 'corr_' + r.id,
-                ipAddress: '127.0.0.1',
-                userAgent: 'EYECO System Scanner',
-                createdAt: r.sla.detectedAt
-            });
-            // Validated / Rejected Event
-            if (r.sla.validatedAt) {
-                const isRejected = r.status === 'REJECTED';
-                timelineEvents.push({
-                    reportId: r._id,
-                    eventVersion: 1,
-                    type: isRejected ? 'REJECTED' : 'VALIDATED',
-                    actorId: idMap.get(4), // Operator Hafiz
-                    actorName: 'Hafiz Andrean',
-                    actorRole: 'operator',
-                    title: isRejected ? 'Laporan Diabaikan' : 'Validasi Berhasil',
-                    description: isRejected ? 'Laporan ditolak oleh operator (Abaikan).' : 'Laporan disetujui untuk tindakan lanjutan.',
-                    metadata: { notes: r.adminNotes || '' },
-                    requestId: 'req_val_' + r.id,
-                    traceId: 'tr_val_' + r.id,
-                    correlationId: 'corr_' + r.id,
-                    ipAddress: '192.168.1.10',
-                    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-                    createdAt: r.sla.validatedAt
-                });
-            }
-            // Assigned Event
-            if (r.sla.assignedAt) {
-                timelineEvents.push({
-                    reportId: r._id,
-                    eventVersion: 1,
-                    type: 'ASSIGNED',
-                    actorId: idMap.get(4), // Operator Hafiz
-                    actorName: 'Hafiz Andrean',
-                    actorRole: 'operator',
-                    title: 'Petugas Ditunjuk',
-                    description: `Menugaskan penanganan kepada Andre Saputra (DLH Jakarta Selatan).`,
-                    metadata: { officerId: idMap.get(6), officerName: 'Andre Saputra', agency: 'DLH Jakarta Selatan' },
-                    requestId: 'req_asn_' + r.id,
-                    traceId: 'tr_asn_' + r.id,
-                    correlationId: 'corr_' + r.id,
-                    ipAddress: '192.168.1.10',
-                    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-                    createdAt: r.sla.assignedAt
-                });
-            }
-            // Arrived Event
-            if (r.sla.arrivedAt) {
-                timelineEvents.push({
-                    reportId: r._id,
-                    eventVersion: 1,
-                    type: 'ARRIVED',
-                    actorId: idMap.get(6), // Officer Andre
-                    actorName: 'Andre Saputra',
-                    actorRole: 'officer',
-                    title: 'Petugas Tiba',
-                    description: 'Petugas tiba di lokasi dan memulai penanganan.',
-                    metadata: {},
-                    requestId: 'req_arr_' + r.id,
-                    traceId: 'tr_arr_' + r.id,
-                    correlationId: 'corr_' + r.id,
-                    ipAddress: '10.0.2.15',
-                    userAgent: 'Android EYECO App v1.0',
-                    createdAt: r.sla.arrivedAt
-                });
-            }
-            // Resolved Event
-            if (r.sla.resolvedAt) {
-                timelineEvents.push({
-                    reportId: r._id,
-                    eventVersion: 1,
-                    type: 'RESOLVED',
-                    actorId: idMap.get(6),
-                    actorName: 'Andre Saputra',
-                    actorRole: 'officer',
-                    title: 'Pembersihan Selesai',
-                    description: 'Sampah selesai dibersihkan. Mengajukan approval ke supervisor.',
-                    metadata: { notes: 'Sampah seberat 2.5 ton berhasil diangkut ke TPA.' },
-                    requestId: 'req_res_' + r.id,
-                    traceId: 'tr_res_' + r.id,
-                    correlationId: 'corr_' + r.id,
-                    ipAddress: '10.0.2.15',
-                    userAgent: 'Android EYECO App v1.0',
-                    createdAt: r.sla.resolvedAt
-                });
-            }
-            // Closed Event
-            if (r.sla.closedAt) {
-                timelineEvents.push({
-                    reportId: r._id,
-                    eventVersion: 1,
-                    type: 'CLOSED',
-                    actorId: idMap.get(5), // Supervisor Budi
-                    actorName: 'Budi Santoso',
-                    actorRole: 'supervisor',
-                    title: 'Kasus Ditutup',
-                    description: 'Supervisor menyetujui hasil pembersihan. Kasus ditutup.',
-                    metadata: {},
-                    requestId: 'req_cls_' + r.id,
-                    traceId: 'tr_cls_' + r.id,
-                    correlationId: 'corr_' + r.id,
-                    ipAddress: '192.168.1.12',
-                    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-                    createdAt: r.sla.closedAt
-                });
-            }
-        });
-        if (timelineEvents.length > 0) {
-            await TimelineEvent_1.TimelineEventModel.insertMany(timelineEvents, options);
-        }
     };
     // Attempt transaction
     let session = null;

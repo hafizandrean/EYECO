@@ -20,7 +20,7 @@ export class HomePage {
         <section class="glass-card citizen-hero-card" style="padding: var(--space-32); text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--space-8); background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(235, 241, 252, 0.9) 100%); border: 1px solid var(--border); box-shadow: var(--glass-shadow); position: relative; overflow: hidden; border-radius: var(--radius-card);">
           <div class="hero-decorative-water" style="position: absolute; top: 0; left: 0; width: 100%; height: 6px; background: var(--primary);"></div>
           
-          <h1 style="font-family: 'Outfit', sans-serif; font-size: 2rem; font-weight: 800; color: var(--text-primary); margin-top: 4px; margin-bottom: 0;">Selamat Datang 👋</h1>
+          <h1 style="font-family: 'Outfit', sans-serif; font-size: 2rem; font-weight: 800; color: var(--text-primary); margin-top: 4px; margin-bottom: 0; display:flex; align-items:center; gap:8px; justify-content:center;">Selamat Datang <i data-lucide="hand" style="width:28px;height:28px;color:var(--warning);"></i></h1>
           <p style="font-size: 0.95rem; color: var(--text-secondary); max-width: 500px; line-height: 1.5; margin: 0;">Mari bantu menjaga kebersihan sungai bersama dengan memantau & melaporkan pencemaran.</p>
           
           <!-- Actions Grid -->

@@ -12,6 +12,8 @@ import { Dashboard } from '../pages/dashboard.js';
 import { Laporan } from '../pages/laporan.js';
 import { Upload } from '../pages/upload.js';
 import { Detail } from '../pages/detail.js';
+import { Home } from '../pages/home.js';
+import { Profile } from '../pages/profile.js';
 
 class AppInitializer {
   constructor() {
@@ -70,8 +72,15 @@ class AppInitializer {
         const isAdmin = user?.role === 'admin';
 
         if (path === '/dashboard') {
-          this.currentPageInstance = Dashboard;
-          await Dashboard.render(this.viewport);
+          if (isAdmin) {
+            // Admin: full command center dashboard with CCTV monitoring
+            this.currentPageInstance = Dashboard;
+            await Dashboard.render(this.viewport);
+          } else {
+            // Regular user: landing page (Beranda)
+            this.currentPageInstance = Home;
+            await Home.render(this.viewport);
+          }
         } else if (path === '/dashboard/laporan') {
           this.currentPageInstance = Laporan;
           await Laporan.render(this.viewport);
@@ -82,6 +91,9 @@ class AppInitializer {
           const id = path.split('/').pop();
           this.currentPageInstance = Detail;
           await Detail.render(this.viewport, id);
+        } else if (path === '/dashboard/profile') {
+          this.currentPageInstance = Profile;
+          await Profile.render(this.viewport);
         } else {
           // Default fallback
           Router.navigate('/dashboard');
@@ -91,6 +103,11 @@ class AppInitializer {
         if (window.lucide) {
           window.lucide.createIcons();
         }
+
+        // Page enter animation
+        this.viewport.classList.remove('page-enter');
+        void this.viewport.offsetWidth; // force reflow
+        this.viewport.classList.add('page-enter');
       } catch (err) {
         console.error('[Router Error] Gagal memuat halaman:', err);
         this.renderRouterError();

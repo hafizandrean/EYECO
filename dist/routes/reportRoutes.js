@@ -13,6 +13,9 @@ const User_1 = require("../database/models/User");
 const ReportRepository_1 = require("../database/repositories/ReportRepository");
 const authMiddleware_1 = require("../auth/authMiddleware");
 const router = (0, express_1.Router)();
+// Allowed MIME types for upload
+const ALLOWED_MIMES = ['image/jpeg', 'image/jpg', 'image/png', 'video/mp4'];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const storage = multer_1.default.diskStorage({
     destination: (req, file, cb) => {
         const uploadDir = path_1.default.join(__dirname, '../../public/uploads');
@@ -22,12 +25,24 @@ const storage = multer_1.default.diskStorage({
         cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
-        const ext = path_1.default.extname(file.originalname);
+        const ext = path_1.default.extname(file.originalname).toLowerCase();
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
         cb(null, `upload_${uniqueSuffix}${ext}`);
     },
 });
-const upload = (0, multer_1.default)({ storage });
+const fileFilter = (req, file, cb) => {
+    if (ALLOWED_MIMES.includes(file.mimetype)) {
+        cb(null, true);
+    }
+    else {
+        cb(new Error(`Format file tidak didukung. Hanya ${ALLOWED_MIMES.join(', ')} yang diizinkan.`));
+    }
+};
+const upload = (0, multer_1.default)({
+    storage,
+    fileFilter,
+    limits: { fileSize: MAX_FILE_SIZE },
+});
 const commentLimiter = (0, express_rate_limit_1.default)({
     windowMs: 30 * 1000,
     max: 5,
@@ -299,7 +314,22 @@ router.get('/stats', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-router.post('/detections', upload.single('file'), async (req, res) => {
+router.post('/detections', (req, res, next) => {
+    upload.single('file')(req, res, (err) => {
+        if (err) {
+            // Multer errors (file size, file type, etc.)
+            if (err instanceof multer_1.default.MulterError) {
+                if (err.code === 'LIMIT_FILE_SIZE') {
+                    return res.status(400).json({ error: 'Ukuran file maksimal 10MB.' });
+                }
+                return res.status(400).json({ error: `Upload error: ${err.message}` });
+            }
+            // Custom file filter error
+            return res.status(400).json({ error: err.message });
+        }
+        next();
+    });
+}, async (req, res) => {
     try {
         const user = await (0, authMiddleware_1.getLoggedInUser)(req);
         if (!user)
@@ -376,6 +406,27 @@ router.get('/export', async (req, res) => {
         console.error('[SERVER ERROR] Export failed:', err);
         if (!res.headersSent)
             res.status(500).send('Internal Server Error');
+    }
+});
+// DELETE /api/reports/clear-all — Admin only: clear all reports in workspace
+router.delete('/clear-all', async (req, res) => {
+    try {
+        const user = await (0, authMiddleware_1.getLoggedInUser)(req);
+        if (!user)
+            return res.status(401).json({ error: 'Unauthorized' });
+        if (user.role !== 'admin' && user.role !== 'superadmin') {
+            return res.status(403).json({ error: 'Hanya admin yang dapat menghapus semua data' });
+        }
+        if (!user.workspaceId) {
+            return res.status(400).json({ error: 'Tidak ada workspace aktif' });
+        }
+        const result = await Report_1.ReportModel.deleteMany({ workspaceId: user.workspaceId });
+        console.log(`[ADMIN] Cleared ${result.deletedCount} reports from workspace ${user.workspaceId}`);
+        res.json({ success: true, deleted: result.deletedCount });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] Clear all reports failed:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 exports.default = router;

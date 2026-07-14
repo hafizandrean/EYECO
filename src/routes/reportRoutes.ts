@@ -11,6 +11,10 @@ import { BoundingBox } from '../database/db';
 
 const router = Router();
 
+// Allowed MIME types for upload
+const ALLOWED_MIMES = ['image/jpeg', 'image/jpg', 'image/png', 'video/mp4'];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = path.join(__dirname, '../../public/uploads');
@@ -20,13 +24,25 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
+    const ext = path.extname(file.originalname).toLowerCase();
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     cb(null, `upload_${uniqueSuffix}${ext}`);
   },
 });
 
-const upload = multer({ storage });
+const fileFilter: multer.Options['fileFilter'] = (req, file, cb) => {
+  if (ALLOWED_MIMES.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error(`Format file tidak didukung. Hanya ${ALLOWED_MIMES.join(', ')} yang diizinkan.`));
+  }
+};
+
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
+});
 
 const commentLimiter = rateLimit({
   windowMs: 30 * 1000,
@@ -316,7 +332,22 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-router.post('/detections', upload.single('file'), async (req, res) => {
+router.post('/detections', (req, res, next) => {
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      // Multer errors (file size, file type, etc.)
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'Ukuran file maksimal 10MB.' });
+        }
+        return res.status(400).json({ error: `Upload error: ${err.message}` });
+      }
+      // Custom file filter error
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
@@ -393,6 +424,27 @@ router.get('/export', async (req, res) => {
   } catch (err) {
     console.error('[SERVER ERROR] Export failed:', err);
     if (!res.headersSent) res.status(500).send('Internal Server Error');
+  }
+});
+
+// DELETE /api/reports/clear-all — Admin only: clear all reports in workspace
+router.delete('/clear-all', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    if (user.role !== 'admin' && user.role !== 'superadmin') {
+      return res.status(403).json({ error: 'Hanya admin yang dapat menghapus semua data' });
+    }
+    if (!user.workspaceId) {
+      return res.status(400).json({ error: 'Tidak ada workspace aktif' });
+    }
+
+    const result = await ReportModel.deleteMany({ workspaceId: user.workspaceId });
+    console.log(`[ADMIN] Cleared ${result.deletedCount} reports from workspace ${user.workspaceId}`);
+    res.json({ success: true, deleted: result.deletedCount });
+  } catch (err) {
+    console.error('[SERVER ERROR] Clear all reports failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 

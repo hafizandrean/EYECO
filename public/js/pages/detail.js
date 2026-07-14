@@ -135,10 +135,10 @@ export class DetailPage {
       const currentUser = AppState.get('user');
       const isAdmin = currentUser?.role === 'admin';
 
-      // Load mock community signal values
-      let signals = JSON.parse(localStorage.getItem(`signals_${this.reportId}`)) || {
-        active: 14 + (this.reportId % 8),
-        resolved: 2 + (this.reportId % 3),
+      // Load community signal values
+      let signals = {
+        active: 0,
+        resolved: 0,
         voted: false
       };
       
@@ -229,7 +229,7 @@ export class DetailPage {
                 <div style="font-size: 0.65rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Kategori Pelapor</div>
                 <strong style="font-size: 0.85rem; color: var(--text-primary); margin-top: 2px; display:block; display:flex; align-items:center; gap:4px;">
                   <i data-lucide="user" style="width:14px; height:14px;"></i> ${report.identity || 'Citizen'}
-                  <span id="reporter-reputation-stars" style="color: var(--warning); font-size: 0.72rem; font-weight: 800;">★★★★★</span>
+                  <span id="reporter-reputation-stars" style="color: var(--warning); font-size: 0.72rem; font-weight: 800; display:inline-flex; align-items:center; gap:1px;"><i data-lucide="star" style="width:11px;height:11px;color:var(--warning);fill:var(--warning);"></i><i data-lucide="star" style="width:11px;height:11px;color:var(--warning);fill:var(--warning);"></i><i data-lucide="star" style="width:11px;height:11px;color:var(--warning);fill:var(--warning);"></i><i data-lucide="star" style="width:11px;height:11px;color:var(--warning);fill:var(--warning);"></i><i data-lucide="star" style="width:11px;height:11px;color:var(--warning);fill:var(--warning);"></i></span>
                 </strong>
               </div>
             </div>
@@ -278,7 +278,7 @@ export class DetailPage {
                 </div>
                 <div style="display:flex; justify-content:space-between; margin-top:2px;">
                   <span style="color:var(--text-secondary);">Status Tugas:</span>
-                  <strong style="color:var(--info);">🟢 ON SITE (ETA 5 Min)</strong>
+                  <strong style="color:var(--info);"><i data-lucide="map-pin" style="width:14px;height:14px;color:var(--info);"></i> ON SITE (ETA 5 Min)</strong>
                 </div>
                 <div style="display:flex; justify-content:space-between; margin-top:2px;">
                   <span style="color:var(--text-secondary);">Petugas PJ:</span>
@@ -396,7 +396,7 @@ export class DetailPage {
             </div>
           </div>
 
-          <!-- 🛡️ Operator Action Panel (Government controls - Admin Only) -->
+          <!-- Operator Action Panel (Government controls - Admin Only) -->
           ${isAdmin ? `
             <div class="glass-card" style="padding: var(--space-24); border-radius: var(--radius-card); display: flex; flex-direction: column; gap: var(--space-16); border: 1.5px solid rgba(47,107,255,0.15); background: rgba(47, 107, 255, 0.02);">
               <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 800; color: var(--primary); margin: 0; display:flex; align-items:center; gap:8px;">
@@ -914,11 +914,13 @@ export class DetailPage {
       btn.addEventListener('click', () => {
         const type = btn.getAttribute('data-vote');
         
-        let signals = JSON.parse(localStorage.getItem(`signals_${this.reportId}`)) || {
-          active: 14 + (this.reportId % 8),
-          resolved: 2 + (this.reportId % 3),
+        let signals = {
+          active: 0,
+          resolved: 0,
           voted: false
         };
+        // Persist vote in localStorage
+        localStorage.setItem(`signals_${this.reportId}`, JSON.stringify(signals));
 
         if (signals.voted) return;
 

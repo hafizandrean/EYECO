@@ -8,113 +8,271 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="stylesheet" href="/css/style.css">
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #F0F4FF;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .auth-wrapper {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 400px;
+    }
+    .auth-card {
+      background: rgba(255,255,255,0.92);
+      border: 1.5px solid rgba(0,0,0,0.06);
+      border-radius: 20px;
+      padding: 40px 32px 36px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 12px 48px rgba(37,99,235,0.06);
+      transition: box-shadow 0.2s, border-color 0.2s;
+    }
+    .auth-card:hover {
+      box-shadow: 0 8px 32px rgba(0,0,0,0.08), 0 16px 64px rgba(37,99,235,0.08);
+    }
+    .auth-brand {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .auth-brand h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 2rem;
+      font-weight: 800;
+      color: #1e3a8a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      letter-spacing: -0.03em;
+    }
+    .auth-brand h1 i, .auth-brand h1 svg { width: 30px; height: 30px; color: #2563EB; }
+    .auth-brand p {
+      font-size: 0.88rem;
+      color: #6B7280;
+      margin-top: 4px;
+      font-weight: 500;
+    }
+    .auth-form { display: flex; flex-direction: column; gap: 18px; }
+    .auth-field { display: flex; flex-direction: column; gap: 6px; }
+    .auth-field label {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #1F2937;
+      letter-spacing: 0.01em;
+    }
+    .auth-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .auth-input-wrap i {
+      position: absolute;
+      left: 14px;
+      width: 17px; height: 17px;
+      color: #9CA3AF;
+      pointer-events: none;
+    }
+    .auth-input-wrap .auth-input {
+      width: 100%;
+      padding: 13px 14px 13px 44px;
+      border: 1.5px solid rgba(37,99,235,0.15);
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-family: 'Inter', sans-serif;
+      background: rgba(255,255,255,0.9);
+      box-shadow: 0 2px 8px rgba(37,99,235,0.04);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .auth-input-wrap .auth-input:focus {
+      border-color: #2563EB;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    }
+    .auth-input-wrap .toggle-pwd {
+      position: absolute;
+      right: 4px;
+      width: 34px; height: 34px;
+      display: flex; align-items: center; justify-content: center;
+      border: none; background: none;
+      cursor: pointer; color: #9CA3AF;
+      border-radius: 8px;
+      transition: background 0.15s;
+    }
+    .auth-input-wrap .toggle-pwd:hover { background: rgba(37,99,235,0.06); color: #2563EB; }
+    .auth-input-wrap .toggle-pwd i { position: static; width: 17px; height: 17px; }
+    .auth-options {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      color: #6B7280;
+    }
+    .auth-options label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .auth-options label input[type="checkbox"] {
+      width: 15px; height: 15px;
+      accent-color: #2563EB;
+      cursor: pointer;
+    }
+    .auth-options a {
+      color: #2563EB;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .auth-options a:hover { text-decoration: underline; }
+    .auth-btn {
+      width: 100%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 13px 24px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #2563EB 0%, #4F46E5 100%);
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 700;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(37,99,235,0.25);
+      transition: all 0.18s;
+    }
+    .auth-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(37,99,235,0.3);
+    }
+    .auth-btn:active:not(:disabled) { transform: translateY(0); }
+    .auth-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+    .auth-btn i { width: 18px; height: 18px; }
+    .auth-links {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 0.85rem;
+      color: #6B7280;
+      line-height: 1.8;
+    }
+    .auth-links a { color: #2563EB; text-decoration: none; font-weight: 600; }
+    .auth-links a:hover { text-decoration: underline; }
+    .auth-links .divider { width: 30px; height: 1px; background: #E5E7EB; margin: 6px auto; }
+    .error-msg, .success-msg {
+      display: none;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+      animation: msgIn 0.2s ease;
+    }
+    .error-msg { background: #FEF2F2; color: #DC2626; border: 1px solid rgba(220,38,38,0.15); }
+    .success-msg { background: #ECFDF5; color: #16A34A; border: 1px solid rgba(22,163,74,0.15); }
+    @keyframes msgIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin { animation: spin 0.8s linear infinite; display: inline-block; }
+
+    @media (max-width: 480px) {
+      .auth-card { padding: 28px 20px 24px; border-radius: 16px; }
+      .auth-brand h1 { font-size: 1.6rem; }
+    }
+  </style>
 </head>
-<body class="auth-page">
+<body>
 
   <div class="bg-blobs">
     <div class="blob blob-1"></div>
     <div class="blob blob-2"></div>
   </div>
 
-  <div class="glass-card auth-card">
-    <div class="brand">
-      <h1><i data-lucide="waves"></i> EYECO</h1>
-      <p>Incident Command Center</p>
-    </div>
-
-    <div id="error-box"   class="error-msg"></div>
-    <div id="success-box" class="success-msg"></div>
-
-    <form id="login-form" novalidate>
-      <div class="form-group">
-        <label for="username">Email atau Username</label>
-        <div class="input-wrapper">
-          <i data-lucide="user"></i>
-          <input
-            type="text"
-            id="username"
-            class="input-control"
-            placeholder="Masukkan email atau username"
-            autocomplete="username"
-            required
-          >
-        </div>
+  <div class="auth-wrapper">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <h1><i data-lucide="waves"></i> EYECO</h1>
+        <p>Incident Command Center</p>
       </div>
 
-      <div class="form-group" style="margin-bottom:12px;">
-        <label for="password">Password</label>
-        <div class="input-wrapper">
-          <i data-lucide="lock"></i>
-          <input
-            type="password"
-            id="password"
-            class="input-control"
-            placeholder="Masukkan password"
-            autocomplete="current-password"
-            required
-          >
-          <div class="toggle-password" id="toggle-password" role="button" tabindex="0" aria-label="Tampilkan password">
-            <i data-lucide="eye" style="width:18px;height:18px;"></i>
+      <div id="error-box" class="error-msg"></div>
+      <div id="success-box" class="success-msg"></div>
+
+      <form id="login-form" class="auth-form" novalidate>
+        <div class="auth-field">
+          <label for="username">Email atau Username</label>
+          <div class="auth-input-wrap">
+            <i data-lucide="user"></i>
+            <input type="text" id="username" class="auth-input" placeholder="Masukkan email atau username" autocomplete="username" required>
           </div>
         </div>
+
+        <div class="auth-field">
+          <label for="password">Password</label>
+          <div class="auth-input-wrap">
+            <i data-lucide="lock"></i>
+            <input type="password" id="password" class="auth-input" placeholder="Masukkan password" autocomplete="current-password" required>
+            <button type="button" class="toggle-pwd" id="toggle-password" aria-label="Tampilkan password">
+              <i data-lucide="eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="auth-options">
+          <label>
+            <input type="checkbox" id="remember-me"> Ingat saya
+          </label>
+          <a href="#" onclick="alert('Silakan hubungi administrator untuk mereset password Anda.'); return false;">Lupa Password?</a>
+        </div>
+
+        <button type="submit" class="auth-btn" id="btn-submit">
+          <i data-lucide="log-in"></i>
+          Masuk ke Sistem
+        </button>
+      </form>
+
+      <div class="auth-links">
+        <div>Belum punya akun masyarakat? <a href="/register">Daftar di sini</a></div>
+        <div class="divider"></div>
+        <div>Organisasi baru? <a href="/register-superadmin">Daftarkan Organisasi</a></div>
       </div>
-
-      <div class="options-row">
-        <label for="remember-me">
-          <input type="checkbox" id="remember-me"> Ingat saya
-        </label>
-        <a href="#" onclick="alert('Silakan hubungi administrator untuk mereset password Anda.'); return false;">
-          Lupa Password?
-        </a>
-      </div>
-
-      <button type="submit" class="btn-primary" id="btn-submit">
-        <i data-lucide="log-in" style="width:18px;height:18px;"></i>
-        Masuk ke Sistem
-      </button>
-    </form>
-
-    <div class="links">
-      <div>Belum punya akun masyarakat? <a href="/register">Daftar di sini</a></div>
-      <div class="divider"></div>
-      <div>Organisasi baru? <a href="/register-superadmin">Daftarkan Organisasi</a></div>
     </div>
   </div>
 
   <script>
     lucide.createIcons();
 
-    /* ── Toggle password visibility ── */
-    const togglePwd   = document.getElementById('toggle-password');
+    const togglePwd = document.getElementById('toggle-password');
     const passwordInput = document.getElementById('password');
 
     function togglePasswordVisibility() {
       const isHidden = passwordInput.type === 'password';
       passwordInput.type = isHidden ? 'text' : 'password';
       togglePwd.innerHTML = isHidden
-        ? '<i data-lucide="eye-off" style="width:18px;height:18px;"></i>'
-        : '<i data-lucide="eye"     style="width:18px;height:18px;"></i>';
+        ? '<i data-lucide="eye-off"></i>'
+        : '<i data-lucide="eye"></i>';
       lucide.createIcons();
     }
-
     togglePwd.addEventListener('click', togglePasswordVisibility);
     togglePwd.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); togglePasswordVisibility(); }
     });
 
-    /* ── Login form submit ── */
     document.getElementById('login-form').addEventListener('submit', async e => {
       e.preventDefault();
-
-      const btn        = document.getElementById('btn-submit');
-      const errorBox   = document.getElementById('error-box');
+      const btn = document.getElementById('btn-submit');
+      const errorBox = document.getElementById('error-box');
       const successBox = document.getElementById('success-box');
-
-      errorBox.style.display   = 'none';
+      errorBox.style.display = 'none';
       successBox.style.display = 'none';
-
-      btn.innerHTML = '<span class="spin"><i data-lucide="loader" style="width:18px;height:18px;"></i></span> Memproses...';
-      btn.disabled  = true;
+      btn.innerHTML = '<span class="spin"><i data-lucide="loader"></i></span> Memproses...';
+      btn.disabled = true;
       lucide.createIcons();
 
       try {
@@ -126,25 +284,22 @@
             password: passwordInput.value
           })
         });
-
         const data = await res.json().catch(() => ({}));
-
         if (res.ok) {
-          successBox.textContent    = 'Login berhasil! Mengarahkan...';
-          successBox.style.display  = 'block';
-
+          successBox.textContent = 'Login berhasil! Mengarahkan...';
+          successBox.style.display = 'block';
           setTimeout(() => {
             if (data.role === 'superadmin') window.location.href = '/superadmin';
             else if (data.role === 'admin') window.location.href = '/dashboard';
             else window.location.href = '/select-workspace';
           }, 900);
         } else {
-          errorBox.textContent   = data.error || data.message || 'Login gagal';
+          errorBox.textContent = data.error || data.message || 'Login gagal';
           errorBox.style.display = 'block';
           resetBtn();
         }
       } catch (err) {
-        errorBox.textContent   = 'Terjadi kesalahan jaringan. Periksa koneksi Anda.';
+        errorBox.textContent = 'Terjadi kesalahan jaringan. Periksa koneksi Anda.';
         errorBox.style.display = 'block';
         resetBtn();
       }
@@ -152,8 +307,8 @@
 
     function resetBtn() {
       const btn = document.getElementById('btn-submit');
-      btn.innerHTML = '<i data-lucide="log-in" style="width:18px;height:18px;"></i> Masuk ke Sistem';
-      btn.disabled  = false;
+      btn.innerHTML = '<i data-lucide="log-in"></i> Masuk ke Sistem';
+      btn.disabled = false;
       lucide.createIcons();
     }
   </script>

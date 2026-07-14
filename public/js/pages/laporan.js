@@ -149,6 +149,11 @@ export class LaporanPage {
       <section class="glass-card card-table-section">
         <div class="card-header-clean">
           <div class="section-title"><i data-lucide="database"></i> Log Aktivitas Sungai</div>
+          ${AppState.get('user')?.role === 'admin' ? `
+            <button class="btn btn-glass btn-sm btn-rounded" id="btn-clear-all-reports" style="color: var(--error); border-color: rgba(239,68,68,0.3);">
+              <i data-lucide="trash-2"></i> Hapus Semua Data
+            </button>
+          ` : ''}
         </div>
 
         <div class="card-table" id="reports-card-table">
@@ -266,6 +271,41 @@ export class LaporanPage {
         if (this.currentPage < this.pagination.totalPages) {
           this.currentPage++;
           this.loadData();
+        }
+      });
+    }
+
+    // Clear all reports (admin only)
+    const btnClearAll = document.getElementById('btn-clear-all-reports');
+    if (btnClearAll) {
+      btnClearAll.addEventListener('click', async () => {
+        const confirmMsg = `PERINGATAN: Semua ${this.pagination.totalPages > 1 ? 'data laporan' : 'data laporan'} di workspace ini akan DIHAPUS PERMANEN.\\n\\nTindakan ini tidak dapat dibatalkan.\\n\\nKetik "HAPUS" untuk konfirmasi:`;
+        const input = window.prompt(confirmMsg);
+        if (input !== 'HAPUS') {
+          EventBus.emit('toast:show', { message: 'Penghapusan dibatalkan.', type: 'info' });
+          return;
+        }
+        try {
+          btnClearAll.disabled = true;
+          btnClearAll.innerHTML = '<i data-lucide="loader"></i> Menghapus...';
+          if (window.lucide) window.lucide.createIcons();
+          const res = await fetch('/api/reports/clear-all', { method: 'DELETE', credentials: 'include' });
+          const data = await res.json();
+          if (data.success) {
+            EventBus.emit('toast:show', { message: `${data.deleted} data laporan berhasil dihapus.`, type: 'success' });
+            this.currentPage = 1;
+            await this.loadData();
+          } else {
+            EventBus.emit('toast:show', { message: data.error || 'Gagal menghapus data.', type: 'danger' });
+          }
+        } catch (err) {
+          EventBus.emit('toast:show', { message: 'Gagal terhubung ke server.', type: 'danger' });
+        } finally {
+          if (btnClearAll) {
+            btnClearAll.disabled = false;
+            btnClearAll.innerHTML = '<i data-lucide="trash-2"></i> Hapus Semua Data';
+            if (window.lucide) window.lucide.createIcons();
+          }
         }
       });
     }

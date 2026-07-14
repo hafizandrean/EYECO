@@ -95,6 +95,7 @@ app.use('/api/auth', authRoutes_1.default);
 app.use('/api/superadmin', superadminRoutes_1.default);
 app.use('/api/workspaces', workspaceRoutes_1.default);
 app.use('/admin', adminRoutes_1.default);
+app.use('/api', reportRoutes_1.default);
 // --- HEALTH CHECK ENDPOINTS ---
 app.get('/health/live', (req, res) => {
     res.json({ status: 'UP' });
@@ -399,7 +400,7 @@ app.get('/superadmin/workspaces/:id', authMiddleware_2.authMiddleware, (0, RoleM
     res.sendFile(path_1.default.join(__dirname, '../public/views/workspace-detail.html'));
 });
 // Dashboard — unified for admin AND user
-app.get(['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/users', '/dashboard/cctv', '/dashboard/join-requests'], authMiddleware_2.authMiddleware, (0, RoleMiddleware_1.roleGuard)(['admin', 'user', 'operator', 'supervisor', 'officer']), (req, res) => {
+app.get(['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/profile', '/dashboard/users', '/dashboard/cctv', '/dashboard/join-requests'], authMiddleware_2.authMiddleware, (0, RoleMiddleware_1.roleGuard)(['admin', 'user', 'operator', 'supervisor', 'officer']), (req, res) => {
     res.sendFile(path_1.default.join(__dirname, '../public/views/dashboard.html'));
 });
 // Single report detail page
@@ -428,7 +429,6 @@ app.get('/join/:code', async (req, res) => {
     }
 });
 // --- FEATURE ROUTES ---
-app.use('/api', reportRoutes_1.default);
 app.use('/api/cctv', cctvRoutes_1.default);
 function listenWithFallback(port, attempts = 10) {
     return new Promise((resolve, reject) => {
