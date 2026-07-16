@@ -173,7 +173,10 @@ export class HeaderComponent {
     const themeBtn = document.getElementById('btn-theme');
     if (!themeBtn) return;
     const theme = AppState.get('theme');
-    themeBtn.innerText = theme === 'dark' ? 'LIGHT' : 'DARK';
+    themeBtn.innerHTML = theme === 'dark' 
+      ? '<i data-lucide="sun" style="width: 16px; height: 16px;"></i>' 
+      : '<i data-lucide="moon" style="width: 16px; height: 16px;"></i>';
+    if (window.lucide) window.lucide.createIcons();
   }
 }
 export const GlobalHeader = new HeaderComponent();

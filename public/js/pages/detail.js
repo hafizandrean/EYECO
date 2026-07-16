@@ -93,13 +93,13 @@ export class DetailPage {
 
       <!-- Back navigation bar -->
       <section class="detail-nav-row" style="margin-bottom: var(--space-20); animation: pageFadeIn var(--motion-open);">
-        <button class="btn btn-glass btn-rounded btn-back-route" id="btn-detail-back" style="padding: 10px 20px; font-weight:700;">
-          <i data-lucide="arrow-left" style="width: 16px; height: 16px; margin-right: 4px;"></i> Kembali ke Daftar
+        <button class="btn btn-glass btn-rounded btn-back-route" id="btn-detail-back" style="display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; padding: 0;" title="Kembali ke Daftar">
+          <i data-lucide="arrow-left" style="width: 16px; height: 16px;"></i>
         </button>
       </section>
 
       <!-- Main Detail layout -->
-      <div class="detail-grid-layout" id="detail-grid-container" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: var(--space-24); align-items: start; animation: pageFadeIn var(--motion-open);">
+      <div class="detail-grid-layout" id="detail-grid-container" style="align-items: start; animation: pageFadeIn var(--motion-open);">
         <!-- Skeleton Loaders -->
         <div class="shimmer-card" style="min-height: 480px;"></div>
         <div class="shimmer-card" style="min-height: 480px;"></div>
@@ -196,14 +196,14 @@ export class DetailPage {
             </div>
             <!-- Interactive Action buttons (Item 9) -->
             <div style="display:flex; justify-content:flex-end; gap:8px; margin-top: 12px;">
-              <button class="btn btn-sm btn-glass btn-rounded" id="btn-detail-zoom" style="font-size:0.75rem; font-weight:700; display:flex; align-items:center; gap:4px; padding: 6px 12px;">
-                <i data-lucide="zoom-in" style="width:14px; height:14px;"></i> Zoom
+              <button class="btn btn-sm btn-glass btn-rounded" id="btn-detail-zoom" style="display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; border-radius: 50%;" title="Zoom">
+                <i data-lucide="zoom-in" style="width: 20px; height: 20px;"></i>
               </button>
-              <a href="${report.image}" download="EYECO_Evidence_${report.id}.jpg" class="btn btn-sm btn-glass btn-rounded" style="font-size:0.75rem; font-weight:700; display:flex; align-items:center; gap:4px; padding: 6px 12px; text-decoration:none; color: var(--text-primary);">
-                <i data-lucide="download" style="width:14px; height:14px;"></i> Download
+              <a href="${report.image}" download="EYECO_Evidence_${report.id}.jpg" class="btn btn-sm btn-glass btn-rounded" style="display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; border-radius: 50%; text-decoration:none; color: var(--text-primary);" title="Download">
+                <i data-lucide="download" style="width: 20px; height: 20px;"></i>
               </a>
-              <button class="btn btn-sm btn-glass btn-rounded" id="btn-detail-print" style="font-size:0.75rem; font-weight:700; display:flex; align-items:center; gap:4px; padding: 6px 12px;">
-                <i data-lucide="file-text" style="width:14px; height:14px;"></i> Export PDF
+              <button class="btn btn-sm btn-glass btn-rounded" id="btn-detail-print" style="display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; border-radius: 50%;" title="Export PDF">
+                <i data-lucide="file-text" style="width: 20px; height: 20px;"></i>
               </button>
             </div>
           </div>
@@ -231,7 +231,6 @@ export class DetailPage {
                 <div style="font-size: 0.65rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Kategori Pelapor</div>
                 <strong style="font-size: 0.85rem; color: var(--text-primary); margin-top: 2px; display:block; display:flex; align-items:center; gap:4px;">
                   <i data-lucide="user" style="width:14px; height:14px;"></i> ${report.identity || 'Citizen'}
-                  <span id="reporter-reputation-stars" style="color: var(--warning); font-size: 0.72rem; font-weight: 800;">★★★★★</span>
                 </strong>
               </div>
             </div>
@@ -280,7 +279,10 @@ export class DetailPage {
                 </div>
                 <div style="display:flex; justify-content:space-between; margin-top:2px;">
                   <span style="color:var(--text-secondary);">Status Tugas:</span>
-                  <strong style="color:var(--info);">🟢 ON SITE (ETA 5 Min)</strong>
+                  <strong style="color:var(--info); display:flex; align-items:center; gap:6px;">
+                    <span style="display:inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--info);"></span>
+                    ON SITE (ETA 5 Min)
+                  </strong>
                 </div>
                 <div style="display:flex; justify-content:space-between; margin-top:2px;">
                   <span style="color:var(--text-secondary);">Petugas PJ:</span>
@@ -383,22 +385,26 @@ export class DetailPage {
             <div style="display: flex; flex-direction: column; gap: 12px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: var(--space-12);">
               <span style="font-size: 0.72rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Apakah Laporan ini masih terjadi?</span>
               <div style="display: flex; gap: 8px;">
-                <button class="btn btn-glass btn-sm btn-rounded btn-vote" data-vote="active" style="flex:1; font-size: 0.7rem; padding: 8px 0; justify-content:center; font-weight: 700; ${signals.voted ? 'opacity:0.5; pointer-events:none;' : ''}">Masih Ada</button>
-                <button class="btn btn-glass btn-sm btn-rounded btn-vote" data-vote="resolved" style="flex:1; font-size: 0.7rem; padding: 8px 0; justify-content:center; font-weight: 700; ${signals.voted ? 'opacity:0.5; pointer-events:none;' : ''}">Sudah Bersih</button>
+                <button class="btn btn-glass btn-rounded btn-vote" data-vote="active" style="flex:1; display: inline-flex; align-items: center; justify-content: center; height: 40px; padding: 0; ${signals.voted ? 'opacity:0.5; pointer-events:none;' : ''}" title="Masih Ada">
+                  <i data-lucide="thumbs-down" style="width: 20px; height: 20px;"></i>
+                </button>
+                <button class="btn btn-glass btn-rounded btn-vote" data-vote="resolved" style="flex:1; display: inline-flex; align-items: center; justify-content: center; height: 40px; padding: 0; ${signals.voted ? 'opacity:0.5; pointer-events:none;' : ''}" title="Sudah Bersih">
+                  <i data-lucide="thumbs-up" style="width: 20px; height: 20px;"></i>
+                </button>
               </div>
 
               <!-- Upload extra update photo button -->
               <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 6px;">
                 <span style="font-size: 0.72rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Tambahkan Foto Kondisi Terbaru</span>
-                <button class="btn btn-glass btn-sm btn-rounded" id="btn-update-photo-upload" style="border-color: rgba(47,107,255,0.2); color: var(--primary); font-size:0.75rem; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; padding: 8px 0;">
-                  <i data-lucide="camera" style="width: 14px; height: 14px;"></i> Unggah Foto
+                <button class="btn btn-glass btn-sm btn-rounded" id="btn-update-photo-upload" style="border-color: rgba(47,107,255,0.2); color: var(--primary); display:inline-flex; align-items:center; justify-content:center; height: 40px; padding: 0; width: 100%;" title="Unggah Foto Kondisi Terbaru">
+                  <i data-lucide="camera" style="width: 20px; height: 20px;"></i>
                 </button>
-                <input type="file" id="update-photo-input-file" accept="image/*" style="display:none;">
               </div>
+              <input type="file" id="update-photo-input-file" accept="image/*" style="display:none;">
             </div>
           </div>
 
-          <!-- 🛡️ Operator Action Panel (Government controls - Admin Only) -->
+          <!-- Operator Action Panel (Government controls - Admin Only) -->
           ${isAdmin ? `
             <div class="glass-card" style="padding: var(--space-24); border-radius: var(--radius-card); display: flex; flex-direction: column; gap: var(--space-16); border: 1.5px solid rgba(47,107,255,0.15); background: rgba(47, 107, 255, 0.02);">
               <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 800; color: var(--primary); margin: 0; display:flex; align-items:center; gap:8px;">
@@ -409,7 +415,7 @@ export class DetailPage {
                 <!-- Validate/Reject status -->
                 <div class="form-group">
                   <label class="form-label" style="font-size:0.75rem;" for="verify-status-select">Status Validasi</label>
-                  <select class="form-control select-rounded" id="verify-status-select" style="font-size:0.8rem; background: #0f172a; color: var(--text-primary); border: 1px solid var(--glass-border); height:34px; margin-top:4px;" required>
+                  <select class="form-control select-rounded" id="verify-status-select" style="font-size:0.8rem; background: var(--surface); color: var(--text-primary); border: 1px solid var(--glass-border); height:34px; margin-top:4px;" required>
                     <option value="MENUNGGU" ${report.adminStatus === 'MENUNGGU' ? 'selected' : ''}>Menunggu (Belum Diverifikasi)</option>
                     <option value="VALID" ${report.adminStatus === 'VALID' ? 'selected' : ''}>Valid (Kirim Tindak Lanjut)</option>
                     <option value="DIABAIKAN" ${report.adminStatus === 'DIABAIKAN' ? 'selected' : ''}>Abaikan (Bukan Ancaman/Salah AI)</option>
@@ -419,7 +425,7 @@ export class DetailPage {
                 <!-- Incident Assignment -->
                 <div class="form-group">
                   <label class="form-label" style="font-size:0.75rem;" for="verify-assignment-select">Tugaskan Instansi</label>
-                  <select class="form-control select-rounded" id="verify-assignment-select" style="font-size:0.8rem; background: #0f172a; color: var(--text-primary); border: 1px solid var(--glass-border); height:34px; margin-top:4px;">
+                  <select class="form-control select-rounded" id="verify-assignment-select" style="font-size:0.8rem; background: var(--surface); color: var(--text-primary); border: 1px solid var(--glass-border); height:34px; margin-top:4px;">
                     <option value="" ${!report.assignedOfficer ? 'selected' : ''}>-- Belum Ditunjuk --</option>
                     <option value="BBWS" ${report.assignedOfficer === 'BBWS' ? 'selected' : ''}>BBWS (River Authority)</option>
                     <option value="DLH" ${report.assignedOfficer === 'DLH' ? 'selected' : ''}>DLH (Dinas Lingkungan Hidup)</option>
@@ -430,7 +436,7 @@ export class DetailPage {
                 <!-- Workflow / Progress status -->
                 <div class="form-group">
                   <label class="form-label" style="font-size:0.75rem;" for="verify-progress-select">Alur Operasional / Progress</label>
-                  <select class="form-control select-rounded" id="verify-progress-select" style="font-size:0.8rem; background: #0f172a; color: var(--text-primary); border: 1px solid var(--glass-border); height:34px; margin-top:4px;">
+                  <select class="form-control select-rounded" id="verify-progress-select" style="font-size:0.8rem; background: var(--surface); color: var(--text-primary); border: 1px solid var(--glass-border); height:34px; margin-top:4px;">
                     <option value="PENDING" ${report.status === 'PENDING' ? 'selected' : ''}>Menunggu Aksi (Pending)</option>
                     <option value="PROSES" ${report.status === 'PROSES' ? 'selected' : ''}>Dalam Penanganan (In Progress)</option>
                     <option value="SELESAI" ${report.status === 'SELESAI' ? 'selected' : ''}>Lokasi Pulih (Resolved)</option>
@@ -440,17 +446,17 @@ export class DetailPage {
 
                 <div class="form-group">
                   <label class="form-label" style="font-size:0.75rem;" for="verify-notes-input">Catatan Petugas (BBWS)</label>
-                  <textarea class="form-control textarea-rounded" id="verify-notes-input" style="font-size:0.8rem; background: rgba(255,255,255,0.03); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 10px; margin-top:4px;" placeholder="Instruksi rujukan dinas sosial atau petugas RT setempat..." rows="2">${report.adminNotes || ''}</textarea>
+                  <textarea class="form-control textarea-rounded" id="verify-notes-input" style="font-size:0.8rem; background: var(--surface); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 10px; margin-top:4px;" placeholder="Instruksi rujukan dinas sosial atau petugas RT setempat..." rows="2">${report.adminNotes || ''}</textarea>
                 </div>
 
-                <button type="submit" class="btn btn-primary btn-rounded" style="width: 100%; font-weight: 700; height: 38px; font-size: 0.8rem; margin-top: 4px;">
-                  <i data-lucide="save" style="width:14px; height:14px; margin-right:4px;"></i> Simpan Keputusan
+                <button type="submit" class="btn btn-primary btn-rounded" style="width: 100%; height: 40px; display: inline-flex; align-items: center; justify-content: center; padding: 0; margin-top: 4px;" title="Simpan Keputusan">
+                  <i data-lucide="save" style="width: 20px; height: 20px;"></i>
                 </button>
               </form>
 
               <!-- Telegram Dispatch -->
-              <button class="btn btn-glass btn-rounded" id="btn-telegram-dispatch" style="width: 100%; color: var(--primary); border-color: rgba(47, 107, 255, 0.2); font-size: 0.8rem; font-weight: 700; height: 38px;">
-                <i data-lucide="send" style="width:14px; height:14px; margin-right:4px;"></i> Siarkan Telegram Respon
+              <button class="btn btn-glass btn-rounded" id="btn-telegram-dispatch" style="width: 100%; color: var(--primary); border-color: rgba(47, 107, 255, 0.2); height: 40px; display: inline-flex; align-items: center; justify-content: center; padding: 0;" title="Siarkan Telegram Respon">
+                <i data-lucide="send" style="width: 20px; height: 20px;"></i>
               </button>
             </div>
           ` : ''}
@@ -666,8 +672,8 @@ export class DetailPage {
           <textarea class="form-control textarea-rounded" id="comment-input-text" placeholder="Berikan info lapangan terbaru (gunakan @username jika perlu)..." style="height:62px; font-size:0.8rem; padding: 8px 12px; padding-bottom: 22px; resize:none; background:var(--surface);" required></textarea>
           <span id="comment-char-counter" style="position:absolute; right:12px; bottom:6px; font-size:0.65rem; color:var(--text-muted); pointer-events:none;">0/500</span>
         </div>
-        <button type="submit" class="btn btn-primary btn-rounded btn-sm" id="btn-submit-comment" style="align-self: flex-end; height:30px; font-size:0.75rem; padding: 0 16px; font-weight:700;">
-          Kirim Diskusi
+        <button type="submit" class="btn btn-primary btn-rounded btn-sm" id="btn-submit-comment" style="align-self: flex-end; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; padding: 0; border-radius: 50%;" title="Kirim Diskusi">
+          <i data-lucide="send" style="width: 18px; height: 18px;"></i>
         </button>
       </form>
     `;
@@ -791,13 +797,15 @@ export class DetailPage {
           </button>
           
           ${isAdmin ? `
-            <button class="btn-pin-comment" data-id="${comment._id}" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.68rem; font-weight:700;">
-              ${isPinned ? 'Unpin' : 'Pin'}
+            <button class="btn-pin-comment" data-id="${comment._id}" style="background:none; border:none; color: var(--primary); cursor:pointer; display: inline-flex; align-items: center;" title="${isPinned ? 'Unpin' : 'Pin'}">
+              <i data-lucide="pin" style="width:14px; height:14px; fill: ${isPinned ? 'currentColor' : 'none'};"></i>
             </button>
           ` : ''}
 
           ${isOwner || isAdmin ? `
-            <button class="btn-delete-comment text-danger" data-id="${comment._id}" style="background:none; border:none; color: var(--danger); cursor:pointer; font-size:0.68rem; font-weight:700; margin-left:auto;">Hapus</button>
+            <button class="btn-delete-comment text-danger" data-id="${comment._id}" style="background:none; border:none; color: var(--danger); cursor:pointer; margin-left:auto; display: inline-flex; align-items: center;" title="Hapus">
+              <i data-lucide="trash-2" style="width:14px; height:14px;"></i>
+            </button>
           ` : ''}
         </div>
       `;

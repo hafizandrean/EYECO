@@ -6,7 +6,7 @@
   <title>EYECO - AI CCTV Incident Command Center</title>
   <link rel="stylesheet" href="/css/style.css">
   <!-- Load Lucide Icons CDN (Fork of Feather Icons) -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/lib/lucide.min.js"></script>
   <!-- Load Hls.js CDN to support HLS video streaming in Chrome/Firefox/Edge -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
@@ -45,19 +45,19 @@
       <!-- Right side: Actions Group (Export, Notifications, Darkmode, Profile) -->
       <div class="header-right-group">
         <!-- Conditional Export Button -->
-        <button class="btn btn-glass btn-rounded header-export-btn" id="btn-header-export" style="font-size: 0.75rem; font-weight: 700; padding: 10px 14px;">
-          Export CSV
+        <button class="btn btn-glass btn-rounded header-export-btn" id="btn-header-export" style="display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; padding: 0; border-radius: 50%;" title="Export CSV">
+          <i data-lucide="download" style="width: 20px; height: 20px;"></i>
         </button>
 
         <!-- Theme Toggle Button -->
-        <button class="btn btn-glass btn-rounded" id="btn-theme" title="Ubah Tema" style="font-size: 0.75rem; font-weight: 700; padding: 10px 14px; min-width: 65px; text-align: center; text-transform: uppercase;">
-          DARK
+        <button class="btn btn-glass btn-rounded" id="btn-theme" title="Ubah Tema" style="display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; padding: 0; border-radius: 50%;">
+          <i data-lucide="moon" style="width: 20px; height: 20px;"></i>
         </button>
 
         <!-- Notification Bell Dropdown -->
         <div class="notification-bell-wrapper">
-          <button class="btn btn-glass btn-rounded btn-bell" id="btn-bell" title="Pusat Peringatan AI" style="font-size: 0.75rem; font-weight: 700; padding: 10px 14px; position: relative;">
-            ALERTS <span class="bell-badge-count" id="bell-badge">0</span>
+          <button class="btn btn-glass btn-rounded btn-bell" id="btn-bell" title="Pusat Peringatan AI" style="position: relative; display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; padding: 0; border-radius: 50%;">
+            <i data-lucide="bell" style="width: 20px; height: 20px;"></i> <span class="bell-badge-count" id="bell-badge" style="position: absolute; top: -2px; right: -2px;">0</span>
           </button>
           <div class="notification-dropdown glass-card" id="notification-dropdown">
             <div class="notification-dropdown-header">
@@ -83,11 +83,11 @@
             </div>
             <div class="divider-line"></div>
             <a href="/profile" class="dropdown-item-btn" id="btn-dropdown-profile" style="text-decoration: none; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
-              👤 Profil Saya
+              <i data-lucide="user" style="width: 14px; height: 14px;"></i> Profil Saya
             </a>
             <div class="divider-line"></div>
             <button class="dropdown-item-btn text-danger" id="btn-dropdown-logout" style="display: flex; align-items: center; gap: 8px;">
-              🚪 Logout
+              <i data-lucide="log-out" style="width: 14px; height: 14px;"></i> Logout
             </button>
           </div>
         </div>

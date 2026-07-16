@@ -77,8 +77,8 @@ export class UploadPage {
                   </div>
                   <p style="font-size: 0.9rem; color: var(--text-primary); font-weight: 700; margin: 0;">Seret & lepas gambar di sini, atau klik untuk memilih</p>
                   <p style="font-size: 0.72rem; color: var(--text-secondary); margin: 0;">Mendukung format JPG, PNG, MP4 hingga 10MB</p>
-                  <button type="button" class="btn btn-glass btn-rounded" id="btn-webcam-record" style="margin-top: 8px; font-weight: 700; border-color: rgba(47,107,255,0.3); color: var(--primary);">
-                    Gunakan Kamera Laptop
+                  <button type="button" class="btn btn-glass btn-rounded" id="btn-webcam-record" style="margin-top: 8px; font-weight: 700; border-color: rgba(47,107,255,0.3); color: var(--primary); display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; padding: 0; border-radius: 50%;" title="Gunakan Kamera Laptop">
+                    <i data-lucide="camera" style="width: 20px; height: 20px;"></i>
                   </button>
                 </div>
 
@@ -127,7 +127,9 @@ export class UploadPage {
                 <label class="form-label" for="input-time">Waktu Pengamatan <span class="required">*</span></label>
                 <div class="input-btn-group">
                   <input type="datetime-local" class="form-control input-rounded" id="input-time" required style="flex: 1;">
-                  <button type="button" class="btn btn-glass btn-rounded" id="btn-autofill-time">Sekarang</button>
+                  <button type="button" class="btn btn-glass btn-rounded" id="btn-autofill-time" style="display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; padding: 0; border-radius: 50%;" title="Sekarang">
+                    <i data-lucide="clock" style="width: 20px; height: 20px;"></i>
+                  </button>
                 </div>
               </div>
 
@@ -138,8 +140,8 @@ export class UploadPage {
               </div>
 
               <!-- Submit Button -->
-              <button type="submit" class="btn btn-primary btn-rounded" id="btn-submit-report" style="width: 100%; height: 48px; margin-top: 8px; font-weight: 700;">
-                <i data-lucide="send"></i> Kirim Laporan Resmi
+              <button type="submit" class="btn btn-primary btn-rounded" id="btn-submit-report" style="width: 100%; height: 48px; margin-top: 8px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; padding: 0;" title="Kirim Laporan Resmi">
+                <i data-lucide="send" style="width: 20px; height: 20px;"></i>
               </button>
             </div>
           </form>
@@ -530,14 +532,19 @@ export class UploadPage {
           <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; position: relative; z-index: 10;">
             <video id="webcam-live" autoplay muted playsinline style="width: 240px; height: 160px; object-fit: cover; border-radius: 8px; background: #000; border: 1px solid var(--border);"></video>
             <div style="display: flex; gap: 8px; justify-content: center;">
-              <button type="button" class="btn btn-danger btn-rounded" id="btn-webcam-start" style="font-weight: 700;">Mulai Rekam</button>
-              <button type="button" class="btn btn-glass btn-rounded" id="btn-webcam-cancel" style="font-weight: 700;">Batal</button>
+              <button type="button" class="btn btn-danger btn-rounded" id="btn-webcam-start" style="display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; padding: 0; border-radius: 50%;" title="Mulai Rekam">
+                <i data-lucide="circle" style="width: 20px; height: 20px;"></i>
+              </button>
+              <button type="button" class="btn btn-glass btn-rounded" id="btn-webcam-cancel" style="display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; padding: 0; border-radius: 50%;" title="Batal">
+                <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+              </button>
             </div>
           </div>
         `;
 
         const videoLive = document.getElementById('webcam-live');
         if (videoLive) videoLive.srcObject = stream;
+        if (window.lucide) window.lucide.createIcons();
 
         const btnStart = document.getElementById('btn-webcam-start');
         const btnCancel = document.getElementById('btn-webcam-cancel');

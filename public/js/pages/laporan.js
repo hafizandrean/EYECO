@@ -138,8 +138,8 @@ export class LaporanPage {
           </div>
           <div class="filter-item reset-filter-col">
             <label class="filter-label" style="visibility: hidden; pointer-events: none;">&nbsp;</label>
-            <button class="btn btn-glass btn-rounded" id="btn-reset-filters" style="width: 100%; height: 40px;">
-              <i data-lucide="rotate-ccw"></i> Reset Filter
+            <button class="btn btn-glass btn-rounded" id="btn-reset-filters" style="width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; padding: 0; margin-top: 24px;" title="Reset Filter">
+              <i data-lucide="rotate-ccw" style="width: 20px; height: 20px;"></i>
             </button>
           </div>
         </div>
@@ -157,12 +157,12 @@ export class LaporanPage {
 
         <!-- Pagination -->
         <div class="pagination-container" id="pagination-controls">
-          <button class="btn btn-glass btn-rounded btn-sm" id="btn-prev" disabled>
-            <i data-lucide="chevron-left"></i> Sebelum
+          <button class="btn btn-glass btn-rounded btn-sm" id="btn-prev" disabled style="display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; border-radius: 50%;" title="Sebelumnya">
+            <i data-lucide="chevron-left" style="width: 20px; height: 20px;"></i>
           </button>
           <span class="page-info" id="page-info-text">Halaman 1 dari 1</span>
-          <button class="btn btn-glass btn-rounded btn-sm" id="btn-next" disabled>
-            Selanjutnya <i data-lucide="chevron-right"></i>
+          <button class="btn btn-glass btn-rounded btn-sm" id="btn-next" disabled style="display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; border-radius: 50%;" title="Selanjutnya">
+            <i data-lucide="chevron-right" style="width: 20px; height: 20px;"></i>
           </button>
         </div>
       </section>
@@ -372,8 +372,12 @@ export class LaporanPage {
       const isAdmin = currentUser?.role === 'admin';
       if (isAdmin && report.adminStatus === 'MENUNGGU') {
         actionButtons = `
-          <button class="btn btn-glass btn-sm btn-quick-verify" data-id="${report.id}" data-action="VALID" title="Verifikasi Valid" style="border-color: rgba(34, 197, 94, 0.3); color: #16a34a; background: rgba(34, 197, 94, 0.05); font-weight: 700; margin-right: 6px;">Valid</button>
-          <button class="btn btn-glass btn-sm btn-quick-verify" data-id="${report.id}" data-action="DIABAIKAN" title="Abaikan Laporan" style="border-color: rgba(239, 68, 68, 0.3); color: #dc2626; background: rgba(239, 68, 68, 0.05); font-weight: 700; margin-right: 6px;">Abaikan</button>
+          <button class="btn btn-glass btn-sm btn-quick-verify" data-id="${report.id}" data-action="VALID" title="Verifikasi Valid" style="border-color: rgba(34, 197, 94, 0.3); color: #16a34a; background: rgba(34, 197, 94, 0.05); font-weight: 700; margin-right: 6px; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; padding: 0; border-radius: 50%;">
+            <i data-lucide="check" style="width: 20px; height: 20px;"></i>
+          </button>
+          <button class="btn btn-glass btn-sm btn-quick-verify" data-id="${report.id}" data-action="DIABAIKAN" title="Abaikan Laporan" style="border-color: rgba(239, 68, 68, 0.3); color: #dc2626; background: rgba(239, 68, 68, 0.05); font-weight: 700; margin-right: 6px; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; padding: 0; border-radius: 50%;">
+            <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+          </button>
         `;
       }
 
@@ -416,7 +420,9 @@ export class LaporanPage {
         <div class="col-actions">
           <div class="action-group">
             ${actionButtons}
-            <button class="btn btn-primary btn-sm btn-view-details" data-id="${report.id}">Detail Data</button>
+            <button class="btn btn-primary btn-sm btn-view-details" data-id="${report.id}" style="display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; padding: 0; border-radius: 50%;" title="Detail Data">
+              <i data-lucide="eye" style="width: 20px; height: 20px;"></i>
+            </button>
           </div>
         </div>
       `;
@@ -464,8 +470,8 @@ export class LaporanPage {
           <i data-lucide="alert-octagon" style="width: 48px; height: 48px; color: var(--danger); margin-bottom: 12px;"></i>
           <h3>Gagal Memuat Logs Laporan</h3>
           <p style="color: var(--text-secondary); margin: 8px 0 16px 0;">Terjadi gangguan saat mengambil data pemantauan dari server.</p>
-          <button id="btn-retry-laporan" class="btn btn-primary btn-rounded">
-            <i data-lucide="refresh-cw"></i> Coba Lagi
+          <button id="btn-retry-laporan" class="btn btn-primary btn-rounded" style="display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; padding: 0; border-radius: 50%;" title="Coba Lagi">
+            <i data-lucide="refresh-cw" style="width: 20px; height: 20px;"></i>
           </button>
         </div>
       `;

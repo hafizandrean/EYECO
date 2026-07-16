@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="/css/style.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
   <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/lib/lucide.min.js"></script>
   <style>
     body {
       background-color: #0b0f19;
@@ -223,14 +223,14 @@
       <span>EYECO</span>
     </a>
     <div style="display: flex; align-items: center; gap: 12px;">
-      <button class="btn btn-glass btn-rounded" id="btn-theme" title="Ubah Tema" style="text-transform: uppercase;">
-        DARK
+      <button class="btn btn-glass btn-rounded" id="btn-theme" title="Ubah Tema" style="display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; padding: 0; border-radius: 50%;">
+        <i data-lucide="moon" style="width: 20px; height: 20px;"></i>
       </button>
-      <button class="btn btn-danger btn-rounded" id="btn-profile-logout" style="text-transform: uppercase;">
-        LOGOUT
+      <button class="btn btn-danger btn-rounded" id="btn-profile-logout" title="Logout" style="display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; padding: 0; border-radius: 50%;">
+        <i data-lucide="log-out" style="width: 20px; height: 20px;"></i>
       </button>
-      <button class="btn btn-glass btn-rounded" id="btn-back-dashboard" style="text-transform: uppercase;">
-        Kembali
+      <button class="btn btn-glass btn-rounded" id="btn-back-dashboard" title="Kembali" style="display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; padding: 0; border-radius: 50%;">
+        <i data-lucide="arrow-left" style="width: 20px; height: 20px;"></i>
       </button>
     </div>
   </header>
@@ -303,7 +303,7 @@
     <div class="profile-modal-box">
       <div class="modal-header">
         <div class="modal-title">Ganti Password</div>
-        <button class="modal-close-btn" id="btn-close-password-modal" style="font-size: 1.25rem; line-height: 1; font-weight: 700;">✕</button>
+        <button class="modal-close-btn" id="btn-close-password-modal" style="display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; background: transparent; cursor: pointer; color: var(--text-secondary);"><i data-lucide="x" style="width: 16px; height: 16px;"></i></button>
       </div>
       <form id="form-change-password">
         <div class="form-group">
@@ -328,7 +328,7 @@
     <div class="profile-modal-box" style="max-width: 520px;">
       <div class="modal-header">
         <div class="modal-title" style="color: #ef4444;">Tutup Akun Anda</div>
-        <button class="modal-close-btn" id="btn-close-delete-modal" style="font-size: 1.25rem; line-height: 1; font-weight: 700;">✕</button>
+        <button class="modal-close-btn" id="btn-close-delete-modal" style="display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; background: transparent; cursor: pointer; color: var(--text-secondary);"><i data-lucide="x" style="width: 16px; height: 16px;"></i></button>
       </div>
       <div style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; color: var(--danger); font-size: 0.85rem; line-height: 1.5; display: flex; gap: 10px; align-items: flex-start;">
         <span>Peringatan: Tindakan ini akan menutup akses ke akun Anda dan mengeluarkan Anda dari seluruh perangkat. Hubungi superadmin untuk pembukaan kembali akun.</span>
@@ -361,11 +361,12 @@
     function updateThemeUI(theme) {
       if (theme === 'dark') {
         document.body.classList.add('dark-mode');
-        themeBtn.innerText = 'LIGHT';
+        themeBtn.innerHTML = '<i data-lucide="sun" style="width: 16px; height: 16px;"></i>';
       } else {
         document.body.classList.remove('dark-mode');
-        themeBtn.innerText = 'DARK';
+        themeBtn.innerHTML = '<i data-lucide="moon" style="width: 16px; height: 16px;"></i>';
       }
+      if (window.lucide) window.lucide.createIcons();
     }
 
     const currentTheme = localStorage.getItem('eyeco-theme') || 'dark';

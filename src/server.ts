@@ -156,11 +156,15 @@ const authLimiter = rateLimit({
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 
-// Request ID middleware
+// Request ID middleware and Disable Cache in Dev
 app.use((req, res, next) => {
   const reqId = crypto.randomUUID();
   req.requestId = reqId;
   res.setHeader('X-Request-ID', reqId);
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
   next();
 });
 

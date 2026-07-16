@@ -36,7 +36,7 @@ export class DashboardPage {
       <div class="cc-hud glass-card" id="command-center-hud">
         <div class="cc-hud-status">
           <span class="status-pulse-dot green" id="cc-hud-pulse"></span>
-          <span id="brief-system-status">🟢 MONITORING ACTIVE</span>
+          <span id="brief-system-status">MONITORING ACTIVE</span>
         </div>
         <div class="cc-hud-metrics">
           <div class="cc-hud-metric"><i data-lucide="video" style="width:14px;height:14px;"></i> <strong id="brief-online-count">0</strong> Cameras Online</div>
@@ -74,11 +74,11 @@ export class DashboardPage {
         </div>
         <div class="control-right" style="position: relative;">
           ${isAdmin ? `
-            <button id="btn-edit-eyeco-info" class="btn btn-glass btn-rounded" style="border-color: rgba(47, 107, 255, 0.3); color: var(--primary); margin-right: 8px;">
-              <i data-lucide="edit-3"></i> Edit Info EYECO
+            <button id="btn-edit-eyeco-info" class="btn btn-glass btn-rounded" style="border-color: rgba(47, 107, 255, 0.3); color: var(--primary); margin-right: 8px; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0;" title="Edit Info EYECO">
+              <i data-lucide="edit-3" style="width: 20px; height: 20px;"></i>
             </button>
-            <button id="btn-connect-cctv" class="btn btn-glass btn-rounded" style="border-color: rgba(47, 107, 255, 0.3); color: var(--primary);">
-              <i data-lucide="plus-circle"></i> Hubungkan CCTV
+            <button id="btn-connect-cctv" class="btn btn-glass btn-rounded" style="border-color: rgba(47, 107, 255, 0.3); color: var(--primary); display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0;" title="Hubungkan CCTV">
+              <i data-lucide="plus-circle" style="width: 20px; height: 20px;"></i>
             </button>
           ` : ''}
 
@@ -89,9 +89,8 @@ export class DashboardPage {
               <span class="slider round"></span>
             </label>
           </div>
-          <button id="btn-toggle-monitoring" class="btn ${AppState.get('isMonitoring') ? 'btn-danger' : 'btn-primary'} btn-rounded">
-            <i data-lucide="${AppState.get('isMonitoring') ? 'video-off' : 'video'}"></i>
-            <span id="btn-monitoring-text">${AppState.get('isMonitoring') ? 'Hentikan Pemantauan' : 'Mulai Pemantauan'}</span>
+          <button id="btn-toggle-monitoring" class="btn ${AppState.get('isMonitoring') ? 'btn-danger' : 'btn-primary'} btn-rounded" style="display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0;" title="${AppState.get('isMonitoring') ? 'Hentikan Pemantauan' : 'Mulai Pemantauan'}">
+            <i data-lucide="${AppState.get('isMonitoring') ? 'video-off' : 'video'}" style="width: 20px; height: 20px;"></i>
           </button>
         </div>
       </section>
@@ -335,22 +334,22 @@ export class DashboardPage {
         </div>
       </div>
 
-      <!-- CCTV Fullscreen VMS View (Image 2 style) -->
-      <div id="vms-fullscreen-page" class="vms-fullscreen-view" style="display: none;">
+      <!-- CCTV Fullscreen VMS View (Desktop Pro VMS style) -->
+      <div id="vms-fullscreen-page" class="vms-fullscreen-view" style="display: none; height: 100vh; flex-direction: column;">
         <!-- Header -->
-        <div class="vms-fs-header">
-          <div class="vms-fs-header-left">
-            <button class="vms-fs-btn-back" id="btn-close-vms-fs">
-              <i data-lucide="chevron-left"></i>
+        <div class="vms-fs-header" style="height: 60px; display: flex; justify-content: space-between; align-items: center; padding: 0 24px; z-index: 10;">
+          <div class="vms-fs-header-left" style="display: flex; align-items: center; gap: 16px;">
+            <button class="vms-fs-btn-back btn btn-glass btn-rounded" id="btn-close-vms-fs" style="display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; padding: 0;" title="Kembali ke Dashboard">
+              <i data-lucide="arrow-left" style="width: 18px; height: 18px;"></i>
             </button>
-            <span class="vms-fs-cam-title" id="vms-fs-cam-title">JALAN TERAS SAMPING</span>
+            <span class="vms-fs-cam-title" id="vms-fs-cam-title" style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">MONITORING STREAM</span>
           </div>
-          <div class="vms-fs-header-right" style="position: relative;">
-            <button class="vms-fs-icon-btn" id="vms-fs-btn-toggle-ai-mon" title="Toggle AI Monitoring"><i data-lucide="eye"></i></button>
-            <button class="vms-fs-icon-btn" id="vms-fs-btn-more" title="More Actions"><i data-lucide="more-horizontal"></i></button>
+          <div class="vms-fs-header-right" style="position: relative; display: flex; align-items: center; gap: 12px;">
+            <button class="btn btn-glass btn-rounded" id="vms-fs-btn-toggle-ai-mon" title="Toggle AI Monitoring" style="display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; padding: 0;"><i data-lucide="eye" style="width: 18px; height: 18px;"></i></button>
+            <button class="btn btn-glass btn-rounded" id="vms-fs-btn-more" title="More Actions" style="display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; padding: 0;"><i data-lucide="more-horizontal" style="width: 18px; height: 18px;"></i></button>
             
             <!-- Dropdown Menu -->
-            <div id="vms-fs-more-dropdown" class="glass-card" style="display: none; position: absolute; top: 40px; right: 0; width: 200px; z-index: 1000; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: #ffffff; box-shadow: var(--glass-shadow);">
+            <div id="vms-fs-more-dropdown" class="glass-card" style="display: none; position: absolute; top: 46px; right: 0; width: 220px; z-index: 1000; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: #ffffff; box-shadow: var(--glass-shadow);">
               <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px;">
                 <li>
                   <button class="dropdown-item-btn" id="vms-fs-drop-settings" style="width: 100%; border: none; background: transparent; padding: 8px 12px; font-size: 0.78rem; font-weight: 700; color: var(--text-primary); text-align: left; cursor: pointer; border-radius: 6px; display: flex; align-items: center; gap: 8px; transition: background 0.15s;">
@@ -377,42 +376,109 @@ export class DashboardPage {
           </div>
         </div>
 
-        <!-- Video Player Section -->
-        <div class="vms-fs-video-section">
-          <div class="vms-fs-player-wrapper" id="vms-fs-player-container">
-            <!-- Video/Image feed or Cloud view -->
-          </div>
-          <!-- Seeker Red Progress Line -->
-          <div class="vms-fs-red-divider">
-            <div class="vms-fs-red-progress" id="vms-fs-seeker-progress" style="width: 100%;"></div>
-          </div>
-        </div>
+        <!-- Main Desktop VMS Split Layout -->
+        <div class="vms-fs-main-layout" style="display: flex; flex: 1; overflow: hidden; height: calc(100vh - 60px); background: #06090f;">
+          <!-- Left Video Pane -->
+          <div class="vms-fs-left-pane" style="flex: 1; display: flex; flex-direction: column; height: 100%; position: relative;">
+            <div class="vms-fs-player-wrapper" id="vms-fs-player-container" style="flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; background: #000;">
+              <!-- Dynamic single feed or 2x2 grid -->
+            </div>
+            
+            <!-- Red Seeker Divider -->
+            <div class="vms-fs-red-divider" style="height: 3px; background: rgba(255,255,255,0.1); width: 100%;">
+              <div class="vms-fs-red-progress" id="vms-fs-seeker-progress" style="height: 100%; background: var(--danger); width: 100%;"></div>
+            </div>
 
-        <!-- Control Row -->
-        <div class="vms-fs-controls-row" style="gap: 12px; font-weight: 800; font-size: 0.72rem;">
-          <button class="vms-fs-ctrl-btn" id="vms-fs-btn-play" style="font-weight: 800; font-size: 0.72rem;">PAUSE</button>
-          <button class="vms-fs-ctrl-btn" id="vms-fs-btn-mute" style="font-weight: 800; font-size: 0.72rem;">MUTE</button>
-          <button class="vms-fs-ctrl-badge" id="vms-fs-btn-quality">HD</button>
-          <button class="vms-fs-ctrl-btn" id="vms-fs-btn-grid" style="font-weight: 800; font-size: 0.72rem;">GRID</button>
-          <button class="vms-fs-ctrl-btn" id="vms-fs-btn-rotate" style="font-weight: 800; font-size: 0.72rem;">ROTATE</button>
-        </div>
+            <!-- Timeline container (visible when playback is active) -->
+            <div class="vms-fs-timeline-container" id="vms-fs-timeline-container" style="display: none; background: #090d16; border-top: 1px solid rgba(255,255,255,0.05); padding: 8px 16px;">
+              <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
+                <input type="range" class="vms-fs-timeline-slider" id="vms-fs-timeline-slider" min="0" max="1440" value="720" style="flex: 1; height: 6px;">
+                <span class="vms-fs-timestamp" id="vms-fs-timestamp" style="font-family: monospace; font-size: 0.8rem; color: #fff;">12:00:00</span>
+              </div>
+            </div>
 
-        <!-- Action & Content area (No scroll, fixed bottom panel) -->
-        <div class="vms-fs-bottom-panel">
-          <!-- Actions Row (Pill + Circle buttons) -->
-          <div class="vms-fs-actions-row" style="gap: var(--space-8);">
-            <button class="vms-fs-pill-btn" id="vms-fs-action-playback" style="font-weight: 700;">Playback</button>
-            <button class="vms-fs-pill-btn" id="vms-fs-action-snapshot" title="Ambil Foto Snapshot" style="font-weight: 700;">Snap</button>
-            <button class="vms-fs-pill-btn" id="vms-fs-action-record" title="Mulai Rekam Video" style="font-weight: 700;">Rec</button>
-            <button class="vms-fs-pill-btn" id="vms-fs-action-mic" title="Interkom Suara" style="font-weight: 700;">Talk</button>
-            <button class="vms-fs-pill-btn" id="vms-fs-action-ai" title="Deteksi AI Bounding Boxes" style="font-weight: 700;">AI Box</button>
+            <!-- Integrated Control Bar (Single Row) -->
+            <div class="vms-fs-integrated-control-bar" style="height: 52px; background: #0d111a; border-top: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; z-index: 10; color: #94a3b8;">
+              <div style="display: flex; align-items: center; gap: 16px;">
+                <button class="vms-fs-ctrl-btn btn btn-glass btn-rounded" id="vms-fs-btn-play" style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border-radius: 50%; border: none;" title="PLAY/PAUSE">
+                  <i data-lucide="pause" style="width: 18px; height: 18px; color: white;"></i>
+                </button>
+                <button class="vms-fs-ctrl-btn btn btn-glass btn-rounded" id="vms-fs-btn-mute" style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border-radius: 50%; border: none;" title="MUTE/UNMUTE">
+                  <i data-lucide="volume-x" style="width: 18px; height: 18px; color: white;"></i>
+                </button>
+                
+                <!-- Live statistics badge -->
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 0.72rem; background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 6px; color: white; font-weight: 600;">
+                  <span style="width: 6px; height: 6px; background: #22c55e; border-radius: 50%; display: inline-block;"></span>
+                  <span>LIVE</span>
+                  <span style="opacity: 0.3;">|</span>
+                  <span style="font-family: monospace; color: #a1a1aa;">1.75 KB/s</span>
+                </div>
+              </div>
+              
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <button class="vms-fs-ctrl-badge btn btn-glass btn-rounded" id="vms-fs-btn-quality" style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border-radius: 50%; border: 1.5px solid var(--primary); color: var(--primary);" title="Kualitas Video">
+                  <i data-lucide="monitor" style="width: 18px; height: 18px;"></i>
+                </button>
+                <button class="vms-fs-ctrl-btn btn btn-glass btn-rounded" id="vms-fs-btn-grid" style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border-radius: 50%; border: none;" title="GRID">
+                  <i data-lucide="grid" style="width: 18px; height: 18px; color: white;"></i>
+                </button>
+                <button class="vms-fs-ctrl-btn btn btn-glass btn-rounded" id="vms-fs-btn-rotate" style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border-radius: 50%; border: none;" title="ROTATE">
+                  <i data-lucide="rotate-cw" style="width: 18px; height: 18px; color: white;"></i>
+                </button>
+              </div>
+            </div>
           </div>
 
-          <!-- Playback Timeline slider (Visible in Playback mode) -->
-          <div class="vms-fs-timeline-container" id="vms-fs-timeline-container" style="display: none; width: 100%; max-width: 600px; margin-top: 8px;">
-            <div class="vms-fs-timeline-row">
-              <input type="range" class="vms-fs-timeline-slider" id="vms-fs-timeline-slider" min="0" max="1440" value="720">
-              <span class="vms-fs-timestamp" id="vms-fs-timestamp">12:00:00</span>
+          <!-- Right Sidebar Control Center -->
+          <div class="vms-fs-right-sidebar" style="width: 320px; background: #0d111a; border-left: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; height: 100%; color: #cbd5e1; overflow-y: auto;">
+            <!-- Section 1: Operator Actions -->
+            <div style="padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; gap: 12px;">
+              <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.78rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin: 0;">Operator Actions</h4>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 4px;">
+                <button class="btn btn-glass btn-rounded" id="vms-fs-action-playback" title="Playback" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 68px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: white; cursor: pointer; transition: background 0.2s;">
+                  <i data-lucide="history" style="width: 20px; height: 20px; margin-bottom: 4px;"></i>
+                  <span style="font-size: 0.62rem; font-weight: 700;">Playback</span>
+                </button>
+                <button class="btn btn-glass btn-rounded" id="vms-fs-action-snapshot" title="Snapshot" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 68px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: white; cursor: pointer; transition: background 0.2s;">
+                  <i data-lucide="camera" style="width: 20px; height: 20px; margin-bottom: 4px;"></i>
+                  <span style="font-size: 0.62rem; font-weight: 700;">Snapshot</span>
+                </button>
+                <button class="btn btn-glass btn-rounded" id="vms-fs-action-record" title="Record" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 68px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: white; cursor: pointer; transition: background 0.2s;">
+                  <i data-lucide="video" style="width: 20px; height: 20px; margin-bottom: 4px;"></i>
+                  <span style="font-size: 0.62rem; font-weight: 700;">Record</span>
+                </button>
+                <button class="btn btn-glass btn-rounded" id="vms-fs-action-mic" title="Voice Intercom" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 68px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: white; cursor: pointer; transition: background 0.2s;">
+                  <i data-lucide="mic" style="width: 20px; height: 20px; margin-bottom: 4px;"></i>
+                  <span style="font-size: 0.62rem; font-weight: 700;">Intercom</span>
+                </button>
+                <button class="btn btn-glass btn-rounded" id="vms-fs-action-ai" title="Toggle AI Overlay" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 68px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: white; cursor: pointer; transition: background 0.2s;">
+                  <i data-lucide="box" style="width: 20px; height: 20px; margin-bottom: 4px;"></i>
+                  <span style="font-size: 0.62rem; font-weight: 700;">AI Box</span>
+                </button>
+              </div>
+            </div>
+            
+            <!-- Section 2: Camera Info -->
+            <div style="padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; gap: 12px;">
+              <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.78rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin: 0;">Camera Status</h4>
+              <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.72rem; margin-top: 4px;">
+                <div style="display: flex; justify-content: space-between;"><span style="color: #94a3b8;">Stream Protocol:</span><span id="vms-fs-info-protocol" style="font-weight: 700; color: #38bdf8;">HLS (M3U8)</span></div>
+                <div style="display: flex; justify-content: space-between;"><span style="color: #94a3b8;">Resolution:</span><span id="vms-fs-info-res" style="font-weight: 700;">1080p (Full HD)</span></div>
+                <div style="display: flex; justify-content: space-between;"><span style="color: #94a3b8;">Latency:</span><span id="vms-fs-info-latency" style="font-weight: 700; color: #4ade80;">120 ms</span></div>
+                <div style="display: flex; justify-content: space-between;"><span style="color: #94a3b8;">AI Tracking:</span><span id="vms-fs-info-ai" style="font-weight: 700; color: #f43f5e;">ACTIVE (YOLOv8)</span></div>
+              </div>
+            </div>
+
+            <!-- Section 3: Event Log Feed -->
+            <div style="padding: 20px; flex: 1; display: flex; flex-direction: column; gap: 12px; overflow: hidden;">
+              <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.78rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin: 0; display: flex; justify-content: space-between; align-items: center;">
+                <span>Event Logs</span>
+                <span style="font-size: 0.6rem; background: rgba(244,63,94,0.1); color: #f43f5e; padding: 2px 6px; border-radius: 4px; font-weight: 800;">LIVE FEED</span>
+              </h4>
+              <div id="vms-fs-sidebar-events" style="display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1; max-height: 240px; padding-right: 4px;">
+                <!-- Populated by JS -->
+              </div>
             </div>
           </div>
         </div>
@@ -540,10 +606,10 @@ export class DashboardPage {
           AppState.set('isMonitoring', enabledResult);
 
           // Update button visual
-          toggleMonitoring.className = `btn ${enabledResult ? 'btn-danger' : 'btn-primary'} btn-rounded`;
+          toggleMonitoring.style.cssText = "display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0;";
+          toggleMonitoring.setAttribute('title', enabledResult ? 'Hentikan Pemantauan' : 'Mulai Pemantauan');
           toggleMonitoring.innerHTML = `
-            <i data-lucide="${enabledResult ? 'video-off' : 'video'}"></i>
-            <span id="btn-monitoring-text">${enabledResult ? 'Hentikan Pemantauan' : 'Mulai Pemantauan'}</span>
+            <i data-lucide="${enabledResult ? 'video-off' : 'video'}" style="width: 20px; height: 20px;"></i>
           `;
           
           // Trigger CCTV static screen
@@ -1134,26 +1200,25 @@ export class DashboardPage {
           <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.85rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin: 0; letter-spacing: 0.5px;">Quick Operator Actions</h4>
           
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <button class="btn btn-glass btn-rounded" id="drawer-btn-reconnect" style="font-size: 0.78rem; font-weight: 700; border-color: rgba(47,107,255,0.25); color: var(--primary); justify-content: center; display:flex; align-items:center; gap:6px; padding: 10px 0;">
-              <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i> Reconnect
+            <button class="btn btn-glass btn-rounded" id="drawer-btn-reconnect" title="Reconnect" style="font-size: 0.78rem; font-weight: 700; border-color: rgba(47,107,255,0.25); color: var(--primary); justify-content: center; display:flex; align-items:center; padding: 10px 0;">
+              <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
             </button>
-            <button class="btn btn-glass btn-rounded" id="drawer-btn-snapshot" style="font-size: 0.78rem; font-weight: 700; border-color: rgba(0,0,0,0.1); color: var(--text-primary); justify-content: center; display:flex; align-items:center; gap:6px; padding: 10px 0;">
-              <i data-lucide="camera" style="width: 14px; height: 14px;"></i> Snapshot
+            <button class="btn btn-glass btn-rounded" id="drawer-btn-snapshot" title="Snapshot" style="font-size: 0.78rem; font-weight: 700; border-color: rgba(0,0,0,0.1); color: var(--text-primary); justify-content: center; display:flex; align-items:center; padding: 10px 0;">
+              <i data-lucide="camera" style="width: 16px; height: 16px;"></i>
             </button>
-            <button class="btn btn-glass btn-rounded" id="drawer-btn-stream" style="font-size: 0.78rem; font-weight: 700; border-color: rgba(0,0,0,0.1); color: var(--text-primary); justify-content: center; display:flex; align-items:center; gap:6px; padding: 10px 0;">
-              <i data-lucide="external-link" style="width: 14px; height: 14px;"></i> Fullscreen
+            <button class="btn btn-glass btn-rounded" id="drawer-btn-stream" title="Fullscreen" style="font-size: 0.78rem; font-weight: 700; border-color: rgba(0,0,0,0.1); color: var(--text-primary); justify-content: center; display:flex; align-items:center; padding: 10px 0;">
+              <i data-lucide="external-link" style="width: 16px; height: 16px;"></i>
             </button>
-            <button class="btn btn-glass btn-rounded" id="drawer-btn-maintenance" style="font-size: 0.78rem; font-weight: 700; border-color: rgba(0,0,0,0.1); color: var(--text-primary); justify-content: center; display:flex; align-items:center; gap:6px; padding: 10px 0;">
-              <i data-lucide="settings" style="width: 14px; height: 14px;"></i> Settings
+            <button class="btn btn-glass btn-rounded" id="drawer-btn-maintenance" title="Settings" style="font-size: 0.78rem; font-weight: 700; border-color: rgba(0,0,0,0.1); color: var(--text-primary); justify-content: center; display:flex; align-items:center; padding: 10px 0;">
+              <i data-lucide="settings" style="width: 16px; height: 16px;"></i>
             </button>
-            <button class="btn ${ch.monitoringEnabled ? 'btn-danger' : 'btn-success'} btn-rounded" id="drawer-btn-toggle-ai" style="grid-column: span 2; font-size: 0.78rem; font-weight: 700; justify-content: center; display:flex; align-items:center; gap:6px; padding: 10px 0; color: white;">
-              <i data-lucide="${ch.monitoringEnabled ? 'video-off' : 'video'}" style="width: 14px; height: 14px;"></i> 
-              ${ch.monitoringEnabled ? 'Hentikan Pemantauan AI' : 'Mulai Pemantauan AI'}
+            <button class="btn ${ch.monitoringEnabled ? 'btn-danger' : 'btn-success'} btn-rounded" id="drawer-btn-toggle-ai" title="${ch.monitoringEnabled ? 'Hentikan Pemantauan AI' : 'Mulai Pemantauan AI'}" style="grid-column: span 2; font-size: 0.78rem; font-weight: 700; justify-content: center; display:flex; align-items:center; padding: 10px 0; color: white;">
+              <i data-lucide="${ch.monitoringEnabled ? 'video-off' : 'video'}" style="width: 16px; height: 16px;"></i> 
             </button>
           </div>
           ${isAdmin && !(ch.isDefault && !ch.workspaceId) ? `
-            <button class="btn btn-glass btn-rounded" id="drawer-btn-delete" style="font-size: 0.78rem; font-weight: 700; border-color: rgba(239,68,68,0.25); color: var(--danger); justify-content: center; display:flex; align-items:center; gap:6px; padding: 10px 0; margin-top: 10px; width: 100%;">
-              <i data-lucide="trash-2" style="width: 14px; height: 14px; color: var(--danger);"></i> Putuskan Koneksi CCTV
+            <button class="btn btn-glass btn-rounded" id="drawer-btn-delete" title="Putuskan Koneksi CCTV" style="font-size: 0.78rem; font-weight: 700; border-color: rgba(239,68,68,0.25); color: var(--danger); justify-content: center; display:flex; align-items:center; padding: 10px 0; margin-top: 10px; width: 100%;">
+              <i data-lucide="trash-2" style="width: 16px; height: 16px; color: var(--danger);"></i>
             </button>
           ` : ''}
         </div>
@@ -1214,7 +1279,6 @@ export class DashboardPage {
       this.openEditCctvModal(ch);
     };
 
-<<<<<<< Updated upstream
     const btnToggleAi = drawer.querySelector('#drawer-btn-toggle-ai');
     if (btnToggleAi) {
       btnToggleAi.onclick = async () => {
@@ -1231,7 +1295,10 @@ export class DashboardPage {
           this.renderCCTVGrid();
         } catch (err) {
           EventBus.emit('toast:show', { message: 'Gagal mengubah status pemantauan kamera.', type: 'danger' });
-=======
+        }
+      };
+    }
+
     const btnDelete = drawer.querySelector('#drawer-btn-delete');
     if (btnDelete) {
       btnDelete.onclick = async (e) => {
@@ -1246,7 +1313,6 @@ export class DashboardPage {
           await this.loadData();
         } catch (err) {
           EventBus.emit('toast:show', { message: `Gagal memutuskan CCTV: ${err.message}`, type: 'danger' });
->>>>>>> Stashed changes
         }
       };
     }
@@ -1286,8 +1352,11 @@ export class DashboardPage {
   }
 
   openVmsController(channelId) {
-    const ch = this.cctvList.find(c => c.id === channelId);
+    let ch = this.cctvList.find(c => c.id === channelId);
     if (!ch) return;
+
+    let isGridMode = false;
+    let gridHlsInstances = [];
 
     const page = document.getElementById('vms-fullscreen-page');
     const titleEl = document.getElementById('vms-fs-cam-title');
@@ -1337,6 +1406,53 @@ export class DashboardPage {
 
     const matchReport = this.latestReports.find(r => (r.sourceMetadata?.cameraId === ch.id) || r.location.toLowerCase().includes(ch.name.toLowerCase()));
     const imageSrc = matchReport ? matchReport.image : (ch.isDefault ? ch.streamUrl : '/uploads/detection_1.jpg');
+
+    const renderSidebarEvents = () => {
+      const eventsContainer = document.getElementById('vms-fs-sidebar-events');
+      if (!eventsContainer) return;
+
+      const matchingReports = this.latestReports.filter(r => 
+        (r.sourceMetadata?.cameraId === ch.id) || 
+        r.location.toLowerCase().includes(ch.name.toLowerCase())
+      ).slice(0, 4);
+
+      if (matchingReports.length === 0) {
+        eventsContainer.innerHTML = `<div style="font-size: 0.72rem; color: #64748b; text-align: center; margin-top: 20px;">Belum ada aktivitas terekam hari ini.</div>`;
+        return;
+      }
+
+      eventsContainer.innerHTML = matchingReports.map(r => {
+        const isHigh = r.aiStatus === 'TINGGI';
+        const badgeColor = isHigh ? '#f43f5e' : '#eab308';
+        return `
+          <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 8px; border-radius: 6px; font-size: 0.7rem; margin-bottom: 4px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span style="font-weight: 700; color: ${badgeColor};">AI: ${r.aiStatus}</span>
+              <span style="color: #64748b; font-size: 0.6rem;">${Formatter.formatTime(r.timestamp)}</span>
+            </div>
+            <div style="color: #cbd5e1; line-height: 1.3;">Pelaku membuang sampah (${r.aiConfidence}% Match)</div>
+          </div>
+        `;
+      }).join('');
+    };
+
+    const updateSidebarMetadata = () => {
+      const protocolEl = document.getElementById('vms-fs-info-protocol');
+      const resEl = document.getElementById('vms-fs-info-res');
+      const latencyEl = document.getElementById('vms-fs-info-latency');
+      const aiEl = document.getElementById('vms-fs-info-ai');
+
+      if (protocolEl) protocolEl.innerText = ch.protocol || 'HLS (M3U8)';
+      if (resEl) resEl.innerText = ch.health?.fps ? `${ch.health.fps} FPS · HD` : '1080p · HD';
+      if (latencyEl) {
+        latencyEl.innerText = ch.health?.latency ? `${ch.health.latency} ms` : '120 ms';
+        latencyEl.style.color = ch.health?.latency > 300 ? '#f59e0b' : '#4ade80';
+      }
+      if (aiEl) {
+        aiEl.innerText = ch.monitoringEnabled ? 'ACTIVE (YOLOv8)' : 'PAUSED';
+        aiEl.style.color = ch.monitoringEnabled ? '#f43f5e' : '#94a3b8';
+      }
+    };
 
     // 1. Render Active player view
     const renderActivePlayer = () => {
@@ -1435,6 +1551,9 @@ export class DashboardPage {
       setTimeout(() => {
         renderYoloBoxes();
       }, 50);
+
+      updateSidebarMetadata();
+      renderSidebarEvents();
 
       this.activeRenderYoloBoxes = renderYoloBoxes;
     };
@@ -1563,15 +1682,16 @@ export class DashboardPage {
       if (!media) return;
       if (isPlaying) {
         if (ch.mediaType === 'Video') media.pause();
-        btnPlay.innerText = 'PLAY';
+        btnPlay.innerHTML = '<i data-lucide="play" style="width: 16px; height: 16px;"></i>';
         isPlaying = false;
         EventBus.emit('toast:show', { message: 'Video dijeda.', type: 'info' });
       } else {
         if (ch.mediaType === 'Video') media.play();
-        btnPlay.innerText = 'PAUSE';
+        btnPlay.innerHTML = '<i data-lucide="pause" style="width: 16px; height: 16px;"></i>';
         isPlaying = true;
         EventBus.emit('toast:show', { message: 'Video dilanjutkan.', type: 'info' });
       }
+      if (window.lucide) window.lucide.createIcons();
     };
 
     btnMute.onclick = () => {
@@ -1579,22 +1699,26 @@ export class DashboardPage {
       if (!media) return;
       if (isMuted) {
         if (ch.mediaType === 'Video') media.muted = false;
-        btnMute.innerText = 'MUTE';
+        btnMute.innerHTML = '<i data-lucide="volume-2" style="width: 16px; height: 16px;"></i>';
         isMuted = false;
         EventBus.emit('toast:show', { message: 'Suara aktif.', type: 'info' });
       } else {
         if (ch.mediaType === 'Video') media.muted = true;
-        btnMute.innerText = 'SOUND';
+        btnMute.innerHTML = '<i data-lucide="volume-x" style="width: 16px; height: 16px;"></i>';
         isMuted = true;
         EventBus.emit('toast:show', { message: 'Suara dimatikan.', type: 'info' });
       }
+      if (window.lucide) window.lucide.createIcons();
     };
 
     btnQuality.onclick = () => {
       isHd = !isHd;
-      btnQuality.innerText = isHd ? 'HD' : 'SD';
+      btnQuality.innerHTML = isHd 
+        ? '<i data-lucide="monitor" style="width: 16px; height: 16px;"></i>' 
+        : '<i data-lucide="tv" style="width: 16px; height: 16px;"></i>';
       btnQuality.style.borderColor = isHd ? 'var(--primary)' : '#718096';
       btnQuality.style.color = isHd ? 'var(--primary)' : '#718096';
+      if (window.lucide) window.lucide.createIcons();
       EventBus.emit('toast:show', { message: `Kualitas streaming diatur ke ${isHd ? 'High Definition (HD)' : 'Standard Definition (SD)'}`, type: 'info' });
 
       // Reload player with quality parameter
@@ -1628,9 +1752,137 @@ export class DashboardPage {
       }
     };
 
+    const renderGridPlayer = () => {
+      // Clear single view video HLS if active
+      const singleVideo = document.getElementById('vms-fs-media-element');
+      if (singleVideo && singleVideo._hlsInstance) {
+        try { singleVideo._hlsInstance.destroy(); } catch(e) {}
+        singleVideo._hlsInstance = null;
+      }
+
+      // Clear any previous grid Hls instances
+      gridHlsInstances.forEach(inst => {
+        try { inst.destroy(); } catch(e) {}
+      });
+      gridHlsInstances = [];
+
+      titleEl.innerText = 'KISI MONITORING CCTV (4 SALURAN)';
+
+      // Update sidebar metadata for grid view
+      const protocolEl = document.getElementById('vms-fs-info-protocol');
+      const resEl = document.getElementById('vms-fs-info-res');
+      const latencyEl = document.getElementById('vms-fs-info-latency');
+      const aiEl = document.getElementById('vms-fs-info-ai');
+      if (protocolEl) protocolEl.innerText = 'Multi-Stream';
+      if (resEl) resEl.innerText = '4x 720p';
+      if (latencyEl) latencyEl.innerText = 'Mixed';
+      if (aiEl) aiEl.innerText = 'Active (4x)';
+
+      const eventsContainer = document.getElementById('vms-fs-sidebar-events');
+      if (eventsContainer) {
+        eventsContainer.innerHTML = `<div style="font-size: 0.72rem; color: #64748b; text-align: center; margin-top: 20px;">Mode Kisi (4 Saluran) Aktif. Klik salah satu saluran untuk melihat detail & log.</div>`;
+      }
+
+      // Apply grid layout styles to container
+      playerContainer.style.display = 'grid';
+      playerContainer.style.gridTemplateColumns = '1fr 1fr';
+      playerContainer.style.gridTemplateRows = '1fr 1fr';
+      playerContainer.style.gap = '10px';
+      playerContainer.style.padding = '10px';
+      playerContainer.style.background = '#090d16';
+
+      const gridChannels = this.cctvList.slice(0, 4);
+      playerContainer.innerHTML = gridChannels.map((gCh) => {
+        const matchReport = this.latestReports.find(r => (r.sourceMetadata?.cameraId === gCh.id) || r.location.toLowerCase().includes(gCh.name.toLowerCase()));
+        const imageSrc = matchReport ? matchReport.image : (gCh.isDefault ? gCh.streamUrl : '/uploads/detection_1.jpg');
+        
+        let mediaTag = '';
+        if (gCh.mediaType === 'Video' || gCh.mediaType === 'Cloud') {
+          const playUrl = gCh.playUrl && gCh.playUrl !== '/cloud-viewer' ? gCh.playUrl : '/uploads/orang buang sampah.mp4';
+          mediaTag = `<video src="${playUrl}" id="vms-fs-grid-media-${gCh.id}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover; border-radius: 6px;"></video>`;
+        } else {
+          mediaTag = `<img src="${imageSrc}" style="width:100%; height:100%; object-fit:cover; border-radius: 6px;">`;
+        }
+
+        return `
+          <div class="vms-grid-cell" data-channel-id="${gCh.id}" style="position:relative; width:100%; height:100%; border: 1.5px solid rgba(255,255,255,0.05); border-radius: 8px; overflow:hidden; background:#000; cursor:pointer;">
+            ${mediaTag}
+            <div style="position:absolute; bottom:6px; left:8px; background:rgba(0,0,0,0.65); color:white; padding:3px 8px; border-radius:4px; font-size:0.65rem; font-weight:700; z-index: 10;">
+              CH ${gCh.id.toString().padStart(2, '0')} · ${gCh.name.toUpperCase()}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Attach HLS for grid cells
+      gridChannels.forEach(gCh => {
+        if (gCh.playUrl && gCh.playUrl.includes('.m3u8')) {
+          const videoEl = document.getElementById(`vms-fs-grid-media-${gCh.id}`);
+          if (videoEl && videoEl.tagName === 'VIDEO') {
+            videoEl.removeAttribute('src');
+            if (window.Hls && window.Hls.isSupported()) {
+              const hls = new window.Hls({
+                maxBufferSize: 0,
+                maxBufferLength: 2,
+                liveSyncDurationCount: 3
+              });
+              hls.loadSource(gCh.playUrl);
+              hls.attachMedia(videoEl);
+              hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+                videoEl.play().catch(e => console.log('Grid HLS play fail:', e));
+              });
+              gridHlsInstances.push(hls);
+            } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+              videoEl.src = gCh.playUrl;
+            }
+          }
+        }
+      });
+
+      // Bind cell click to switch single view
+      playerContainer.querySelectorAll('.vms-grid-cell').forEach(cell => {
+        cell.onclick = () => {
+          const newChId = cell.getAttribute('data-channel-id');
+          isGridMode = false;
+          btnGrid.classList.remove('active');
+          
+          // Reset styles
+          playerContainer.style.display = 'block';
+          playerContainer.style.gridTemplateColumns = '';
+          playerContainer.style.gridTemplateRows = '';
+          playerContainer.style.gap = '';
+          playerContainer.style.padding = '';
+          playerContainer.style.background = '';
+          
+          const nextCh = this.cctvList.find(c => c.id.toString() === newChId);
+          if (nextCh) {
+            titleEl.innerText = nextCh.name.toUpperCase();
+            ch = nextCh;
+            renderActivePlayer();
+          }
+        };
+      });
+
+      if (window.lucide) window.lucide.createIcons();
+    };
+
     btnGrid.onclick = () => {
-      EventBus.emit('toast:show', { message: 'Kembali ke halaman Dashboard Pemantauan.', type: 'info' });
-      handleClose();
+      isGridMode = !isGridMode;
+      if (isGridMode) {
+        btnGrid.classList.add('active');
+        renderGridPlayer();
+      } else {
+        btnGrid.classList.remove('active');
+        // Reset styles
+        playerContainer.style.display = 'block';
+        playerContainer.style.gridTemplateColumns = '';
+        playerContainer.style.gridTemplateRows = '';
+        playerContainer.style.gap = '';
+        playerContainer.style.padding = '';
+        playerContainer.style.background = '';
+        titleEl.innerText = ch.name.toUpperCase();
+        renderActivePlayer();
+      }
     };
 
     let rotationDegrees = 0;
@@ -1643,19 +1895,12 @@ export class DashboardPage {
       EventBus.emit('toast:show', { message: `Rotasi video diatur ke ${rotationDegrees} derajat.`, type: 'info' });
     };
 
-    const onFsChange = () => {
-      if (!document.fullscreenElement) {
-        btnRotate.innerHTML = '<i data-lucide="screen-share"></i>';
-      } else {
-        btnRotate.innerHTML = '<i data-lucide="minimize"></i>';
-      }
-      if (window.lucide) window.lucide.createIcons();
-    };
-    document.addEventListener('fullscreenchange', onFsChange);
-
     const originalHandleClose = handleClose;
     handleClose = () => {
-      document.removeEventListener('fullscreenchange', onFsChange);
+      gridHlsInstances.forEach(inst => {
+        try { inst.destroy(); } catch(e) {}
+      });
+      gridHlsInstances = [];
       if (document.fullscreenElement) {
         document.exitFullscreen().catch(() => {});
       }
@@ -1858,11 +2103,7 @@ export class DashboardPage {
     const user = AppState.get('user');
     const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
     if (dropDeleteContainer) {
-<<<<<<< Updated upstream
-      dropDeleteContainer.style.display = isAdmin ? 'block' : 'none';
-=======
       dropDeleteContainer.style.display = (isAdmin && !(ch.isDefault && !ch.workspaceId)) ? 'block' : 'none';
->>>>>>> Stashed changes
     }
 
     if (dropDelete) {
@@ -1975,12 +2216,12 @@ export class DashboardPage {
           if (topReport.aiStatus === 'TINGGI' || topReport.aiStatus === 'SEDANG') {
             AppState.set('unreadNotifications', (AppState.get('unreadNotifications') || 0) + 1);
             EventBus.emit('toast:show', {
-              message: `🚨 Peringatan Baru: Terdeteksi ancaman ${topReport.aiStatus} di ${topReport.location}!`,
+              message: `Peringatan Baru: Terdeteksi ancaman ${topReport.aiStatus} di ${topReport.location}!`,
               type: 'danger'
             });
           } else {
             EventBus.emit('toast:show', {
-              message: `📷 CCTV: Aktivitas terdeteksi di ${topReport.location}`,
+              message: `CCTV: Aktivitas terdeteksi di ${topReport.location}`,
               type: 'info'
             });
           }
@@ -2178,12 +2419,12 @@ export class DashboardPage {
 
     container.innerHTML = active.slice(0, 4).map(r => {
       const onSite = r.status === 'PROSES';
-      const dot = onSite ? '🟢' : '🔵';
+      const dotColor = onSite ? 'var(--success)' : 'var(--primary)';
       const state = onSite ? 'On Site' : 'Assigned';
       const time = Formatter.formatTime(r.timestamp);
       return `
         <div class="officer-live-item">
-          <span>${dot}</span>
+          <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:${dotColor}; margin-right:8px; align-self:center;"></span>
           <div style="flex:1; min-width:0;">
             <strong style="color: var(--text-primary);">${r.assignedOfficer}</strong>
             <div style="color: var(--text-secondary); font-size: 0.68rem;">DLH · ${state} · #${r.id.toString().padStart(4, '0')}</div>
@@ -2205,7 +2446,6 @@ export class DashboardPage {
       let statusLabel = 'Offline';
       let statusColor = 'var(--text-muted)';
       let statusBg = 'rgba(0, 0, 0, 0.05)';
-      let dotEmoji = '⚪';
       let metaLine = this.formatCameraUptime(ch);
 
       const camReports = this.latestReports.filter(r =>
@@ -2222,19 +2462,16 @@ export class DashboardPage {
             statusLabel = 'Incident Active';
             statusColor = 'var(--danger)';
             statusBg = 'rgba(239, 68, 68, 0.08)';
-            dotEmoji = '🔴';
             metaLine = `AI ${activeIncident.aiConfidence}% · ${alertCount} alert`;
           } else {
             statusLabel = 'Online';
             statusColor = 'var(--success)';
             statusBg = 'rgba(34, 197, 94, 0.08)';
-            dotEmoji = '🟢';
           }
         } else {
           statusLabel = 'Offline';
           statusColor = 'var(--danger)';
           statusBg = 'rgba(239, 68, 68, 0.06)';
-          dotEmoji = '⚪';
         }
       }
 
@@ -2244,7 +2481,7 @@ export class DashboardPage {
       item.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
           <div style="min-width: 0; flex: 1;">
-            <div class="cam-id">${dotEmoji} CAM-${ch.id.toString().padStart(2, '0')}</div>
+            <div class="cam-id"><span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:${statusColor}; margin-right:6px; vertical-align:middle;"></span>CAM-${ch.id.toString().padStart(2, '0')}</div>
             <div class="cam-location">${ch.location || ch.name}</div>
             <div class="cam-meta">${metaLine}</div>
           </div>
@@ -2291,7 +2528,7 @@ export class DashboardPage {
     if (briefOnline) briefOnline.innerText = `${onlineCount}`;
     if (briefAlerts) briefAlerts.innerText = `${activeAlerts}`;
     if (briefSystem) {
-      briefSystem.innerText = isMon ? '🟢 MONITORING ACTIVE' : '🔴 MONITORING INACTIVE';
+      briefSystem.innerText = isMon ? 'MONITORING ACTIVE' : 'MONITORING INACTIVE';
     }
     if (hudPulse) {
       hudPulse.className = isMon ? 'status-pulse-dot green' : 'status-pulse-dot grey';
@@ -2364,7 +2601,7 @@ export class DashboardPage {
           const category = r.boundingBoxes && r.boundingBoxes[0] ? r.boundingBoxes[0].label : 'Sampah';
           const labelText = category === 'person' ? 'Pelaku membuang sampah' : `Illegal Dumping · ${category}`;
           
-          const severityText = isHigh ? '🔥 HIGH' : (isMed ? '🟠 MEDIUM' : '🔵 LOW');
+          const severityText = isHigh ? 'HIGH' : (isMed ? 'MEDIUM' : 'LOW');
           const severityColor = isHigh ? 'var(--danger)' : (isMed ? 'var(--warning)' : 'var(--info)');
 
           let workflowState = 'WAITING';
@@ -2392,11 +2629,11 @@ export class DashboardPage {
           let officerHtml = '';
           if (r.assignedOfficer) {
             if (r.status === 'PROSES') {
-              officerHtml = `<span class="officer-status-chip on-site">🟢 ${r.assignedOfficer} · Cleaning · ${Formatter.formatTime(r.timestamp)}</span>`;
+              officerHtml = `<span class="officer-status-chip on-site"><span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--success); margin-right:6px; vertical-align:middle;"></span>${r.assignedOfficer} · Cleaning · ${Formatter.formatTime(r.timestamp)}</span>`;
             } else if (r.status === 'SELESAI') {
-              officerHtml = `<span class="officer-status-chip done">✓ ${r.assignedOfficer} · Selesai</span>`;
+              officerHtml = `<span class="officer-status-chip done"><i data-lucide="check" style="width:10px; height:10px; margin-right:4px; display:inline-block; vertical-align:middle;"></i>${r.assignedOfficer} · Selesai</span>`;
             } else {
-              officerHtml = `<span class="officer-status-chip assigned">🔵 DLH · ${r.assignedOfficer} · Assigned</span>`;
+              officerHtml = `<span class="officer-status-chip assigned"><span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--primary); margin-right:6px; vertical-align:middle;"></span>DLH · ${r.assignedOfficer} · Assigned</span>`;
             }
           }
 
@@ -2423,8 +2660,8 @@ export class DashboardPage {
                 ${officerHtml}
               </div>
             </div>
-            <button class="btn btn-sm btn-glass btn-open-incident" style="border-color: rgba(47, 107, 255, 0.25); color: var(--primary); padding: 6px 14px; font-size:0.7rem; font-weight:800; flex-shrink:0;">
-              Open Incident
+            <button class="btn btn-sm btn-glass btn-open-incident" style="border-color: rgba(47, 107, 255, 0.25); color: var(--primary); display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border-radius: 50%;" title="Open Incident">
+              <i data-lucide="eye" style="width: 14px; height: 14px;"></i>
             </button>
           `;
           
@@ -2473,11 +2710,7 @@ export class DashboardPage {
     if (this.cctvList.length === 0) {
       container.classList.remove('single-channel-active');
       container.innerHTML = `
-<<<<<<< Updated upstream
         <div class="glass-card empty-state-card" style="grid-column: 1 / -1; display: flex !important; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-20); padding: var(--space-48); text-align: center; width: 100%; border: 1px dashed rgba(47,107,255,0.25); background: var(--surface); border-radius: var(--radius-card); box-shadow: var(--glass-shadow);">
-=======
-        <div class="glass-card empty-state-card" style="padding: var(--space-48); text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--space-16); width: 100%; border: 1px dashed rgba(47,107,255,0.2); grid-column: 1 / -1;">
->>>>>>> Stashed changes
           <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(47, 107, 255, 0.05); color: var(--primary); display: flex; align-items: center; justify-content: center;">
             <i data-lucide="video-off" style="width: 32px; height: 32px;"></i>
           </div>
@@ -2486,8 +2719,8 @@ export class DashboardPage {
             <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px; max-width: 340px; line-height: 1.5; margin-bottom: 0;">Sambungkan kamera pemantauan baru untuk memulai pengawasan real-time sungai.</p>
           </div>
           ${isAdmin ? `
-            <button class="btn btn-primary btn-rounded" id="btn-empty-connect-cctv" style="font-weight: 700; padding: 10px 24px; display: inline-flex; align-items: center; gap: 8px;">
-              <i data-lucide="plus-circle" style="width: 16px; height: 16px;"></i> Hubungkan Kamera
+            <button class="btn btn-primary btn-rounded" id="btn-empty-connect-cctv" style="display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; padding: 0; border-radius: 50%;" title="Hubungkan CCTV Baru">
+              <i data-lucide="plus" style="width: 18px; height: 18px;"></i>
             </button>
           ` : ''}
         </div>
@@ -2689,11 +2922,7 @@ export class DashboardPage {
             `}
           </div>
 
-<<<<<<< Updated upstream
-          ${isAdmin ? `
-=======
           ${isAdmin && !(ch.isDefault && !ch.workspaceId) ? `
->>>>>>> Stashed changes
             <button class="btn-disconnect-cctv" data-id="${ch.id}" title="Putuskan CCTV" style="position: absolute; top: 12px; right: 12px; z-index: 15; background: rgba(0,0,0,0.5); border: none; border-radius: 50%; width: 28px; height: 28px; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer;">
               <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
             </button>
@@ -2775,11 +3004,7 @@ export class DashboardPage {
       }
 
       // Bind delete action
-<<<<<<< Updated upstream
-      if (isAdmin) {
-=======
       if (isAdmin && !(ch.isDefault && !ch.workspaceId)) {
->>>>>>> Stashed changes
         const btnDelete = card.querySelector('.btn-disconnect-cctv');
         if (btnDelete) {
           btnDelete.addEventListener('click', async (e) => {
@@ -2958,7 +3183,7 @@ export class DashboardPage {
       this.cctvList.forEach(ch => {
         if (ch.status === 'OFFLINE' || ch.status === 'ERROR' || ch.status === 'DISCONNECTED') {
           alerts.push({
-            icon: '🔴',
+            icon: 'video-off',
             color: 'var(--danger)',
             title: `Camera Offline: CAM-${ch.id.toString().padStart(2, '0')}`,
             desc: `${ch.name} terputus dari jaringan.`,
@@ -2970,7 +3195,7 @@ export class DashboardPage {
 
       this.latestReports.filter(r => r.adminStatus === 'MENUNGGU').slice(0, 3).forEach(r => {
         alerts.push({
-          icon: '🚨',
+          icon: 'alert-triangle',
           color: 'var(--warning)',
           title: 'New Incident',
           desc: `#${r.id.toString().padStart(4, '0')} · ${r.location} · AI ${r.aiConfidence}%`,
@@ -2981,7 +3206,7 @@ export class DashboardPage {
 
       this.latestReports.filter(r => r.status === 'SELESAI').slice(0, 2).forEach(r => {
         alerts.push({
-          icon: '✓',
+          icon: 'check-circle',
           color: 'var(--success)',
           title: 'Officer Finished',
           desc: `Kasus #${r.id.toString().padStart(4, '0')} selesai ditangani${r.assignedOfficer ? ` · ${r.assignedOfficer}` : ''}.`,
@@ -3013,8 +3238,11 @@ export class DashboardPage {
       });
 
       row.innerHTML = `
-        <strong style="color: ${a.color};">${a.icon} ${a.title}</strong>
-        <div style="margin-top: 2px; font-size: 0.68rem;">${a.desc}</div>
+        <strong style="color: ${a.color}; display: flex; align-items: center; gap: 6px;">
+          <i data-lucide="${a.icon}" style="width: 12px; height: 12px; color: ${a.color};"></i>
+          ${a.title}
+        </strong>
+        <div style="margin-top: 2px; font-size: 0.68rem; margin-left: 18px;">${a.desc}</div>
       `;
 
       row.addEventListener('click', (e) => {
@@ -3027,6 +3255,7 @@ export class DashboardPage {
       });
 
       container.appendChild(row);
+      if (window.lucide) window.lucide.createIcons();
     });
   }
 

@@ -6,7 +6,7 @@
   <title>EYECO - Dashboard User</title>
   <meta name="description" content="Dashboard pelaporan aktivitas mencurigakan sungai untuk pengguna EYECO.">
   <link rel="stylesheet" href="/css/style.css">
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/lib/lucide.min.js"></script>
   <!-- Load Hls.js CDN to support HLS video streaming in Chrome/Firefox/Edge -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
@@ -368,7 +368,7 @@
         <i data-lucide="shield-check" style="width: 28px; height: 28px;"></i>
       </div>
       <div class="welcome-text">
-        <h3>Selamat Datang, <span id="welcome-name">Pengguna</span>! 👋</h3>
+        <h3>Selamat Datang, <span id="welcome-name">Pengguna</span>!</h3>
         <p>Anda masuk sebagai <strong style="color: #10b981;">User</strong>. Gunakan halaman ini untuk melaporkan aktivitas mencurigakan di aliran sungai.</p>
       </div>
     </div>
@@ -428,16 +428,16 @@
           </div>
         </div>
         <ul id="info-terkini-list" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px;">
-          <li style="display: flex; gap: 10px; font-size: 0.82rem; color: #d1d5db; line-height: 1.45;">
-            <span style="color: #f59e0b; font-weight: bold; flex-shrink: 0;">✦</span>
+          <li style="display: flex; gap: 10px; font-size: 0.82rem; color: #d1d5db; line-height: 1.45; align-items: flex-start;">
+            <i data-lucide="info" style="width: 14px; height: 14px; color: #f59e0b; flex-shrink: 0; margin-top: 2px;"></i>
             <span>Uji Coba Model AI Baru (yolov8-river-v1.1-canary) berhasil disebarkan di Sektor 7 Hulu.</span>
           </li>
-          <li style="display: flex; gap: 10px; font-size: 0.82rem; color: #d1d5db; line-height: 1.45;">
-            <span style="color: #f59e0b; font-weight: bold; flex-shrink: 0;">✦</span>
+          <li style="display: flex; gap: 10px; font-size: 0.82rem; color: #d1d5db; line-height: 1.45; align-items: flex-start;">
+            <i data-lucide="info" style="width: 14px; height: 14px; color: #f59e0b; flex-shrink: 0; margin-top: 2px;"></i>
             <span>Fitur laporan otomatis via bot telegram interaktif kini dapat digunakan oleh seluruh warga.</span>
           </li>
-          <li style="display: flex; gap: 10px; font-size: 0.82rem; color: #d1d5db; line-height: 1.45;">
-            <span style="color: #f59e0b; font-weight: bold; flex-shrink: 0;">✦</span>
+          <li style="display: flex; gap: 10px; font-size: 0.82rem; color: #d1d5db; line-height: 1.45; align-items: flex-start;">
+            <i data-lucide="info" style="width: 14px; height: 14px; color: #f59e0b; flex-shrink: 0; margin-top: 2px;"></i>
             <span>Pembersihan massal sungai Ciliwung bersama dinas kebersihan dijadwalkan pada hari Sabtu ini.</span>
           </li>
         </ul>
@@ -455,16 +455,16 @@
           </div>
         </div>
         <ul id="info-sampah-list" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px;">
-          <li style="display: flex; gap: 10px; font-size: 0.82rem; color: #d1d5db; line-height: 1.45;">
-            <span style="color: #10b981; font-weight: bold; flex-shrink: 0;">✓</span>
+          <li style="display: flex; gap: 10px; font-size: 0.82rem; color: #d1d5db; line-height: 1.45; align-items: flex-start;">
+            <i data-lucide="check" style="width: 14px; height: 14px; color: #10b981; flex-shrink: 0; margin-top: 2px;"></i>
             <span>Daur Ulang Plastik: Plastik PET membutuhkan waktu hingga 450 tahun untuk terurai di alam bebas.</span>
           </li>
-          <li style="display: flex; gap: 10px; font-size: 0.82rem; color: #d1d5db; line-height: 1.45;">
-            <span style="color: #10b981; font-weight: bold; flex-shrink: 0;">✓</span>
+          <li style="display: flex; gap: 10px; font-size: 0.82rem; color: #d1d5db; line-height: 1.45; align-items: flex-start;">
+            <i data-lucide="check" style="width: 14px; height: 14px; color: #10b981; flex-shrink: 0; margin-top: 2px;"></i>
             <span>Bahaya Sampah Sungai: Penumpukan sampah organik di dasar sungai memicu eutrofikasi dan mengurangi oksigen air.</span>
           </li>
-          <li style="display: flex; gap: 10px; font-size: 0.82rem; color: #d1d5db; line-height: 1.45;">
-            <span style="color: #10b981; font-weight: bold; flex-shrink: 0;">✓</span>
+          <li style="display: flex; gap: 10px; font-size: 0.82rem; color: #d1d5db; line-height: 1.45; align-items: flex-start;">
+            <i data-lucide="check" style="width: 14px; height: 14px; color: #10b981; flex-shrink: 0; margin-top: 2px;"></i>
             <span>Kampanye Pilah Sampah: Memisahkan sampah organik dan anorganik dari rumah membantu mempercepat proses daur ulang.</span>
           </li>
         </ul>
@@ -602,9 +602,9 @@
             terkiniContainer.innerHTML = '';
             val.terkini.forEach(item => {
               const li = document.createElement('li');
-              li.style.cssText = "display: flex; gap: 10px; font-size: 0.82rem; color: #d1d5db; line-height: 1.45;";
+              li.style.cssText = "display: flex; gap: 10px; font-size: 0.82rem; color: #d1d5db; line-height: 1.45; align-items: flex-start;";
               li.innerHTML = `
-                <span style="color: #f59e0b; font-weight: bold; flex-shrink: 0;">✦</span>
+                <i data-lucide="info" style="width: 14px; height: 14px; color: #f59e0b; flex-shrink: 0; margin-top: 2px;"></i>
                 <span>${item}</span>
               `;
               terkiniContainer.appendChild(li);
@@ -616,14 +616,15 @@
             sampahContainer.innerHTML = '';
             val.sampah.forEach(item => {
               const li = document.createElement('li');
-              li.style.cssText = "display: flex; gap: 10px; font-size: 0.82rem; color: #d1d5db; line-height: 1.45;";
+              li.style.cssText = "display: flex; gap: 10px; font-size: 0.82rem; color: #d1d5db; line-height: 1.45; align-items: flex-start;";
               li.innerHTML = `
-                <span style="color: #10b981; font-weight: bold; flex-shrink: 0;">✓</span>
+                <i data-lucide="check" style="width: 14px; height: 14px; color: #10b981; flex-shrink: 0; margin-top: 2px;"></i>
                 <span>${item}</span>
               `;
               sampahContainer.appendChild(li);
             });
           }
+          if (window.lucide) window.lucide.createIcons();
         }
       } catch (err) {
         console.error('Failed to load EYECO information:', err);
@@ -694,7 +695,8 @@
       uploadResult.style.background = 'rgba(16, 185, 129, 0.1)';
       uploadResult.style.border = '1px solid rgba(16, 185, 129, 0.25)';
       uploadResult.style.color = '#10b981';
-      uploadResult.innerHTML = `✓ ${files.length} file dipilih: ${names}`;
+      uploadResult.innerHTML = `<i data-lucide="check" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-right: 4px;"></i> ${files.length} file dipilih: ${names}`;
+      if (window.lucide) window.lucide.createIcons();
 
       showToast(`${files.length} file siap diunggah`, 'success');
     }
