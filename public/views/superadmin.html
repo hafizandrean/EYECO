@@ -3,1529 +3,1123 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EYECO — SuperAdmin Dashboard</title>
-  <meta name="description" content="Panel kontrol SuperAdmin EYECO untuk mengelola workspace dan administrator sistem.">
+  <title>EYECO — SuperAdmin</title>
   <script src="https://unpkg.com/lucide@latest"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
   <style>
-    html, body {
-      height: 100%;
-      margin: 0;
-      overflow: hidden;
-    }
-    body {
-      display: flex;
-      background: #F0F4FF;
-      overflow: hidden;
-      font-family: 'Inter', sans-serif;
-    }
-    body.dark-mode { background: #0B1120; }
-    .main-wrapper {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    .content-area {
-      flex: 1;
-      overflow-y: auto;
-      padding: 28px;
-      background: transparent;
-    }
-    /* Top nav bar */
-    .top-nav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 28px;
-      height: 64px;
-      background: rgba(255,255,255,0.85);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-bottom: 1px solid rgba(37,99,235,0.08);
-      box-shadow: 0 2px 20px rgba(0,0,0,0.03);
-      flex-shrink: 0;
-      z-index: 100;
-    }
-    body.dark-mode .top-nav {
-      background: rgba(11, 17, 32, 0.6);
-      border-bottom: 1px solid rgba(148, 163, 184, 0.06);
-    }
-    .mobile-toggle {
-      display: none;
-      background: none; border: none;
-      cursor: pointer; color: var(--text-muted);
-      padding: 4px; border-radius: 8px;
-    }
-    .mobile-toggle:hover { background: rgba(37,99,235,0.06); }
-    @media (max-width: 768px) {
-      .mobile-toggle { display: flex; }
-    }
-    /* Page sections */
-    .section-content { display: none; }
-    .section-content.active { display: block; animation: pageEnter 0.3s ease forwards; }
-    .page-header { margin-bottom: 24px; }
-    .page-header h1 { font-size: 1.5rem; font-weight: 800; color: var(--text-dark); font-family: 'Outfit', sans-serif; }
-    .page-header p { color: var(--text-muted); font-size: 0.88rem; margin-top: 4px; }
-    /* Stat cards */
-    .stat-sa {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 22px 24px;
-    }
-    .stat-sa-icon {
-      width: 48px; height: 48px;
-      border-radius: 14px;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-    }
-    .stat-sa-icon i { width: 22px; height: 22px; }
-    .stat-sa-info { display: flex; flex-direction: column; gap: 2px; }
-    .stat-sa-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
-    .stat-sa-value { font-size: 1.6rem; font-weight: 800; color: var(--text-dark); line-height: 1; font-family: 'Outfit', sans-serif; }
-    /* Welcome banner */
-    .dash-welcome {
-      background: linear-gradient(135deg, var(--primary) 0%, #4F46E5 100%);
-      color: #fff;
-      border-radius: 16px;
-      padding: 24px 28px;
-      margin-bottom: 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .dash-welcome h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 4px; }
-    .dash-welcome p { font-size: 0.85rem; opacity: 0.85; }
-    .dash-welcome-icon { opacity: 0.15; }
-    .dash-welcome-icon i { width: 72px; height: 72px; }
-    /* Tables */
-    .table-container {
-      padding: 0;
-      overflow: hidden;
-      border-radius: 16px;
-    }
-    .table-container table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.85rem;
-    }
-    .table-container thead {
-      background: rgba(37,99,235,0.03);
-    }
-    .table-container thead th {
-      padding: 12px 20px;
-      text-align: left;
-      font-weight: 700;
-      color: var(--text-muted);
-      font-size: 0.72rem;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-      border-bottom: 1px solid var(--border);
-    }
-    .table-container tbody td {
-      padding: 14px 20px;
-      border-bottom: 1px solid var(--border);
-      color: var(--text-main);
-      vertical-align: middle;
-    }
-    .table-container tbody tr:last-child td { border-bottom: none; }
-    .table-container tbody tr:hover { background: rgba(37,99,235,0.01); }
-    /* Action badges */
-    .ws-badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 3px 10px;
-      background: var(--primary-light);
-      color: var(--primary);
-      border-radius: 20px;
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-    }
-    .mono { font-family: 'SF Mono', 'Courier New', monospace; font-size: 0.8rem; color: var(--text-muted); }
-    .action-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .action-row .btn-icon { width: 32px; height: 32px; }
-    .empty-state {
-      text-align: center;
-      padding: 48px 20px;
-      color: var(--text-muted);
-    }
-    .empty-state i { width: 40px; height: 40px; margin-bottom: 12px; opacity: 0.3; }
-    .empty-state p { font-size: 0.9rem; }
-    .section-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 16px;
-      margin-bottom: 20px;
-    }
-    .section-header h2 { font-size: 1.3rem; font-weight: 800; color: var(--text-dark); font-family: 'Outfit', sans-serif; }
-    .section-header-actions {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .search-box-wrap {
-      position: relative;
-      width: 220px;
-    }
-    .search-box-wrap i {
-      position: absolute; left: 12px; top: 50%;
-      transform: translateY(-50%);
-      width: 15px; height: 15px;
-      color: var(--text-gray);
-      pointer-events: none;
-    }
-    .search-box-input {
-      width: 100%;
-      padding: 9px 14px 9px 36px;
-      border: 1.5px solid var(--border);
-      border-radius: 10px;
-      font-size: 0.85rem;
-      font-family: 'Inter', sans-serif;
-      background: rgba(255,255,255,0.85);
-      outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-    .search-box-input:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px var(--primary-glow);
-    }
-    .filter-select {
-      padding: 9px 14px;
-      border: 1.5px solid var(--border);
-      border-radius: 10px;
-      font-size: 0.85rem;
-      font-family: 'Inter', sans-serif;
-      background: rgba(255,255,255,0.85);
-      outline: none;
-      cursor: pointer;
-      transition: border-color 0.2s;
-    }
-    .filter-select:focus { border-color: var(--primary); }
-    .nav-spacer { flex: 1; }
-    /* Section header for action rows */
-    .ws-filter-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    @media (max-width: 768px) {
-      .section-header { flex-direction: column; align-items: stretch; }
-      .section-header-actions { flex-direction: column; }
-      .search-box-wrap { width: 100%; }
-      .ws-filter-row { width: 100%; }
-      .ws-filter-row select { flex: 1; }
-      .content-area { padding: 16px; }
-      .top-nav { padding: 0 16px; }
-    }
+    *,*::before,*::after{box-sizing:border-box}
+    html{height:100%;margin:0}
+    body{height:100%;margin:0;overflow:hidden;display:flex;font-family:'Inter',sans-serif;color:#1E293B;background:#F0F4FF;position:relative;-webkit-font-smoothing:antialiased}
+    body.dark{background:#0B1120;color:#E2E8F0}
+    .bg-blobs{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:-1}
+    .blob{position:absolute;border-radius:50%;filter:blur(80px)}
+    .blob-1{width:560px;height:560px;background:#2563EB;top:-120px;left:-120px;opacity:0.18}
+    .blob-2{width:420px;height:420px;background:#7C3AED;bottom:-80px;right:-80px;opacity:0.18}
+    body.dark .blob-1{background:#3B82F6;opacity:0.08}
+    body.dark .blob-2{background:#8B5CF6;opacity:0.06}
+    body::after{content:'';position:fixed;inset:0;z-index:-1;opacity:0.018;pointer-events:none;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+    ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:rgba(37,99,235,0.12);border-radius:4px}
+    body.dark ::-webkit-scrollbar-thumb{background:rgba(96,165,250,0.12)}
+
+    /* ── Toast ── */
+    #sa-toast{position:fixed;top:20px;right:20px;z-index:9999;padding:10px 18px;border-radius:12px;
+      background:rgba(255,255,255,0.75);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+      border:1px solid rgba(255,255,255,0.1);box-shadow:0 8px 32px rgba(0,0,0,0.04);
+      display:flex;align-items:center;gap:8px;font-size:0.82rem;font-weight:600;color:#10B981;
+      transform:translateX(calc(100% + 40px));opacity:0;
+      transition:all 0.35s cubic-bezier(0.4,0,0.2,1);pointer-events:none;max-width:360px}
+    #sa-toast.show{transform:translateX(0);opacity:1;pointer-events:auto}
+    body.dark #sa-toast{background:rgba(11,17,32,0.75);border-color:rgba(148,163,184,0.06)}
+
+    /* ── Layout stack ── */
+    .sa-app{display:flex;height:100vh;width:100%;overflow:hidden}
+
+    /* ── Sidebar ── */
+    .sa-sidebar{width:240px;min-width:240px;
+      background:rgba(255,255,255,0.32);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
+      border-right:1px solid rgba(255,255,255,0.18);
+      display:flex;flex-direction:column;
+      transition:width 0.28s cubic-bezier(0.4,0,0.2,1),min-width 0.28s cubic-bezier(0.4,0,0.2,1);
+      overflow:visible;z-index:60;position:relative;
+      box-shadow:4px 0 24px rgba(0,0,0,0.04)}
+    body.dark .sa-sidebar{background:rgba(11,17,32,0.25);backdrop-filter:blur(28px);border-color:rgba(148,163,184,0.06)}
+    .sa-sidebar.collapsed{width:56px;min-width:56px}
+
+    .sa-sidebar-header{display:flex;align-items:center;justify-content:center;padding:14px;height:64px;flex-shrink:0}
+    .sa-sidebar-toggle{position:relative;width:36px;height:36px;border:none;background:none;cursor:pointer;color:#2563EB;
+      display:flex;align-items:center;justify-content:center;border-radius:10px;transition:all 0.2s;flex-shrink:0}
+    body.dark .sa-sidebar-toggle{color:#60A5FA}
+    .sa-sidebar-toggle:hover{background:rgba(37,99,235,0.06)}
+    body.dark .sa-sidebar-toggle:hover{background:rgba(96,165,250,0.06)}
+    .sa-sidebar-toggle i{width:20px;height:20px;transition:transform 0.15s}
+    .sa-sidebar-toggle .toggle-icon-hover{display:none}
+    .sa-sidebar-toggle:hover .toggle-icon-default{display:none}
+    .sa-sidebar-toggle:hover .toggle-icon-hover{display:flex}
+    .sa-sidebar-toggle::after{content:attr(data-tooltip);position:absolute;left:calc(100% + 12px);top:50%;
+      transform:translateY(-50%);padding:5px 10px;white-space:nowrap;
+      background:rgba(15,23,42,0.9);backdrop-filter:blur(8px);color:#fff;
+      font-size:0.75rem;font-weight:600;border-radius:8px;
+      opacity:0;visibility:hidden;transition:all 0.15s;
+      pointer-events:none;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
+    .sa-sidebar-toggle:hover::after{opacity:1;visibility:visible}
+
+    .sa-sidebar-nav{flex:1;padding:8px 6px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+    .sa-nav-item{position:relative;display:flex;align-items:center;gap:12px;
+      padding:10px 12px;border-radius:10px;cursor:pointer;
+      color:#475569;font-weight:600;font-size:0.88rem;
+      white-space:nowrap;overflow:hidden;transition:all 0.2s ease;min-height:40px}
+    body.dark .sa-nav-item{color:#94A3B8}
+    .sa-nav-item i{width:20px;height:20px;flex-shrink:0}
+    .sa-nav-item span{overflow:hidden;text-overflow:ellipsis;transition:opacity 0.15s}
+    .sa-sidebar.collapsed .sa-nav-item span{opacity:0;width:0;margin:0}
+    .sa-nav-item:hover{background:rgba(37,99,235,0.06);color:#1E293B}
+    body.dark .sa-nav-item:hover{background:rgba(96,165,250,0.06);color:#E2E8F0}
+    .sa-nav-item.active{background:linear-gradient(135deg,rgba(37,99,235,0.08),rgba(79,70,229,0.05));color:#2563EB}
+    body.dark .sa-nav-item.active{background:rgba(96,165,250,0.1);color:#60A5FA}
+    .sa-sidebar.collapsed .sa-nav-item::after{content:attr(data-label);position:absolute;left:calc(100% + 12px);top:50%;
+      transform:translateY(-50%);padding:5px 10px;
+      background:rgba(15,23,42,0.85);backdrop-filter:blur(8px);color:#fff;
+      font-size:0.75rem;font-weight:600;border-radius:8px;
+      white-space:nowrap;opacity:0;visibility:hidden;transition:all 0.15s;
+      pointer-events:none;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
+    .sa-sidebar.collapsed .sa-nav-item:hover::after{opacity:1;visibility:visible}
+    .sa-nav-spacer{flex:1}
+    .sa-nav-item.logout{margin-top:8px;color:#EF4444}
+    .sa-nav-item.logout:hover{background:rgba(239,68,68,0.06)}
+
+    /* ── Main area ── */
+    .sa-main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+    /* ── Navbar (stacked above content, below modal) ── */
+    .sa-topnav{display:flex;align-items:center;justify-content:space-between;
+      padding:0 28px;height:64px;flex-shrink:0;
+      background:rgba(255,255,255,0.18);backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);
+      border-bottom:1px solid rgba(255,255,255,0.1);
+      box-shadow:0 1px 20px rgba(0,0,0,0.04);
+      position:relative;z-index:50}
+    body.dark .sa-topnav{background:rgba(11,17,32,0.15);backdrop-filter:blur(32px);border-color:rgba(148,163,184,0.04)}
+    .sa-topnav-left{display:flex;align-items:center;gap:10px}
+    .sa-topnav-brand{font-family:'Outfit',sans-serif;font-weight:800;font-size:1.1rem;color:#2563EB;
+      text-shadow:0 1px 2px rgba(255,255,255,0.3);line-height:1}
+    body.dark .sa-topnav-brand{color:#60A5FA}
+    .sa-topnav-right{display:flex;align-items:center;gap:8px;position:relative}
+    .sa-btn-nav{width:34px;height:34px;border:none;background:none;cursor:pointer;color:#64748B;
+      border-radius:10px;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
+    body.dark .sa-btn-nav{color:#94A3B8}
+    .sa-btn-nav:hover{background:rgba(37,99,235,0.06)}
+    body.dark .sa-btn-nav:hover{background:rgba(96,165,250,0.06)}
+    .sa-btn-nav i{width:18px;height:18px}
+
+    .sa-profile-btn{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border:none;
+      background:none;cursor:pointer;border-radius:10px;transition:background 0.2s;
+      color:#1E293B;font-weight:600;font-size:0.88rem;font-family:'Inter',sans-serif}
+    body.dark .sa-profile-btn{color:#E2E8F0}
+    .sa-profile-btn:hover{background:rgba(37,99,235,0.04)}
+    .sa-avatar{width:30px;height:30px;border-radius:10px;
+      background:linear-gradient(135deg,#2563EB,#4F46E5);color:#fff;
+      display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.75rem;flex-shrink:0}
+
+    /* ── Dropdown (z-index above navbar) ── */
+    .sa-dropdown{position:relative}
+    .sa-dropdown-menu{position:absolute;top:calc(100% + 8px);right:0;width:220px;
+      background:rgba(255,255,255,0.7);backdrop-filter:blur(40px);-webkit-backdrop-filter:blur(40px);
+      border:1px solid rgba(255,255,255,0.15);border-radius:14px;
+      box-shadow:0 16px 48px rgba(0,0,0,0.06);
+      opacity:0;visibility:hidden;transform:translateY(-6px) scale(0.98);
+      transition:all 0.2s ease;z-index:200;pointer-events:none}
+    body.dark .sa-dropdown-menu{background:rgba(15,23,42,0.7);backdrop-filter:blur(40px);border-color:rgba(148,163,184,0.04)}
+    .sa-dropdown.open .sa-dropdown-menu{opacity:1;visibility:visible;transform:translateY(0) scale(1);pointer-events:auto}
+    .sa-dropdown-header{padding:16px 18px;border-bottom:1px solid rgba(255,255,255,0.04)}
+    .sa-dropdown-header strong{display:block;font-size:0.88rem;color:#0F172A}
+    body.dark .sa-dropdown-header strong{color:#F1F5F9}
+    .sa-dropdown-header span{font-size:0.75rem;color:#94A3B8;display:block;margin-top:2px}
+    .sa-dropdown-item{display:flex;align-items:center;gap:10px;padding:10px 18px;font-size:0.82rem;font-weight:600;color:#334155;text-decoration:none;cursor:pointer;transition:background 0.15s}
+    body.dark .sa-dropdown-item{color:#CBD5E1}
+    .sa-dropdown-item:hover{background:rgba(37,99,235,0.04)}
+    body.dark .sa-dropdown-item:hover{background:rgba(96,165,250,0.04)}
+    .sa-dropdown-item i{width:16px;height:16px}
+    .sa-dropdown-divider{height:1px;background:rgba(255,255,255,0.04);margin:4px 0}
+    body.dark .sa-dropdown-divider{background:rgba(148,163,184,0.04)}
+
+    /* ── Content (scrollable) ── */
+    .sa-content{flex:1;overflow-y:auto;overflow-x:hidden;padding:24px 32px;background:transparent}
+    @media(max-width:1024px){.sa-content{padding:20px 20px}}
+    @media(max-width:768px){.sa-content{padding:16px}}
+    .sa-section{display:none}.sa-section.active{display:block;animation:pageEnter 0.3s ease forwards}
+    @keyframes pageEnter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+    .sa-page-header{margin-bottom:20px}
+    .sa-page-header h1{font-size:1.4rem;font-weight:800;color:#0F172A;font-family:'Outfit',sans-serif;margin:0}
+    body.dark .sa-page-header h1{color:#F1F5F9}
+    .sa-page-header p{font-size:0.82rem;color:#64748B;margin:2px 0 0}
+    body.dark .sa-page-header p{color:#94A3B8}
+
+    /* ── Stats ── */
+    .sa-stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+    @media(max-width:1100px){.sa-stats-grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:480px){.sa-stats-grid{grid-template-columns:1fr}}
+    .stat-sa-card{background:rgba(255,255,255,0.28);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+      border:1px solid rgba(255,255,255,0.08);border-radius:14px;
+      padding:16px 18px;display:flex;align-items:center;gap:14px;
+      transition:all 0.2s ease}
+    .stat-sa-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.02);border-color:rgba(255,255,255,0.12)}
+    body.dark .stat-sa-card{background:rgba(30,41,59,0.2);backdrop-filter:blur(20px);border-color:rgba(148,163,184,0.04)}
+    .stat-sa-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .stat-sa-icon i{width:18px;height:18px}
+    .stat-sa-info{min-width:0}
+    .stat-sa-label{font-size:0.68rem;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:1px}
+    .stat-sa-value{font-family:'Outfit',sans-serif;font-size:1.25rem;font-weight:800;color:#0F172A;line-height:1.2}
+    body.dark .stat-sa-value{color:#F1F5F9}
+
+    /* ── Welcome ── */
+    .sa-welcome{background:linear-gradient(135deg,#2563EB 0%,#4F46E5 100%);
+      color:#fff;border-radius:14px;padding:20px 24px;margin-bottom:20px;
+      display:flex;align-items:center;justify-content:space-between}
+    .sa-welcome h2{font-size:1.05rem;font-weight:700;margin:0 0 2px}
+    .sa-welcome p{font-size:0.8rem;opacity:0.85;margin:0}
+    .sa-welcome-icon{opacity:0.1}.sa-welcome-icon i{width:52px;height:52px}
+
+    /* ── Activity ── */
+    .sa-activity-section{margin-top:20px}
+    .sa-activity-item{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+    .sa-activity-item:last-child{border-bottom:none}
+    .sa-activity-dot{width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0}
+    .sa-activity-text{font-size:0.8rem;color:#475569;line-height:1.4}
+    body.dark .sa-activity-text{color:#94A3B8}
+    .sa-activity-text strong{color:#0F172A}
+    body.dark .sa-activity-text strong{color:#E2E8F0}
+    .sa-activity-time{font-size:0.68rem;color:#94A3B8;margin-top:1px}
+
+    /* ── Section header ── */
+    .sa-section-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+    .sa-section-header h2{font-size:1.05rem;font-weight:800;color:#0F172A;font-family:'Outfit',sans-serif;margin:0}
+    body.dark .sa-section-header h2{color:#F1F5F9}
+    .sa-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .sa-toolbar .search-box-wrap{position:relative;display:flex;align-items:center;
+      background:rgba(255,255,255,0.25);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+      border:1.5px solid rgba(255,255,255,0.08);border-radius:10px;height:38px;width:200px;transition:all 0.2s;overflow:hidden}
+    body.dark .sa-toolbar .search-box-wrap{background:rgba(30,41,59,0.25);border-color:rgba(148,163,184,0.06)}
+    .sa-toolbar .search-box-wrap:focus-within{border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,0.06)}
+    .sa-toolbar .search-box-wrap i{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:#94A3B8;pointer-events:none}
+    .sa-toolbar .search-box-input{width:100%;height:100%;padding:0 10px 0 30px;border:none;background:transparent;font-size:0.8rem;font-family:'Inter',sans-serif;color:#1E293B;outline:none}
+    body.dark .sa-toolbar .search-box-input{color:#E2E8F0}
+    .sa-toolbar .search-box-input::placeholder{color:#94A3B8}
+    .sa-toolbar .filter-select{height:38px;padding:0 28px 0 10px;border:1.5px solid rgba(255,255,255,0.08);border-radius:10px;
+      font-size:0.76rem;font-family:'Inter',sans-serif;font-weight:600;
+      background:rgba(255,255,255,0.25);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+      color:#475569;cursor:pointer;outline:none;transition:all 0.2s;
+      -webkit-appearance:none;appearance:none;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;background-position:right 8px center}
+    body.dark .sa-toolbar .filter-select{background:rgba(30,41,59,0.25);border-color:rgba(148,163,184,0.06);color:#94A3B8}
+    .sa-toolbar .filter-select:focus{border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,0.06)}
+    .sa-toolbar .btn-primary.btn-sm{height:38px;padding:0 14px;border:none;border-radius:10px;
+      font-size:0.8rem;font-weight:700;font-family:'Inter',sans-serif;
+      background:linear-gradient(135deg,#2563EB,#1d4ed8);color:#fff;
+      cursor:pointer;display:inline-flex;align-items:center;gap:5px;
+      transition:all 0.2s;white-space:nowrap}
+    .sa-toolbar .btn-primary.btn-sm:hover{background:linear-gradient(135deg,#1d4ed8,#1e40af);transform:translateY(-1px);box-shadow:0 4px 12px rgba(37,99,235,0.2)}
+    @media(max-width:768px){.sa-section-header{flex-direction:column;align-items:stretch}
+      .sa-toolbar{width:100%}.sa-toolbar .search-box-wrap{width:100%;flex:1}.sa-toolbar .filter-select{flex:1}}
+
+    /* ── Tables ── */
+    .sa-table-wrap{border-radius:14px;overflow:hidden;
+      background:rgba(255,255,255,0.28);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+      border:1px solid rgba(255,255,255,0.08)}
+    body.dark .sa-table-wrap{background:rgba(30,41,59,0.18);backdrop-filter:blur(20px);border-color:rgba(148,163,184,0.04)}
+    .sa-table{width:100%;border-collapse:collapse;font-size:0.82rem}
+    .sa-table thead{background:rgba(37,99,235,0.02)}
+    .sa-table thead th{padding:10px 16px;text-align:left;font-weight:700;color:#64748B;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid rgba(255,255,255,0.04)}
+    body.dark .sa-table thead th{color:#94A3B8}
+    .sa-table tbody td{padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.03);color:#334155;vertical-align:middle}
+    body.dark .sa-table tbody td{color:#CBD5E1}
+    .sa-table tbody tr:last-child td{border-bottom:none}
+    .sa-table tbody tr:hover{background:rgba(37,99,235,0.01)}
+
+    /* ── Pagination ── */
+    .sa-pagination{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;font-size:0.78rem;
+      border-top:1px solid rgba(255,255,255,0.04)}
+    body.dark .sa-pagination{border-color:rgba(148,163,184,0.04)}
+    .sa-pagination-info{color:#94A3B8}
+    .sa-pagination-pages{display:flex;align-items:center;gap:4px}
+    .sa-page-btn{min-width:30px;height:30px;padding:0 6px;border:1px solid rgba(255,255,255,0.06);border-radius:8px;
+      background:transparent;cursor:pointer;font-size:0.75rem;font-weight:600;color:#64748B;
+      display:flex;align-items:center;justify-content:center;transition:all 0.15s;font-family:'Inter',sans-serif}
+    .sa-page-btn:hover{background:rgba(37,99,235,0.04);border-color:rgba(37,99,235,0.06)}
+    body.dark .sa-page-btn{color:#94A3B8;border-color:rgba(148,163,184,0.06)}
+    body.dark .sa-page-btn:hover{background:rgba(96,165,250,0.04)}
+    .sa-page-btn.active{background:rgba(37,99,235,0.08);color:#2563EB;border-color:rgba(37,99,235,0.04)}
+    body.dark .sa-page-btn.active{background:rgba(96,165,250,0.08);color:#60A5FA}
+    .sa-page-btn:disabled{opacity:0.4;cursor:not-allowed}
+
+    /* ── Badges ── */
+    .sa-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:0.66rem;font-weight:700}
+    .sa-badge-blue{background:rgba(37,99,235,0.06);color:#2563EB}
+    .sa-badge-green{background:rgba(16,185,129,0.08);color:#10B981}
+    .sa-badge-yellow{background:rgba(245,158,11,0.08);color:#F59E0B}
+    .sa-badge-red{background:rgba(239,68,68,0.08);color:#EF4444}
+    .sa-badge-purple{background:rgba(139,92,246,0.08);color:#8B5CF6}
+
+    .sa-action{display:flex;gap:3px;justify-content:flex-end;align-items:center}
+    .sa-btn-icon{width:28px;height:28px;border:none;background:none;border-radius:7px;cursor:pointer;color:#64748B;display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s;flex-shrink:0}
+    .sa-btn-icon:hover{background:rgba(37,99,235,0.06);color:#2563EB}
+    .sa-btn-icon.danger:hover{background:rgba(239,68,68,0.06);color:#EF4444}
+    .copy-btn{display:inline-flex;align-items:center;gap:3px;cursor:pointer;color:#94A3B8;transition:all 0.15s;border:none;background:none;padding:2px 4px;border-radius:4px;font-family:'Inter',sans-serif;font-size:0.8rem}
+    .copy-btn:hover{color:#2563EB;background:rgba(37,99,235,0.04)}
+    .copy-btn i{width:12px;height:12px}
+    .copy-btn.copied{color:#10B981}
+
+    .sa-empty{text-align:center;padding:36px 16px;color:#94A3B8}
+    .sa-empty i{width:30px;height:30px;opacity:0.2;margin-bottom:8px}
+    .sa-empty p{font-size:0.85rem;margin:0}
+
+    /* ── Modal (z-index above everything) ── */
+    .sa-modal{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.15);backdrop-filter:blur(4px)}
+    .sa-modal.open{display:flex}
+    .sa-modal-box{background:rgba(255,255,255,0.45);backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);
+      border:1px solid rgba(255,255,255,0.12);border-radius:14px;
+      width:100%;max-width:440px;margin:16px;box-shadow:0 16px 48px rgba(0,0,0,0.04)}
+    body.dark .sa-modal-box{background:rgba(11,17,32,0.45);backdrop-filter:blur(32px);border-color:rgba(148,163,184,0.04)}
+    .sa-modal-box.wide{max-width:600px}
+    .sa-modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.04)}
+    .sa-modal-header h3{font-size:1rem;font-weight:700;margin:0;color:#0F172A;font-family:'Outfit',sans-serif}
+    body.dark .sa-modal-header h3{color:#F1F5F9}
+    .sa-modal-close{width:26px;height:26px;border:none;background:none;cursor:pointer;color:#94A3B8;border-radius:7px;display:flex;align-items:center;justify-content:center;transition:background 0.15s}
+    .sa-modal-close:hover{background:rgba(0,0,0,0.04)}
+    .sa-modal-body{padding:16px 20px}
+    .sa-modal-footer{padding:8px 20px 16px;display:flex;gap:8px;justify-content:flex-end}
+
+    .sa-input{width:100%;padding:9px 14px;
+      border:1.5px solid rgba(255,255,255,0.08);border-radius:10px;
+      font-size:0.82rem;font-family:'Inter',sans-serif;
+      background:rgba(255,255,255,0.25);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+      outline:none;transition:all 0.2s;color:#1E293B}
+    .sa-input:focus{border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,0.06)}
+    body.dark .sa-input{background:rgba(30,41,59,0.25);border-color:rgba(148,163,184,0.06);color:#E2E8F0}
+    .sa-select{padding:9px 14px;border:1.5px solid rgba(255,255,255,0.08);border-radius:10px;
+      font-size:0.82rem;font-family:'Inter',sans-serif;
+      background:rgba(255,255,255,0.25);backdrop-filter:blur(12px);
+      outline:none;cursor:pointer;transition:all 0.2s;width:100%;color:#1E293B}
+    .sa-select:focus{border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,0.06)}
+    body.dark .sa-select{background:rgba(30,41,59,0.25);border-color:rgba(148,163,184,0.06);color:#E2E8F0}
+    .sa-label{display:block;font-size:0.75rem;font-weight:600;color:#475569;margin-bottom:3px}
+    body.dark .sa-label{color:#94A3B8}
+
+    .result-field{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;
+      background:rgba(37,99,235,0.02);border-radius:10px;border:1px solid rgba(255,255,255,0.04);margin-bottom:8px}
+    .result-field-label{font-size:0.7rem;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:0.3px}
+    .result-field-value{font-size:0.92rem;font-weight:700;color:#0F172A;font-family:'SF Mono','Fira Code',monospace;letter-spacing:0.5px}
+    body.dark .result-field-value{color:#E2E8F0}
+    .result-field-right{display:flex;align-items:center;gap:6px}
+
+    /* ── WSD detail cards ── */
+    .wsd-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+    @media(max-width:1100px){.wsd-grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:480px){.wsd-grid{grid-template-columns:1fr}}
+    .wsd-card{background:rgba(255,255,255,0.25);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+      border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px 16px;transition:all 0.2s}
+    body.dark .wsd-card{background:rgba(30,41,59,0.18);backdrop-filter:blur(20px);border-color:rgba(148,163,184,0.04)}
+    .wsd-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.02)}
+    .wsd-card-label{font-size:0.62rem;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:0.3px}
+    .wsd-card-value{font-family:'Outfit',sans-serif;font-size:1.2rem;font-weight:800;color:#0F172A;margin-top:2px}
+    body.dark .wsd-card-value{color:#F1F5F9}
+    .wsd-card-icon{float:right;opacity:0.07}.wsd-card-icon i{width:26px;height:26px}
+    .wsd-card-mini{font-size:0.68rem;color:#94A3B8;margin-top:3px}
+    .sa-subsection-title{font-size:0.9rem;font-weight:800;color:#0F172A;font-family:'Outfit',sans-serif;margin:20px 0 10px;display:flex;align-items:center;gap:6px}
+    body.dark .sa-subsection-title{color:#F1F5F9}
+    .sa-subsection-title i{width:15px;height:15px;color:#2563EB}
+
+    .btn{height:34px;padding:0 14px;border-radius:10px;font-size:0.8rem;font-weight:600;font-family:'Inter',sans-serif;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all 0.15s}
+    .btn.btn-glass{background:rgba(255,255,255,0.25);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);color:#475569}
+    .btn.btn-glass:hover{background:rgba(255,255,255,0.35);border-color:rgba(37,99,235,0.06)}
+    body.dark .btn.btn-glass{color:#94A3B8}
+    .btn-primary{height:34px;padding:0 14px;border:none;border-radius:10px;font-size:0.8rem;font-weight:700;font-family:'Inter',sans-serif;background:linear-gradient(135deg,#2563EB,#1d4ed8);color:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all 0.2s}
+    .btn-primary:hover{background:linear-gradient(135deg,#1d4ed8,#1e40af);transform:translateY(-1px);box-shadow:0 4px 12px rgba(37,99,235,0.2)}
+    .btn-primary:disabled{opacity:0.5;cursor:not-allowed;transform:none;box-shadow:none}
+    .btn-danger{height:34px;padding:0 14px;border:none;border-radius:10px;font-size:0.8rem;font-weight:700;font-family:'Inter',sans-serif;background:#EF4444;color:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all 0.15s}
+    .btn-danger:hover{background:#DC2626;transform:translateY(-1px);box-shadow:0 4px 12px rgba(239,68,68,0.2)}
+
+    .username-cell{display:flex;align-items:center;gap:4px;font-weight:600}
+
+    .session-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.03)}
+    .session-item:last-child{border-bottom:none}
+    .session-info{font-size:0.8rem;color:#475569}
+    body.dark .session-info{color:#94A3B8}
+    .session-device{font-weight:600;color:#1E293B;display:flex;align-items:center;gap:6px}
+    body.dark .session-device{color:#E2E8F0}
+    .session-meta{font-size:0.7rem;color:#94A3B8;margin-top:2px}
+    .session-current{font-size:0.65rem;color:#10B981;font-weight:700;text-transform:uppercase;background:rgba(16,185,129,0.08);padding:2px 8px;border-radius:20px;display:inline-block}
   </style>
 </head>
 <body>
+  <div class="bg-blobs"><div class="blob blob-1"></div><div class="blob blob-2"></div></div>
+  <div id="sa-toast"><i data-lucide="check-circle"></i><span id="sa-toast-msg">Tersalin</span><i data-lucide="x" class="toast-close" onclick="document.getElementById('sa-toast').classList.remove('show')"></i></div>
 
-  <!-- ════════ SIDEBAR ════════ -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-logo">
-      <i data-lucide="waves"></i>
-      EYECO
+  <div class="sa-app">
+
+  <!-- ═══ SIDEBAR ═══ -->
+  <aside class="sa-sidebar" id="sa-sidebar">
+    <div class="sa-sidebar-header">
+      <button class="sa-sidebar-toggle" id="sa-sidebar-toggle" aria-label="Toggle sidebar" data-tooltip="Tutup Sidebar">
+        <span class="toggle-icon-default"><i data-lucide="waves"></i></span>
+        <span class="toggle-icon-hover"><i data-lucide="panel-left-close"></i></span>
+      </button>
     </div>
-
-    <nav class="nav-menu">
-      <div class="nav-item active" data-target="dashboard" id="nav-dashboard">
-        <i data-lucide="layout-dashboard"></i>
-        <span>Dashboard</span>
-      </div>
-      <div class="nav-item" data-target="workspaces" id="nav-workspaces">
-        <i data-lucide="building-2"></i>
-        <span>Workspace</span>
-      </div>
-      <div class="nav-item" data-target="admins" id="nav-admins">
-        <i data-lucide="shield-user"></i>
-        <span>Administrator</span>
-      </div>
-
-      <div class="nav-spacer"></div>
-
-      <div class="nav-item logout" id="logout-btn">
-        <i data-lucide="log-out"></i>
-        <span>Keluar</span>
-      </div>
+    <nav class="sa-sidebar-nav">
+      <div class="sa-nav-item active" data-target="dashboard" data-label="Dashboard"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></div>
+      <div class="sa-nav-item" data-target="workspaces" data-label="Workspace"><i data-lucide="building-2"></i><span>Workspace</span></div>
+      <div class="sa-nav-item" data-target="admins" data-label="Administrator"><i data-lucide="shield-user"></i><span>Administrator</span></div>
+      <div class="sa-nav-spacer"></div>
+      <div class="sa-nav-item logout" id="sa-logout-btn" data-label="Keluar"><i data-lucide="log-out"></i><span>Keluar</span></div>
     </nav>
   </aside>
 
-  <!-- Mobile overlay -->
-  <div class="overlay" id="sidebar-overlay"></div>
-
-  <!-- ════════ MAIN ════════ -->
-  <div class="main-wrapper">
-
-    <!-- Top navigation bar -->
-    <header class="top-nav">
-      <div style="display:flex;align-items:center;gap:12px;">
-        <button class="mobile-toggle" id="mobile-toggle" aria-label="Toggle menu">
-          <i data-lucide="menu"></i>
-        </button>
-        <span id="top-nav-title" style="font-weight:700;font-size:1rem;color:var(--text-dark);">Dashboard</span>
+  <!-- ═══ MAIN ═══ -->
+  <div class="sa-main">
+    <header class="sa-topnav">
+      <div class="sa-topnav-left">
+        <span class="sa-topnav-brand">EYECO</span>
       </div>
-
-      <div class="top-nav-right">
-        <div class="profile-menu" id="profile-menu">
-          <button class="profile-btn" id="profile-btn" aria-haspopup="true" aria-expanded="false">
-            <div class="profile-avatar" id="top-avatar">S</div>
-            <span id="top-username" style="font-weight: 600; color: var(--text-dark);">SuperAdmin</span>
-            <i data-lucide="chevron-down" style="width: 16px; height: 16px; color: var(--text-muted);"></i>
+      <div class="sa-topnav-right">
+        <button class="sa-btn-nav" id="sa-dark-toggle" aria-label="Toggle dark mode"><i data-lucide="moon"></i></button>
+        <div class="sa-dropdown" id="sa-dropdown">
+          <button class="sa-profile-btn" id="sa-profile-btn">
+            <div class="sa-avatar" id="sa-avatar">S</div>
+            <span id="sa-username">SuperAdmin</span>
+            <i data-lucide="chevron-down"></i>
           </button>
-          
-          <div class="dropdown-menu" id="dropdown-menu">
-            <div class="dropdown-header">
-              <strong id="dropdown-name">Loading...</strong>
-              <span id="dropdown-email">loading@eyeco.id</span>
-              <span id="dropdown-role" class="badge badge-blue" style="margin-top: 6px; display: inline-block;">SUPERADMIN</span>
+          <div class="sa-dropdown-menu">
+            <div class="sa-dropdown-header">
+              <strong id="sa-dropdown-name">Loading...</strong>
+              <span id="sa-dropdown-email">-</span>
+              <span class="sa-badge sa-badge-purple" style="margin-top:6px;display:inline-block;">SUPERADMIN</span>
             </div>
-            
-            <a href="#" class="dropdown-item" id="btn-open-change-password">
-              <i data-lucide="key-round"></i>
-              Ubah Password
-            </a>
-            <a href="#" class="dropdown-item" id="btn-open-active-sessions">
-              <i data-lucide="smartphone"></i>
-              Sesi Aktif
-            </a>
-            
-            <div class="dropdown-divider"></div>
-            
-            <a href="#" class="dropdown-item" id="dropdown-logout" style="color: var(--error);">
-              <i data-lucide="log-out" style="color: var(--error);"></i>
-              Keluar
-            </a>
+            <div class="sa-dropdown-item" id="sa-btn-changepw"><i data-lucide="key-round"></i> Ubah Password</div>
+            <div class="sa-dropdown-item" id="sa-btn-sessions"><i data-lucide="monitor-smartphone"></i> Login Sessions</div>
+            <div class="sa-dropdown-divider"></div>
+            <div class="sa-dropdown-item" id="sa-dropdown-logout" style="color:#EF4444;"><i data-lucide="log-out"></i> Keluar</div>
           </div>
         </div>
       </div>
     </header>
 
-    <!-- Content area -->
-    <main class="content-area">
+    <main class="sa-content" id="sa-main-content">
 
-      <!-- ══ DASHBOARD SECTION ══ -->
-      <section id="dashboard" class="section-content active">
-        <div class="page-header">
-          <h1>Panel Kontrol Super Admin</h1>
-          <p>Kelola Workspace Sistem, Akun Administrator, serta Pantau Statistik Infrastruktur</p>
+      <!-- ══ DASHBOARD ══ -->
+      <section id="sec-dashboard" class="sa-section active">
+        <div class="sa-welcome">
+          <div><h2>Selamat Datang!</h2><p>Berikut ringkasan aktivitas seluruh sistem.</p></div>
+          <div class="sa-welcome-icon"><i data-lucide="shield-user"></i></div>
         </div>
-
-        <div class="dash-welcome">
-          <div>
-            <h2>Selamat Datang kembali!</h2>
-            <p>Berikut ringkasan statistik sistem EYECO Anda.</p>
-          </div>
-          <div class="dash-welcome-icon">
-            <i data-lucide="shield-user"></i>
-          </div>
+        <div class="sa-stats-grid">
+          <div class="stat-sa-card"><div class="stat-sa-icon" style="background:rgba(37,99,235,0.08);color:#2563EB;"><i data-lucide="shield-user"></i></div><div class="stat-sa-info"><div class="stat-sa-label">Administrator</div><div class="stat-sa-value" id="sa-stat-admins">—</div></div></div>
+          <div class="stat-sa-card"><div class="stat-sa-icon" style="background:rgba(16,185,129,0.08);color:#10B981;"><i data-lucide="building-2"></i></div><div class="stat-sa-info"><div class="stat-sa-label">Workspace</div><div class="stat-sa-value" id="sa-stat-workspaces">—</div></div></div>
+          <div class="stat-sa-card"><div class="stat-sa-icon" style="background:rgba(245,158,11,0.08);color:#F59E0B;"><i data-lucide="users-round"></i></div><div class="stat-sa-info"><div class="stat-sa-label">Warga</div><div class="stat-sa-value" id="sa-stat-users">—</div></div></div>
+          <div class="stat-sa-card"><div class="stat-sa-icon" style="background:rgba(99,102,241,0.08);color:#6366F1;"><i data-lucide="camera"></i></div><div class="stat-sa-info"><div class="stat-sa-label">CCTV</div><div class="stat-sa-value" id="sa-stat-cctv">—</div></div></div>
+          <div class="stat-sa-card"><div class="stat-sa-icon" style="background:rgba(239,68,68,0.08);color:#EF4444;"><i data-lucide="file-text"></i></div><div class="stat-sa-info"><div class="stat-sa-label">Laporan</div><div class="stat-sa-value" id="sa-stat-reports">—</div></div></div>
+          <div class="stat-sa-card"><div class="stat-sa-icon" style="background:rgba(245,158,11,0.08);color:#F59E0B;"><i data-lucide="clock"></i></div><div class="stat-sa-info"><div class="stat-sa-label">Menunggu</div><div class="stat-sa-value" id="sa-stat-pending">—</div></div></div>
+          <div class="stat-sa-card"><div class="stat-sa-icon" style="background:rgba(16,185,129,0.08);color:#10B981;"><i data-lucide="check-circle"></i></div><div class="stat-sa-info"><div class="stat-sa-label">Tervalidasi</div><div class="stat-sa-value" id="sa-stat-valid">—</div></div></div>
+          <div class="stat-sa-card"><div class="stat-sa-icon" style="background:rgba(139,92,246,0.08);color:#8B5CF6;"><i data-lucide="newspaper"></i></div><div class="stat-sa-info"><div class="stat-sa-label">Berita</div><div class="stat-sa-value" id="sa-stat-news">—</div></div></div>
         </div>
-
-        <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr);">
-          <div class="glass-card stat-sa">
-            <div class="stat-sa-icon" style="background:rgba(37,99,235,0.1);color:var(--primary);">
-              <i data-lucide="shield-user"></i>
-            </div>
-            <div class="stat-sa-info">
-              <div class="stat-sa-label">Total Admin</div>
-              <div class="stat-sa-value" id="stat-admins">—</div>
-            </div>
-          </div>
-          <div class="glass-card stat-sa">
-            <div class="stat-sa-icon" style="background:rgba(16,185,129,0.1);color:#10b981;">
-              <i data-lucide="building-2"></i>
-            </div>
-            <div class="stat-sa-info">
-              <div class="stat-sa-label">Total Workspace</div>
-              <div class="stat-sa-value" id="stat-workspaces">—</div>
-            </div>
-          </div>
-          <div class="glass-card stat-sa">
-            <div class="stat-sa-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b;">
-              <i data-lucide="users-round"></i>
-            </div>
-            <div class="stat-sa-info">
-              <div class="stat-sa-label">Total Warga</div>
-              <div class="stat-sa-value" id="stat-users">—</div>
-            </div>
-          </div>
-          <div class="glass-card stat-sa">
-            <div class="stat-sa-icon" style="background:rgba(99,102,241,0.1);color:#6366f1;">
-              <i data-lucide="cctv"></i>
-            </div>
-            <div class="stat-sa-info">
-              <div class="stat-sa-label">Total CCTV</div>
-              <div class="stat-sa-value" id="stat-cctv">—</div>
-            </div>
-          </div>
+        <div class="sa-activity-section">
+          <div class="sa-section-header"><h2>Aktivitas Terbaru</h2></div>
+          <div class="sa-table-wrap" id="sa-activity-feed" style="padding:10px 18px;"><div class="sa-empty"><i data-lucide="activity"></i><p>Memuat aktivitas...</p></div></div>
         </div>
       </section>
 
-      <!-- ══ WORKSPACE SECTION ══ -->
-      <section id="workspaces" class="section-content">
-        <div class="section-header">
-          <div>
-            <h2>Daftar Workspace</h2>
-            <p class="text-muted" style="margin-top:2px;">Kelola semua workspace dalam sistem.</p>
-          </div>
-          <div class="section-header-actions">
-            <div class="search-box-wrap">
-              <i data-lucide="search"></i>
-              <input type="text" id="ws-search" class="search-box-input" placeholder="Cari workspace...">
-            </div>
-            <select id="ws-filter" class="filter-select">
-              <option value="all">Semua</option>
-              <option value="name">Nama Workspace</option>
-              <option value="code">Kode</option>
-              <option value="address">Alamat</option>
-              <option value="company">Instansi</option>
-              <option value="id">ID</option>
-              <option value="date">Tanggal dibuat</option>
-            </select>
-            <button class="btn-primary btn-sm" id="btn-open-ws-create">
-              <i data-lucide="plus"></i> Tambah Workspace
-            </button>
+      <!-- ══ WORKSPACES ══ -->
+      <section id="sec-workspaces" class="sa-section">
+        <div class="sa-page-header"><h1>Workspace</h1><p>Kelola semua workspace dalam sistem.</p></div>
+        <div class="sa-section-header">
+          <h2>Daftar Workspace</h2>
+          <div class="sa-toolbar">
+            <div class="search-box-wrap"><i data-lucide="search"></i><input type="text" id="ws-search" class="search-box-input" placeholder="Cari workspace..."></div>
+            <select id="ws-filter" class="filter-select"><option value="all">Semua Field</option><option value="name">Nama Workspace</option><option value="code">Kode Workspace</option><option value="company">Instansi</option><option value="address">Alamat</option></select>
+            <button class="btn-primary btn-sm" id="btn-open-ws-create"><i data-lucide="plus"></i> Tambah Workspace</button>
           </div>
         </div>
-
-        <div class="glass-card table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Nama Workspace</th>
-                <th>Kode</th>
-                <th>Perusahaan / Instansi</th>
-                <th>Alamat</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody id="workspaces-table">
-              <tr>
-                <td colspan="6" class="text-center" style="padding:40px;">
-                  <span class="spin" style="display:inline-block;"><i data-lucide="loader" style="width:20px;height:20px;"></i></span>
-                  <span style="margin-left:8px;color:var(--text-muted);">Memuat data...</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="sa-table-wrap">
+          <table class="sa-table"><thead><tr><th style="width:44px;">ID</th><th>Nama</th><th style="width:72px;">Kode</th><th>Instansi</th><th>Alamat</th><th style="width:120px;text-align:right;">Aksi</th></tr></thead><tbody id="ws-table-body"></tbody></table>
         </div>
       </section>
 
-      <!-- ══ ADMINS SECTION ══ -->
-      <section id="admins" class="section-content">
-        <div class="section-header">
-          <div>
-            <h2>Daftar Administrator</h2>
-            <p class="text-muted" style="margin-top:2px;">Kelola semua akun administrator.</p>
-          </div>
-          <div class="section-header-actions">
-            <div class="search-box-wrap">
-              <i data-lucide="search"></i>
-              <input type="text" id="admin-search" class="search-box-input" placeholder="Cari admin...">
-            </div>
-            <select id="admin-filter" class="filter-select">
-              <option value="all">Semua</option>
-              <option value="username">Username</option>
-              <option value="name">Nama</option>
-              <option value="workspace">Workspace</option>
-              <option value="id">ID</option>
-              <option value="date">Tanggal dibuat</option>
-            </select>
-            <button class="btn-primary btn-sm" id="btn-open-admin-create">
-              <i data-lucide="user-plus"></i> Tambah Admin
-            </button>
+      <!-- ══ WORKSPACE DETAIL ══ -->
+      <section id="sec-ws-detail" class="sa-section">
+        <div class="sa-page-header">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button class="btn btn-glass" id="wsd-back" style="padding:6px 9px;"><i data-lucide="arrow-left" style="width:13px;height:13px;"></i></button>
+            <div><h1 id="wsd-title">Detail Workspace</h1><p id="wsd-subtitle" style="font-size:0.82rem;color:#64748B;margin:2px 0 0;">Informasi monitoring workspace</p></div>
           </div>
         </div>
+        <div class="wsd-grid">
+          <div class="wsd-card"><div class="wsd-card-icon"><i data-lucide="shield-user"></i></div><div class="wsd-card-label">Administrator</div><div class="wsd-card-value" id="wsd-stat-admins">0</div></div>
+          <div class="wsd-card"><div class="wsd-card-icon"><i data-lucide="users"></i></div><div class="wsd-card-label">Warga</div><div class="wsd-card-value" id="wsd-stat-users">0</div></div>
+          <div class="wsd-card"><div class="wsd-card-icon"><i data-lucide="camera"></i></div><div class="wsd-card-label">CCTV</div><div class="wsd-card-value" id="wsd-stat-cctv">0</div></div>
+          <div class="wsd-card"><div class="wsd-card-icon"><i data-lucide="file-text"></i></div><div class="wsd-card-label">Total Laporan</div><div class="wsd-card-value" id="wsd-stat-reports">0</div></div>
+          <div class="wsd-card"><div class="wsd-card-icon"><i data-lucide="clock"></i></div><div class="wsd-card-label">Diproses</div><div class="wsd-card-value" id="wsd-stat-pending">0</div></div>
+          <div class="wsd-card"><div class="wsd-card-icon"><i data-lucide="check-circle"></i></div><div class="wsd-card-label">Selesai</div><div class="wsd-card-value" id="wsd-stat-valid">0</div></div>
+          <div class="wsd-card"><div class="wsd-card-icon"><i data-lucide="newspaper"></i></div><div class="wsd-card-label">Berita</div><div class="wsd-card-value" id="wsd-stat-news">0</div><div class="wsd-card-mini" id="wsd-stat-news-pub">0 published</div></div>
+          <div class="wsd-card"><div class="wsd-card-icon"><i data-lucide="calendar"></i></div><div class="wsd-card-label">Dibuat</div><div class="wsd-card-value" id="wsd-stat-created">-</div></div>
+        </div>
 
-        <div class="glass-card table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Username</th>
-                <th>Nama Admin</th>
-                <th>Workspace</th>
-                <th>Tanggal Dibuat</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody id="admins-table">
-              <tr>
-                <td colspan="6" class="text-center" style="padding:40px;">
-                  <span class="spin" style="display:inline-block;"><i data-lucide="loader" style="width:20px;height:20px;"></i></span>
-                  <span style="margin-left:8px;color:var(--text-muted);">Memuat data...</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="sa-subsection-title"><i data-lucide="shield-user"></i> Administrator Workspace</div>
+        <div class="sa-table-wrap" style="margin-bottom:18px;"><table class="sa-table"><thead><tr><th>Nama</th><th>Username</th><th>Email</th><th>Status</th><th>Bergabung</th><th style="text-align:center;">Divalidasi</th><th style="text-align:center;">Berita</th></tr></thead><tbody id="wsd-admins"></tbody></table></div>
+
+        <div class="sa-subsection-title"><i data-lucide="users"></i> Warga / Masyarakat</div>
+        <div class="sa-table-wrap" style="margin-bottom:18px;">
+          <table class="sa-table"><thead><tr><th>Nama</th><th>Username</th><th>Status</th><th>Bergabung</th><th style="text-align:center;">Laporan</th></tr></thead><tbody id="wsd-users"></tbody></table>
+          <div class="sa-pagination" id="wsd-users-pagination" style="display:none;"><div class="sa-pagination-info"></div><div class="sa-pagination-pages"></div></div>
+        </div>
+
+        <div class="sa-subsection-title"><i data-lucide="file-text"></i> Laporan Terbaru</div>
+        <div class="sa-table-wrap" style="margin-bottom:18px;">
+          <table class="sa-table"><thead><tr><th>Thumb</th><th>Lokasi</th><th>Pelapor</th><th>Status AI</th><th>Validasi</th><th>Ditangani</th><th>Tgl</th></tr></thead><tbody id="wsd-reports"></tbody></table>
+          <div class="sa-pagination" id="wsd-reports-pagination" style="display:none;"><div class="sa-pagination-info"></div><div class="sa-pagination-pages"></div></div>
+        </div>
+
+        <div class="sa-subsection-title"><i data-lucide="newspaper"></i> Berita</div>
+        <div class="sa-table-wrap" style="margin-bottom:18px;">
+          <table class="sa-table"><thead><tr><th>Judul</th><th>Kategori</th><th>Status</th><th>Penulis</th><th>Tgl Publikasi</th></tr></thead><tbody id="wsd-news"></tbody></table>
+          <div class="sa-pagination" id="wsd-news-pagination" style="display:none;"><div class="sa-pagination-info"></div><div class="sa-pagination-pages"></div></div>
+        </div>
+
+        <div class="sa-subsection-title"><i data-lucide="activity"></i> Aktivitas Terbaru</div>
+        <div class="sa-table-wrap" style="padding:12px 18px;" id="wsd-activity-container"></div>
+      </section>
+
+      <!-- ══ ADMINS ══ -->
+      <section id="sec-admins" class="sa-section">
+        <div class="sa-page-header"><h1>Administrator</h1><p>Kelola semua akun administrator workspace.</p></div>
+        <div class="sa-section-header">
+          <h2>Daftar Administrator</h2>
+          <div class="sa-toolbar">
+            <div class="search-box-wrap"><i data-lucide="search"></i><input type="text" id="admin-search" class="search-box-input" placeholder="Cari admin..."></div>
+            <select id="admin-filter" class="filter-select"><option value="all">Semua Field</option><option value="username">Username</option><option value="name">Nama</option><option value="workspace">Workspace</option></select>
+            <button class="btn-primary btn-sm" id="btn-open-admin-create"><i data-lucide="user-plus"></i> Tambah Admin</button>
+          </div>
+        </div>
+        <div class="sa-table-wrap">
+          <table class="sa-table"><thead><tr><th style="width:44px;">ID</th><th>Username</th><th>Nama</th><th>Workspace</th><th>Dibuat</th><th style="width:130px;text-align:right;">Aksi</th></tr></thead><tbody id="admins-table-body"></tbody></table>
         </div>
       </section>
 
     </main>
   </div>
 
-  <!-- ════════════════════════════════════════
-       MODALS
-  ════════════════════════════════════════ -->
+  </div><!-- .sa-app -->
 
-  <!-- Create Workspace Modal -->
-  <div class="modal-overlay" id="modal-ws-create">
-    <div class="modal">
-      <div class="modal-header">
-        <h2><i data-lucide="building-2" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"></i>Tambah Workspace Baru</h2>
-        <button class="close-btn" data-close="modal-ws-create"><i data-lucide="x"></i></button>
-      </div>
-      <form id="form-ws-create" novalidate>
-        <div class="form-group">
-          <label>Nama Workspace <span style="color:var(--error)">*</span></label>
-          <input type="text" id="ws-name" class="input-control" required placeholder="Misal: Bandung, Jakarta Hilir">
+  <!-- ══ MODALS ══ -->
+
+  <div class="sa-modal" id="modal-ws-create">
+    <div class="sa-modal-box">
+      <div class="sa-modal-header"><h3><i data-lucide="building-2" style="width:15px;height:15px;vertical-align:middle;margin-right:4px;"></i> Tambah Workspace</h3><button class="sa-modal-close" data-close="modal-ws-create"><i data-lucide="x"></i></button></div>
+      <form id="form-ws-create">
+        <div class="sa-modal-body" style="display:flex;flex-direction:column;gap:10px;">
+          <div><label class="sa-label">Nama Workspace *</label><input type="text" id="ws-name" class="sa-input" required placeholder="Misal: Bandung, Jakarta Hilir"></div>
+          <div><label class="sa-label">Perusahaan / Instansi</label><input type="text" id="ws-company" class="sa-input" placeholder="PT. Contoh Maju Bersama"></div>
+          <div><label class="sa-label">Alamat</label><input type="text" id="ws-address" class="sa-input" placeholder="Jl. Contoh No.1, Kota"></div>
         </div>
-        <div class="form-group">
-          <label>Nama Perusahaan / Instansi</label>
-          <input type="text" id="ws-company" class="input-control" placeholder="PT. Contoh Maju Bersama">
-        </div>
-        <div class="form-group">
-          <label>Alamat</label>
-          <input type="text" id="ws-address" class="input-control" placeholder="Jl. Contoh No.1, Kota">
-        </div>
-        <div class="form-group">
-          <label>Deskripsi</label>
-          <textarea id="ws-description" class="input-control" rows="3" placeholder="Deskripsi ringkas workspace..."></textarea>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-outline" data-close="modal-ws-create">Batal</button>
-          <button type="submit" class="btn-primary" id="btn-ws-create-submit">
-            <i data-lucide="plus"></i> Buat Workspace
-          </button>
-        </div>
+        <div class="sa-modal-footer"><button type="button" class="btn btn-glass" data-close="modal-ws-create">Batal</button><button type="submit" class="btn-primary"><i data-lucide="save"></i> Simpan</button></div>
       </form>
     </div>
   </div>
 
-  <!-- Edit Workspace Modal -->
-  <div class="modal-overlay" id="modal-ws-edit">
-    <div class="modal">
-      <div class="modal-header">
-        <h2><i data-lucide="pencil" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"></i>Edit Workspace</h2>
-        <button class="close-btn" data-close="modal-ws-edit"><i data-lucide="x"></i></button>
-      </div>
-      <form id="form-ws-edit" novalidate>
-        <input type="hidden" id="ws-edit-id">
-        <div class="form-group">
-          <label>Nama Workspace <span style="color:var(--error)">*</span></label>
-          <input type="text" id="ws-edit-name" class="input-control" required>
+  <div class="sa-modal" id="modal-ws-edit">
+    <div class="sa-modal-box">
+      <div class="sa-modal-header"><h3><i data-lucide="pencil" style="width:15px;height:15px;vertical-align:middle;margin-right:4px;"></i> Edit Workspace</h3><button class="sa-modal-close" data-close="modal-ws-edit"><i data-lucide="x"></i></button></div>
+      <form id="form-ws-edit">
+        <input type="hidden" id="edit-ws-id">
+        <div class="sa-modal-body" style="display:flex;flex-direction:column;gap:10px;">
+          <div><label class="sa-label">Nama Workspace *</label><input type="text" id="edit-ws-name" class="sa-input" required></div>
+          <div><label class="sa-label">Perusahaan / Instansi</label><input type="text" id="edit-ws-company" class="sa-input"></div>
+          <div><label class="sa-label">Alamat</label><input type="text" id="edit-ws-address" class="sa-input"></div>
         </div>
-        <div class="form-group">
-          <label>Nama Perusahaan / Instansi</label>
-          <input type="text" id="ws-edit-company" class="input-control">
-        </div>
-        <div class="form-group">
-          <label>Alamat</label>
-          <input type="text" id="ws-edit-address" class="input-control">
-        </div>
-        <div class="form-group">
-          <label>Deskripsi</label>
-          <textarea id="ws-edit-description" class="input-control" rows="3"></textarea>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-outline" data-close="modal-ws-edit">Batal</button>
-          <button type="submit" class="btn-primary" id="btn-ws-edit-submit">
-            <i data-lucide="save"></i> Simpan Perubahan
-          </button>
-        </div>
+        <div class="sa-modal-footer"><button type="button" class="btn btn-glass" data-close="modal-ws-edit">Batal</button><button type="submit" class="btn-primary"><i data-lucide="save"></i> Simpan</button></div>
       </form>
     </div>
   </div>
 
-  <!-- Create Admin Modal -->
-  <div class="modal-overlay" id="modal-admin-create">
-    <div class="modal">
-      <div class="modal-header">
-        <h2><i data-lucide="user-plus" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"></i>Tambah Admin Baru</h2>
-        <button class="close-btn" data-close="modal-admin-create"><i data-lucide="x"></i></button>
-      </div>
-      <form id="form-admin-create" novalidate>
-        <div class="form-group">
-          <label>Nama Admin <span style="color:var(--error)">*</span></label>
-          <input type="text" id="admin-name" class="input-control" required placeholder="Nama lengkap admin">
+  <div class="sa-modal" id="modal-admin-create">
+    <div class="sa-modal-box">
+      <div class="sa-modal-header"><h3><i data-lucide="shield-user" style="width:15px;height:15px;vertical-align:middle;margin-right:4px;"></i> Tambah Administrator</h3><button class="sa-modal-close" data-close="modal-admin-create"><i data-lucide="x"></i></button></div>
+      <form id="form-admin-create">
+        <div class="sa-modal-body" style="display:flex;flex-direction:column;gap:10px;">
+          <div><label class="sa-label">Nama Admin *</label><input type="text" id="admin-name" class="sa-input" required placeholder="Nama lengkap admin"></div>
+          <div><label class="sa-label">Email</label><input type="email" id="admin-email" class="sa-input" placeholder="admin@example.com"></div>
+          <div><label class="sa-label">Pilih Workspace *</label><select id="admin-workspace" class="sa-select"></select></div>
+          <div><label class="sa-label">Username (otomatis)</label><input type="text" id="admin-username-preview" class="sa-input" readonly style="background:rgba(0,0,0,0.02);color:#64748B;"></div>
         </div>
-        <div class="form-group">
-          <label>Workspace <span style="color:var(--error)">*</span></label>
-          <select id="admin-workspace" class="input-control" required>
-            <option value="">— Pilih Workspace —</option>
-          </select>
-        </div>
-        <p style="font-size:0.8rem;color:var(--text-muted);margin-top:-10px;margin-bottom:16px;">
-          <i data-lucide="info" style="width:13px;height:13px;vertical-align:middle;"></i>
-          Username & password admin akan digenerate otomatis dan ditampilkan setelah dibuat.
-        </p>
-        <div class="modal-actions">
-          <button type="button" class="btn-outline" data-close="modal-admin-create">Batal</button>
-          <button type="submit" class="btn-primary" id="btn-admin-create-submit">
-            <i data-lucide="user-plus"></i> Simpan Admin
-          </button>
-        </div>
+        <div class="sa-modal-footer"><button type="button" class="btn btn-glass" data-close="modal-admin-create">Batal</button><button type="submit" class="btn-primary"><i data-lucide="user-plus"></i> Tambah</button></div>
       </form>
     </div>
   </div>
 
-  <!-- Edit Admin Modal -->
-  <div class="modal-overlay" id="modal-admin-edit">
-    <div class="modal">
-      <div class="modal-header">
-        <h2><i data-lucide="pencil" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"></i>Edit Admin</h2>
-        <button class="close-btn" data-close="modal-admin-edit"><i data-lucide="x"></i></button>
-      </div>
-      <form id="form-admin-edit" novalidate>
-        <input type="hidden" id="admin-edit-id">
-        <div class="form-group">
-          <label>Nama Admin</label>
-          <input type="text" id="admin-edit-name" class="input-control" placeholder="Nama lengkap admin">
+  <div class="sa-modal" id="modal-admin-edit">
+    <div class="sa-modal-box">
+      <div class="sa-modal-header"><h3><i data-lucide="pencil" style="width:15px;height:15px;vertical-align:middle;margin-right:4px;"></i> Edit Administrator</h3><button class="sa-modal-close" data-close="modal-admin-edit"><i data-lucide="x"></i></button></div>
+      <form id="form-admin-edit">
+        <input type="hidden" id="edit-admin-id">
+        <div class="sa-modal-body" style="display:flex;flex-direction:column;gap:10px;">
+          <div><label class="sa-label">Nama Admin *</label><input type="text" id="edit-admin-name" class="sa-input" required></div>
+          <div><label class="sa-label">Workspace</label><select id="edit-admin-workspace" class="sa-select"></select></div>
         </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-outline" data-close="modal-admin-edit">Batal</button>
-          <button type="submit" class="btn-primary">
-            <i data-lucide="save"></i> Simpan
-          </button>
-        </div>
+        <div class="sa-modal-footer"><button type="button" class="btn btn-glass" data-close="modal-admin-edit">Batal</button><button type="submit" class="btn-primary"><i data-lucide="save"></i> Simpan</button></div>
       </form>
     </div>
   </div>
 
-  <!-- Result / Credentials Modal -->
-  <div class="modal-overlay" id="modal-result">
-    <div class="modal">
-      <div class="modal-header">
-        <h2 id="result-title">Berhasil Dibuat!</h2>
-        <button class="close-btn" data-close="modal-result"><i data-lucide="x"></i></button>
-      </div>
-      <div id="result-body"></div>
-      <div class="modal-actions">
-        <button type="button" class="btn-primary" data-close="modal-result">
-          <i data-lucide="check"></i> Selesai
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Change Password Modal -->
-  <div class="modal-overlay" id="modal-change-password">
-    <div class="modal">
-      <div class="modal-header">
-        <h2><i data-lucide="key-round" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"></i>Ubah Password</h2>
-        <button class="close-btn" data-close="modal-change-password"><i data-lucide="x"></i></button>
-      </div>
-      <form id="form-change-password" novalidate>
-        <div class="form-group">
-          <label>Password Saat Ini <span style="color:var(--error)">*</span></label>
-          <div class="input-wrapper">
-            <i data-lucide="lock"></i>
-            <input type="password" id="cp-current" class="input-control" required placeholder="Masukkan password saat ini">
-            <button type="button" class="toggle-password" onclick="togglePasswordVisibility('cp-current', this)"><i data-lucide="eye"></i></button>
-          </div>
+  <div class="sa-modal" id="modal-changepw">
+    <div class="sa-modal-box">
+      <div class="sa-modal-header"><h3><i data-lucide="key-round" style="width:15px;height:15px;vertical-align:middle;margin-right:4px;"></i> Ubah Password</h3><button class="sa-modal-close" data-close="modal-changepw"><i data-lucide="x"></i></button></div>
+      <form id="form-changepw">
+        <div class="sa-modal-body" style="display:flex;flex-direction:column;gap:10px;">
+          <div><label class="sa-label">Password Saat Ini *</label><input type="password" id="pw-current" class="sa-input" required placeholder="Masukkan password sekarang"></div>
+          <div><label class="sa-label">Password Baru *</label><input type="password" id="pw-new" class="sa-input" required placeholder="Minimal 6 karakter"></div>
+          <div><label class="sa-label">Konfirmasi Password Baru *</label><input type="password" id="pw-confirm" class="sa-input" required placeholder="Ulangi password baru"></div>
+          <p id="pw-error" style="font-size:0.78rem;color:#EF4444;margin:0;display:none;"></p>
         </div>
-        <div class="form-group">
-          <label>Password Baru <span style="color:var(--error)">*</span></label>
-          <div class="input-wrapper">
-            <i data-lucide="lock"></i>
-            <input type="password" id="cp-new" class="input-control" required placeholder="Minimal 6 karakter" oninput="checkPasswordStrength(this.value)">
-            <button type="button" class="toggle-password" onclick="togglePasswordVisibility('cp-new', this)"><i data-lucide="eye"></i></button>
-          </div>
-          <div class="strength-meter"><div id="cp-strength-bar"></div></div>
-          <div class="strength-text" id="cp-strength-text">Kekuatan: -</div>
-        </div>
-        <div class="form-group">
-          <label>Konfirmasi Password Baru <span style="color:var(--error)">*</span></label>
-          <div class="input-wrapper">
-            <i data-lucide="lock"></i>
-            <input type="password" id="cp-confirm" class="input-control" required placeholder="Ulangi password baru">
-            <button type="button" class="toggle-password" onclick="togglePasswordVisibility('cp-confirm', this)"><i data-lucide="eye"></i></button>
-          </div>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-outline" data-close="modal-change-password">Batal</button>
-          <button type="submit" class="btn-primary" id="btn-change-password-submit">
-            <i data-lucide="save"></i> Simpan Password
-          </button>
-        </div>
+        <div class="sa-modal-footer"><button type="button" class="btn btn-glass" data-close="modal-changepw">Batal</button><button type="submit" class="btn-primary"><i data-lucide="save"></i> Simpan</button></div>
       </form>
     </div>
   </div>
 
-  <!-- Active Sessions Modal -->
-  <div class="modal-overlay" id="modal-active-sessions">
-    <div class="modal">
-      <div class="modal-header">
-        <h2><i data-lucide="smartphone" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"></i>Sesi Aktif</h2>
-        <button class="close-btn" data-close="modal-active-sessions"><i data-lucide="x"></i></button>
-      </div>
-      <div style="margin-bottom: 16px;">
-        <p style="font-size: 0.9rem; color: var(--text-muted);">Berikut adalah daftar perangkat yang saat ini masuk ke akun Anda.</p>
-        <button class="btn-danger" style="margin-top: 12px; width: 100%;" onclick="revokeAllSessions()">
-          <i data-lucide="log-out"></i> Keluarkan Semua Perangkat Lain
-        </button>
-      </div>
-      <div class="table-container" style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border);">
-        <table>
-          <thead>
-            <tr>
-              <th>Perangkat</th>
-              <th>Terakhir Aktif</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody id="sessions-table">
-            <tr><td colspan="3" class="text-center">Memuat sesi...</td></tr>
-          </tbody>
-        </table>
-      </div>
+  <div class="sa-modal" id="modal-sessions">
+    <div class="sa-modal-box wide">
+      <div class="sa-modal-header"><h3><i data-lucide="monitor-smartphone" style="width:15px;height:15px;vertical-align:middle;margin-right:4px;"></i> Login Sessions</h3><button class="sa-modal-close" data-close="modal-sessions"><i data-lucide="x"></i></button></div>
+      <div class="sa-modal-body" id="sessions-body" style="max-height:420px;overflow-y:auto;"><p style="color:#94A3B8;font-size:0.82rem;">Memuat...</p></div>
+      <div class="sa-modal-footer"><button type="button" class="btn btn-glass" data-close="modal-sessions">Tutup</button></div>
     </div>
   </div>
 
-  <!-- Toast container -->
-  <div class="toast-container" id="toast-container"></div>
-
-  <!-- Generic Confirm Modal -->
-  <div class="modal-overlay" id="modal-confirm">
-    <div class="modal" style="max-width: 400px; text-align: center; padding: 32px 24px;">
-      <div style="color: var(--warning); margin-bottom: 16px;">
-        <i data-lucide="alert-triangle" style="width: 48px; height: 48px;"></i>
+  <div class="sa-modal" id="modal-resetpw-result">
+    <div class="sa-modal-box" style="max-width:400px;">
+      <div class="sa-modal-header"><h3><i data-lucide="key-round" style="width:15px;height:15px;vertical-align:middle;margin-right:4px;"></i> Password Berhasil Direset</h3><button class="sa-modal-close" data-close="modal-resetpw-result"><i data-lucide="x"></i></button></div>
+      <div class="sa-modal-body">
+        <p style="font-size:0.8rem;color:#64748B;margin:0 0 14px;">Salin kredensial di bawah. Password tidak bisa dilihat lagi setelah modal ditutup.</p>
+        <div class="result-field"><div><div class="result-field-label">Username</div><div class="result-field-value" id="rp-username">—</div></div><div class="result-field-right"><button class="copy-btn" id="rp-copy-username" data-copy=""><i data-lucide="copy"></i></button></div></div>
+        <div class="result-field"><div><div class="result-field-label">Password Baru</div><div class="result-field-value" id="rp-password">—</div></div><div class="result-field-right"><button class="copy-btn" id="rp-copy-password" data-copy=""><i data-lucide="copy"></i></button></div></div>
       </div>
-      <h2 id="confirm-title" style="font-size: 1.25rem; font-weight: 700; color: var(--text-dark); margin-bottom: 8px;">Konfirmasi</h2>
-      <p id="confirm-message" style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.5;"></p>
-      <div class="modal-actions" style="justify-content: center; border-top: none; padding-top: 0; margin-top: 0;">
-        <button type="button" class="btn-outline" data-close="modal-confirm" id="btn-confirm-cancel">Batal</button>
-        <button type="button" class="btn-primary" id="btn-confirm-ok" style="background: var(--error); box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);">
-          Ya, Lanjutkan
-        </button>
-      </div>
+      <div class="sa-modal-footer"><button type="button" class="btn btn-glass" data-close="modal-resetpw-result">Tutup</button></div>
     </div>
   </div>
 
-  <!-- ════════════════════════════════════════
-       JAVASCRIPT
-  ════════════════════════════════════════ -->
-  <script>
-  'use strict';
+  <div class="sa-modal" id="modal-confirm">
+    <div class="sa-modal-box" style="max-width:360px;">
+      <div class="sa-modal-header"><h3 id="confirm-title">Konfirmasi</h3><button class="sa-modal-close" data-close="modal-confirm"><i data-lucide="x"></i></button></div>
+      <div class="sa-modal-body"><p id="confirm-message" style="color:#475569;margin:0;font-size:0.85rem;line-height:1.5;"></p></div>
+      <div class="sa-modal-footer"><button type="button" class="btn btn-glass" data-close="modal-confirm">Batal</button><button type="button" class="btn-danger" id="confirm-yes">Ya, Hapus</button></div>
+    </div>
+  </div>
 
-  /* ── Init Lucide icons ─────────────────── */
-  lucide.createIcons();
+  <script type="module">
+    import { AuthService } from '/js/services/authService.js';
 
-  /* ── Sidebar toggle ────────────────────── */
-  const sidebar       = document.getElementById('sidebar');
-  const sidebarOverlay = document.getElementById('sidebar-overlay');
-  const mobileToggle  = document.getElementById('mobile-toggle');
+    let state = { user: null, workspaces: [], admins: [], wsAdmins: [], wsUsers: [], wsReports: [], wsNews: [], wsActivity: [], currentWorkspaceId: null };
+    let confirmCallback = null;
 
-  function openSidebar()  { sidebar.classList.add('open');   sidebarOverlay.classList.add('active'); }
-  function closeSidebar() { sidebar.classList.remove('open'); sidebarOverlay.classList.remove('active'); }
-  function toggleSidebar(){ sidebar.classList.contains('open') ? closeSidebar() : openSidebar(); }
+    function showToast(msg) {
+      const el = document.getElementById('sa-toast');
+      el.querySelector('#sa-toast-msg').textContent = msg;
+      el.classList.add('show');
+      clearTimeout(el._hide);
+      el._hide = setTimeout(() => el.classList.remove('show'), 2500);
+    }
 
-  mobileToggle.addEventListener('click', toggleSidebar);
-  sidebarOverlay.addEventListener('click', closeSidebar);
-
-  /* ── Navigation (tab switching) ─────────── */
-  const navTitles = {
-    dashboard: 'Dashboard',
-    workspaces: 'Workspace',
-    admins: 'Administrator'
-  };
-
-  document.querySelectorAll('.nav-item[data-target]').forEach(item => {
-    item.addEventListener('click', () => {
-      if (window.innerWidth <= 768) closeSidebar();
-
-      // Update active nav item
-      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-      item.classList.add('active');
-
-      // Update top bar title
-      const target = item.getAttribute('data-target');
-      document.getElementById('top-nav-title').textContent = navTitles[target] || target;
-
-      // Show the correct section
-      document.querySelectorAll('.section-content').forEach(s => s.classList.remove('active'));
-      document.getElementById(target).classList.add('active');
-
-      // Load section data
-      if (target === 'dashboard')  loadStats();
-      if (target === 'workspaces') loadWorkspaces();
-      if (target === 'admins')     loadAdmins();
-    });
-  });
-
-  /* ── Logout ─────────────────────────────── */
-  document.getElementById('logout-btn').addEventListener('click', async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch (_) {}
-    window.location.href = '/logout';
-  });
-
-  /* ── Modal helpers ──────────────────────── */
-  function openModal(id)  { document.getElementById(id).classList.add('active'); lucide.createIcons(); }
-  function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-
-  // Close buttons via data-close attribute
-  document.querySelectorAll('[data-close]').forEach(btn => {
-    btn.addEventListener('click', () => closeModal(btn.getAttribute('data-close')));
-  });
-
-  // Close modal when clicking the overlay itself
-  document.querySelectorAll('.modal-overlay').forEach(overlay => {
-    overlay.addEventListener('click', e => {
-      if (e.target === overlay) closeModal(overlay.id);
-    });
-  });
-
-  // Close modal on ESC key
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      document.querySelectorAll('.modal-overlay.active').forEach(modal => {
-        closeModal(modal.id);
+    function setupCopyBtn(btnEl, getText) {
+      btnEl.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const text = typeof getText === 'function' ? getText() : getText;
+        try { await navigator.clipboard.writeText(text); } catch(_) {
+          const ta = document.createElement('textarea'); ta.value = text;
+          document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+        const icon = btnEl.querySelector('i');
+        if (icon) icon.setAttribute('data-lucide', 'check');
+        btnEl.classList.add('copied');
+        if (window.lucide) window.lucide.createIcons();
+        showToast((btnEl.closest('.result-field')?.querySelector('.result-field-label')?.textContent || 'Data') + ' berhasil disalin');
+        setTimeout(() => {
+          if (icon) { icon.setAttribute('data-lucide', 'copy'); btnEl.classList.remove('copied'); if (window.lucide) window.lucide.createIcons(); }
+        }, 2000);
       });
     }
-  });
 
-  // Generic Confirm Dialog
-  function showConfirm(title, message, onConfirm) {
-    document.getElementById('confirm-title').textContent = title;
-    document.getElementById('confirm-message').innerHTML = String(message).replace(/\n/g, '<br>');
-    const btnOk = document.getElementById('btn-confirm-ok');
-    
-    // Remove old listeners
-    const newBtnOk = btnOk.cloneNode(true);
-    btnOk.parentNode.replaceChild(newBtnOk, btnOk);
-    
-    newBtnOk.addEventListener('click', () => {
+    const darkToggle = document.getElementById('sa-dark-toggle');
+    function applyDark(enabled) {
+      document.body.classList.toggle('dark', enabled);
+      darkToggle.querySelector('i').setAttribute('data-lucide', enabled ? 'sun' : 'moon');
+      if (window.lucide) window.lucide.createIcons();
+      localStorage.setItem('sa-dark-mode', enabled ? '1' : '0');
+    }
+    if (localStorage.getItem('sa-dark-mode') === '1') applyDark(true);
+    darkToggle.addEventListener('click', () => applyDark(!document.body.classList.contains('dark')));
+
+    function paginate(data, page, perPage) {
+      const total = data.length;
+      const pages = Math.max(1, Math.ceil(total / perPage));
+      const p = Math.max(1, Math.min(page, pages));
+      const start = (p - 1) * perPage;
+      const end = Math.min(start + perPage, total);
+      return { items: data.slice(start, end), page: p, pages, total, start: start + 1, end };
+    }
+
+    function renderPagination(containerId, { page, pages, total, start, end }, onPage) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      if (total <= 1) { el.style.display = 'none'; return; }
+      el.style.display = 'flex';
+      el.querySelector('.sa-pagination-info').textContent = `Showing ${start}–${end} of ${total} entries`;
+      const pagesEl = el.querySelector('.sa-pagination-pages');
+      let html = `<button class="sa-page-btn" data-page="${page-1}" ${page<=1?'disabled':''}>Prev</button>`;
+      for (let i = 1; i <= pages; i++) html += `<button class="sa-page-btn ${i===page?'active':''}" data-page="${i}">${i}</button>`;
+      html += `<button class="sa-page-btn" data-page="${page+1}" ${page>=pages?'disabled':''}>Next</button>`;
+      pagesEl.innerHTML = html;
+      pagesEl.querySelectorAll('.sa-page-btn').forEach(b => {
+        b.addEventListener('click', () => {
+          const p = parseInt(b.getAttribute('data-page'));
+          if (p >= 1 && p <= pages) onPage(p);
+        });
+      });
+    }
+
+    async function init() {
+      try {
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        if (!res.ok) { window.location.href = '/login'; return; }
+        const data = await res.json();
+        if (!data || !data.id) { window.location.href = '/login'; return; }
+        state.user = data;
+        renderProfile();
+        await loadStats();
+        await loadWorkspaces();
+        await loadAdmins();
+      } catch (_) { window.location.href = '/login'; }
+    }
+
+    function renderProfile() {
+      const u = state.user;
+      const initial = (u.name || u.username)[0].toUpperCase();
+      document.getElementById('sa-avatar').textContent = initial;
+      document.getElementById('sa-username').textContent = u.name || u.username;
+      document.getElementById('sa-dropdown-name').textContent = u.name || u.username;
+      document.getElementById('sa-dropdown-email').textContent = u.email || '-';
+    }
+
+    document.querySelectorAll('.sa-nav-item[data-target]').forEach(item => {
+      item.addEventListener('click', () => {
+        const t = item.getAttribute('data-target');
+        if (t === 'ws-detail') return;
+        showSection(t);
+      });
+    });
+
+    function showSection(sectionId) {
+      document.querySelectorAll('.sa-section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.sa-nav-item[data-target]').forEach(n => n.classList.remove('active'));
+      const sec = document.getElementById('sec-' + sectionId);
+      if (sec) sec.classList.add('active');
+      const nav = document.querySelector(`.sa-nav-item[data-target="${sectionId}"]`);
+      if (nav) nav.classList.add('active');
+      document.getElementById('sa-main-content')?.scrollTo(0,0);
+    }
+
+    const sToggle = document.getElementById('sa-sidebar-toggle');
+    sToggle.addEventListener('click', () => {
+      const sidebar = document.getElementById('sa-sidebar');
+      const isCollapsed = sidebar.classList.toggle('collapsed');
+      sToggle.setAttribute('data-tooltip', isCollapsed ? 'Buka Sidebar' : 'Tutup Sidebar');
+      sToggle.querySelector('.toggle-icon-default').innerHTML = isCollapsed ? '<i data-lucide="panel-left-close"></i>' : '<i data-lucide="waves"></i>';
+      sToggle.querySelector('.toggle-icon-hover').innerHTML = isCollapsed ? '<i data-lucide="waves"></i>' : '<i data-lucide="panel-left-close"></i>';
+      if (window.lucide) window.lucide.createIcons();
+    });
+    sToggle.addEventListener('mouseenter', () => {
+      sToggle.querySelector('.toggle-icon-default').style.display = 'none';
+      sToggle.querySelector('.toggle-icon-hover').style.display = 'flex';
+    });
+    sToggle.addEventListener('mouseleave', () => {
+      sToggle.querySelector('.toggle-icon-default').style.display = 'flex';
+      sToggle.querySelector('.toggle-icon-hover').style.display = 'none';
+    });
+
+    document.getElementById('sa-profile-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('sa-dropdown').classList.toggle('open');
+    });
+    document.addEventListener('click', () => document.getElementById('sa-dropdown').classList.remove('open'));
+
+    const doLogout = async () => { await AuthService.logout(); window.location.href = '/login'; };
+    document.getElementById('sa-logout-btn').addEventListener('click', doLogout);
+    document.getElementById('sa-dropdown-logout').addEventListener('click', doLogout);
+
+    document.getElementById('sa-btn-changepw').addEventListener('click', () => {
+      document.getElementById('sa-dropdown').classList.remove('open');
+      document.getElementById('form-changepw').reset();
+      document.getElementById('pw-error').style.display = 'none';
+      document.getElementById('modal-changepw').classList.add('open');
+    });
+    document.getElementById('form-changepw').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const current = document.getElementById('pw-current').value;
+      const pw = document.getElementById('pw-new').value;
+      const confirm = document.getElementById('pw-confirm').value;
+      const errEl = document.getElementById('pw-error');
+      if (pw !== confirm) { errEl.textContent = 'Password baru tidak cocok.'; errEl.style.display = 'block'; return; }
+      if (pw.length < 6) { errEl.textContent = 'Password baru minimal 6 karakter.'; errEl.style.display = 'block'; return; }
+      const btn = e.target.querySelector('button[type="submit"]');
+      btn.disabled = true; btn.textContent = 'Menyimpan...';
+      try {
+        const res = await fetch('/api/superadmin/change-password', {
+          method: 'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+          body: JSON.stringify({ currentPassword: current, newPassword: pw })
+        });
+        const data = await res.json();
+        if (data.success) { closeModal('modal-changepw'); showToast('Password berhasil diubah'); }
+        else { errEl.textContent = data.error || 'Gagal'; errEl.style.display = 'block'; }
+      } catch(_) { errEl.textContent = 'Gagal terhubung'; errEl.style.display = 'block'; }
+      finally { btn.disabled = false; btn.innerHTML = '<i data-lucide="save"></i> Simpan'; if(window.lucide)window.lucide.createIcons(); }
+    });
+
+    document.getElementById('sa-btn-sessions').addEventListener('click', async () => {
+      document.getElementById('sa-dropdown').classList.remove('open');
+      document.getElementById('sessions-body').innerHTML = '<p style="color:#94A3B8;font-size:0.82rem;">Memuat...</p>';
+      document.getElementById('modal-sessions').classList.add('open');
+      try {
+        const res = await fetch('/api/superadmin/sessions', { credentials: 'include' });
+        const data = await res.json();
+        const sessions = data.sessions || [];
+        if (sessions.length === 0) {
+          document.getElementById('sessions-body').innerHTML = '<div class="sa-empty"><i data-lucide="monitor-smartphone"></i><p>Belum ada sesi login.</p></div>';
+        } else {
+          document.getElementById('sessions-body').innerHTML = sessions.map(s => {
+            const device = s.deviceInfo || 'Unknown';
+            const ip = s.ipAddress || 'Unknown';
+            const time = s.lastActive ? new Date(s.lastActive).toLocaleString('id-ID') : '-';
+            const isCurrent = s.isCurrent || false;
+            return `<div class="session-item"><div class="session-info"><div class="session-device"><i data-lucide="${device.toLowerCase().includes('mobile')?'smartphone':'monitor'}" style="width:14px;height:14px;"></i> ${device} ${isCurrent?'<span class="session-current">Aktif</span>':''}</div><div class="session-meta">${ip} · Terakhir aktif: ${time}</div></div>${!isCurrent ? `<button class="btn btn-glass sa-btn-session-delete" data-session="${s.id}" style="height:28px;padding:0 10px;font-size:0.7rem;color:#EF4444;"><i data-lucide="trash-2" style="width:11px;height:11px;"></i> Hapus</button>` : ''}</div>`;
+          }).join('');
+          document.querySelectorAll('.sa-btn-session-delete').forEach(b => {
+            b.addEventListener('click', async () => {
+              const sid = b.getAttribute('data-session');
+              await fetch(`/api/superadmin/sessions/${sid}`, { method: 'DELETE', credentials: 'include' });
+              showToast('Session berhasil dihapus');
+              b.closest('.session-item').remove();
+            });
+          });
+        }
+        if (window.lucide) window.lucide.createIcons();
+      } catch(_) { document.getElementById('sessions-body').innerHTML = '<p style="color:#EF4444;font-size:0.82rem;">Gagal memuat sesi.</p>'; }
+    });
+
+    function openModal(id) { document.getElementById(id).classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+    document.querySelectorAll('.sa-modal-close, [data-close]').forEach(el => {
+      el.addEventListener('click', () => {
+        const t = el.getAttribute('data-close');
+        t ? closeModal(t) : closeModal(el.closest('.sa-modal').id);
+      });
+    });
+    document.querySelectorAll('.sa-modal').forEach(m => {
+      m.addEventListener('click', (e) => { if (e.target === m) m.classList.remove('open'); });
+    });
+
+    function showConfirm(title, msg, cb) {
+      document.getElementById('confirm-title').textContent = title;
+      document.getElementById('confirm-message').textContent = msg;
+      document.getElementById('confirm-yes').textContent = title.includes('Reset') ? 'Ya, Reset Password' : 'Ya, Hapus';
+      confirmCallback = cb;
+      openModal('modal-confirm');
+    }
+    document.getElementById('confirm-yes').addEventListener('click', () => {
       closeModal('modal-confirm');
-      onConfirm();
+      if (confirmCallback) { confirmCallback(); confirmCallback = null; }
     });
-    
-    openModal('modal-confirm');
-  }
 
-  /* ── Toast notifications ────────────────── */
-  function showToast(message, type = 'success') {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
+    function setupFilter(inputId, filterId, tableBodyId, fieldMap) {
+      const input = document.getElementById(inputId);
+      const filter = document.getElementById(filterId);
+      if (!input || !filter) return;
+      function apply() {
+        const q = input.value.toLowerCase();
+        const mode = filter.value;
+        document.querySelectorAll(`#${tableBodyId} tr`).forEach(tr => {
+          if (mode === 'all') { tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none'; return; }
+          const fields = fieldMap[mode];
+          if (!fields) { tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none'; return; }
+          const match = fields.some(idx => tr.children[idx] && tr.children[idx].textContent.toLowerCase().includes(q));
+          tr.style.display = match ? '' : 'none';
+        });
+      }
+      input.addEventListener('input', apply);
+      filter.addEventListener('change', apply);
+    }
+    setupFilter('ws-search', 'ws-filter', 'ws-table-body', { name: [1], code: [2], company: [3], address: [4] });
+    setupFilter('admin-search', 'admin-filter', 'admins-table-body', { username: [1], name: [2], workspace: [3] });
 
-    const icon = type === 'success' ? 'check-circle' : 'alert-circle';
-    toast.innerHTML = `<i data-lucide="${icon}"></i><span>${message}</span>`;
-    container.appendChild(toast);
-    lucide.createIcons();
+    async function loadStats() {
+      try {
+        const res = await fetch('/api/superadmin/stats', { credentials: 'include' });
+        const data = await res.json();
+        const s = data.stats || data.data || {};
+        document.getElementById('sa-stat-admins').textContent = s.totalAdmins ?? '0';
+        document.getElementById('sa-stat-workspaces').textContent = s.totalWorkspaces ?? '0';
+        document.getElementById('sa-stat-users').textContent = s.totalUsers ?? '0';
+        document.getElementById('sa-stat-cctv').textContent = s.totalCCTVs ?? '0';
+        document.getElementById('sa-stat-reports').textContent = s.totalReports ?? '0';
+        document.getElementById('sa-stat-pending').textContent = s.pendingReports ?? '0';
+        document.getElementById('sa-stat-valid').textContent = s.validReports ?? '0';
+        document.getElementById('sa-stat-news').textContent = s.totalNews ?? '0';
+        const feed = document.getElementById('sa-activity-feed');
+        const activity = data.activity || [];
+        feed.innerHTML = activity.length === 0
+          ? '<div class="sa-empty"><i data-lucide="activity"></i><p>Belum ada aktivitas.</p></div>'
+          : activity.map(a => `<div class="sa-activity-item"><div class="sa-activity-dot" style="background:${a.color||'#2563EB'};"></div><div><div class="sa-activity-text">${a.text}</div><div class="sa-activity-time">${a.time?new Date(a.time).toLocaleString('id-ID'):''}</div></div></div>`).join('');
+        if (window.lucide) window.lucide.createIcons();
+      } catch(_) {}
+    }
 
-    setTimeout(() => {
-      toast.style.animation = 'toastOut 0.3s ease forwards';
-      setTimeout(() => toast.remove(), 300);
-    }, 3500);
-  }
+    async function loadWorkspaces() {
+      try {
+        const res = await fetch('/api/superadmin/workspaces', { credentials: 'include' });
+        const data = await res.json();
+        state.workspaces = data.workspaces || data.data || [];
+        renderWorkspaces();
+      } catch(_) { document.getElementById('ws-table-body').innerHTML = '<tr><td colspan="6" class="sa-empty"><p>Gagal memuat data.</p></td></tr>'; }
+    }
 
-  /* ── API helper ─────────────────────────── */
-  async function api(url, options = {}) {
-    const res = await fetch(url, {
-      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-      ...options
+    function renderWorkspaces() {
+      const tbody = document.getElementById('ws-table-body');
+      if (state.workspaces.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="sa-empty"><i data-lucide="building-2"></i><p>Belum ada workspace.</p></td></tr>';
+        if (window.lucide) window.lucide.createIcons(); return;
+      }
+      tbody.innerHTML = state.workspaces.map(ws => `<tr><td style="font-weight:700;color:#0F172A;">${ws.id}</td><td><strong style="color:#0F172A;cursor:pointer;" class="wsd-open" data-id="${ws.id}">${ws.name}</strong></td><td><span class="sa-badge sa-badge-blue">${ws.code}</span></td><td>${ws.company||'-'}</td><td style="font-size:0.8rem;color:#64748B;">${ws.address||'-'}</td><td><div class="sa-action"><button class="sa-btn-icon wsd-open" data-id="${ws.id}" title="Detail"><i data-lucide="eye"></i></button><button class="sa-btn-icon ws-edit" data-id="${ws.id}" title="Edit"><i data-lucide="pencil"></i></button><button class="sa-btn-icon danger ws-delete" data-id="${ws.id}" title="Hapus"><i data-lucide="trash-2"></i></button></div></td></tr>`).join('');
+      document.querySelectorAll('.wsd-open').forEach(b => b.addEventListener('click', () => openWorkspaceDetail(parseInt(b.getAttribute('data-id')))));
+      document.querySelectorAll('.ws-edit').forEach(b => b.addEventListener('click', () => editWorkspace(parseInt(b.getAttribute('data-id')))));
+      document.querySelectorAll('.ws-delete').forEach(b => b.addEventListener('click', () => deleteWorkspace(parseInt(b.getAttribute('data-id')))));
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    document.getElementById('btn-open-ws-create').addEventListener('click', () => openModal('modal-ws-create'));
+    document.getElementById('form-ws-create').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = e.target.querySelector('button[type="submit"]');
+      btn.disabled = true; btn.textContent = 'Menyimpan...';
+      try {
+        const res = await fetch('/api/superadmin/workspaces', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ name: document.getElementById('ws-name').value, company: document.getElementById('ws-company').value, address: document.getElementById('ws-address').value }) });
+        const data = await res.json();
+        if (data.success) { closeModal('modal-ws-create'); document.getElementById('form-ws-create').reset(); await loadWorkspaces(); await loadStats(); }
+        else { alert(data.error||'Gagal'); }
+      } catch(_) { alert('Gagal terhubung'); }
+      finally { btn.disabled = false; btn.innerHTML = '<i data-lucide="save"></i> Simpan'; if(window.lucide)window.lucide.createIcons(); }
     });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const errMsg = data.error || data.message || `HTTP ${res.status}`;
-      throw new Error(errMsg);
+
+    async function editWorkspace(id) {
+      const ws = state.workspaces.find(w => w.id === id);
+      if (!ws) return;
+      document.getElementById('edit-ws-id').value = id;
+      document.getElementById('edit-ws-name').value = ws.name||'';
+      document.getElementById('edit-ws-company').value = ws.company||'';
+      document.getElementById('edit-ws-address').value = ws.address||'';
+      openModal('modal-ws-edit');
     }
-    return data;
-  }
+    document.getElementById('form-ws-edit').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('edit-ws-id').value;
+      const btn = e.target.querySelector('button[type="submit"]');
+      btn.disabled = true; btn.textContent = 'Menyimpan...';
+      try {
+        const res = await fetch(`/api/superadmin/workspaces/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ name: document.getElementById('edit-ws-name').value, company: document.getElementById('edit-ws-company').value, address: document.getElementById('edit-ws-address').value }) });
+        const data = await res.json();
+        if (data.success) { closeModal('modal-ws-edit'); await loadWorkspaces(); } else { alert(data.error||'Gagal'); }
+      } catch(_) { alert('Gagal'); }
+      finally { btn.disabled = false; btn.innerHTML = '<i data-lucide="save"></i> Simpan'; if(window.lucide)window.lucide.createIcons(); }
+    });
 
-  /* ── Format date ─────────────────────────── */
-  function formatDate(dateStr) {
-    if (!dateStr) return '—';
-    try {
-      return new Intl.DateTimeFormat('id-ID', {
-        day: 'numeric', month: 'long', year: 'numeric'
-      }).format(new Date(dateStr));
-    } catch (_) { return dateStr; }
-  }
-
-  /* ═══════════════════════════════════════════
-     DASHBOARD STATS & ME
-  ═══════════════════════════════════════════ */
-  async function loadMe() {
-    try {
-      const user = await api('/api/auth/me');
-      document.getElementById('top-username').textContent = user.username || 'SuperAdmin';
-      document.getElementById('top-avatar').textContent = (user.name || user.username || 'S')[0].toUpperCase();
-      
-      document.getElementById('dropdown-name').textContent = user.name || user.username;
-      document.getElementById('dropdown-email').textContent = user.email || 'No email';
-    } catch (err) {
-      console.error('[loadMe]', err);
-    }
-  }
-
-  async function loadStats() {
-    try {
-      const data = await api('/api/superadmin/stats');
-      // The stats endpoint returns { stats: { totalAdmins, totalWorkspaces, totalUsers, totalCCTVs } }
-      const stats = data.stats || data.data || {};
-      document.getElementById('stat-admins').textContent     = stats.totalAdmins     ?? '—';
-      document.getElementById('stat-workspaces').textContent = stats.totalWorkspaces ?? '—';
-      document.getElementById('stat-users').textContent      = stats.totalUsers      ?? '—';
-      document.getElementById('stat-cctv').textContent       = stats.totalCCTVs      ?? '—';
-    } catch (err) {
-      console.error('[loadStats]', err);
-    }
-  }
-
-  /* ── Profile Dropdown Toggle ────────────────── */
-  const profileBtn = document.getElementById('profile-btn');
-  const dropdownMenu = document.getElementById('dropdown-menu');
-  profileBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const isActive = dropdownMenu.classList.contains('active');
-    dropdownMenu.classList.toggle('active');
-    profileBtn.setAttribute('aria-expanded', !isActive);
-  });
-  document.addEventListener('click', (e) => {
-    if (!profileBtn.contains(e.target) && !dropdownMenu.contains(e.target)) {
-      dropdownMenu.classList.remove('active');
-      profileBtn.setAttribute('aria-expanded', 'false');
-    }
-  });
-
-  /* ── Password Utilities ──────────────────────── */
-  window.togglePasswordVisibility = function(inputId, btn) {
-    const input = document.getElementById(inputId);
-    const icon = btn.querySelector('i');
-    if (input.type === 'password') {
-      input.type = 'text';
-      icon.setAttribute('data-lucide', 'eye-off');
-    } else {
-      input.type = 'password';
-      icon.setAttribute('data-lucide', 'eye');
-    }
-    lucide.createIcons();
-  };
-
-  window.checkPasswordStrength = function(pwd) {
-    const bar = document.getElementById('cp-strength-bar');
-    const text = document.getElementById('cp-strength-text');
-    if (!pwd) {
-      bar.className = ''; text.textContent = 'Kekuatan: -'; return;
-    }
-    if (pwd.length < 6) {
-      bar.className = 'weak'; text.textContent = 'Kekuatan: Lemah';
-    } else if (pwd.length < 10 || !/\d/.test(pwd)) {
-      bar.className = 'medium'; text.textContent = 'Kekuatan: Sedang';
-    } else {
-      bar.className = 'strong'; text.textContent = 'Kekuatan: Kuat';
-    }
-  };
-
-  /* ── Change Password Modal ────────────────────── */
-  document.getElementById('btn-open-change-password').addEventListener('click', (e) => {
-    e.preventDefault();
-    dropdownMenu.classList.remove('active');
-    document.getElementById('form-change-password').reset();
-    checkPasswordStrength('');
-    openModal('modal-change-password');
-  });
-
-  document.getElementById('form-change-password').addEventListener('submit', async e => {
-    e.preventDefault();
-    const currentPassword = document.getElementById('cp-current').value;
-    const newPassword = document.getElementById('cp-new').value;
-    const confirmPassword = document.getElementById('cp-confirm').value;
-    const btn = document.getElementById('btn-change-password-submit');
-
-    if (newPassword !== confirmPassword) {
-      showToast('Konfirmasi password tidak cocok', 'error'); return;
-    }
-
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spin"><i data-lucide="loader" style="width:16px;height:16px;"></i></span> Menyimpan...';
-    lucide.createIcons();
-
-    try {
-      await api('/api/auth/change-password', {
-        method: 'POST',
-        body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
+    function deleteWorkspace(id) {
+      const ws = state.workspaces.find(w => w.id === id);
+      showConfirm('Hapus Workspace', `Hapus workspace "${ws?.name}" dan semua data di dalamnya?`, async () => {
+        try { const res = await fetch(`/api/superadmin/workspaces/${id}`, { method:'DELETE', credentials:'include' }); const data = await res.json(); if (data.success) { await loadWorkspaces(); await loadStats(); } else { alert(data.error||'Gagal'); } } catch(_) { alert('Gagal'); }
       });
-      closeModal('modal-change-password');
-      showToast('Password berhasil diubah!');
-    } catch (err) {
-      showToast(err.message, 'error');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = '<i data-lucide="save"></i> Simpan Password';
-      lucide.createIcons();
     }
-  });
 
-  /* ── Active Sessions Modal ────────────────────── */
-  document.getElementById('btn-open-active-sessions').addEventListener('click', (e) => {
-    e.preventDefault();
-    dropdownMenu.classList.remove('active');
-    openModal('modal-active-sessions');
-    loadSessions();
-  });
-
-  async function loadSessions() {
-    const tbody = document.getElementById('sessions-table');
-    tbody.innerHTML = '<tr><td colspan="3" class="text-center">Memuat sesi...</td></tr>';
-    try {
-      const res = await api('/api/auth/sessions');
-      const sessions = res.sessions || [];
-      if (sessions.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" class="text-center">Tidak ada sesi aktif</td></tr>';
-        return;
-      }
-      tbody.innerHTML = sessions.map(s => `
-        <tr>
-          <td>
-            <div style="font-weight: 600;">${s.isCurrent ? '<span class="badge badge-green" style="margin-right: 4px;">Sesi Ini</span>' : ''}${escapeHtml(s.deviceInfo)}</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted);">${escapeHtml(s.ipAddress)}</div>
-          </td>
-          <td style="font-size: 0.8rem;">${formatDate(s.lastActive)}</td>
-          <td>
-            ${!s.isCurrent ? `<button class="btn-icon danger" title="Keluarkan Perangkat" onclick="revokeSession('${s.id}')"><i data-lucide="trash-2"></i></button>` : ''}
-          </td>
-        </tr>
-      `).join('');
-      lucide.createIcons();
-    } catch (err) {
-      tbody.innerHTML = `<tr><td colspan="3" class="text-center" style="color:var(--error);">Gagal memuat sesi: ${err.message}</td></tr>`;
-    }
-  }
-
-  window.revokeSession = function(id) {
-    showConfirm('Keluarkan Perangkat', 'Keluarkan perangkat ini dari akun Anda?', async () => {
+    async function openWorkspaceDetail(wsId) {
+      state.currentWorkspaceId = wsId;
+      showSection('ws-detail');
+      const ws = state.workspaces.find(w => w.id === wsId);
+      document.getElementById('wsd-title').textContent = ws?.name||'Detail Workspace';
+      document.getElementById('wsd-subtitle').textContent = `Kode: ${ws?.code||''} · ${ws?.address||''}`;
       try {
-        await api(`/api/auth/sessions/${id}`, { method: 'DELETE' });
-        showToast('Perangkat berhasil dikeluarkan');
-        loadSessions();
-      } catch (err) {
-        showToast(err.message, 'error');
-      }
-    });
-  };
+        const res = await fetch(`/api/superadmin/workspaces/${wsId}/detail`, { credentials:'include' });
+        const d = (await res.json()).data || {};
+        if (d.stats) {
+          document.getElementById('wsd-stat-admins').textContent = d.stats.adminCount??0;
+          document.getElementById('wsd-stat-users').textContent = d.stats.userCount??0;
+          document.getElementById('wsd-stat-cctv').textContent = d.stats.cctvCount??0;
+          document.getElementById('wsd-stat-reports').textContent = d.stats.reportCount??0;
+          document.getElementById('wsd-stat-pending').textContent = d.stats.pendingReports??0;
+          document.getElementById('wsd-stat-valid').textContent = d.stats.validReports??0;
+          document.getElementById('wsd-stat-news').textContent = d.stats.newsCount??0;
+          document.getElementById('wsd-stat-news-pub').textContent = (d.stats.publishedNewsCount??0)+' published';
+          document.getElementById('wsd-stat-created').textContent = d.stats.createdAt ? new Date(d.stats.createdAt).toLocaleDateString('id-ID') : '-';
+        }
+        state.wsAdmins = d.admins || [];
+        document.getElementById('wsd-admins').innerHTML = state.wsAdmins.length === 0
+          ? '<td colspan="7" class="sa-empty"><i data-lucide="shield-user"></i><p>Belum ada administrator.</p></td>'
+          : state.wsAdmins.map(a => `<tr><td style="font-weight:600;">${a.name||'-'}</td><td><div class="username-cell">${a.username}<button class="copy-btn" data-copy="${a.username}"><i data-lucide="copy"></i></button></div></td><td style="font-size:0.8rem;">${a.email||'-'}</td><td><span class="sa-badge ${a.status==='APPROVED'?'sa-badge-green':a.status==='PENDING'?'sa-badge-yellow':'sa-badge-red'}">${a.status||'-'}</span></td><td style="font-size:0.78rem;color:#94A3B8;">${a.createdAt?new Date(a.createdAt).toLocaleDateString('id-ID'):'-'}</td><td style="text-align:center;">${a.validatedReports??0}</td><td style="text-align:center;">${a.publishedNews??0}</td></tr>`).join('');
+        document.querySelectorAll('#wsd-admins .copy-btn').forEach(b => setupCopyBtn(b, () => b.getAttribute('data-copy')));
 
-  window.revokeAllSessions = function() {
-    showConfirm('Keluarkan Semua', 'Anda yakin ingin mengeluarkan SEMUA perangkat lain?', async () => {
+        state.wsUsers = d.users || [];
+        let usersPage = 1;
+        function renderUsersPage(p) {
+          usersPage = p;
+          const { items, page, pages, total, start, end } = paginate(state.wsUsers, p, 10);
+          document.getElementById('wsd-users').innerHTML = items.length === 0
+            ? '<td colspan="5" class="sa-empty"><i data-lucide="users"></i><p>Belum ada warga.</p></td>'
+            : items.map(u => `<tr><td style="font-weight:600;">${u.name||'-'}</td><td>${u.username}</td><td><span class="sa-badge ${u.status==='APPROVED'?'sa-badge-green':u.status==='PENDING'?'sa-badge-yellow':'sa-badge-red'}">${u.status||'-'}</span></td><td style="font-size:0.78rem;color:#94A3B8;">${u.createdAt?new Date(u.createdAt).toLocaleDateString('id-ID'):'-'}</td><td style="text-align:center;">${u.reportCount??0}</td></tr>`).join('');
+          renderPagination('wsd-users-pagination', { page, pages, total, start, end }, renderUsersPage);
+        }
+        renderUsersPage(1);
+
+        state.wsReports = d.reports || [];
+        let reportsPage = 1;
+        function renderReportsPage(p) {
+          reportsPage = p;
+          const { items, page, pages, total, start, end } = paginate(state.wsReports, p, 5);
+          document.getElementById('wsd-reports').innerHTML = items.length === 0
+            ? '<td colspan="8" class="sa-empty"><i data-lucide="file-text"></i><p>Belum ada laporan.</p></td>'
+            : items.map(r => `<tr><td><div style="width:36px;height:26px;border-radius:5px;overflow:hidden;background:#E2E8F0;"><img src="${r.image||''}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'" loading="lazy"></div></td><td style="font-weight:600;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.location||'-'}</td><td style="font-size:0.8rem;">${r.reporterName||r.submittedBy||'-'}</td><td><span class="sa-badge ${r.aiStatus==='TINGGI'?'sa-badge-red':r.aiStatus==='SEDANG'?'sa-badge-yellow':'sa-badge-blue'}">${r.aiStatus||'-'}</span></td><td><span class="sa-badge ${r.adminStatus==='VALID'?'sa-badge-green':r.adminStatus==='MENUNGGU'?'sa-badge-yellow':'sa-badge-red'}">${r.adminStatus||'-'}</span></td><td style="font-size:0.8rem;">${r.assignedToName||'-'}</td><td style="font-size:0.75rem;color:#94A3B8;">${r.timestamp?new Date(r.timestamp).toLocaleDateString('id-ID'):r.createdAt?new Date(r.createdAt).toLocaleDateString('id-ID'):'-'}</td></tr>`).join('');
+          renderPagination('wsd-reports-pagination', { page, pages, total, start, end }, renderReportsPage);
+        }
+        renderReportsPage(1);
+
+        state.wsNews = d.news || [];
+        let newsPage = 1;
+        function renderNewsPage(p) {
+          newsPage = p;
+          const { items, page, pages, total, start, end } = paginate(state.wsNews, p, 5);
+          document.getElementById('wsd-news').innerHTML = items.length === 0
+            ? '<td colspan="5" class="sa-empty"><i data-lucide="newspaper"></i><p>Belum ada berita.</p></td>'
+            : items.map(n => `<tr><td style="font-weight:600;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${n.title}</td><td><span class="sa-badge sa-badge-blue">${n.category||'-'}</span></td><td><span class="sa-badge ${n.status==='published'?'sa-badge-green':'sa-badge-yellow'}">${n.status||'-'}</span></td><td>${n.author||n.authorName||'-'}</td><td style="font-size:0.78rem;color:#94A3B8;">${n.publishedAt?new Date(n.publishedAt).toLocaleDateString('id-ID'):n.createdAt?new Date(n.createdAt).toLocaleDateString('id-ID'):'-'}</td></tr>`).join('');
+          renderPagination('wsd-news-pagination', { page, pages, total, start, end }, renderNewsPage);
+        }
+        renderNewsPage(1);
+
+        state.wsActivity = d.activity || [];
+        const ac = document.getElementById('wsd-activity-container');
+        ac.innerHTML = state.wsActivity.length === 0
+          ? '<div class="sa-empty"><i data-lucide="activity"></i><p>Belum ada aktivitas.</p></div>'
+          : state.wsActivity.map(a => `<div class="sa-activity-item"><div class="sa-activity-dot" style="background:${a.color||'#2563EB'};"></div><div><div class="sa-activity-text">${a.text}</div><div class="sa-activity-time">${a.time?new Date(a.time).toLocaleString('id-ID'):''}</div></div></div>`).join('');
+        if (window.lucide) window.lucide.createIcons();
+      } catch(_) { document.getElementById('wsd-admins').innerHTML = '<td colspan="7" class="sa-empty"><p>Gagal memuat detail.</p></td>'; }
+    }
+
+    document.getElementById('wsd-back').addEventListener('click', () => showSection('workspaces'));
+
+    async function loadAdmins() {
       try {
-        await api(`/api/auth/sessions`, { method: 'DELETE' });
-        showToast('Semua perangkat lain berhasil dikeluarkan');
-        loadSessions();
-      } catch (err) {
-        showToast(err.message, 'error');
-      }
-    });
-  };
-
-  document.getElementById('dropdown-logout').addEventListener('click', async (e) => {
-    e.preventDefault();
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch (_) {}
-    window.location.href = '/logout';
-  });
-
-  /* ── Init ────────────────────────────────────────────── */
-  loadMe();
-  loadStats();
-
-  /* ═══════════════════════════════════════════
-     WORKSPACES
-  ═══════════════════════════════════════════ */
-  let workspaceCache = [];
-
-  document.getElementById('ws-search').addEventListener('input', () => filterWorkspaces());
-  document.getElementById('ws-filter').addEventListener('change', () => filterWorkspaces());
-
-  function filterWorkspaces() {
-    const query = document.getElementById('ws-search').value.toLowerCase();
-    const filterBy = document.getElementById('ws-filter').value;
-
-    if (!query) {
-      renderWorkspacesTable(workspaceCache);
-      return;
+        const res = await fetch('/api/superadmin/admins', { credentials:'include' });
+        const data = await res.json();
+        state.admins = data.admins || data.data || [];
+        renderAdmins();
+      } catch(_) { document.getElementById('admins-table-body').innerHTML = '<tr><td colspan="6" class="sa-empty"><p>Gagal memuat data.</p></td></tr>'; }
     }
 
-    const filtered = workspaceCache.filter(ws => {
-      if (filterBy === 'all') {
-        return (ws.name || '').toLowerCase().includes(query) ||
-               (ws.code || '').toLowerCase().includes(query) ||
-               (ws.address || '').toLowerCase().includes(query) ||
-               (ws.company || '').toLowerCase().includes(query) ||
-               String(ws.id).includes(query);
+    function renderAdmins() {
+      const tbody = document.getElementById('admins-table-body');
+      if (state.admins.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="sa-empty"><i data-lucide="shield-user"></i><p>Belum ada administrator.</p></td></tr>';
+        if (window.lucide) window.lucide.createIcons(); return;
       }
-      if (filterBy === 'name') return (ws.name || '').toLowerCase().includes(query);
-      if (filterBy === 'code') return (ws.code || '').toLowerCase().includes(query);
-      if (filterBy === 'address') return (ws.address || '').toLowerCase().includes(query);
-      if (filterBy === 'company') return (ws.company || '').toLowerCase().includes(query);
-      if (filterBy === 'id') return String(ws.id).includes(query);
-      if (filterBy === 'date') return formatDate(ws.createdAt).toLowerCase().includes(query);
-      return false;
+      tbody.innerHTML = state.admins.map(a => `<tr><td style="font-weight:700;color:#0F172A;">${a.id}</td><td><span class="username-cell">${a.username||''}<button class="copy-btn" data-copy="${a.username||''}"><i data-lucide="copy"></i></button></span></td><td style="font-weight:600;">${a.name||'-'}</td><td style="font-size:0.8rem;">${a.workspaceName||'-'}</td><td style="font-size:0.78rem;color:#94A3B8;">${a.createdAt?new Date(a.createdAt).toLocaleDateString('id-ID'):'-'}</td><td><div class="sa-action"><button class="sa-btn-icon admin-edit" data-id="${a.id}" title="Edit"><i data-lucide="pencil"></i></button><button class="sa-btn-icon admin-resetpw" data-id="${a.id}" title="Reset Password" style="color:#F59E0B;"><i data-lucide="key-round"></i></button><button class="sa-btn-icon danger admin-delete" data-id="${a.id}" title="Hapus"><i data-lucide="trash-2"></i></button></div></td></tr>`).join('');
+      tbody.querySelectorAll('.copy-btn').forEach(b => setupCopyBtn(b, () => b.getAttribute('data-copy')));
+      document.querySelectorAll('.admin-edit').forEach(b => b.addEventListener('click', () => editAdmin(parseInt(b.getAttribute('data-id')))));
+      document.querySelectorAll('.admin-resetpw').forEach(b => b.addEventListener('click', () => resetAdminPassword(parseInt(b.getAttribute('data-id')))));
+      document.querySelectorAll('.admin-delete').forEach(b => b.addEventListener('click', () => deleteAdmin(parseInt(b.getAttribute('data-id')))));
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    document.getElementById('btn-open-admin-create').addEventListener('click', async () => {
+      const s = document.getElementById('admin-workspace');
+      s.innerHTML = state.workspaces.map(ws => `<option value="${ws.id}">${ws.name} (${ws.code})</option>`).join('');
+      const ni = document.getElementById('admin-name');
+      const up = document.getElementById('admin-username-preview');
+      ni.oninput = () => { const slug = ni.value.toLowerCase().replace(/[^a-z0-9]/g,''); up.value = slug ? `admin_${slug}_` : ''; };
+      document.getElementById('admin-email').value = ''; document.getElementById('admin-name').value = ''; document.getElementById('admin-username-preview').value = '';
+      openModal('modal-admin-create');
     });
 
-    renderWorkspacesTable(filtered);
-  }
+    document.getElementById('form-admin-create').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = e.target.querySelector('button[type="submit"]');
+      btn.disabled = true; btn.textContent = 'Menyimpan...';
+      try {
+        const res = await fetch('/api/superadmin/admins', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+          body: JSON.stringify({ name: document.getElementById('admin-name').value, email: document.getElementById('admin-email').value, workspaceId: parseInt(document.getElementById('admin-workspace').value) }) });
+        const data = await res.json();
+        if (data.success) { closeModal('modal-admin-create'); document.getElementById('form-admin-create').reset(); await loadAdmins(); await loadStats(); showToast('Admin berhasil dibuat!'); }
+        else { alert(data.error||'Gagal'); }
+      } catch(_) { alert('Gagal terhubung'); }
+      finally { btn.disabled = false; btn.innerHTML = '<i data-lucide="user-plus"></i> Tambah'; if(window.lucide)window.lucide.createIcons(); }
+    });
 
-  async function loadWorkspaces() {
-    const tbody = document.getElementById('workspaces-table');
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="padding:40px;">
-      <span class="spin"><i data-lucide="loader" style="width:20px;height:20px;"></i></span>
-      <span style="margin-left:8px;color:var(--text-muted);">Memuat data...</span>
-    </td></tr>`;
-    lucide.createIcons();
-
-    try {
-      const res = await api('/api/superadmin/workspaces');
-      workspaceCache = res.data || res.workspaces || [];
-      filterWorkspaces();
-    } catch (err) {
-      tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="padding:40px;color:var(--error);">
-        <i data-lucide="alert-circle" style="width:20px;height:20px;vertical-align:middle;"></i>
-        Gagal memuat data: ${err.message}
-      </td></tr>`;
-      lucide.createIcons();
-    }
-  }
-
-  function renderWorkspacesTable(list) {
-    const tbody = document.getElementById('workspaces-table');
-    if (!list || list.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">
-        <i data-lucide="building-2"></i>
-        <p>Belum ada workspace. Klik "Tambah Workspace" untuk membuat.</p>
-      </div></td></tr>`;
-      lucide.createIcons();
-      return;
+    async function editAdmin(id) {
+      const admin = state.admins.find(a => a.id === id);
+      if (!admin) return;
+      document.getElementById('edit-admin-id').value = id;
+      document.getElementById('edit-admin-name').value = admin.name||'';
+      const ws = document.getElementById('edit-admin-workspace');
+      ws.innerHTML = state.workspaces.map(w => `<option value="${w.id}" ${w.id===admin.workspaceId?'selected':''}>${w.name} (${w.code})</option>`).join('');
+      openModal('modal-admin-edit');
     }
 
-    tbody.innerHTML = list.map(ws => `
-      <tr>
-        <td data-label="ID"><span class="mono">#${ws.id ?? '—'}</span></td>
-        <td data-label="Nama Workspace"><strong>${escapeHtml(ws.name ?? '—')}</strong></td>
-        <td data-label="Kode Workspace"><span class="badge badge-blue">${escapeHtml(ws.code ?? '—')}</span></td>
-        <td data-label="Perusahaan">${escapeHtml(ws.company || '—')}</td>
-        <td data-label="Alamat">${escapeHtml(ws.address || '—')}</td>
-        <td data-label="Aksi">
-          <div class="action-row">
-            <a href="/superadmin/workspaces/${ws.id}" class="btn-icon" title="Detail Workspace" style="text-decoration: none;">
-              <i data-lucide="external-link"></i>
-            </a>
-            <button class="btn-icon" title="Edit Workspace" onclick="openEditWorkspace(${ws.id})">
-              <i data-lucide="pencil"></i>
-            </button>
-            <button class="btn-icon danger" title="Hapus Workspace" onclick="deleteWorkspace(${ws.id}, '${escapeHtml(ws.name ?? '')}')">
-              <i data-lucide="trash-2"></i>
-            </button>
-          </div>
-        </td>
-      </tr>
-    `).join('');
-    lucide.createIcons();
-  }
+    document.getElementById('form-admin-edit').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('edit-admin-id').value;
+      const btn = e.target.querySelector('button[type="submit"]');
+      btn.disabled = true; btn.textContent = 'Menyimpan...';
+      try {
+        const res = await fetch(`/api/superadmin/admins/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, credentials:'include',
+          body: JSON.stringify({ name: document.getElementById('edit-admin-name').value, workspaceId: parseInt(document.getElementById('edit-admin-workspace').value) }) });
+        const data = await res.json();
+        if (data.success) { closeModal('modal-admin-edit'); await loadAdmins(); showToast('Admin berhasil diperbarui'); }
+        else { alert(data.error||'Gagal'); }
+      } catch(_) { alert('Gagal terhubung'); }
+      finally { btn.disabled = false; btn.innerHTML = '<i data-lucide="save"></i> Simpan'; if(window.lucide)window.lucide.createIcons(); }
+    });
 
-  /* Open CREATE workspace modal */
-  document.getElementById('btn-open-ws-create').addEventListener('click', () => {
-    document.getElementById('form-ws-create').reset();
-    openModal('modal-ws-create');
-  });
-
-  /* CREATE workspace form submit */
-  document.getElementById('form-ws-create').addEventListener('submit', async e => {
-    e.preventDefault();
-    const btn = document.getElementById('btn-ws-create-submit');
-    const name        = document.getElementById('ws-name').value.trim();
-    const company     = document.getElementById('ws-company').value.trim();
-    const address     = document.getElementById('ws-address').value.trim();
-    const description = document.getElementById('ws-description').value.trim();
-
-    if (!name) { showToast('Nama workspace wajib diisi', 'error'); return; }
-
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spin"><i data-lucide="loader" style="width:16px;height:16px;"></i></span> Menyimpan...';
-    lucide.createIcons();
-
-    try {
-      const res = await api('/api/superadmin/workspaces', {
-        method: 'POST',
-        body: JSON.stringify({ name, company, address, description })
+    function resetAdminPassword(id) {
+      const admin = state.admins.find(a => a.id === id);
+      showConfirm('Reset Password Admin', `Reset password untuk "${admin?.name||admin?.username}"?\nPassword baru akan di-generate otomatis.`, async () => {
+        try {
+          const res = await fetch(`/api/superadmin/admins/${id}/reset-password`, { method:'POST', credentials:'include' });
+          const data = await res.json();
+          if (data.success) {
+            const username = data.data?.username || admin?.username;
+            const password = data.passwordPlain || data.data?.newPasswordPlain || '';
+            document.getElementById('rp-username').textContent = username;
+            document.getElementById('rp-password').textContent = password;
+            document.getElementById('rp-copy-username').setAttribute('data-copy', username);
+            document.getElementById('rp-copy-password').setAttribute('data-copy', password);
+            setupCopyBtn(document.getElementById('rp-copy-username'), () => document.getElementById('rp-copy-username').getAttribute('data-copy'));
+            setupCopyBtn(document.getElementById('rp-copy-password'), () => document.getElementById('rp-copy-password').getAttribute('data-copy'));
+            openModal('modal-resetpw-result');
+          } else { alert(data.error||'Gagal'); }
+        } catch(_) { alert('Gagal terhubung'); }
       });
-
-      closeModal('modal-ws-create');
-      document.getElementById('form-ws-create').reset();
-
-      // Show credentials modal
-      const data = res.data || {};
-      const ws = data.workspace || res.workspace || {};
-      document.getElementById('result-title').textContent = 'Workspace Berhasil Dibuat!';
-      document.getElementById('result-body').innerHTML = `
-        <div class="credentials-box">
-          <p><strong>Nama Workspace:</strong> ${escapeHtml(ws.name || name)}</p>
-          <p><strong>Kode Workspace:</strong> ${escapeHtml(data.code || ws.code || '—')}</p>
-          ${data.adminUsername ? `<p><strong>Username Admin:</strong> ${escapeHtml(data.adminUsername)}</p>` : ''}
-          ${data.adminPasswordPlain ? `<p><strong>Password Admin:</strong> <code class="font-mono">${escapeHtml(data.adminPasswordPlain)}</code></p>` : ''}
-        </div>
-        <p class="cred-note"><i data-lucide="alert-triangle" style="width:14px;height:14px;color:var(--warning);"></i> Simpan password admin di atas — tidak akan ditampilkan lagi.</p>
-      `;
-      openModal('modal-result');
-      showToast('Workspace berhasil dibuat!');
-      loadWorkspaces();
-      loadStats();
-    } catch (err) {
-      showToast(err.message, 'error');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = '<i data-lucide="plus"></i> Buat Workspace';
-      lucide.createIcons();
     }
-  });
 
-  /* Open EDIT workspace modal */
-  function openEditWorkspace(id) {
-    const ws = workspaceCache.find(w => w.id === id);
-    if (!ws) { showToast('Workspace tidak ditemukan', 'error'); return; }
-
-    document.getElementById('ws-edit-id').value          = ws.id;
-    document.getElementById('ws-edit-name').value        = ws.name || '';
-    document.getElementById('ws-edit-company').value     = ws.company || '';
-    document.getElementById('ws-edit-address').value     = ws.address || '';
-    document.getElementById('ws-edit-description').value = ws.description || '';
-
-    openModal('modal-ws-edit');
-  }
-
-  /* EDIT workspace form submit */
-  document.getElementById('form-ws-edit').addEventListener('submit', async e => {
-    e.preventDefault();
-    const btn = document.getElementById('btn-ws-edit-submit');
-    const id = document.getElementById('ws-edit-id').value;
-    const name        = document.getElementById('ws-edit-name').value.trim();
-    const company     = document.getElementById('ws-edit-company').value.trim();
-    const address     = document.getElementById('ws-edit-address').value.trim();
-    const description = document.getElementById('ws-edit-description').value.trim();
-
-    if (!name) { showToast('Nama workspace wajib diisi', 'error'); return; }
-
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spin"><i data-lucide="loader" style="width:16px;height:16px;"></i></span> Menyimpan...';
-    lucide.createIcons();
-
-    try {
-      await api(`/api/superadmin/workspaces/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ name, company, address, description })
+    function deleteAdmin(id) {
+      const admin = state.admins.find(a => a.id === id);
+      showConfirm('Hapus Admin', `Hapus akun administrator "${admin?.name||admin?.username}"?`, async () => {
+        try { const res = await fetch(`/api/superadmin/admins/${id}`, { method:'DELETE', credentials:'include' }); const data = await res.json(); if (data.success) { await loadAdmins(); await loadStats(); showToast('Admin berhasil dihapus'); } else { alert(data.error||'Gagal'); } } catch(_) { alert('Gagal'); }
       });
-      closeModal('modal-ws-edit');
-      showToast('Workspace berhasil diperbarui!');
-      loadWorkspaces();
-    } catch (err) {
-      showToast(err.message, 'error');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = '<i data-lucide="save"></i> Simpan Perubahan';
-      lucide.createIcons();
-    }
-  });
-
-  /* DELETE workspace */
-  function deleteWorkspace(id, name) {
-    showConfirm('Hapus Workspace', `Hapus workspace "${escapeHtml(name)}"?\n\nSemua data terkait workspace ini akan dilepas dari admin.`, async () => {
-      try {
-        await api(`/api/superadmin/workspaces/${id}`, { method: 'DELETE' });
-        showToast('Workspace berhasil dihapus!');
-        loadWorkspaces();
-        loadStats();
-      } catch (err) {
-        showToast(err.message, 'error');
-      }
-    });
-  }
-
-  /* ═══════════════════════════════════════════
-     ADMINS
-  ═══════════════════════════════════════════ */
-  let adminCache = [];
-
-  document.getElementById('admin-search').addEventListener('input', () => filterAdmins());
-  document.getElementById('admin-filter').addEventListener('change', () => filterAdmins());
-
-  function filterAdmins() {
-    const query = document.getElementById('admin-search').value.toLowerCase();
-    const filterBy = document.getElementById('admin-filter').value;
-
-    if (!query) {
-      renderAdminsTable(adminCache);
-      return;
     }
 
-    const filtered = adminCache.filter(admin => {
-      if (filterBy === 'all') {
-        return (admin.username || '').toLowerCase().includes(query) ||
-               (admin.name || '').toLowerCase().includes(query) ||
-               (admin.workspaceName || admin.workspaceCode || '').toLowerCase().includes(query) ||
-               String(admin.id).includes(query);
-      }
-      if (filterBy === 'username') return (admin.username || '').toLowerCase().includes(query);
-      if (filterBy === 'name') return (admin.name || '').toLowerCase().includes(query);
-      if (filterBy === 'workspace') return (admin.workspaceName || admin.workspaceCode || '').toLowerCase().includes(query);
-      if (filterBy === 'id') return String(admin.id).includes(query);
-      if (filterBy === 'date') return formatDate(admin.createdAt).toLowerCase().includes(query);
-      return false;
-    });
-
-    renderAdminsTable(filtered);
-  }
-
-  async function loadAdmins() {
-    const tbody = document.getElementById('admins-table');
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="padding:40px;">
-      <span class="spin"><i data-lucide="loader" style="width:20px;height:20px;"></i></span>
-      <span style="margin-left:8px;color:var(--text-muted);">Memuat data...</span>
-    </td></tr>`;
-    lucide.createIcons();
-
-    try {
-      const res = await api('/api/superadmin/admins');
-      adminCache = res.data || res.admins || [];
-      filterAdmins();
-    } catch (err) {
-      tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="padding:40px;color:var(--error);">
-        <i data-lucide="alert-circle" style="width:20px;height:20px;vertical-align:middle;"></i>
-        Gagal memuat data: ${err.message}
-      </td></tr>`;
-      lucide.createIcons();
-    }
-  }
-
-  function renderAdminsTable(list) {
-    const tbody = document.getElementById('admins-table');
-    if (!list || list.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">
-        <i data-lucide="users"></i>
-        <p>Belum ada administrator. Klik "Tambah Admin" untuk membuat.</p>
-      </div></td></tr>`;
-      lucide.createIcons();
-      return;
-    }
-
-    tbody.innerHTML = list.map(admin => {
-      const wsLabel = admin.workspaceName || admin.workspaceCode || '—';
-      const wsDisplay = (admin.workspaceName || admin.workspaceCode)
-        ? `<span class="ws-badge">${escapeHtml(wsLabel)}</span>`
-        : '<span style="color:var(--text-muted);">—</span>';
-
-      return `
-        <tr>
-          <td data-label="ID"><span class="mono">#${admin.id ?? '—'}</span></td>
-          <td data-label="Username">
-            <div style="display:flex; align-items:center; gap:6px;">
-              <code class="font-mono" style="font-size:0.82rem;">${escapeHtml(admin.username ?? '—')}</code>
-              <button class="btn-icon" style="width:24px;height:24px;border:none;background:transparent;" title="Salin Username" onclick="copyToClipboard('${escapeHtml(admin.username ?? '')}')">
-                <i data-lucide="copy" style="width:14px;height:14px;"></i>
-              </button>
-            </div>
-          </td>
-          <td data-label="Nama Lengkap"><strong>${escapeHtml(admin.name || '—')}</strong></td>
-          <td data-label="Workspace">${wsDisplay}</td>
-          <td data-label="Terdaftar">${formatDate(admin.createdAt)}</td>
-          <td data-label="Aksi">
-            <div class="action-row">
-              <button class="btn-icon" title="Edit Admin" onclick="openEditAdmin('${admin.id}')">
-                <i data-lucide="pencil"></i>
-              </button>
-              <button class="btn-icon" title="Reset Password" onclick="resetAdminPassword('${admin.id}', '${escapeHtml(admin.username ?? '')}')">
-                <i data-lucide="key-round"></i>
-              </button>
-              <button class="btn-icon danger" title="Hapus Admin" onclick="deleteAdmin('${admin.id}', '${escapeHtml(admin.username ?? '')}')">
-                <i data-lucide="trash-2"></i>
-              </button>
-            </div>
-          </td>
-        </tr>
-      `;
-    }).join('');
-    lucide.createIcons();
-  }
-
-  /* Open CREATE admin modal — populate workspace dropdown */
-  document.getElementById('btn-open-admin-create').addEventListener('click', async () => {
-    document.getElementById('form-admin-create').reset();
-    const select = document.getElementById('admin-workspace');
-    select.innerHTML = '<option value="">— Pilih Workspace —</option>';
-
-    // Use cached workspaces or fetch
-    let wsList = workspaceCache;
-    if (wsList.length === 0) {
-      try {
-        const res = await api('/api/superadmin/workspaces');
-        wsList = res.data || res.workspaces || [];
-        workspaceCache = wsList;
-      } catch (err) {
-        showToast('Gagal memuat daftar workspace: ' + err.message, 'error');
-      }
-    }
-
-    wsList.forEach(ws => {
-      const opt = document.createElement('option');
-      opt.value = ws.code;
-      opt.textContent = `${ws.name} (${ws.code})`;
-      select.appendChild(opt);
-    });
-
-    openModal('modal-admin-create');
-  });
-
-  /* CREATE admin form submit */
-  document.getElementById('form-admin-create').addEventListener('submit', async e => {
-    e.preventDefault();
-    const btn = document.getElementById('btn-admin-create-submit');
-    const name          = document.getElementById('admin-name').value.trim();
-    const workspaceCode = document.getElementById('admin-workspace').value;
-
-    if (!name)          { showToast('Nama admin wajib diisi', 'error');        return; }
-    if (!workspaceCode) { showToast('Pilih workspace terlebih dahulu', 'error'); return; }
-
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spin"><i data-lucide="loader" style="width:16px;height:16px;"></i></span> Menyimpan...';
-    lucide.createIcons();
-
-    try {
-      const res = await api('/api/superadmin/admins', {
-        method: 'POST',
-        body: JSON.stringify({ name, workspaceCode })
-      });
-
-      closeModal('modal-admin-create');
-      document.getElementById('form-admin-create').reset();
-
-      // Show credentials
-      const data = res.data || {};
-      const admin = res.admin || {};
-      document.getElementById('result-title').textContent = 'Admin Berhasil Dibuat!';
-      document.getElementById('result-body').innerHTML = `
-        <div class="credentials-box">
-          <p><strong>Nama:</strong> ${escapeHtml(data.name || admin.name || name)}</p>
-          <p><strong>Username:</strong> <code class="font-mono">${escapeHtml(data.username || admin.username || '—')}</code></p>
-          <p><strong>Password:</strong> <code class="font-mono">${escapeHtml(res.passwordPlain || data.adminPasswordPlain || '—')}</code></p>
-          <p><strong>Workspace:</strong> ${escapeHtml(data.workspaceCode || admin.workspaceCode || workspaceCode)}</p>
-        </div>
-        <p class="cred-note"><i data-lucide="alert-triangle" style="width:14px;height:14px;color:var(--warning);"></i> Simpan password di atas — tidak akan ditampilkan lagi.</p>
-      `;
-      openModal('modal-result');
-      showToast('Admin berhasil dibuat!');
-      loadAdmins();
-      loadStats();
-    } catch (err) {
-      showToast(err.message, 'error');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = '<i data-lucide="user-plus"></i> Simpan Admin';
-      lucide.createIcons();
-    }
-  });
-
-  /* Open EDIT admin modal */
-  function openEditAdmin(id) {
-    const admin = adminCache.find(a => String(a.id) === String(id));
-    if (!admin) { showToast('Admin tidak ditemukan', 'error'); return; }
-    document.getElementById('admin-edit-id').value   = admin.id;
-    document.getElementById('admin-edit-name').value = admin.name || '';
-    openModal('modal-admin-edit');
-  }
-
-  /* EDIT admin form submit */
-  document.getElementById('form-admin-edit').addEventListener('submit', async e => {
-    e.preventDefault();
-    const id   = document.getElementById('admin-edit-id').value;
-    const name = document.getElementById('admin-edit-name').value.trim();
-
-    try {
-      await api(`/api/superadmin/admins/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ name })
-      });
-      closeModal('modal-admin-edit');
-      showToast('Admin berhasil diperbarui!');
-      loadAdmins();
-    } catch (err) {
-      showToast(err.message, 'error');
-    }
-  });
-
-  /* RESET admin password */
-  function resetAdminPassword(id, username) {
-    showConfirm('Reset Password', `Reset password untuk admin "${escapeHtml(username)}"?\n\nPassword baru akan digenerate otomatis.`, async () => {
-      try {
-        const res = await api(`/api/superadmin/admins/${id}/reset-password`, { method: 'POST' });
-        const data = res.data || {};
-        document.getElementById('result-title').textContent = 'Password Berhasil Direset!';
-        document.getElementById('result-body').innerHTML = `
-          <div class="credentials-box">
-            <p><strong>Username:</strong> <code class="font-mono" id="reset-uname">${escapeHtml(data.username || username)}</code> <button onclick="copyToClipboard('${escapeHtml(data.username || username)}')"><i data-lucide="copy" style="width:14px;height:14px;"></i></button></p>
-            <p><strong>Password Baru:</strong> <code class="font-mono" id="reset-pwd">${escapeHtml(data.newPasswordPlain || res.passwordPlain || '—')}</code> <button onclick="copyToClipboard('${escapeHtml(data.newPasswordPlain || res.passwordPlain || '')}')"><i data-lucide="copy" style="width:14px;height:14px;"></i></button></p>
-          </div>
-          <p class="cred-note"><i data-lucide="alert-triangle" style="width:14px;height:14px;color:var(--warning);"></i> Simpan password baru di atas — tidak akan ditampilkan lagi.</p>
-        `;
-        openModal('modal-result');
-        showToast('Password berhasil direset!');
-      } catch (err) {
-        showToast(err.message, 'error');
-      }
-    });
-  }
-
-  /* DELETE admin */
-  function deleteAdmin(id, username) {
-    showConfirm('Hapus Admin', `Hapus admin "${escapeHtml(username)}"?\n\nTindakan ini tidak dapat dibatalkan.`, async () => {
-      try {
-        await api(`/api/superadmin/admins/${id}`, { method: 'DELETE' });
-        showToast('Admin berhasil dihapus!');
-        loadAdmins();
-        loadStats();
-      } catch (err) {
-        showToast(err.message, 'error');
-      }
-    });
-  }
-
-  /* ── Clipboard API ──────────────────────── */
-  window.copyToClipboard = async function(text) {
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      showToast('Berhasil disalin ke clipboard');
-    } catch (err) {
-      showToast('Gagal menyalin text', 'error');
-    }
-  };
-
-  /* ── XSS protection ─────────────────────── */
-  function escapeHtml(str) {
-    if (str === null || str === undefined) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
-  /* ── Initial load ────────────────────────── */
-  loadStats();
-
+    init();
   </script>
 </body>
 </html>

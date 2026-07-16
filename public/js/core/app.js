@@ -14,6 +14,7 @@ import { Upload } from '../pages/upload.js';
 import { Detail } from '../pages/detail.js';
 import { Home } from '../pages/home.js';
 import { Profile } from '../pages/profile.js';
+import { BeritaAdmin } from '../pages/berita-admin.js';
 
 class AppInitializer {
   constructor() {
@@ -94,6 +95,9 @@ class AppInitializer {
         } else if (path === '/dashboard/profile') {
           this.currentPageInstance = Profile;
           await Profile.render(this.viewport);
+        } else if (path === '/dashboard/berita') {
+          this.currentPageInstance = BeritaAdmin;
+          await BeritaAdmin.render(this.viewport);
         } else {
           // Default fallback
           Router.navigate('/dashboard');

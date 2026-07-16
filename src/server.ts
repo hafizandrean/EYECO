@@ -17,6 +17,7 @@ import workspaceRouter from './routes/workspaceRoutes';
 import adminRouter from './routes/adminRoutes';
 import reportRouter from './routes/reportRoutes';
 import cctvRouter from './routes/cctvRoutes';
+import newsRouter from './routes/newsRoutes';
 import { CctvHealthEngine } from './cctv/CctvHealthEngine';
 import { CctvScanner } from './cctv/CctvScanner';
 import { CctvAdapter } from './cctv/CctvAdapter';
@@ -452,7 +453,7 @@ app.get('/superadmin/workspaces/:id', authMiddleware, roleGuard(['superadmin']),
 
 // Dashboard — unified for admin AND user
 app.get(
-  ['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/profile', '/dashboard/users', '/dashboard/cctv', '/dashboard/join-requests'],
+  ['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/profile', '/dashboard/berita', '/dashboard/users', '/dashboard/cctv', '/dashboard/join-requests'],
   authMiddleware,
   roleGuard(['admin', 'user', 'operator', 'supervisor', 'officer']),
   (req, res) => {
@@ -489,6 +490,7 @@ app.get('/join/:code', async (req, res) => {
 
 // --- FEATURE ROUTES ---
 app.use('/api/cctv', cctvRouter);
+app.use('/api/news', newsRouter);
 
 function listenWithFallback(port: number, attempts = 10): Promise<number> {
   return new Promise((resolve, reject) => {

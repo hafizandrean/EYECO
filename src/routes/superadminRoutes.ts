@@ -9,6 +9,7 @@ import { UserRepository } from '../database/repositories/UserRepository';
 import { authMiddleware } from '../auth/authMiddleware';
 import { roleGuard } from '../auth/RoleMiddleware';
 import { SystemAuditLogModel } from '../database/models/SystemAuditLog';
+import { SessionModel } from '../database/models/Session';
 
 const router = Router();
 
@@ -35,11 +36,62 @@ router.get('/stats', authMiddleware, roleGuard(['superadmin']), async (req, res)
     const totalWorkspaces = workspaces.length;
     const totalUsers = await UserModel.countDocuments({ role: 'user', workspaceIds: { $in: workspaceIds } });
     const totalCCTVs = await CctvModel.countDocuments({ workspaceId: { $in: workspaceIds } });
+    const ReportModel = (await import('../database/models/Report')).ReportModel;
+    const totalReports = await ReportModel.countDocuments({ workspaceId: { $in: workspaceIds } }).exec();
+    const pendingReports = await ReportModel.countDocuments({ workspaceId: { $in: workspaceIds }, adminStatus: 'MENUNGGU' }).exec();
+    const validReports = await ReportModel.countDocuments({ workspaceId: { $in: workspaceIds }, adminStatus: 'VALID' }).exec();
+    const NewsModel = (await import('../database/models/News')).NewsModel;
+    const totalNews = await NewsModel.countDocuments({ workspaceId: { $in: workspaceIds } }).exec();
+    const publishedNews = await NewsModel.countDocuments({ workspaceId: { $in: workspaceIds }, status: 'published' }).exec();
+
+    // Recent global activity
+    const recentReports = await ReportModel.find({ workspaceId: { $in: workspaceIds } })
+      .sort({ timestamp: -1 }).limit(5).lean().exec() as any[];
+    const recentNews = await NewsModel.find({ workspaceId: { $in: workspaceIds }, status: 'published' })
+      .sort({ createdAt: -1 }).limit(3).lean().exec() as any[];
+
+    // Enrich with usernames
+    const reportUserIds = [...new Set(recentReports.map(r => r.userId?.toString()).filter(Boolean))];
+    const newsAuthorIds = [...new Set(recentNews.map(n => n.authorId?.toString()).filter(Boolean))];
+    const allUserIds = [...new Set([...reportUserIds, ...newsAuthorIds])];
+    const userMap = new Map(
+      (await UserModel.find().where('_id').in(allUserIds).select('name username').lean().exec() as any[])
+        .map((u: any) => [u._id.toString(), u])
+    );
+
+    const activity: any[] = [];
+    recentReports.forEach(r => {
+      const reporter = userMap.get(r.userId?.toString());
+      activity.push({
+        type: 'report', text: `Laporan baru: ${r.location || '#' + r.id} oleh ${reporter?.name || reporter?.username || 'warga'}`,
+        time: r.timestamp || r.createdAt, wsId: r.workspaceId, color: '#2563EB'
+      });
+    });
+    recentNews.forEach(n => {
+      const author = userMap.get(n.authorId?.toString());
+      activity.push({
+        type: 'news', text: `Berita baru: "${n.title}" oleh ${author?.name || author?.username || n.author}`,
+        time: n.createdAt, wsId: n.workspaceId, color: '#8B5CF6'
+      });
+    });
+    activity.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+
+    // Per-workspace activity summary
+    const wsAdminCounts = await Promise.all(workspaceIds.map(async id => ({
+      workspaceId: id,
+      adminCount: await UserModel.countDocuments({ role: 'admin', workspaceId: id }).exec(),
+      userCount: await UserModel.countDocuments({ role: 'user', workspaceIds: id }).exec(),
+      cctvCount: await CctvModel.countDocuments({ workspaceId: id }).exec(),
+      reportCount: await ReportModel.countDocuments({ workspaceId: id }).exec(),
+      pendingReportCount: await ReportModel.countDocuments({ workspaceId: id, adminStatus: 'MENUNGGU' }).exec(),
+    })));
 
     res.json({
       success: true,
-      stats: { totalAdmins, totalWorkspaces, totalUsers, totalCCTVs },
-      data: { totalAdmins, totalWorkspaces, totalUsers, totalCCTVs }
+      stats: { totalAdmins, totalWorkspaces, totalUsers, totalCCTVs, totalReports, pendingReports, validReports, totalNews, publishedNews },
+      data: { totalAdmins, totalWorkspaces, totalUsers, totalCCTVs },
+      activity: activity.slice(0, 15),
+      wsStats: wsAdminCounts
     });
   } catch (err) {
     console.error('[SERVER ERROR] GET /api/superadmin/stats failed:', err);
@@ -302,6 +354,78 @@ router.delete('/admins/:id', authMiddleware, roleGuard(['superadmin']), async (r
   }
 });
 
+// SESSIONS API
+router.get('/sessions', authMiddleware, roleGuard(['superadmin']), async (req, res) => {
+  try {
+    const userId = req.userContext?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const user = await UserModel.findOne({ id: userId }).select('_id').lean().exec();
+    if (!user) return res.status(401).json({ error: 'User not found' });
+
+    const sessions = await SessionModel.find({ userId })
+      .sort({ lastActive: -1 })
+      .limit(20)
+      .lean()
+      .exec() as any[];
+
+    const enriched = sessions.map(s => ({
+      id: s._id?.toString() || '',
+      deviceInfo: s.deviceInfo || 'Unknown Device',
+      ipAddress: s.ipAddress || 'Unknown IP',
+      lastActive: s.lastActive || s.createdAt,
+      createdAt: s.createdAt,
+      isCurrent: false // client marks the current one
+    }));
+
+    res.json({ success: true, sessions: enriched });
+  } catch (err) {
+    console.error('[SERVER ERROR] GET /api/superadmin/sessions failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+router.delete('/sessions/:sessionId', authMiddleware, roleGuard(['superadmin']), async (req, res) => {
+  try {
+    const userId = req.userContext?.id;
+    const sessionId = req.params.sessionId;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const deleted = await SessionModel.findByIdAndDelete(sessionId).exec();
+    if (!deleted) return res.status(404).json({ error: 'Session tidak ditemukan' });
+
+    res.json({ success: true, message: 'Session berhasil dihapus' });
+  } catch (err) {
+    console.error('[SERVER ERROR] DELETE /api/superadmin/sessions failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Change Password
+router.post('/change-password', authMiddleware, roleGuard(['superadmin']), async (req, res) => {
+  try {
+    const userId = req.userContext?.id;
+    const { currentPassword, newPassword } = req.body;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Password lama dan baru wajib diisi' });
+    if (newPassword.length < 6) return res.status(400).json({ error: 'Password baru minimal 6 karakter' });
+
+    const user = await UserModel.findOne({ id: userId }).select('+passwordHash').exec();
+    if (!user) return res.status(401).json({ error: 'User tidak ditemukan' });
+
+    const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isMatch) return res.status(400).json({ error: 'Password lama tidak cocok' });
+
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    res.json({ success: true, message: 'Password berhasil diubah' });
+  } catch (err) {
+    console.error('[SERVER ERROR] POST /api/superadmin/change-password failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 // WORKSPACES API
 
 router.get('/workspaces', authMiddleware, roleGuard(['superadmin']), async (req, res) => {
@@ -451,7 +575,7 @@ router.delete('/workspaces/:id', authMiddleware, roleGuard(['superadmin']), asyn
   }
 });
 
-// Get Workspace Details
+// Get Workspace Full Details
 router.get('/workspaces/:id/detail', authMiddleware, roleGuard(['superadmin']), async (req, res) => {
   try {
     const workspaceId = Number(req.params.id);
@@ -461,21 +585,153 @@ router.get('/workspaces/:id/detail', authMiddleware, roleGuard(['superadmin']), 
     const workspace = await WorkspaceModel.findOne({ id: workspaceId, superadminId }).lean().exec();
     if (!workspace) return res.status(404).json({ error: 'Workspace tidak ditemukan' });
 
-    const admins = await UserModel.find({ workspaceId, role: 'admin' })
-      .select('id name username email phone status createdAt')
+    // All members (admins + users) — admins store workspaceId (singular), users store workspaceIds (plural)
+    const members = await UserModel.find({
+      $or: [
+        { workspaceIds: workspaceId },
+        { workspaceId: workspaceId }
+      ]
+    })
+      .select('id name username email role phone status createdAt updatedAt')
+      .sort({ createdAt: -1 })
       .lean()
       .exec();
 
-    // Get Cctv count (optional, if Cctv model is present. Assuming it might be added later, skip for now or stub it)
-    // For now we'll just return admins
-    res.json({
-      success: true,
-      workspace,
-      admins,
-      stats: {
-        totalAdmins: admins.length
-      }
+    // Report stats
+    const ReportModel = (await import('../database/models/Report')).ReportModel;
+    const CctvModelLocal = (await import('../database/models/Cctv')).CctvModel;
+    const NewsModelLocal = (await import('../database/models/News')).NewsModel;
+
+    const reportCount = await ReportModel.countDocuments({ workspaceId }).exec();
+    const pendingReports = await ReportModel.countDocuments({ workspaceId, adminStatus: 'MENUNGGU' }).exec();
+    const validReports = await ReportModel.countDocuments({ workspaceId, adminStatus: 'VALID' }).exec();
+    const cctvCount = await CctvModelLocal.countDocuments({ workspaceId } as any).exec();
+    const offlineCameras = await CctvModelLocal.countDocuments({ workspaceId, status: { $ne: 'ONLINE' } } as any).exec();
+    const newsCount = await NewsModelLocal.countDocuments({ workspaceId }).exec();
+    const publishedNewsCount = await NewsModelLocal.countDocuments({ workspaceId, status: 'published' }).exec();
+
+    // Recent news
+    const recentNews = await NewsModelLocal.find({ workspaceId })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean()
+      .exec() as any[];
+
+    // Recent reports (last 10)
+    const recentReports = await ReportModel.find({ workspaceId })
+      .sort({ timestamp: -1 })
+      .limit(10)
+      .lean()
+      .exec();
+
+    // Enrich reports with reporter name and assigned admin name
+    const userIds = [...new Set(recentReports.map(r => r.userId?.toString()).filter(Boolean))];
+    const officers = [...new Set(recentReports.map(r => r.assignedOfficer).filter(Boolean))];
+    const usersMap = new Map(
+      (await UserModel.find().where('_id').in([...userIds]).select('id name username').lean().exec() as any[])
+        .map((u: any) => [u._id.toString(), u])
+    );
+    const officersMap = new Map(
+      (await UserModel.find({ username: { $in: officers } }).select('id name username').lean().exec() as any[])
+        .map((u: any) => [u.username, u])
+    );
+
+    const enrichedReports = recentReports.map(r => {
+      const reporter = usersMap.get(r.userId?.toString());
+      const assignee = officersMap.get(r.assignedOfficer);
+      return {
+        ...r,
+        reporterName: reporter?.name || reporter?.username || '',
+        assignedToName: assignee?.name || assignee?.username || r.assignedOfficer || '',
+      };
     });
+
+    // Recent activity
+    const activity: Array<{ text: string; time: Date; color: string }> = [];
+
+    // Recent reports activity
+    enrichedReports.slice(0, 5).forEach(r => {
+      activity.push({
+        text: `Laporan baru: <strong>${r.location || '#' + r.id}</strong> oleh ${r.reporterName || 'warga'}`,
+        time: r.timestamp || r.createdAt,
+        color: '#2563EB'
+      });
+    });
+
+    // News activity
+    recentNews.forEach(n => {
+      activity.push({
+        text: `Berita: <strong>${n.title}</strong> oleh ${n.author || (n.authorName || 'admin')}`,
+        time: n.createdAt,
+        color: '#8B5CF6'
+      });
+    });
+
+    // New members activity
+    const recentMembers = (members as any[]).filter((m: any) => {
+      const d = new Date(m.createdAt);
+      return d > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    });
+    recentMembers.forEach((m: any) => {
+      activity.push({
+        text: `${m.role === 'admin' ? 'Admin' : 'Warga'} baru bergabung: <strong>${m.name || m.username}</strong>`,
+        time: m.createdAt,
+        color: m.role === 'admin' ? '#8B5CF6' : '#10B981'
+      });
+    });
+
+    // Sort activity by time desc
+    activity.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+
+    const adminCount = members.filter(m => m.role === 'admin').length;
+    const userCount = members.filter(m => m.role !== 'admin').length;
+
+    // Enriched admins with validated report count + published news count
+    const enrichedAdmins = (members as any[]).filter(m => m.role === 'admin');
+    const enrichedAdminData = await Promise.all(enrichedAdmins.map(async (admin: any) => {
+      const adminValidatedReports = await ReportModel.countDocuments({ workspaceId, assignedOfficer: admin.username, adminStatus: 'VALID' }).exec();
+      const adminPublishedNews = await NewsModelLocal.countDocuments({ workspaceId, author: admin.username, status: 'published' }).exec();
+      return {
+        id: admin.id, name: admin.name, username: admin.username, email: admin.email,
+        phone: admin.phone, status: admin.status, role: admin.role,
+        createdAt: admin.createdAt,
+        validatedReports: adminValidatedReports,
+        publishedNews: adminPublishedNews
+      };
+    }));
+
+    // Enriched users with report count
+    const enrichedUsers = await Promise.all((members as any[]).filter((m: any) => m.role !== 'admin').map(async (user: any) => {
+      const userReportCount = await ReportModel.countDocuments({ workspaceId, userId: user._id }).exec();
+      return {
+        id: user.id, name: user.name, username: user.username, email: user.email,
+        phone: user.phone, status: user.status, role: user.role,
+        createdAt: user.createdAt,
+        reportCount: userReportCount
+      };
+    }));
+
+    const data = {
+      stats: {
+        adminCount,
+        userCount,
+        cctvCount,
+        reportCount,
+        pendingReports,
+        validReports,
+        offlineCameras,
+        newsCount,
+        publishedNewsCount,
+        createdAt: (workspace as any).createdAt,
+      },
+      admins: enrichedAdminData,
+      users: enrichedUsers,
+      reports: enrichedReports,
+      news: recentNews,
+      activity: activity.slice(0, 20),
+    };
+
+    res.json({ success: true, data });
   } catch (err) {
     console.error('[SERVER ERROR] GET /api/superadmin/workspaces/:id/detail failed:', err);
     res.status(500).json({ error: 'Internal Server Error' });

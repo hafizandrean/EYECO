@@ -15,6 +15,7 @@ import { SystemAuditLogModel, ISystemAuditLog } from './models/SystemAuditLog';
 import { WorkspaceModel, IWorkspace } from './models/Workspace';
 
 import { SystemSettingsModel, ISystemSettings } from './models/SystemSettings';
+import { NewsModel, INews } from './models/News';
 import { AiModelModel, IAiModel } from './models/AiModel';
 import { AiDetectionModel, IAiDetection } from './models/AiDetection';
 import { AiEvidenceModel, IAiEvidence } from './models/AiEvidence';
@@ -47,7 +48,8 @@ export {
   CameraHealthLogModel, ICameraHealthLog as CameraHealthLog,
   AiMetricModel, IAiMetric as AiMetric,
   CameraEventModel, ICameraEvent as CameraEvent,
-  WorkspaceModel, IWorkspace as Workspace
+  WorkspaceModel, IWorkspace as Workspace,
+  NewsModel, INews as News
 };
 
 dotenv.config();

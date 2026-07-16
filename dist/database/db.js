@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DatabaseManager = exports.disconnectDB = exports.WorkspaceModel = exports.CameraEventModel = exports.AiMetricModel = exports.CameraHealthLogModel = exports.AiVerificationStateModel = exports.AiEvidenceModel = exports.AiDetectionModel = exports.AiModelModel = exports.SystemSettingsModel = exports.SystemAuditLogModel = exports.OutboxEventModel = exports.NotificationModel = exports.ResolutionModel = exports.AssignmentModel = exports.TimelineEventModel = exports.ReportModel = exports.UserModel = exports.CctvModel = void 0;
+exports.DatabaseManager = exports.disconnectDB = exports.NewsModel = exports.WorkspaceModel = exports.CameraEventModel = exports.AiMetricModel = exports.CameraHealthLogModel = exports.AiVerificationStateModel = exports.AiEvidenceModel = exports.AiDetectionModel = exports.AiModelModel = exports.SystemSettingsModel = exports.SystemAuditLogModel = exports.OutboxEventModel = exports.NotificationModel = exports.ResolutionModel = exports.AssignmentModel = exports.TimelineEventModel = exports.ReportModel = exports.UserModel = exports.CctvModel = void 0;
 exports.connectDB = connectDB;
 const mongoose_1 = __importDefault(require("mongoose"));
 const dotenv_1 = __importDefault(require("dotenv"));
@@ -32,6 +32,8 @@ const Workspace_1 = require("./models/Workspace");
 Object.defineProperty(exports, "WorkspaceModel", { enumerable: true, get: function () { return Workspace_1.WorkspaceModel; } });
 const SystemSettings_1 = require("./models/SystemSettings");
 Object.defineProperty(exports, "SystemSettingsModel", { enumerable: true, get: function () { return SystemSettings_1.SystemSettingsModel; } });
+const News_1 = require("./models/News");
+Object.defineProperty(exports, "NewsModel", { enumerable: true, get: function () { return News_1.NewsModel; } });
 const AiModel_1 = require("./models/AiModel");
 Object.defineProperty(exports, "AiModelModel", { enumerable: true, get: function () { return AiModel_1.AiModelModel; } });
 const AiDetection_1 = require("./models/AiDetection");
