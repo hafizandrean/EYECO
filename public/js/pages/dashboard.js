@@ -1151,6 +1151,11 @@ export class DashboardPage {
               ${ch.monitoringEnabled ? 'Hentikan Pemantauan AI' : 'Mulai Pemantauan AI'}
             </button>
           </div>
+          ${isAdmin && !(ch.isDefault && !ch.workspaceId) ? `
+            <button class="btn btn-glass btn-rounded" id="drawer-btn-delete" style="font-size: 0.78rem; font-weight: 700; border-color: rgba(239,68,68,0.25); color: var(--danger); justify-content: center; display:flex; align-items:center; gap:6px; padding: 10px 0; margin-top: 10px; width: 100%;">
+              <i data-lucide="trash-2" style="width: 14px; height: 14px; color: var(--danger);"></i> Putuskan Koneksi CCTV
+            </button>
+          ` : ''}
         </div>
 
         <!-- Camera Incident History -->
@@ -1209,6 +1214,7 @@ export class DashboardPage {
       this.openEditCctvModal(ch);
     };
 
+<<<<<<< Updated upstream
     const btnToggleAi = drawer.querySelector('#drawer-btn-toggle-ai');
     if (btnToggleAi) {
       btnToggleAi.onclick = async () => {
@@ -1225,6 +1231,22 @@ export class DashboardPage {
           this.renderCCTVGrid();
         } catch (err) {
           EventBus.emit('toast:show', { message: 'Gagal mengubah status pemantauan kamera.', type: 'danger' });
+=======
+    const btnDelete = drawer.querySelector('#drawer-btn-delete');
+    if (btnDelete) {
+      btnDelete.onclick = async (e) => {
+        e.stopPropagation();
+        const confirmDel = confirm(`Apakah Anda yakin ingin memutuskan koneksi CCTV: "${ch.name}"?`);
+        if (!confirmDel) return;
+
+        try {
+          this.closeCCTVDetailDrawer();
+          await CctvService.disconnectCctv(ch.id);
+          EventBus.emit('toast:show', { message: `Koneksi CCTV "${ch.name}" berhasil diputuskan.`, type: 'success' });
+          await this.loadData();
+        } catch (err) {
+          EventBus.emit('toast:show', { message: `Gagal memutuskan CCTV: ${err.message}`, type: 'danger' });
+>>>>>>> Stashed changes
         }
       };
     }
@@ -1834,9 +1856,13 @@ export class DashboardPage {
 
     // Show/hide delete option in dropdown
     const user = AppState.get('user');
-    const isAdmin = user?.role === 'admin';
+    const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
     if (dropDeleteContainer) {
+<<<<<<< Updated upstream
       dropDeleteContainer.style.display = isAdmin ? 'block' : 'none';
+=======
+      dropDeleteContainer.style.display = (isAdmin && !(ch.isDefault && !ch.workspaceId)) ? 'block' : 'none';
+>>>>>>> Stashed changes
     }
 
     if (dropDelete) {
@@ -2447,7 +2473,11 @@ export class DashboardPage {
     if (this.cctvList.length === 0) {
       container.classList.remove('single-channel-active');
       container.innerHTML = `
+<<<<<<< Updated upstream
         <div class="glass-card empty-state-card" style="grid-column: 1 / -1; display: flex !important; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-20); padding: var(--space-48); text-align: center; width: 100%; border: 1px dashed rgba(47,107,255,0.25); background: var(--surface); border-radius: var(--radius-card); box-shadow: var(--glass-shadow);">
+=======
+        <div class="glass-card empty-state-card" style="padding: var(--space-48); text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--space-16); width: 100%; border: 1px dashed rgba(47,107,255,0.2); grid-column: 1 / -1;">
+>>>>>>> Stashed changes
           <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(47, 107, 255, 0.05); color: var(--primary); display: flex; align-items: center; justify-content: center;">
             <i data-lucide="video-off" style="width: 32px; height: 32px;"></i>
           </div>
@@ -2659,7 +2689,11 @@ export class DashboardPage {
             `}
           </div>
 
+<<<<<<< Updated upstream
           ${isAdmin ? `
+=======
+          ${isAdmin && !(ch.isDefault && !ch.workspaceId) ? `
+>>>>>>> Stashed changes
             <button class="btn-disconnect-cctv" data-id="${ch.id}" title="Putuskan CCTV" style="position: absolute; top: 12px; right: 12px; z-index: 15; background: rgba(0,0,0,0.5); border: none; border-radius: 50%; width: 28px; height: 28px; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer;">
               <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
             </button>
@@ -2741,7 +2775,11 @@ export class DashboardPage {
       }
 
       // Bind delete action
+<<<<<<< Updated upstream
       if (isAdmin) {
+=======
+      if (isAdmin && !(ch.isDefault && !ch.workspaceId)) {
+>>>>>>> Stashed changes
         const btnDelete = card.querySelector('.btn-disconnect-cctv');
         if (btnDelete) {
           btnDelete.addEventListener('click', async (e) => {
