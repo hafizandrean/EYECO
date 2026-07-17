@@ -21,6 +21,10 @@ export class DetailPage {
   // Merender halaman detail laporan
   async render(container, id) {
     this.reportId = parseInt(id);
+    console.log('[DETAIL_FRONTEND] ===== render() dipanggil =====');
+    console.log('[DETAIL_FRONTEND] raw id dari URL:', id);
+    console.log('[DETAIL_FRONTEND] parsed this.reportId:', this.reportId);
+    console.log('[DETAIL_FRONTEND] typeof this.reportId:', typeof this.reportId);
     this.commentsPage = 1;
     this.comments = [];
 
@@ -128,17 +132,33 @@ export class DetailPage {
     if (!grid) return;
 
     try {
+      console.log('[DETAIL_FRONTEND] ===== loadData() dimulai =====');
+      console.log('[DETAIL_FRONTEND] reportId (number):', this.reportId);
+      console.log('[DETAIL_FRONTEND] reportId (type):', typeof this.reportId);
+      const endpoint = `/api/detections/${this.reportId}`;
+      console.log('[DETAIL_FRONTEND] endpoint GET:', endpoint);
+
       const report = await ReportService.getReportById(this.reportId);
       this.report = report;
+
+      console.log('[DETAIL_FRONTEND] ✅ Report berhasil dimuat:', report ? `id=${report.id}, _id=${report._id}` : 'null');
+      console.log('[DETAIL_FRONTEND]   location:', report?.location);
+      console.log('[DETAIL_FRONTEND]   image:', report?.image);
+      console.log('[DETAIL_FRONTEND]   aiStatus:', report?.aiStatus);
+      console.log('[DETAIL_FRONTEND]   aiConfidence:', report?.aiConfidence);
+      console.log('[DETAIL_FRONTEND]   boundingBoxes count:', report?.boundingBoxes?.length);
+      console.log('[DETAIL_FRONTEND]   workspaceId:', report?.workspaceId);
+      console.log('[DETAIL_FRONTEND]   adminStatus:', report?.adminStatus);
 
       // Check current user role
       const currentUser = AppState.get('user');
       const isAdmin = currentUser?.role === 'admin';
 
-      // Load community signal values
+      // Load community signal values dari backend (report.signals)
+      const reportSignals = report.signals || { active: 0, resolved: 0 };
       let signals = {
-        active: 0,
-        resolved: 0,
+        active: typeof reportSignals.active === 'number' ? reportSignals.active : (reportSignals.active?.length || 0),
+        resolved: typeof reportSignals.resolved === 'number' ? reportSignals.resolved : (reportSignals.resolved?.length || 0),
         voted: false
       };
       
@@ -493,12 +513,21 @@ export class DetailPage {
       await this.loadComments(true);
 
     } catch (err) {
-      console.error(err);
+      console.error('[DETAIL_FRONTEND] ❌ loadData() ERROR:', err.message || err);
+      console.error('[DETAIL_FRONTEND] reportId:', this.reportId);
+      console.error('[DETAIL_FRONTEND] error stack:', err.stack);
+
+      // Tampilkan error asli untuk debugging
+      const errorMsg = err.message || 'Unknown error';
+
       grid.innerHTML = `
         <div class="glass-card error-alert-card" style="grid-column: 1 / -1; padding: 32px; text-align: center;">
           <i data-lucide="alert-octagon" style="width: 48px; height: 48px; color: var(--danger); margin-bottom: 12px;"></i>
           <h3>Gagal Memuat Detail Laporan</h3>
-          <p style="color: var(--text-secondary); margin-bottom: 16px;">Log deteksi sungai tidak ditemukan atau otorisasi gagal.</p>
+          <p style="color: var(--text-secondary); margin-bottom: 16px;">${errorMsg}</p>
+          <p style="color: var(--text-muted); font-size: 0.75rem; background: rgba(0,0,0,0.03); padding: 8px 12px; border-radius: 6px; display: inline-block;">
+            Report ID: ${this.reportId} &middot; Endpoint: <code>/api/detections/${this.reportId}</code>
+          </p>
         </div>
       `;
     }
@@ -682,6 +711,11 @@ export class DetailPage {
       `;
       
       const avatarInitials = comment.username ? comment.username.substring(0, 2).toUpperCase() : 'US';
+      // Cek apakah ini user saat ini — pakai foto profil jika ada
+      const isOwnComment = currentUser && comment.username === currentUser.username;
+      const commentAvatar = isOwnComment && currentUser.avatar
+        ? `<img src="${currentUser.avatar}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
+        : avatarInitials;
       
       // Dynamic Role Badges: Admin, Pelapor, Masyarakat
       let roleText = 'Masyarakat';
@@ -710,7 +744,7 @@ export class DetailPage {
 
       commentItem.innerHTML = `
         <div style="display:flex; gap:10px; width:100%;">
-          <div style="width: 28px; height: 28px; border-radius: 50%; background: ${comment.role === 'admin' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.05)'}; color: ${comment.role === 'admin' ? 'var(--primary)' : 'var(--text-secondary)'}; border: 1px solid ${comment.role === 'admin' ? 'var(--primary)' : 'var(--border)'}; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; flex-shrink: 0;">${avatarInitials}</div>
+          <div style="width: 28px; height: 28px; border-radius: 50%; background: ${isOwnComment && currentUser?.avatar ? 'transparent' : comment.role === 'admin' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.05)'}; color: ${comment.role === 'admin' ? 'var(--primary)' : 'var(--text-secondary)'}; border: 1px solid ${comment.role === 'admin' ? 'var(--primary)' : 'var(--border)'}; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; flex-shrink: 0; overflow:hidden;">${commentAvatar}</div>
           
           <div style="flex-grow:1; display:flex; flex-direction:column; gap:4px; min-width: 0;">
             <div style="display:flex; align-items:center; gap:6px;">
@@ -783,14 +817,19 @@ export class DetailPage {
       if (deleteBtn) {
         deleteBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
-          if (confirm('Hapus komentar ini?')) {
-            const commentId = deleteBtn.getAttribute('data-id');
-            try {
-              await ReportService.deleteComment(this.reportId, commentId);
-              this.comments = this.comments.filter(c => c._id !== commentId);
-              this.renderCommentsList();
-            } catch (err) {}
-          }
+          const confirmed = await this.showConfirmDialog({
+            title: 'Hapus Komentar',
+            message: 'Apakah Anda yakin ingin menghapus komentar ini? Tindakan ini tidak dapat dibatalkan.',
+            confirmText: 'Hapus',
+            variant: 'danger'
+          });
+          if (!confirmed) return;
+          const commentId = deleteBtn.getAttribute('data-id');
+          try {
+            await ReportService.deleteComment(this.reportId, commentId);
+            this.comments = this.comments.filter(c => c._id !== commentId);
+            this.renderCommentsList();
+          } catch (err) {}
         });
       }
 
@@ -798,6 +837,26 @@ export class DetailPage {
     });
 
     if (window.lucide) window.lucide.createIcons();
+  }
+
+  // macOS-style confirm dialog
+  showConfirmDialog({ title, message, confirmText = 'Hapus', cancelText = 'Batal', variant = 'danger' } = {}) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.3);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:99999;opacity:0;transition:opacity 0.18s ease;padding:20px;';
+      const iconColor = variant === 'danger' ? '#ef4444' : '#2563eb';
+      const circleBg = variant === 'danger' ? 'rgba(239,68,68,0.15)' : 'rgba(37,99,235,0.12)';
+      overlay.innerHTML = `<div style="background:rgba(255,255,255,0.12);backdrop-filter:blur(40px) saturate(1.4);-webkit-backdrop-filter:blur(40px) saturate(1.4);border-radius:16px;padding:28px 24px 20px;width:100%;max-width:320px;box-shadow:0 16px 64px rgba(0,0,0,0.25),0 0 0 1px rgba(255,255,255,0.08);transform:scale(0.92) translateY(12px);transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1),opacity 0.2s ease;opacity:0;text-align:center;"><div style="width:48px;height:48px;border-radius:50%;background:${circleBg};display:flex;align-items:center;justify-content:center;margin:0 auto 16px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${variant === 'danger' ? '<path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>' : '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'}</svg></div><div style="font-size:1rem;font-weight:700;color:var(--text-primary);margin-bottom:6px;">${title}</div><div style="font-size:0.82rem;color:var(--text-secondary);line-height:1.4;margin-bottom:20px;">${message}</div><div style="display:flex;gap:10px;"><button class="confirm-cancel" style="flex:1;padding:10px 16px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:0.82rem;font-weight:600;cursor:pointer;">${cancelText}</button><button class="confirm-ok" style="flex:1;padding:10px 16px;border-radius:10px;border:none;background:${variant === 'danger' ? '#ef4444' : '#2563eb'};color:#fff;font-size:0.82rem;font-weight:600;cursor:pointer;">${confirmText}</button></div></div>`;
+      document.body.appendChild(overlay);
+      const dialog = overlay.firstChild;
+      requestAnimationFrame(() => { overlay.style.opacity = '1'; dialog.style.opacity = '1'; dialog.style.transform = 'scale(1) translateY(0)'; });
+      const close = (result) => { overlay.style.opacity = '0'; dialog.style.opacity = '0'; dialog.style.transform = 'scale(0.92) translateY(12px)'; setTimeout(() => overlay.remove(), 200); resolve(result); };
+      overlay.querySelector('.confirm-ok').addEventListener('click', () => close(true));
+      overlay.querySelector('.confirm-cancel').addEventListener('click', () => close(false));
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) close(false); });
+      const onKey = (e) => { if (e.key === 'Escape') { window.removeEventListener('keydown', onKey); close(false); } };
+      window.addEventListener('keydown', onKey);
+    });
   }
 
   bindActionEvents() {
@@ -835,26 +894,32 @@ export class DetailPage {
           
           this.updateWorkflowStatusLabel();
           EventBus.emit('toast:show', { message: 'Keputusan verifikasi berhasil disimpan!', type: 'success' });
-          
-          // Reload parent state
           await this.loadData();
-        } catch (err) {}
+        } catch (err) {
+          console.error('[DETAIL_FRONTEND] verifyReport error:', err);
+        }
       });
     }
 
+    // Telegram button
     if (telegramBtn) {
       telegramBtn.addEventListener('click', async () => {
         telegramBtn.disabled = true;
         telegramBtn.innerHTML = '<span class="status-pulse-dot" style="width:8px; height:8px; background:white; border-radius:50%; display:inline-block; margin-right:6px;"></span> Mengirim...';
-        
+
+        const telegramUrl = `/api/v1/detections/${this.reportId}/telegram`;
+        console.log('[DETAIL_FRONTEND] Telegram dispatch to:', telegramUrl);
+
         try {
-          const res = await fetch(`/api/v1/detections/${this.reportId}/telegram`, {
+          const res = await fetch(telegramUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
             }
           });
+          console.log('[DETAIL_FRONTEND] Telegram response status:', res.status);
           const data = await res.json();
+          console.log('[DETAIL_FRONTEND] Telegram response body:', JSON.stringify(data));
           if (res.ok && data.success) {
             EventBus.emit('toast:show', { message: 'Disiarkan ke Telegram Respon Cepat!', type: 'success' });
           } else {
@@ -908,43 +973,54 @@ export class DetailPage {
       });
     }
 
-    // Community Verification vote triggers
+    // Community Verification vote triggers — simpan ke backend, bukan localStorage
     const voteBtns = document.querySelectorAll('.btn-vote');
     voteBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const type = btn.getAttribute('data-vote');
-        
-        let signals = {
-          active: 0,
-          resolved: 0,
-          voted: false
-        };
-        // Persist vote in localStorage
-        localStorage.setItem(`signals_${this.reportId}`, JSON.stringify(signals));
+        if (btn.disabled) return;
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader" style="width:14px;height:14px;"></i>';
 
-        if (signals.voted) return;
+        try {
+          const res = await fetch(`/api/detections/${this.reportId}/signal`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ type })
+          });
+          const result = await res.json();
 
-        if (type === 'active') {
-          signals.active++;
-        } else {
-          signals.resolved++;
+          if (result.success) {
+            const data = result.data;
+            const actCount = document.getElementById('signal-count-active');
+            const resCount = document.getElementById('signal-count-resolved');
+            if (actCount) actCount.innerText = `${data.active} orang`;
+            if (resCount) resCount.innerText = `${data.resolved} orang`;
+
+            // Disable all vote buttons
+            voteBtns.forEach(b => {
+              b.style.opacity = '0.5';
+              b.style.pointerEvents = 'none';
+              b.disabled = true;
+              // Reset innerHTML
+              const bt = b.getAttribute('data-vote');
+              b.innerHTML = bt === 'active' ? 'Masih Ada' : 'Sudah Bersih';
+            });
+
+            EventBus.emit('toast:show', { message: 'Terima kasih atas kontribusi sinyal Anda!', type: 'success' });
+          } else {
+            EventBus.emit('toast:show', { message: result.error || 'Gagal mengirim sinyal', type: 'danger' });
+            btn.disabled = false;
+            btn.innerHTML = type === 'active' ? 'Masih Ada' : 'Sudah Bersih';
+          }
+        } catch (err) {
+          EventBus.emit('toast:show', { message: 'Gagal mengirim sinyal', type: 'danger' });
+          btn.disabled = false;
+          btn.innerHTML = type === 'active' ? 'Masih Ada' : 'Sudah Bersih';
         }
-        signals.voted = true;
-        localStorage.setItem(`signals_${this.reportId}`, JSON.stringify(signals));
 
-        // Update display
-        const actCount = document.getElementById('signal-count-active');
-        const resCount = document.getElementById('signal-count-resolved');
-        if (actCount) actCount.innerText = `${signals.active} orang`;
-        if (resCount) resCount.innerText = `${signals.resolved} orang`;
-
-        // Disable buttons
-        voteBtns.forEach(b => {
-          b.style.opacity = '0.5';
-          b.style.pointerEvents = 'none';
-        });
-
-        EventBus.emit('toast:show', { message: 'Terima kasih atas kontribusi sinyal Anda!', type: 'success' });
+        if (window.lucide) window.lucide.createIcons();
       });
     });
 

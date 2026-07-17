@@ -3,11 +3,12 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import rateLimit from 'express-rate-limit';
+import mongoose from 'mongoose';
 import { ReportModel } from '../database/models/Report';
 import { UserModel } from '../database/models/User';
 import { ReportRepository } from '../database/repositories/ReportRepository';
 import { getLoggedInUser } from '../auth/authMiddleware';
-import { BoundingBox } from '../database/db';
+import { detectFile, warmupAI, isAiReady, getWarmupError } from '../services/aiDetection.service';
 
 const router = Router();
 
@@ -68,69 +69,7 @@ function sendError(res: import('express').Response, message: string, status = 40
   return res.status(status).json({ success: false, message });
 }
 
-function runSimulatedAI(location: string, notes: string): {
-  status: 'TINGGI' | 'SEDANG' | 'RENDAH' | 'Tidak Terindikasi';
-  confidence: number | null;
-  boxes: BoundingBox[];
-} {
-  const boxes: BoundingBox[] = [];
-  const notesLower = notes.toLowerCase();
-
-  let hasPerson = Math.random() > 0.3;
-  let hasTrash = Math.random() > 0.6;
-  let hasBoat = Math.random() > 0.8;
-
-  if (notesLower.includes('orang') || notesLower.includes('warga') || notesLower.includes('mancing')) hasPerson = true;
-  if (notesLower.includes('sampah') || notesLower.includes('buang') || notesLower.includes('limbah')) hasTrash = true;
-  if (notesLower.includes('perahu') || notesLower.includes('kapal') || notesLower.includes('boat')) hasBoat = true;
-
-  if (hasPerson) {
-    boxes.push({
-      label: 'person',
-      confidence: parseFloat((0.75 + Math.random() * 0.23).toFixed(2)),
-      x: parseFloat((15 + Math.random() * 40).toFixed(1)),
-      y: parseFloat((30 + Math.random() * 30).toFixed(1)),
-      w: parseFloat((12 + Math.random() * 15).toFixed(1)),
-      h: parseFloat((40 + Math.random() * 25).toFixed(1)),
-    });
-  }
-  if (hasTrash) {
-    boxes.push({
-      label: 'trash',
-      confidence: parseFloat((0.65 + Math.random() * 0.3).toFixed(2)),
-      x: parseFloat((30 + Math.random() * 40).toFixed(1)),
-      y: parseFloat((60 + Math.random() * 20).toFixed(1)),
-      w: parseFloat((15 + Math.random() * 20).toFixed(1)),
-      h: parseFloat((15 + Math.random() * 15).toFixed(1)),
-    });
-  }
-  if (hasBoat) {
-    boxes.push({
-      label: 'boat',
-      confidence: parseFloat((0.8 + Math.random() * 0.18).toFixed(2)),
-      x: parseFloat((10 + Math.random() * 30).toFixed(1)),
-      y: parseFloat((40 + Math.random() * 15).toFixed(1)),
-      w: parseFloat((35 + Math.random() * 25).toFixed(1)),
-      h: parseFloat((20 + Math.random() * 10).toFixed(1)),
-    });
-  }
-
-  let status: 'TINGGI' | 'SEDANG' | 'RENDAH' | 'Tidak Terindikasi' = 'Tidak Terindikasi';
-  let confidence: number | null = null;
-
-  if (hasTrash || (hasPerson && hasBoat) || notesLower.includes('mencurigakan')) {
-    status = 'TINGGI';
-    confidence = Math.round(75 + Math.random() * 23);
-  } else if (hasPerson) {
-    status = 'RENDAH';
-    confidence = Math.round(40 + Math.random() * 30);
-  } else if (boxes.length > 0) {
-    status = 'SEDANG';
-    confidence = Math.round(60 + Math.random() * 15);
-  }
-
-  return { status, confidence, boxes };
-}
+// ====== ROUTES ======
 
 router.get('/detections', async (req, res) => {
   try {
@@ -171,11 +110,69 @@ router.get('/detections', async (req, res) => {
 router.get('/detections/:id', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
 
     const id = parseInt(req.params.id);
-    const report = await ReportRepository.findByLegacyId(id, user.workspaceId);
-    if (!report) return res.status(404).json({ error: 'Laporan tidak ditemukan' });
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'ID laporan tidak valid' });
+    }
+
+    let report;
+
+    // Strategy: cari dengan berbagai metode, mulai dari yang paling spesifik
+    if (user.role === 'user') {
+      // 1. Cari berdasarkan userId (ownership)
+      report = await ReportModel.findOne({
+        id,
+        deletedAt: null,
+        userId: user._id,
+      }).lean().exec();
+
+      // 2. Fallback: jika tidak ketemu, coba cari dengan workspaceId (untuk data lama yang userId mungkin berbeda)
+      if (!report && user.workspaceId) {
+        report = await ReportModel.findOne({
+          id,
+          deletedAt: null,
+          workspaceId: user.workspaceId,
+        }).lean().exec();
+      }
+
+      // 3. Fallback terakhir: cari tanpa filter (hanya id)
+      if (!report) {
+        report = await ReportModel.findOne({ id, deletedAt: null }).lean().exec();
+      }
+    } else if (user.role === 'superadmin') {
+      // Superadmin: cari di semua workspace mereka
+      const ownedWorkspaces = await (await import('../database/models/Workspace')).WorkspaceModel
+        .find({ superadminId: user.id }).lean().exec();
+      const wsIds = ownedWorkspaces.map(w => w.id);
+
+      report = await ReportModel.findOne({
+        id,
+        deletedAt: null,
+        workspaceId: { $in: wsIds },
+      }).lean().exec();
+
+      // Fallback: jika tidak ketemu, cari tanpa filter workspaceId
+      // (untuk report lama yang tidak punya field workspaceId)
+      if (!report) {
+        report = await ReportModel.findOne({ id, deletedAt: null }).lean().exec();
+      }
+    } else {
+      // Admin: lihat dalam workspace aktif
+      report = await ReportRepository.findByLegacyId(id, user.workspaceId);
+
+      // Fallback: jika tidak ketemu, cari tanpa filter workspaceId
+      if (!report) {
+        report = await ReportModel.findOne({ id, deletedAt: null }).lean().exec();
+      }
+    }
+
+    if (!report) {
+      return res.status(404).json({ error: 'Laporan tidak ditemukan' });
+    }
 
     res.json(report);
   } catch (err) {
@@ -214,7 +211,12 @@ router.get('/detections/:id/comments', async (req, res) => {
     if (!user) return sendError(res, 'Unauthorized', 401);
 
     const reportId = parseInt(req.params.id);
-    const report = await ReportModel.findOne({ id: reportId, workspaceId: user.workspaceId }).lean();
+    
+    // Query tanpa workspaceId dulu (untuk report lama yang tidak punya field ini)
+    let report = await ReportModel.findOne({ id: reportId, deletedAt: null }).lean();
+    if (!report && user.workspaceId) {
+      report = await ReportModel.findOne({ id: reportId, deletedAt: null, workspaceId: user.workspaceId }).lean();
+    }
     if (!report) return sendError(res, 'Laporan tidak ditemukan', 404);
 
     const page = parseInt(req.query.page as string) || 1;
@@ -338,11 +340,14 @@ router.post('/detections', (req, res, next) => {
       // Multer errors (file size, file type, etc.)
       if (err instanceof multer.MulterError) {
         if (err.code === 'LIMIT_FILE_SIZE') {
+          console.log(`[UPLOAD] File rejected: too large (>10MB)`);
           return res.status(400).json({ error: 'Ukuran file maksimal 10MB.' });
         }
+        console.log(`[UPLOAD] Multer error: ${err.message}`);
         return res.status(400).json({ error: `Upload error: ${err.message}` });
       }
       // Custom file filter error
+      console.log(`[UPLOAD] File rejected: ${err.message}`);
       return res.status(400).json({ error: err.message });
     }
     next();
@@ -355,21 +360,97 @@ router.post('/detections', (req, res, next) => {
     if (!req.file) return res.status(400).json({ error: 'File media wajib diupload' });
 
     const { location, identity, sourceType, additionalNotes } = req.body;
-    const aiResults = runSimulatedAI(location || '', additionalNotes || '');
+    const uploadDir = path.join(__dirname, '../../public/uploads');
+    const uploadedFilePath = path.join(uploadDir, req.file.filename);
 
+    console.log(`[UPLOAD] video diterima: ${req.file.filename} (${req.file.mimetype}, ${(req.file.size / 1024).toFixed(1)}KB)`);
+    console.log(`[UPLOAD] oleh user: ${user.username} (role: ${user.role})`);
+
+    // ==============================
+    // STEP 1: Create report (tanpa AI detection dulu — biar cepat)
+    // ==============================
     const newReport = await ReportRepository.create({
       location: location || 'Lokasi tidak diketahui',
-      aiStatus: aiResults.status,
-      aiConfidence: aiResults.confidence,
+      aiStatus: 'Tidak Terindikasi',
+      aiConfidence: null,
       image: `/uploads/${req.file.filename}`,
       identity: identity || 'Belum diketahui',
       sourceType: sourceType || 'Gambar',
       additionalNotes: additionalNotes || 'Tidak ada catatan tambahan.',
-      boundingBoxes: aiResults.boxes,
+      boundingBoxes: [],
     }, user.id);
 
+    console.log(`[UPLOAD] Report #${newReport.id} (_id: ${newReport._id}) berhasil dibuat`);
+
+    // ==============================
+    // STEP 2: Jalankan deteksi AI
+    // ==============================
+    let aiResults: {
+      status: 'TINGGI' | 'SEDANG' | 'RENDAH' | 'Tidak Terindikasi';
+      confidence: number | null;
+      boxes: Array<{ label: string; confidence: number; x: number; y: number; w: number; h: number }>;
+    };
+
+    if (isAiReady()) {
+      console.log('[AI] detect.py dijalankan untuk report #' + newReport.id);
+      try {
+        aiResults = await detectFile(uploadedFilePath);
+        console.log(`[AI] YOLO selesai — status: ${aiResults.status}, confidence: ${aiResults.confidence}, boxes: ${aiResults.boxes.length}`);
+      } catch (err) {
+        console.error('[AI] Detection error (non-fatal):', err);
+        aiResults = { status: 'Tidak Terindikasi', confidence: null, boxes: [] };
+      }
+    } else {
+      const warmupErr = getWarmupError();
+      if (warmupErr) {
+        console.warn('[AI] Skipping detection — model not available:', warmupErr);
+      } else {
+        console.warn('[AI] Model belum diwarmup, skip AI detection');
+      }
+      aiResults = { status: 'Tidak Terindikasi', confidence: null, boxes: [] };
+    }
+
+    // ==============================
+    // STEP 3: Update MongoDB dengan hasil AI (Eksplisit via _id)
+    // ==============================
+    console.log('[AI] Mengupdate report #' + newReport.id + ' dengan hasil AI...');
+    console.log('[AI] Update query: { _id: ' + newReport._id + ' }');
+    console.log('[AI] AI fields: aiStatus=' + aiResults.status + ', aiConfidence=' + aiResults.confidence + ', boundingBoxes=' + aiResults.boxes.length);
+
+    const updateResult = await ReportModel.updateOne(
+      { _id: newReport._id },
+      {
+        $set: {
+          aiStatus: aiResults.status,
+          aiConfidence: aiResults.confidence,
+          boundingBoxes: aiResults.boxes,
+        },
+      }
+    ).exec();
+
+    console.log('[AI] updateOne result: matched=' + updateResult.matchedCount + ', modified=' + updateResult.modifiedCount);
+
+    if (updateResult.matchedCount === 0) {
+      console.error('[AI] ❌ KRITIKAL: Report _id=' + newReport._id + ' tidak ditemukan saat update!');
+    } else if (updateResult.modifiedCount === 0) {
+      console.warn('[AI] ⚠️  Report ditemukan tapi tidak ada perubahan (AI fields sudah sama)');
+    } else {
+      console.log('[AI] ✅ Report #' + newReport.id + ' berhasil diupdate dengan hasil AI');
+    }
+
+    // ==============================
+    // STEP 4: Ambil data terbaru dari DB untuk response
+    // ==============================
+    const updatedReport = await ReportModel.findById(newReport._id).lean().exec();
+    if (!updatedReport) {
+      console.error('[UPLOAD] ❌ KRITIKAL: Report hilang setelah update!');
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+
+    console.log('[UPLOAD] Final report — id=' + updatedReport.id + ', aiStatus=' + updatedReport.aiStatus + ', aiConfidence=' + updatedReport.aiConfidence + ', boxes=' + (updatedReport.boundingBoxes?.length || 0));
+
+    // Copy last_capture.jpg
     try {
-      const uploadDir = path.join(__dirname, '../../public/uploads');
       const sourcePath = path.join(uploadDir, req.file.filename);
       const destPath = path.join(uploadDir, 'last_capture.jpg');
       fs.copyFileSync(sourcePath, destPath);
@@ -377,7 +458,7 @@ router.post('/detections', (req, res, next) => {
       console.error('[SERVER ERROR] Error copying last capture image:', err);
     }
 
-    res.status(201).json(newReport);
+    res.status(201).json(updatedReport);
   } catch (err) {
     console.error('[SERVER ERROR] Create report failed:', err);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -445,6 +526,62 @@ router.delete('/clear-all', async (req, res) => {
   } catch (err) {
     console.error('[SERVER ERROR] Clear all reports failed:', err);
     res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// POST /api/detections/:id/signal — Community Signal (masih terjadi / sudah bersih)
+router.post('/detections/:id/signal', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return sendError(res, 'Unauthorized', 401);
+
+    const reportId = parseInt(req.params.id);
+    const { type } = req.body; // 'active' | 'resolved'
+
+    if (!type || !['active', 'resolved'].includes(type)) {
+      return sendError(res, 'Tipe sinyal tidak valid.', 400);
+    }
+
+    // Cari report (tanpa workspaceId dulu untuk kompatibilitas)
+    let report = await ReportModel.findOne({ id: reportId, deletedAt: null }).exec();
+    if (!report && user.workspaceId) {
+      report = await ReportModel.findOne({ id: reportId, deletedAt: null, workspaceId: user.workspaceId }).exec();
+    }
+    if (!report) return sendError(res, 'Laporan tidak ditemukan.', 404);
+
+    // Initialize signals array if not exists
+    if (!report.signals) {
+      report.signals = { active: [], resolved: [] };
+    }
+
+    // Check if user already voted
+    const alreadyActive = (report.signals.active || []).includes(user.id);
+    const alreadyResolved = (report.signals.resolved || []).includes(user.id);
+
+    // Remove previous vote if exists
+    report.signals.active = (report.signals.active || []).filter((id: number) => id !== user.id);
+    report.signals.resolved = (report.signals.resolved || []).filter((id: number) => id !== user.id);
+
+    // Add new vote
+    if (type === 'active') {
+      report.signals.active.push(user.id);
+    } else {
+      report.signals.resolved.push(user.id);
+    }
+
+    await report.save();
+
+    res.json({
+      success: true,
+      data: {
+        active: report.signals.active.length,
+        resolved: report.signals.resolved.length,
+        voted: true
+      }
+    });
+  } catch (err) {
+    console.error('[SERVER ERROR] Community signal failed:', err);
+    sendError(res, 'Internal Server Error', 500);
   }
 });
 

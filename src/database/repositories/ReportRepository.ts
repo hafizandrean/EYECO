@@ -253,10 +253,22 @@ export class ReportRepository {
 
       if (page !== undefined && limit !== undefined) {
         const skip = (page - 1) * limit;
-        const [reports, total] = await Promise.all([
+        let [reports, total] = await Promise.all([
           q.skip(skip).limit(limit).exec(),
           ReportModel.countDocuments(query).exec()
         ]);
+
+        // Fallback untuk superadmin: jika tidak ada hasil dari workspace sendiri,
+        // cari semua report (tanpa filter workspaceId)
+        if (reports.length === 0 && total === 0 && userContext.role === 'superadmin') {
+          const fallbackQuery = { ...query };
+          delete fallbackQuery.workspaceId;
+          [reports, total] = await Promise.all([
+            ReportModel.find(fallbackQuery).sort({ timestamp: -1 }).skip(skip).limit(limit).exec(),
+            ReportModel.countDocuments(fallbackQuery).exec()
+          ]);
+        }
+
         return { reports, total };
       } else {
         return await q.exec();
@@ -297,6 +309,53 @@ export class ReportRepository {
         ReportModel.countDocuments({ ...matchQuery, adminStatus: 'MENUNGGU' })
       ]);
 
+      // Fallback: jika superadmin hasil 0, coba tanpa filter workspace
+      if (total === 0 && userContext?.role === 'superadmin') {
+        const fallbackQuery: any = { deletedAt: null };
+        const [total2, valid2, cancelled2, pending2] = await Promise.all([
+          ReportModel.countDocuments(fallbackQuery),
+          ReportModel.countDocuments({ ...fallbackQuery, adminStatus: 'VALID' }),
+          ReportModel.countDocuments({ ...fallbackQuery, adminStatus: 'DIABAIKAN' }),
+          ReportModel.countDocuments({ ...fallbackQuery, adminStatus: 'MENUNGGU' })
+        ]);
+        if (total2 > 0) {
+          // Hitung distribusi AI untuk fallback
+          const [fbTinggi, fbSedang, fbRendah, fbTidak] = await Promise.all([
+            ReportModel.countDocuments({ ...fallbackQuery, aiStatus: 'TINGGI' }),
+            ReportModel.countDocuments({ ...fallbackQuery, aiStatus: 'SEDANG' }),
+            ReportModel.countDocuments({ ...fallbackQuery, aiStatus: 'RENDAH' }),
+            ReportModel.countDocuments({ ...fallbackQuery, aiStatus: 'Tidak Terindikasi' })
+          ]);
+          const fbSevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+          const fbRecent = await ReportModel.countDocuments({
+            ...fallbackQuery,
+            $or: [
+              { adminStatus: 'MENUNGGU' },
+              { timestamp: { $gte: fbSevenDaysAgo } }
+            ]
+          });
+          return { total: total2, mostVulnerable: '-', valid: valid2, cancelled: cancelled2, pending: pending2, tinggi: fbTinggi, sedang: fbSedang, rendah: fbRendah, tidakTerindikasi: fbTidak, recent: fbRecent };
+        }
+      }
+
+      // Hitung distribusi AI status
+      const [tinggi, sedang, rendah, tidakTerindikasi] = await Promise.all([
+        ReportModel.countDocuments({ ...matchQuery, aiStatus: 'TINGGI' }),
+        ReportModel.countDocuments({ ...matchQuery, aiStatus: 'SEDANG' }),
+        ReportModel.countDocuments({ ...matchQuery, aiStatus: 'RENDAH' }),
+        ReportModel.countDocuments({ ...matchQuery, aiStatus: 'Tidak Terindikasi' })
+      ]);
+
+      // "Laporan Terkini" = laporan MENUNGGU (any age) ATAU laporan dalam 7 hari terakhir
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const recent = await ReportModel.countDocuments({
+        ...matchQuery,
+        $or: [
+          { adminStatus: 'MENUNGGU' },
+          { timestamp: { $gte: sevenDaysAgo } }
+        ]
+      });
+
       const vulnGroup = await ReportModel.aggregate([
         { $match: { ...matchQuery, aiStatus: { $in: ['TINGGI', 'SEDANG'] } } },
         { $group: { _id: '$location', count: { $sum: 1 } } },
@@ -323,7 +382,12 @@ export class ReportRepository {
         mostVulnerable,
         valid,
         cancelled,
-        pending
+        pending,
+        tinggi,
+        sedang,
+        rendah,
+        tidakTerindikasi,
+        recent
       };
     } catch (err) {
       console.error('[DATABASE ERROR] getStats failed:', err);
@@ -346,11 +410,20 @@ export class ReportRepository {
         throw new Error('Komentar harus terdiri dari 2 hingga 500 karakter.');
       }
 
+      // Query WITHOUT workspaceId — karena report LAMA tidak punya field workspaceId
       const query: Record<string, unknown> = { id: reportId, deletedAt: null };
-      if (workspaceId !== undefined) query.workspaceId = workspaceId;
-      const report = await ReportModel.findOne(query);
+
+      let report = await ReportModel.findOne(query).lean().exec();
       if (!report) {
-        throw new Error('Laporan tidak ditemukan.');
+        // Fallback: coba dengan workspaceId (untuk report BARU)
+        if (workspaceId !== undefined) {
+          const query2: Record<string, unknown> = { id: reportId, deletedAt: null, workspaceId };
+          report = await ReportModel.findOne(query2).lean().exec();
+        }
+
+        if (!report) {
+          throw new Error('Laporan tidak ditemukan.');
+        }
       }
 
       const commentData = {
@@ -359,12 +432,21 @@ export class ReportRepository {
         likedBy: [],
         isDeleted: false,
         parentCommentId: null
-      };
+      } as any;
 
-      report.comments.push(commentData as any);
-      await report.save();
+      // Gunakan findOneAndUpdate untuk atomic push (hindari masalah dengan timestamps)
+      const updated = await ReportModel.findOneAndUpdate(
+        { _id: report._id },
+        { $push: { comments: commentData } },
+        { new: true }
+      ).exec();
 
-      return report.comments[report.comments.length - 1];
+      if (!updated) {
+        throw new Error('Gagal menambahkan komentar.');
+      }
+
+      const newComment = updated.comments[updated.comments.length - 1];
+      return newComment;
     } catch (err) {
       console.error('[DATABASE ERROR] addComment failed:', err);
       throw err;
@@ -380,8 +462,12 @@ export class ReportRepository {
   ): Promise<IComment> {
     try {
       const query: Record<string, unknown> = { id: reportId, deletedAt: null };
-      if (workspaceId !== undefined) query.workspaceId = workspaceId;
-      const report = await ReportModel.findOne(query);
+      let report = await ReportModel.findOne(query);
+      if (!report && workspaceId !== undefined) {
+        query.workspaceId = workspaceId;
+        console.log('[DELETECOMMENT] Fallback: coba dengan workspaceId');
+        report = await ReportModel.findOne(query);
+      }
       if (!report) {
         throw new Error('Laporan tidak ditemukan.');
       }
@@ -413,8 +499,12 @@ export class ReportRepository {
   ): Promise<IComment> {
     try {
       const query: Record<string, unknown> = { id: reportId, deletedAt: null };
-      if (workspaceId !== undefined) query.workspaceId = workspaceId;
-      const report = await ReportModel.findOne(query);
+      let report = await ReportModel.findOne(query);
+      if (!report && workspaceId !== undefined) {
+        query.workspaceId = workspaceId;
+        console.log('[TOGGLELIKE] Fallback: coba dengan workspaceId');
+        report = await ReportModel.findOne(query);
+      }
       if (!report) {
         throw new Error('Laporan tidak ditemukan.');
       }

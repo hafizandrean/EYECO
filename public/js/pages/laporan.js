@@ -6,6 +6,7 @@ import { Formatter } from '../utils/formatter.js';
 import { CONFIG } from '../core/config.js';
 import { EventBus } from '../core/eventBus.js';
 import { AppState } from '../core/state.js';
+import { animateCounter, createScrollObserver } from '../utils/animations.js';
 
 export class LaporanPage {
   constructor() {
@@ -355,20 +356,47 @@ export class LaporanPage {
     const barValid = document.getElementById('laporan-bar-valid');
     const barIgnored = document.getElementById('laporan-bar-ignored');
 
-    if (totalEl) totalEl.innerText = this.stats.total;
-    if (rawanEl) rawanEl.innerText = this.stats.mostVulnerable;
-    if (validEl) validEl.innerText = this.stats.valid;
-    if (cancelledEl) cancelledEl.innerText = this.stats.cancelled;
+    // Set initial = 0
+    if (totalEl) totalEl.innerText = '0';
+    if (rawanEl) rawanEl.innerText = '-';
+    if (validEl) validEl.innerText = '0';
+    if (cancelledEl) cancelledEl.innerText = '0';
+    if (pendingCount) pendingCount.innerText = '0';
+    if (validCount) validCount.innerText = '0';
+    if (ignoredCount) ignoredCount.innerText = '0';
 
-    if (pendingCount) pendingCount.innerText = this.stats.pending;
-    if (validCount) validCount.innerText = this.stats.valid;
-    if (ignoredCount) ignoredCount.innerText = this.stats.cancelled;
+    // Set chart bars to 0 first
+    if (barPending) barPending.style.height = '0%';
+    if (barValid) barValid.style.height = '0%';
+    if (barIgnored) barIgnored.style.height = '0%';
 
-    // Set chart bars heights
-    const maxVal = Math.max(this.stats.pending, this.stats.valid, this.stats.cancelled, 1);
-    if (barPending) barPending.style.height = `${(this.stats.pending / maxVal) * 80}%`;
-    if (barValid) barValid.style.height = `${(this.stats.valid / maxVal) * 80}%`;
-    if (barIgnored) barIgnored.style.height = `${(this.stats.cancelled / maxVal) * 80}%`;
+    // Scroll observer — animasi jalan saat masuk viewport
+    createScrollObserver('.stats-chart-layout', () => {
+      // Animate counters naik perlahan
+      if (totalEl) animateCounter(totalEl, this.stats.total, 1200);
+      if (rawanEl) rawanEl.innerText = this.stats.mostVulnerable;
+      if (validEl) animateCounter(validEl, this.stats.valid, 1200);
+      if (cancelledEl) animateCounter(cancelledEl, this.stats.cancelled, 1200);
+
+      if (pendingCount) animateCounter(pendingCount, this.stats.pending, 1000);
+      if (validCount) animateCounter(validCount, this.stats.valid, 1000);
+      if (ignoredCount) animateCounter(ignoredCount, this.stats.cancelled, 1000);
+
+      // Set chart bars heights with transition
+      const maxVal = Math.max(this.stats.pending, this.stats.valid, this.stats.cancelled, 1);
+      if (barPending) {
+        barPending.style.transition = 'height 1s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        barPending.style.height = `${(this.stats.pending / maxVal) * 80}%`;
+      }
+      if (barValid) {
+        barValid.style.transition = 'height 1s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        barValid.style.height = `${(this.stats.valid / maxVal) * 80}%`;
+      }
+      if (barIgnored) {
+        barIgnored.style.transition = 'height 1s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        barIgnored.style.height = `${(this.stats.cancelled / maxVal) * 80}%`;
+      }
+    });
   }
 
   renderTable() {

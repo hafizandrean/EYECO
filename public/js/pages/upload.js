@@ -80,9 +80,9 @@ export class UploadPage {
 
         <!-- Right: Upload History Card -->
         <section class="glass-card history-card" id="upload-history-card" style="padding: var(--space-32);">
-          <div class="card-header-clean" style="margin-bottom: var(--space-24);">
+          <div class="card-header-clean" style="margin-bottom: var(--space-24); flex-direction: column; align-items: flex-start; gap: 2px;">
             <h3 class="section-title" style="margin: 0;"><i data-lucide="clock"></i> Riwayat Laporan Saya</h3>
-            <p class="caption-label" style="margin-top: 4px;">Pantau perkembangan penanganan insiden yang Anda laporkan</p>
+            <p class="caption-label" style="white-space: normal; word-wrap: break-word;">Pantau perkembangan penanganan insiden yang Anda laporkan</p>
           </div>
 
           <div class="history-list" id="history-list-container" style="display: flex; flex-direction: column; gap: var(--space-12);">
@@ -306,11 +306,38 @@ export class UploadPage {
 
     try {
       const response = await ReportService.uploadReport(formData);
+      
+      // ===== EXTREME LOG FRONTEND =====
+      console.log('=== [UPLOAD_EXTREME] Response dari server ===');
+      console.log('response type:', typeof response);
+      console.log('response keys:', Object.keys(response || {}));
+      console.log('response.id:', response?.id, '(type:', typeof response?.id, ')');
+      console.log('response._id:', response?._id, '(type:', typeof response?._id, ')');
+      console.log('response.data:', response?.data);
+      if (response?.data) {
+        console.log('response.data.id:', response.data.id, '(type:', typeof response.data.id, ')');
+        console.log('response.data._id:', response.data._id);
+      }
+      console.log('Full response JSON:', JSON.stringify(response, null, 2));
+      
       EventBus.emit('toast:show', { message: 'Laporan berhasil divalidasi AI & disimpan!', type: 'success' });
+      
+      console.log('[UPLOAD_FRONTEND] Response dari server:', JSON.stringify(response, null, 2));
       
       // Navigate using the returned report id — response may be wrapped in { success: true, data: { ... } }
       const report = response.data || response;
-      const reportId = report.id || report._id;
+      let reportId = report.id || report._id;
+      
+      console.log('[UPLOAD_FRONTEND] report.id:', report.id, '(type:', typeof report.id, ')');
+      console.log('[UPLOAD_FRONTEND] report._id:', report._id, '(type:', typeof report._id, ')');
+      console.log('[UPLOAD_FRONTEND] reportId dipilih:', reportId);
+      
+      // Pastikan reportId adalah Number jika berbentuk numeric string
+      if (typeof reportId === 'string' && /^\d+$/.test(reportId)) {
+        reportId = parseInt(reportId, 10);
+        console.log('[UPLOAD_FRONTEND] reportId dikonversi ke Number:', reportId);
+      }
+      
       if (reportId) {
         Router.navigate(`/dashboard/detections/${reportId}`);
       } else {

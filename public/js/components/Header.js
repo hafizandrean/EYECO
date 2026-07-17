@@ -25,17 +25,25 @@ export class HeaderComponent {
       laporan: this.container.querySelector('[data-tab="laporan"]'),
       upload: this.container.querySelector('[data-tab="upload"]')
     };
+    this.indicator = document.getElementById('nav-indicator');
+    this.indicatorInitialized = false;
 
-    // Bind tab clicks — use natural <a href> navigation (Express serves each route)
+    // Bind tab clicks — animasi dulu, baru navigasi
     Object.keys(this.tabs).forEach(key => {
       const tab = this.tabs[key];
       if (tab) {
-        // No preventDefault — let the browser follow the href naturally.
-        // The SPA router still handles in-page popstate events for the back button.
-        tab.addEventListener('click', () => {
-          const targetPath = tab.getAttribute('href');
-          AppState.set('lastActiveTab', this.getTabFromPath(window.location.pathname));
-          // Allow natural navigation — do NOT call Router.navigate()
+        tab.addEventListener('click', (e) => {
+          e.preventDefault(); // tahan navigasi
+          const targetHref = tab.getAttribute('href');
+          if (!targetHref || targetHref === window.location.pathname) return;
+
+          // Animasi indicator slide + bouncing ke tab target
+          this.moveIndicator(tab, true);
+
+          // Tunggu animasi selesai, baru navigate via SPA Router (instant, tanpa full reload)
+          setTimeout(() => {
+            Router.navigate(targetHref);
+          }, 480); // 420ms slide + 60ms buffer
         });
       }
     });
@@ -97,12 +105,12 @@ export class HeaderComponent {
     }
 
     // Initial Sync
-    this.syncNavbarState();
+    this.syncNavbarState(true); // initial = tanpa animasi indicator
     this.renderUserProfile();
   }
 
   // Menyelaraskan active tab dengan bubble penanda geser
-  syncNavbarState() {
+  syncNavbarState(initial = false) {
     // Use the real browser URL as the source of truth (full-page Express routing)
     const currentPath = window.location.pathname || AppState.get('activePath');
     const user = AppState.get('user');
@@ -143,11 +151,18 @@ export class HeaderComponent {
     });
 
     if (!activeKey || !this.tabs[activeKey]) {
+      if (this.indicator) {
+        this.indicator.style.width = '0';
+        this.indicator.style.transform = 'translateX(0)';
+      }
       return;
     }
 
     const activeTab = this.tabs[activeKey];
     activeTab.classList.add('active');
+
+    // Pindahkan indicator ke tab aktif
+    this.moveIndicator(activeTab, !initial);
 
     if (window.lucide) window.lucide.createIcons();
   }
@@ -161,9 +176,14 @@ export class HeaderComponent {
 
     if (!user) return;
 
-    // Set Avatar initials (ambil 2 huruf username)
+    // Set Avatar — foto profil jika ada, inisial jika tidak
     if (avatar) {
-      avatar.innerText = user.username.substring(0, 2).toUpperCase();
+      if (user.avatar) {
+        avatar.innerHTML = `<img src="${user.avatar}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+      } else {
+        avatar.innerHTML = '';
+        avatar.textContent = user.username.substring(0, 2).toUpperCase();
+      }
     }
     
     if (dropdownName) dropdownName.innerText = user.username;
@@ -185,6 +205,34 @@ export class HeaderComponent {
     if (path === '/dashboard/upload') return 'upload';
     if (path.startsWith('/dashboard/detections/')) return 'detail';
     return 'dashboard';
+  }
+
+  // Pindahkan indikator sliding ke tab target
+  moveIndicator(tab, animate = true) {
+    if (!this.indicator || !tab) return;
+    const parent = tab.closest('.nav-tabs');
+    if (!parent) return;
+    
+    // Hitung posisi/lebar tab di dalam parent
+    const tabRect = tab.getBoundingClientRect();
+    const parentRect = parent.getBoundingClientRect();
+    const left = tabRect.left - parentRect.left;
+    
+    if (animate) {
+      this.indicator.style.transition = 'transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1), width 420ms cubic-bezier(0.34, 1.56, 0.64, 1)';
+    } else {
+      // Pertama kali inisialisasi — tanpa animasi
+      this.indicator.style.transition = 'none';
+    }
+    
+    this.indicator.style.width = `${tabRect.width}px`;
+    this.indicator.style.transform = `translateX(${left}px)`;
+    
+    if (!animate) {
+      // Force reflow, baru aktifkan transisi untuk berikutnya
+      void this.indicator.offsetHeight;
+      this.indicator.style.transition = 'transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1), width 420ms cubic-bezier(0.34, 1.56, 0.64, 1)';
+    }
   }
 }
 export const GlobalHeader = new HeaderComponent();

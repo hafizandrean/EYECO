@@ -1,0 +1,25 @@
+# ============================================================
+# EYECO AI — YOLOv8 Inference Dependencies
+# ============================================================
+# Instalasi: pip install -r requirements.txt
+
+# Core: YOLOv8 via Ultralytics
+ultralytics>=8.3.0
+
+# Computer Vision & Image Processing
+opencv-python-headless>=4.10.0
+Pillow>=10.0.0
+
+# Numerical & Scientific
+numpy>=1.24.0
+
+# Serialization
+orjson>=3.10.0
+
+# ============================================================
+# NOTES:
+# - torch & torchvision akan terinstall otomatis sebagai
+#   dependensi ultralytics. Untuk GPU, install CUDA version:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+# - Untuk Apple Silicon (MPS), torch sudah support otomatis.
+# ============================================================

@@ -64,6 +64,7 @@ export interface IReport extends Document {
   archivedAt: Date | null;
   archiveReason: string | null;
   sourceMetadata: ISourceMetadata;
+  signals?: ISignals;
   createdAt: Date;
   updatedAt: Date;
   __v: number;
@@ -80,6 +81,11 @@ export interface ISourceMetadata {
   clientIp?: string;
   ruleVersion?: string;
   modelVersion?: string;
+}
+
+export interface ISignals {
+  active: number[];
+  resolved: number[];
 }
 
 const SourceMetadataSchema = new Schema<ISourceMetadata>({
@@ -172,9 +178,18 @@ const ReportSchema = new Schema<IReport>({
   archived: { type: Boolean, default: false, index: true },
   archivedAt: { type: Date, default: null },
   archiveReason: { type: String, default: null },
-  sourceMetadata: { type: SourceMetadataSchema, default: {} }
+  workspaceId: { type: Number, index: true },
+  sourceMetadata: { type: SourceMetadataSchema, default: {} },
+  signals: {
+    type: new Schema({
+      active: { type: [Number], default: [] },
+      resolved: { type: [Number], default: [] }
+    }, { _id: false }),
+    default: { active: [], resolved: [] }
+  }
 }, {
-  timestamps: true
+  timestamps: true,
+  id: false // Prevent Mongoose virtual 'id' from overriding our numeric 'id' field
 });
 
 ReportSchema.index({ timestamp: -1, adminStatus: 1 });

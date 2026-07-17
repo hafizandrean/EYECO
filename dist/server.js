@@ -29,6 +29,7 @@ const AiPipelineScheduler_1 = require("./cctv/services/AiPipelineScheduler");
 const AiEngineHealthMonitor_1 = require("./cctv/services/AiEngineHealthMonitor");
 const OutboxWorker_1 = require("./notifications/OutboxWorker");
 const TelegramNotificationChannel_1 = require("./notifications/TelegramNotificationChannel");
+const aiDetection_service_1 = require("./services/aiDetection.service");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = Number(process.env.PORT || 8000);
@@ -244,25 +245,6 @@ app.get('/api/detections', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-// API: Get Single Report by ID
-app.get('/api/detections/:id', async (req, res) => {
-    try {
-        const user = await (0, authMiddleware_1.getLoggedInUser)(req);
-        if (!user) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
-        const id = parseInt(req.params.id);
-        const report = await db_1.DatabaseManager.getById(id);
-        if (!report) {
-            return res.status(404).json({ error: 'Laporan tidak ditemukan' });
-        }
-        res.json(report);
-    }
-    catch (err) {
-        console.error('[SERVER ERROR] Get single report failed:', err);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
 // API: Update Admin Verification Status
 app.post('/api/detections/:id/verify', async (req, res) => {
     try {
@@ -437,6 +419,12 @@ function listenWithFallback(port, attempts = 10) {
         const server = app.listen(port);
         server.once('listening', () => {
             CctvHealthEngine_1.CctvHealthEngine.start();
+            // Warmup AI model di background — jangan block startup
+            (0, aiDetection_service_1.warmupAI)().then((res) => {
+                if (!res.success) {
+                    console.warn('[AI] Model tidak tersedia. Deteksi AI dinonaktifkan. Upload laporan tetap berfungsi.');
+                }
+            });
             serverInstance = server;
             resolve(port);
         });

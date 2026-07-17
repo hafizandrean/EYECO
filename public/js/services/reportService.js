@@ -117,7 +117,16 @@ class ReportServiceClass {
 
   // Ambil laporan tunggal berdasarkan ID
   async getReportById(id) {
-    return await API.get(`/api/detections/${id}`);
+    const url = `/api/detections/${id}`;
+    console.log('[REPORT_SERVICE] getReportById:', url);
+    try {
+      const result = await API.get(url);
+      console.log('[REPORT_SERVICE] getReportById SUCCESS:', result ? 'data received' : 'null');
+      return result;
+    } catch (err) {
+      console.error('[REPORT_SERVICE] getReportById FAILED:', url, err.message);
+      throw err;
+    }
   }
 
   // Simpan verifikasi keputusan admin
@@ -133,9 +142,28 @@ class ReportServiceClass {
     }
   }
 
-  // Upload laporan baru (mengembalikan form data)
+  // Upload laporan baru (multipart)
   async uploadReport(formData) {
-    return await API.post('/api/detections', formData);
+    const url = '/api/detections';
+    console.log('=== [REPORT_SERVICE_EXTREME] uploadReport ===');
+    console.log('URL:', url);
+    console.log('formData keys:');
+    for (let pair of formData.entries()) {
+      if (pair[0] === 'file') {
+        console.log('  file:', pair[1].name, pair[1].type, pair[1].size);
+      } else {
+        console.log(' ', pair[0], ':', pair[1]);
+      }
+    }
+    try {
+      const response = await API.post(url, formData);
+      console.log('=== [REPORT_SERVICE_EXTREME] Response ===');
+      console.log('response:', JSON.stringify(response, null, 2));
+      return response;
+    } catch (err) {
+      console.error('=== [REPORT_SERVICE_EXTREME] ERROR ===', err.message);
+      throw err;
+    }
   }
 
   // Ekspor laporan ke file CSV (Admin)

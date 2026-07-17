@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import rateLimit from 'express-rate-limit';
 import { WorkspaceModel } from '../database/models/Workspace';
 import { UserModel } from '../database/models/User';
@@ -24,6 +27,28 @@ const authLimiter = rateLimit({
 
 router.use('/login', authLimiter);
 router.use('/register', authLimiter);
+
+// Avatar upload config
+const avatarDir = path.join(__dirname, '../../public/uploads/avatars');
+if (!fs.existsSync(avatarDir)) {
+  fs.mkdirSync(avatarDir, { recursive: true });
+}
+const avatarStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, avatarDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname) || '.jpg';
+    cb(null, `avatar_${Date.now()}_${Math.round(Math.random() * 1e9)}${ext}`);
+  }
+});
+const avatarUpload = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (allowed.includes(file.mimetype)) return cb(null, true);
+    cb(new Error('Hanya file gambar (JPG, PNG, WebP, GIF) yang diizinkan'));
+  }
+});
 
 router.post('/register', async (req, res) => {
   const { name, username, email, phone, password, confirmPassword } = req.body;
@@ -248,11 +273,114 @@ router.get('/me', authMiddleware, async (req, res) => {
       role: user.role,
       name: user.name,
       email: user.email,
+      phone: (user as any).phone || '',
+      avatar: (user as any).avatar || '',
+      status: user.status,
       workspaceId: user.workspaceId,
-      workspaceIds: (user as any).workspaceIds || []
+      workspaceIds: (user as any).workspaceIds || [],
     });
   } catch (err) {
     res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Update Profile Endpoint
+router.patch('/me', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userContext?.id;
+    if (!userId) return res.status(401).json({ error: 'Belum masuk' });
+
+    const { name, email, phone } = req.body;
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name.trim();
+    if (email !== undefined) updateData.email = email.trim().toLowerCase();
+    if (phone !== undefined) updateData.phone = phone.trim();
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ error: 'Tidak ada data yang diubah' });
+    }
+
+    const user = await UserModel.findOneAndUpdate(
+      { id: userId },
+      { $set: updateData },
+      { new: true }
+    ).lean().exec();
+
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    res.json({ success: true, data: { id: user.id, username: user.username, name: user.name, email: user.email, phone: (user as any).phone || '' } });
+  } catch (err) {
+    console.error('[SERVER ERROR] Update profile failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Avatar Upload Endpoint
+router.post('/avatar', authMiddleware, (req, res, next) => {
+  avatarUpload.single('avatar')(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'Ukuran foto maksimal 10MB' });
+        }
+        return res.status(400).json({ error: `Upload gagal: ${err.message}` });
+      }
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
+  try {
+    const userId = req.userContext?.id;
+    if (!userId) return res.status(401).json({ error: 'Belum masuk' });
+
+    if (!req.file) return res.status(400).json({ error: 'Tidak ada file yang diupload' });
+
+    // Hapus file avatar lama jika ada
+    const existingUser = await UserModel.findOne({ id: userId }).lean().exec();
+    if (existingUser && (existingUser as any).avatar) {
+      const oldPath = path.join(__dirname, '../../public', (existingUser as any).avatar);
+      try { if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath); } catch (_) {}
+    }
+
+    const avatarPath = `/uploads/avatars/${req.file.filename}`;
+
+    await UserModel.findOneAndUpdate(
+      { id: userId },
+      { $set: { avatar: avatarPath } }
+    ).exec();
+
+    res.json({ success: true, data: { avatar: avatarPath } });
+  } catch (err) {
+    console.error('[SERVER ERROR] Avatar upload failed:', err);
+    res.status(500).json({ error: 'Gagal mengupload foto profil' });
+  }
+});
+
+// Remove Avatar Endpoint
+router.delete('/avatar', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userContext?.id;
+    if (!userId) return res.status(401).json({ error: 'Belum masuk' });
+
+    const user = await UserModel.findOne({ id: userId }).lean().exec();
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    const oldAvatar = (user as any).avatar;
+    if (oldAvatar) {
+      const oldPath = path.join(__dirname, '../../public', oldAvatar);
+      try { if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath); } catch (_) {}
+    }
+
+    await UserModel.findOneAndUpdate(
+      { id: userId },
+      { $set: { avatar: '' } }
+    ).exec();
+
+    res.json({ success: true, data: { avatar: '' } });
+  } catch (err) {
+    console.error('[SERVER ERROR] Avatar remove failed:', err);
+    res.status(500).json({ error: 'Gagal menghapus foto profil' });
   }
 });
 

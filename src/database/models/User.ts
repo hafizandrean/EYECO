@@ -9,6 +9,7 @@ export interface IUser extends Document {
   name: string;
   email: string;
   phone?: string;
+  avatar?: string;
   workspaceId?: number;
   workspaceIds: number[];
 }
@@ -39,6 +40,7 @@ const UserSchema = new Schema<IUser>({
   name: { type: String, trim: true, default: '' },
   email: { type: String, trim: true, lowercase: true, default: '' },
   phone: { type: String, trim: true, default: '' },
+  avatar: { type: String, default: '' },
   workspaceId: { type: Number, index: true, sparse: true },
   workspaceIds: { type: [Number], default: [] }
 }, {

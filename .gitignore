@@ -1,1 +1,9 @@
 mockup/
+ai/models/*.pt
+ai/uploads/*
+!ai/uploads/.gitkeep
+ai/output/*
+!ai/output/.gitkeep
+ai/__pycache__/
+ai/**/__pycache__/
+*.pyc

@@ -45,7 +45,16 @@ class AppInitializer {
 
     // 2. Inisialisasi Komponen Global
     GlobalHeader.init();
-    GlobalCommandPalette.init();
+    // Hanya inisialisasi Command Palette untuk admin
+    // User biasa tidak perlu shortcut navigasi keyboard
+    const user = AppState.get('user');
+    if (user?.role === 'admin') {
+      GlobalCommandPalette.init();
+    } else {
+      // Sembunyikan command palette dari DOM untuk user biasa
+      const cmdModal = document.getElementById('command-palette-modal');
+      if (cmdModal) cmdModal.style.display = 'none';
+    }
     this.notificationCenter.init();
 
     // 3. Muat tema tersimpan dari localStorage
@@ -63,88 +72,72 @@ class AppInitializer {
       this.currentPageInstance.destroy();
     }
 
-    // Show loading skeleton simulation delay
-    this.renderPageSkeleton();
+    // Scroll ke atas instan
+    window.scrollTo(0, 0);
+    document.body.scrollTop = 0;
+    document.documentElement.scrollTop = 0;
 
-    // Router matching
-    setTimeout(async () => {
-      try {
-        const user = AppState.get('user');
-        const isAdmin = user?.role === 'admin';
+    // Render halaman baru DI BELAKANG LAYER (opacity 0), tanpa nunggu
+    // Dengan begini pas indicator slider sampe, konten udah siap
+    this.viewport.style.opacity = '0';
+    this.viewport.style.transition = 'none';
 
-        if (path === '/dashboard') {
-          if (isAdmin) {
-            // Admin: full command center dashboard with CCTV monitoring
-            this.currentPageInstance = Dashboard;
-            await Dashboard.render(this.viewport);
-          } else {
-            // Regular user: landing page (Beranda)
-            this.currentPageInstance = Home;
-            await Home.render(this.viewport);
-          }
-        } else if (path === '/dashboard/laporan') {
-          this.currentPageInstance = Laporan;
-          await Laporan.render(this.viewport);
-        } else if (path === '/dashboard/upload') {
-          this.currentPageInstance = Upload;
-          await Upload.render(this.viewport);
-        } else if (path.startsWith('/dashboard/detections/')) {
-          const id = path.split('/').pop();
-          this.currentPageInstance = Detail;
-          await Detail.render(this.viewport, id);
-        } else if (path === '/dashboard/profile') {
-          this.currentPageInstance = Profile;
-          await Profile.render(this.viewport);
-        } else if (path === '/dashboard/berita') {
-          this.currentPageInstance = BeritaAdmin;
-          await BeritaAdmin.render(this.viewport);
+    try {
+      const user = AppState.get('user');
+      const isAdmin = user?.role === 'admin';
+
+      if (path === '/dashboard') {
+        if (isAdmin) {
+          this.currentPageInstance = Dashboard;
+          await Dashboard.render(this.viewport);
         } else {
-          // Default fallback
-          Router.navigate('/dashboard');
+          this.currentPageInstance = Home;
+          await Home.render(this.viewport);
         }
-
-        // Initialize Lucide Icons in loaded viewport page
-        if (window.lucide) {
-          window.lucide.createIcons();
-        }
-
-        // Page enter animation
-        this.viewport.classList.remove('page-enter');
-        void this.viewport.offsetWidth; // force reflow
-        this.viewport.classList.add('page-enter');
-      } catch (err) {
-        console.error('[Router Error] Gagal memuat halaman:', err);
-        this.renderRouterError();
+      } else if (path === '/dashboard/laporan') {
+        this.currentPageInstance = Laporan;
+        await Laporan.render(this.viewport);
+      } else if (path === '/dashboard/upload') {
+        this.currentPageInstance = Upload;
+        await Upload.render(this.viewport);
+      } else if (path.startsWith('/dashboard/detections/')) {
+        const id = path.split('/').pop();
+        this.currentPageInstance = Detail;
+        await Detail.render(this.viewport, id);
+      } else if (path === '/dashboard/profile') {
+        this.currentPageInstance = Profile;
+        await Profile.render(this.viewport);
+      } else if (path === '/dashboard/berita') {
+        this.currentPageInstance = BeritaAdmin;
+        await BeritaAdmin.render(this.viewport);
+      } else {
+        Router.navigate('/dashboard');
       }
-    }, 150); // 150ms delay for micro-interactions
+
+      // Initialize Lucide Icons
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+
+      // Force reflow, lalu fade-in — timing-nya bareng sama slide indicator
+      void this.viewport.offsetHeight;
+      this.viewport.style.transition = 'opacity 350ms cubic-bezier(0.22, 1, 0.36, 1)';
+      this.viewport.style.opacity = '1';
+
+      // Bersihkan inline style
+      setTimeout(() => {
+        this.viewport.style.transition = '';
+      }, 400);
+    } catch (err) {
+      console.error('[Router Error] Gagal memuat halaman:', err);
+      this.renderRouterError();
+    }
   }
 
   renderPageSkeleton() {
-    this.viewport.innerHTML = `
-      <div style="display:flex; flex-direction:column; gap: 24px; width:100%; max-width:1400px; margin: 0 auto; animation: pageFadeIn 0.3s ease;">
-        <div class="shimmer-card" style="min-height: 80px; width:100%; justify-content: center; gap: 8px;">
-          <div class="shimmer-line title" style="width: 20%; height: 20px;"></div>
-          <div class="shimmer-line subtitle" style="width: 45%;"></div>
-        </div>
-        <div class="stats-grid">
-          ${Array(4).fill(0).map(() => `
-            <div class="shimmer-card" style="min-height: 120px; gap: 12px; padding: 20px;">
-              <div style="display:flex; justify-content:space-between; width:100%;">
-                <div class="shimmer-line" style="width: 50%; height: 14px;"></div>
-                <div class="shimmer-line" style="width: 16px; height: 16px; border-radius: 50%;"></div>
-              </div>
-              <div class="shimmer-line" style="width: 30%; height: 24px; margin-top: 4px;"></div>
-              <div class="shimmer-line" style="width: 80%; height: 6px;"></div>
-            </div>
-          `).join('')}
-        </div>
-        <div class="shimmer-card" style="min-height: 380px; width: 100%;">
-          <div class="shimmer-line paragraph" style="flex: 1;"></div>
-          <div class="shimmer-line title"></div>
-          <div class="shimmer-line subtitle"></div>
-        </div>
-      </div>
-    `;
+    // Tidak pakai skeleton — konten lama tetap terlihat sampai fade-out selesai
+    // Lalu langsung render konten baru yang langsung fade-in
+    // Ini bikin transisi mulus kayak macOS
   }
 
   renderRouterError() {

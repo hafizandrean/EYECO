@@ -25,6 +25,7 @@ import { AiPipelineScheduler } from './cctv/services/AiPipelineScheduler';
 import { AiEngineHealthMonitor } from './cctv/services/AiEngineHealthMonitor';
 import { OutboxWorker } from './notifications/OutboxWorker';
 import { TelegramNotificationChannel } from './notifications/TelegramNotificationChannel';
+import { warmupAI } from './services/aiDetection.service';
 
 dotenv.config();
 
@@ -260,30 +261,6 @@ app.get('/api/detections', async (req, res) => {
   }
 });
 
-// API: Get Single Report by ID
-app.get('/api/detections/:id', async (req, res) => {
-  try {
-    const user = await getLoggedInUser(req);
-    if (!user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const id = parseInt(req.params.id);
-    const report = await DatabaseManager.getById(id);
-
-    if (!report) {
-      return res.status(404).json({ error: 'Laporan tidak ditemukan' });
-    }
-
-
-
-    res.json(report);
-  } catch (err) {
-    console.error('[SERVER ERROR] Get single report failed:', err);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
 // API: Update Admin Verification Status
 app.post('/api/detections/:id/verify', async (req, res) => {
   try {
@@ -498,6 +475,12 @@ function listenWithFallback(port: number, attempts = 10): Promise<number> {
 
     server.once('listening', () => {
       CctvHealthEngine.start();
+      // Warmup AI model di background — jangan block startup
+      warmupAI().then((res) => {
+        if (!res.success) {
+          console.warn('[AI] Model tidak tersedia. Deteksi AI dinonaktifkan. Upload laporan tetap berfungsi.');
+        }
+      });
       serverInstance = server;
       resolve(port);
     });

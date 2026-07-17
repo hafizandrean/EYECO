@@ -27,6 +27,7 @@ class ApiService {
 
     try {
       const response = await fetch(url, options);
+      console.log(`[API] ${options.method || 'GET'} ${url} → ${response.status} ${response.statusText}`);
 
       // Tangani status otentikasi (401)
       if (response.status === 401 && !url.includes('/api/auth/me')) {
@@ -47,6 +48,7 @@ class ApiService {
 
       return await response.json();
     } catch (err) {
+      console.warn('[API] Request error:', url, err.message);
       if (err.message === 'OFFLINE' || err.message.includes('Failed to fetch')) {
         this.setOnlineStatus(false);
         throw new Error('Koneksi jaringan gagal. Silakan coba lagi.');
@@ -56,6 +58,7 @@ class ApiService {
   }
 
   get(url, options = {}) {
+    console.log('[API] GET:', url);
     return this.request(url, { ...options, method: 'GET' });
   }
 

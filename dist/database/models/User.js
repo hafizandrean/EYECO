@@ -61,6 +61,7 @@ const UserSchema = new mongoose_1.Schema({
     name: { type: String, trim: true, default: '' },
     email: { type: String, trim: true, lowercase: true, default: '' },
     phone: { type: String, trim: true, default: '' },
+    avatar: { type: String, default: '' },
     workspaceId: { type: Number, index: true, sparse: true },
     workspaceIds: { type: [Number], default: [] }
 }, {

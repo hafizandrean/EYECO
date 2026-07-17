@@ -188,10 +188,20 @@ class ReportRepository {
             const q = Report_1.ReportModel.find(query).sort({ timestamp: -1 });
             if (page !== undefined && limit !== undefined) {
                 const skip = (page - 1) * limit;
-                const [reports, total] = await Promise.all([
+                let [reports, total] = await Promise.all([
                     q.skip(skip).limit(limit).exec(),
                     Report_1.ReportModel.countDocuments(query).exec()
                 ]);
+                // Fallback untuk superadmin: jika tidak ada hasil dari workspace sendiri,
+                // cari semua report (tanpa filter workspaceId)
+                if (reports.length === 0 && total === 0 && userContext.role === 'superadmin') {
+                    const fallbackQuery = { ...query };
+                    delete fallbackQuery.workspaceId;
+                    [reports, total] = await Promise.all([
+                        Report_1.ReportModel.find(fallbackQuery).sort({ timestamp: -1 }).skip(skip).limit(limit).exec(),
+                        Report_1.ReportModel.countDocuments(fallbackQuery).exec()
+                    ]);
+                }
                 return { reports, total };
             }
             else {
@@ -229,6 +239,50 @@ class ReportRepository {
                 Report_1.ReportModel.countDocuments({ ...matchQuery, adminStatus: 'DIABAIKAN' }),
                 Report_1.ReportModel.countDocuments({ ...matchQuery, adminStatus: 'MENUNGGU' })
             ]);
+            // Fallback: jika superadmin hasil 0, coba tanpa filter workspace
+            if (total === 0 && userContext?.role === 'superadmin') {
+                const fallbackQuery = { deletedAt: null };
+                const [total2, valid2, cancelled2, pending2] = await Promise.all([
+                    Report_1.ReportModel.countDocuments(fallbackQuery),
+                    Report_1.ReportModel.countDocuments({ ...fallbackQuery, adminStatus: 'VALID' }),
+                    Report_1.ReportModel.countDocuments({ ...fallbackQuery, adminStatus: 'DIABAIKAN' }),
+                    Report_1.ReportModel.countDocuments({ ...fallbackQuery, adminStatus: 'MENUNGGU' })
+                ]);
+                if (total2 > 0) {
+                    // Hitung distribusi AI untuk fallback
+                    const [fbTinggi, fbSedang, fbRendah, fbTidak] = await Promise.all([
+                        Report_1.ReportModel.countDocuments({ ...fallbackQuery, aiStatus: 'TINGGI' }),
+                        Report_1.ReportModel.countDocuments({ ...fallbackQuery, aiStatus: 'SEDANG' }),
+                        Report_1.ReportModel.countDocuments({ ...fallbackQuery, aiStatus: 'RENDAH' }),
+                        Report_1.ReportModel.countDocuments({ ...fallbackQuery, aiStatus: 'Tidak Terindikasi' })
+                    ]);
+                    const fbSevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                    const fbRecent = await Report_1.ReportModel.countDocuments({
+                        ...fallbackQuery,
+                        $or: [
+                            { adminStatus: 'MENUNGGU' },
+                            { timestamp: { $gte: fbSevenDaysAgo } }
+                        ]
+                    });
+                    return { total: total2, mostVulnerable: '-', valid: valid2, cancelled: cancelled2, pending: pending2, tinggi: fbTinggi, sedang: fbSedang, rendah: fbRendah, tidakTerindikasi: fbTidak, recent: fbRecent };
+                }
+            }
+            // Hitung distribusi AI status
+            const [tinggi, sedang, rendah, tidakTerindikasi] = await Promise.all([
+                Report_1.ReportModel.countDocuments({ ...matchQuery, aiStatus: 'TINGGI' }),
+                Report_1.ReportModel.countDocuments({ ...matchQuery, aiStatus: 'SEDANG' }),
+                Report_1.ReportModel.countDocuments({ ...matchQuery, aiStatus: 'RENDAH' }),
+                Report_1.ReportModel.countDocuments({ ...matchQuery, aiStatus: 'Tidak Terindikasi' })
+            ]);
+            // "Laporan Terkini" = laporan MENUNGGU (any age) ATAU laporan dalam 7 hari terakhir
+            const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+            const recent = await Report_1.ReportModel.countDocuments({
+                ...matchQuery,
+                $or: [
+                    { adminStatus: 'MENUNGGU' },
+                    { timestamp: { $gte: sevenDaysAgo } }
+                ]
+            });
             const vulnGroup = await Report_1.ReportModel.aggregate([
                 { $match: { ...matchQuery, aiStatus: { $in: ['TINGGI', 'SEDANG'] } } },
                 { $group: { _id: '$location', count: { $sum: 1 } } },
@@ -252,7 +306,12 @@ class ReportRepository {
                 mostVulnerable,
                 valid,
                 cancelled,
-                pending
+                pending,
+                tinggi,
+                sedang,
+                rendah,
+                tidakTerindikasi,
+                recent
             };
         }
         catch (err) {
@@ -267,12 +326,18 @@ class ReportRepository {
             if (sanitized.length < 2 || sanitized.length > 500) {
                 throw new Error('Komentar harus terdiri dari 2 hingga 500 karakter.');
             }
+            // Query WITHOUT workspaceId — karena report LAMA tidak punya field workspaceId
             const query = { id: reportId, deletedAt: null };
-            if (workspaceId !== undefined)
-                query.workspaceId = workspaceId;
-            const report = await Report_1.ReportModel.findOne(query);
+            let report = await Report_1.ReportModel.findOne(query).lean().exec();
             if (!report) {
-                throw new Error('Laporan tidak ditemukan.');
+                // Fallback: coba dengan workspaceId (untuk report BARU)
+                if (workspaceId !== undefined) {
+                    const query2 = { id: reportId, deletedAt: null, workspaceId };
+                    report = await Report_1.ReportModel.findOne(query2).lean().exec();
+                }
+                if (!report) {
+                    throw new Error('Laporan tidak ditemukan.');
+                }
             }
             const commentData = {
                 userId,
@@ -281,9 +346,13 @@ class ReportRepository {
                 isDeleted: false,
                 parentCommentId: null
             };
-            report.comments.push(commentData);
-            await report.save();
-            return report.comments[report.comments.length - 1];
+            // Gunakan findOneAndUpdate untuk atomic push (hindari masalah dengan timestamps)
+            const updated = await Report_1.ReportModel.findOneAndUpdate({ _id: report._id }, { $push: { comments: commentData } }, { new: true }).exec();
+            if (!updated) {
+                throw new Error('Gagal menambahkan komentar.');
+            }
+            const newComment = updated.comments[updated.comments.length - 1];
+            return newComment;
         }
         catch (err) {
             console.error('[DATABASE ERROR] addComment failed:', err);
@@ -293,9 +362,12 @@ class ReportRepository {
     static async deleteComment(reportId, commentId, userId, isAdmin, workspaceId) {
         try {
             const query = { id: reportId, deletedAt: null };
-            if (workspaceId !== undefined)
+            let report = await Report_1.ReportModel.findOne(query);
+            if (!report && workspaceId !== undefined) {
                 query.workspaceId = workspaceId;
-            const report = await Report_1.ReportModel.findOne(query);
+                console.log('[DELETECOMMENT] Fallback: coba dengan workspaceId');
+                report = await Report_1.ReportModel.findOne(query);
+            }
             if (!report) {
                 throw new Error('Laporan tidak ditemukan.');
             }
@@ -318,9 +390,12 @@ class ReportRepository {
     static async toggleLikeComment(reportId, commentId, userId, workspaceId) {
         try {
             const query = { id: reportId, deletedAt: null };
-            if (workspaceId !== undefined)
+            let report = await Report_1.ReportModel.findOne(query);
+            if (!report && workspaceId !== undefined) {
                 query.workspaceId = workspaceId;
-            const report = await Report_1.ReportModel.findOne(query);
+                console.log('[TOGGLELIKE] Fallback: coba dengan workspaceId');
+                report = await Report_1.ReportModel.findOne(query);
+            }
             if (!report) {
                 throw new Error('Laporan tidak ditemukan.');
             }

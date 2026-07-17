@@ -4,6 +4,7 @@ import { AppState } from '../core/state.js';
 import { Router } from '../core/router.js';
 import { ReportService } from '../services/reportService.js';
 import { Formatter } from '../utils/formatter.js';
+import { animateCounter, createScrollObserver } from '../utils/animations.js';
 
 class HomePage {
   constructor() {
@@ -45,8 +46,8 @@ class HomePage {
               </div>
               <div class="hero-stat-divider"></div>
               <div class="hero-stat">
-                <span class="hero-stat-value">32</span>
-                <span class="hero-stat-label">Titik Pantau</span>
+                <span class="hero-stat-value" id="hero-stat-pending">0</span>
+                <span class="hero-stat-label">Menunggu Verifikasi</span>
               </div>
             </div>
           </div>
@@ -65,6 +66,87 @@ class HomePage {
               <div class="hero-graphic-card card3">
                 <i data-lucide="shield"></i>
                 <span>Verified</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ═══ CHART STATISTICS ═══ -->
+        <section class="landing-section" id="chart-section">
+          <div class="section-label">Statistik</div>
+          <h2 class="section-title">Gambaran Umum Laporan</h2>
+          <p class="section-desc">Data laporan masyarakat dan status verifikasi secara real-time.</p>
+          <div class="chart-grid" id="chart-grid">
+            <div class="chart-card glass-card" style="padding: var(--space-24); border-radius: var(--radius-card);">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <h3 style="font-family:'Outfit',sans-serif;font-size:0.95rem;font-weight:700;margin:0;">Status Laporan</h3>
+                <span style="font-size:0.7rem;color:var(--text-muted);">Bulan Ini</span>
+              </div>
+              <div class="chart-bars" id="chart-bars" style="display:flex;flex-direction:column;gap:12px;">
+                <div class="chart-bar-row">
+                  <span class="chart-bar-label">Terverifikasi</span>
+                  <div class="chart-bar-track">
+                    <div class="chart-bar-fill" id="chart-bar-valid" style="width:0%;background:linear-gradient(90deg,#10B981,#059669);"></div>
+                  </div>
+                  <span class="chart-bar-value" id="chart-val-valid">0</span>
+                </div>
+                <div class="chart-bar-row">
+                  <span class="chart-bar-label">Menunggu</span>
+                  <div class="chart-bar-track">
+                    <div class="chart-bar-fill" id="chart-bar-pending" style="width:0%;background:linear-gradient(90deg,#F59E0B,#D97706);"></div>
+                  </div>
+                  <span class="chart-bar-value" id="chart-val-pending">0</span>
+                </div>
+                <div class="chart-bar-row">
+                  <span class="chart-bar-label">Diabaikan</span>
+                  <div class="chart-bar-track">
+                    <div class="chart-bar-fill" id="chart-bar-ignored" style="width:0%;background:linear-gradient(90deg,#EF4444,#DC2626);"></div>
+                  </div>
+                  <span class="chart-bar-value" id="chart-val-ignored">0</span>
+                </div>
+                <div class="chart-bar-row">
+                  <span class="chart-bar-label">Total</span>
+                  <div class="chart-bar-track">
+                    <div class="chart-bar-fill" id="chart-bar-total" style="width:0%;background:linear-gradient(90deg,#2563EB,#4F46E5);"></div>
+                  </div>
+                  <span class="chart-bar-value" id="chart-val-total">0</span>
+                </div>
+              </div>
+            </div>
+            <div class="chart-card glass-card" style="padding: var(--space-24); border-radius: var(--radius-card);">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <h3 style="font-family:'Outfit',sans-serif;font-size:0.95rem;font-weight:700;margin:0;">Deteksi AI</h3>
+                <span style="font-size:0.7rem;color:var(--text-muted);">Tingkat Keyakinan</span>
+              </div>
+              <div class="chart-bars" id="chart-bars-ai" style="display:flex;flex-direction:column;gap:12px;">
+                <div class="chart-bar-row">
+                  <span class="chart-bar-label">Tinggi</span>
+                  <div class="chart-bar-track">
+                    <div class="chart-bar-fill" id="chart-bar-ai-high" style="width:0%;background:linear-gradient(90deg,#EF4444,#DC2626);"></div>
+                  </div>
+                  <span class="chart-bar-value" id="chart-val-ai-high">0</span>
+                </div>
+                <div class="chart-bar-row">
+                  <span class="chart-bar-label">Sedang</span>
+                  <div class="chart-bar-track">
+                    <div class="chart-bar-fill" id="chart-bar-ai-mid" style="width:0%;background:linear-gradient(90deg,#F59E0B,#D97706);"></div>
+                  </div>
+                  <span class="chart-bar-value" id="chart-val-ai-mid">0</span>
+                </div>
+                <div class="chart-bar-row">
+                  <span class="chart-bar-label">Rendah</span>
+                  <div class="chart-bar-track">
+                    <div class="chart-bar-fill" id="chart-bar-ai-low" style="width:0%;background:linear-gradient(90deg,#3B82F6,#2563EB);"></div>
+                  </div>
+                  <span class="chart-bar-value" id="chart-val-ai-low">0</span>
+                </div>
+                <div class="chart-bar-row">
+                  <span class="chart-bar-label">Tidak Terindikasi</span>
+                  <div class="chart-bar-track">
+                    <div class="chart-bar-fill" id="chart-bar-ai-none" style="width:0%;background:linear-gradient(90deg,#6B7280,#4B5563);"></div>
+                  </div>
+                  <span class="chart-bar-value" id="chart-val-ai-none">0</span>
+                </div>
               </div>
             </div>
           </div>
@@ -295,6 +377,7 @@ class HomePage {
     await this.loadStats();
     await this.loadLatestReports();
     await this.loadNews();
+    await this.loadChart();
 
     // Init FAQ accordion
     this.initFAQ();
@@ -325,13 +408,25 @@ class HomePage {
 
   async loadStats() {
     try {
-      const res = await fetch('/api/stats/summary', { credentials: 'include' });
+      const res = await fetch('/api/stats', { credentials: 'include' });
       const data = await res.json();
       if (data) {
         const totalEl = document.getElementById('hero-stat-reports');
         const validEl = document.getElementById('hero-stat-valid');
-        if (totalEl) totalEl.textContent = data.totalReports ?? data.total ?? '0';
-        if (validEl) validEl.textContent = data.validReports ?? data.valid ?? '0';
+        const pendingEl = document.getElementById('hero-stat-pending');
+        // Laporan Terkini = laporan MENUNGGU ATAU dalam 7 hari terakhir
+        if (totalEl) {
+          totalEl.textContent = '0';
+          animateCounter(totalEl, data.recent ?? data.pending ?? data.total ?? 0, 1400);
+        }
+        if (validEl) {
+          validEl.textContent = '0';
+          animateCounter(validEl, data.valid ?? 0, 1400);
+        }
+        if (pendingEl) {
+          pendingEl.textContent = '0';
+          animateCounter(pendingEl, data.pending ?? 0, 1400);
+        }
       }
     } catch (_) {}
   }
@@ -341,13 +436,13 @@ class HomePage {
     if (!container) return;
 
     try {
-      const response = await ReportService.getFilteredReports({ limit: 3 });
+      const response = await ReportService.getFilteredReports({}, 1, 6);
       this.latestReports = response.reports || [];
       container.innerHTML = '';
 
       if (this.latestReports.length === 0) {
         container.innerHTML = `
-          <div class="reports-empty">
+          <div class="reports-empty" style="grid-column:1/-1;">
             <i data-lucide="inbox"></i>
             <p>Belum ada laporan warga. Jadilah yang pertama!</p>
           </div>
@@ -465,6 +560,83 @@ class HomePage {
         if (!isOpen) item.classList.add('open');
       });
     });
+  }
+
+  async loadChart() {
+    try {
+      const res = await fetch('/api/stats', { credentials: 'include' });
+      const data = await res.json();
+      if (!data) return;
+
+      const total = data.total || 0;
+      const valid = data.valid || 0;
+      const pending = data.pending || 0;
+      const ignored = data.cancelled || 0;
+      const max = Math.max(total, 1);
+
+      const aiHigh = data.tinggi || 0;
+      const aiMid = data.sedang || 0;
+      const aiLow = data.rendah || 0;
+      const aiNone = data.tidakTerindikasi || 0;
+      const aiMax = Math.max(aiHigh + aiMid + aiLow + aiNone, 1);
+
+      this.chartData = { valid, pending, ignored, total, aiHigh, aiMid, aiLow, aiNone, max, aiMax };
+
+      // Set angka awal = 0
+      document.getElementById('chart-val-valid').textContent = '0';
+      document.getElementById('chart-val-pending').textContent = '0';
+      document.getElementById('chart-val-ignored').textContent = '0';
+      document.getElementById('chart-val-total').textContent = '0';
+      document.getElementById('chart-val-ai-high').textContent = '0';
+      document.getElementById('chart-val-ai-mid').textContent = '0';
+      document.getElementById('chart-val-ai-low').textContent = '0';
+      document.getElementById('chart-val-ai-none').textContent = '0';
+
+      ['chart-bar-valid','chart-bar-pending','chart-bar-ignored','chart-bar-total',
+       'chart-bar-ai-high','chart-bar-ai-mid','chart-bar-ai-low','chart-bar-ai-none'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.width = '0%';
+      });
+
+      // Observer: animasi jalan saat discroll ke viewport
+      createScrollObserver('#chart-section', () => {
+        this.animateBar('chart-bar-valid', valid, max);
+        this.animateBar('chart-bar-pending', pending, max);
+        this.animateBar('chart-bar-ignored', ignored, max);
+        this.animateBar('chart-bar-total', total, max);
+        this.animateBar('chart-bar-ai-high', aiHigh, aiMax);
+        this.animateBar('chart-bar-ai-mid', aiMid, aiMax);
+        this.animateBar('chart-bar-ai-low', aiLow, aiMax);
+        this.animateBar('chart-bar-ai-none', aiNone, aiMax);
+        animateCounter(document.getElementById('chart-val-valid'), valid, 1000);
+        animateCounter(document.getElementById('chart-val-pending'), pending, 1000);
+        animateCounter(document.getElementById('chart-val-ignored'), ignored, 1000);
+        animateCounter(document.getElementById('chart-val-total'), total, 1000);
+        animateCounter(document.getElementById('chart-val-ai-high'), aiHigh, 1000);
+        animateCounter(document.getElementById('chart-val-ai-mid'), aiMid, 1000);
+        animateCounter(document.getElementById('chart-val-ai-low'), aiLow, 1000);
+        animateCounter(document.getElementById('chart-val-ai-none'), aiNone, 1000);
+      });
+    } catch (_) {}
+  }
+
+  animateBar(id, value, max) {
+    const el = document.getElementById(id);
+    if (el) {
+      const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
+      requestAnimationFrame(() => {
+        el.style.transition = 'width 1s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        el.style.width = `${pct}%`;
+      });
+    }
+  }
+
+  setBar(id, value, max) {
+    const el = document.getElementById(id);
+    if (el) {
+      const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
+      el.style.width = `${pct}%`;
+    }
   }
 
   initScrollAnimation() {
