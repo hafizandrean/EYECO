@@ -2712,3 +2712,226 @@ body.dark-mode .btn-outline:hover {
   border-color: var(--primary);
   color: var(--primary);
 }
+
+/* ═══════════════════════════════════════════
+   DASHBOARD ADMIN SPACING — PREMIUM LAYOUT
+   ═══════════════════════════════════════════ */
+
+/* ── Command Center HUD ── */
+.cc-hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: var(--space-16) var(--space-24);
+  gap: var(--space-12) var(--space-24);
+  margin-bottom: var(--space-20);
+  min-height: 48px;
+}
+.cc-hud-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.cc-hud-metrics {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  flex-wrap: wrap;
+  flex: 1;
+  justify-content: center;
+}
+.cc-hud-date {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+/* ── Control Panel ── */
+.control-panel-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: var(--space-14) var(--space-24);
+  gap: var(--space-12);
+  margin-bottom: var(--space-24) !important;
+}
+.control-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+.control-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  position: relative;
+}
+
+/* ── Primary: Incident Queue + Operational Summary ── */
+.command-center-primary {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: var(--space-24);
+  margin-bottom: var(--space-24);
+}
+@media (max-width: 900px) {
+  .command-center-primary { grid-template-columns: 1fr; }
+}
+.incident-queue-panel {
+  padding: var(--space-24);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+.operational-summary-panel {
+  padding: var(--space-24);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+/* ── Incident Queue Item ── */
+.incident-queue-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: var(--space-12) var(--space-14);
+  border-radius: var(--radius-lg);
+  background: rgba(255,255,255,0.8);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 0;
+}
+.incident-queue-item:hover {
+  background: rgba(47, 107, 255, 0.04);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+/* ── Operational Summary Metrics ── */
+.ops-metric-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-10);
+}
+.ops-metric-card {
+  background: rgba(0,0,0,0.02);
+  padding: var(--space-12) var(--space-8);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+.ops-metric-value {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.ops-metric-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* ── Secondary: CCTV ── */
+.command-center-secondary {
+  margin-bottom: var(--space-24);
+}
+.cctv-section-compact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+.cctv-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+.cctv-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Incident Filters ── */
+.incident-filter-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.incident-filter-input {
+  padding: 8px 12px;
+  font-size: 0.75rem;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--border);
+  background: rgba(255,255,255,0.5);
+  color: var(--text-primary);
+  outline: none;
+  min-width: 120px;
+  flex: 1;
+}
+.incident-filter-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+@media (max-width: 600px) {
+  .incident-filter-row { flex-direction: column; }
+}
+.incident-filter-input {
+  height: 36px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-main);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.82rem;
+  padding: 0 10px;
+  outline: none;
+  transition: border-color var(--anim-base);
+}
+.incident-filter-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+.ops-metric-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-10);
+  margin: var(--space-16) 0;
+}
+.ops-metric-card {
+  background: rgba(0,0,0,0.02);
+  padding: var(--space-12);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+.ops-metric-value {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.ops-metric-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.officer-live-panel {
+  margin-top: var(--space-12);
+}
+@media (max-width: 480px) {
+  .ops-metric-grid { grid-template-columns: 1fr 1fr; }
+}
+

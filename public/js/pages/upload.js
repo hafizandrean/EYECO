@@ -322,6 +322,25 @@ export class UploadPage {
       
       EventBus.emit('toast:show', { message: 'Laporan berhasil divalidasi AI & disimpan!', type: 'success' });
       
+      // Push notification untuk user — upload berhasil
+      const user = AppState.get('user');
+      if (user) {
+        const notifications = AppState.get('notifications') || [];
+        notifications.unshift({
+          id: reportId,
+          location: report.location || 'Lokasi tidak diketahui',
+          aiStatus: 'Info',
+          aiConfidence: 0,
+          timestamp: new Date(),
+          isComment: false,
+          isCustom: true,
+          level: 'success',
+          message: 'Laporan Anda berhasil diunggah dan sedang diproses AI.'
+        });
+        AppState.set('notifications', notifications);
+        AppState.set('unreadNotifications', (AppState.get('unreadNotifications') || 0) + 1);
+      }
+      
       console.log('[UPLOAD_FRONTEND] Response dari server:', JSON.stringify(response, null, 2));
       
       // Navigate using the returned report id — response may be wrapped in { success: true, data: { ... } }

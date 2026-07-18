@@ -4,9 +4,7 @@ import { Router } from './router.js';
 import { EventBus } from './eventBus.js';
 import { AuthService } from '../services/authService.js';
 import { GlobalHeader } from '../components/Header.js';
-import { GlobalCommandPalette } from '../components/CommandPalette.js';
 import { NotificationCenter } from '../components/Notification.js';
-
 // Page imports
 import { Dashboard } from '../pages/dashboard.js';
 import { Laporan } from '../pages/laporan.js';
@@ -45,16 +43,6 @@ class AppInitializer {
 
     // 2. Inisialisasi Komponen Global
     GlobalHeader.init();
-    // Hanya inisialisasi Command Palette untuk admin
-    // User biasa tidak perlu shortcut navigasi keyboard
-    const user = AppState.get('user');
-    if (user?.role === 'admin') {
-      GlobalCommandPalette.init();
-    } else {
-      // Sembunyikan command palette dari DOM untuk user biasa
-      const cmdModal = document.getElementById('command-palette-modal');
-      if (cmdModal) cmdModal.style.display = 'none';
-    }
     this.notificationCenter.init();
 
     // 3. Muat tema tersimpan dari localStorage

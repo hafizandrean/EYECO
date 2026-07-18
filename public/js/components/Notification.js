@@ -93,11 +93,18 @@ export class NotificationCenter {
 
     const baseNotifications = AppState.get('notifications') || [];
     
-    // Combine requests and notifications
+    // Combine requests and notifications — newest first
     const allItems = [
-      ...this.workspaceRequests.map(req => ({ type: 'workspace_request', data: req })),
-      ...baseNotifications.map(notif => ({ type: 'alert', data: notif }))
+      ...baseNotifications.map(notif => ({ type: 'alert', data: notif })),
+      ...this.workspaceRequests.map(req => ({ type: 'workspace_request', data: req }))
     ];
+    
+    // Sort: newest by createdAt/timestamp first
+    allItems.sort((a, b) => {
+      const aTime = a.data.createdAt || a.data.timestamp || 0;
+      const bTime = b.data.createdAt || b.data.timestamp || 0;
+      return new Date(bTime).getTime() - new Date(aTime).getTime();
+    });
 
     this.updateBadge(this.workspaceRequests.length + (AppState.get('unreadNotifications') || 0));
 

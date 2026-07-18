@@ -1,11 +1,45 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
+const multer_1 = __importDefault(require("multer"));
+const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
 const News_1 = require("../database/models/News");
 const User_1 = require("../database/models/User");
 const authMiddleware_1 = require("../auth/authMiddleware");
 const RoleMiddleware_1 = require("../auth/RoleMiddleware");
 const router = (0, express_1.Router)();
+// Multer config untuk upload thumbnail berita
+const newsStorage = multer_1.default.diskStorage({
+    destination: (req, file, cb) => {
+        const uploadDir = path_1.default.join(__dirname, '../../public/uploads/berita');
+        if (!fs_1.default.existsSync(uploadDir)) {
+            fs_1.default.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        const ext = path_1.default.extname(file.originalname).toLowerCase();
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        cb(null, `news_${uniqueSuffix}${ext}`);
+    },
+});
+const newsUpload = (0, multer_1.default)({
+    storage: newsStorage,
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (allowed.includes(file.mimetype)) {
+            cb(null, true);
+        }
+        else {
+            cb(new Error('Hanya file gambar (JPEG, PNG, WebP) yang diizinkan.'));
+        }
+    },
+});
 function slugify(text) {
     return text.toLowerCase()
         .replace(/[^\w\s-]/g, '')
@@ -14,6 +48,18 @@ function slugify(text) {
         .trim()
         .substring(0, 80);
 }
+// ─── PUBLIC: Get single news by slug ───
+router.get('/public/item/:slug', async (req, res) => {
+    try {
+        const item = await News_1.NewsModel.findOne({ slug: req.params.slug, status: 'published' }).lean().exec();
+        if (!item)
+            return res.status(404).json({ success: false, error: 'Berita tidak ditemukan' });
+        res.json({ success: true, news: item });
+    }
+    catch (err) {
+        res.status(500).json({ success: false, error: 'Gagal memuat berita' });
+    }
+});
 // ─── PUBLIC: Get published news ───
 router.get('/public/:workspaceId', async (req, res) => {
     try {
@@ -96,6 +142,19 @@ router.post('/create', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.rol
         console.error('[News] POST /create failed:', err);
         res.status(500).json({ error: 'Gagal membuat berita' });
     }
+});
+// ─── ADMIN: Upload thumbnail ───
+router.post('/upload-thumbnail', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.roleGuard)(['admin', 'superadmin']), (req, res) => {
+    newsUpload.single('file')(req, res, (err) => {
+        if (err) {
+            return res.status(400).json({ success: false, error: err.message });
+        }
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: 'Tidak ada file yang diupload' });
+        }
+        const fileUrl = '/uploads/berita/' + req.file.filename;
+        res.json({ success: true, url: fileUrl, filename: req.file.filename });
+    });
 });
 // ─── ADMIN: Update news ───
 router.put('/:id', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.roleGuard)(['admin', 'superadmin']), async (req, res) => {

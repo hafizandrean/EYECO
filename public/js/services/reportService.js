@@ -37,6 +37,9 @@ class ReportServiceClass {
     reports.forEach(report => {
       const comments = report.comments || [];
       const prevCount = this.lastCommentsState.get(report.id);
+      
+      // Check if this report belongs to current user (for uploader notification)
+      const isMyReport = report.userId === currentUser.id || report.userId === currentUser._id;
 
       if (prevCount !== undefined && comments.length > prevCount) {
         // Find new comments that were added
@@ -44,6 +47,27 @@ class ReportServiceClass {
         newComments.forEach(comment => {
           // If the comment is from someone else
           if (comment.userId !== currentUser.id && !comment.isDeleted) {
+            // Tentukan tipe notifikasi
+            let notifMessage = '';
+            let notifLevel = 'comment';
+            
+            // Cek apakah ini reply ke comment user
+            const isReply = comment.parentCommentId && report.comments
+              ? report.comments.some(c => String(c._id) === String(comment.parentCommentId) && c.userId === currentUser.id)
+              : false;
+            
+            // Cek apakah ini comment di laporan milik user
+            if (isReply) {
+              notifMessage = `${comment.username || 'Pengguna'} membalas komentar Anda: "${(comment.text || '').substring(0, 30)}${comment.text && comment.text.length > 30 ? '...' : ''}"`;
+              notifLevel = 'comment';
+            } else if (isMyReport) {
+              notifMessage = `${comment.username || 'Pengguna'} berkomentar di laporan Anda: "${(comment.text || '').substring(0, 30)}${comment.text && comment.text.length > 30 ? '...' : ''}"`;
+              notifLevel = 'comment';
+            } else {
+              notifMessage = `Komentar baru dari ${comment.username || 'Pengguna'}: "${(comment.text || '').substring(0, 30)}${comment.text && comment.text.length > 30 ? '...' : ''}"`;
+              notifLevel = 'comment';
+            }
+            
             // Push notification to AppState
             const notifications = AppState.get('notifications') || [];
             
@@ -58,14 +82,15 @@ class ReportServiceClass {
                 aiConfidence: 0,
                 timestamp: new Date(comment.createdAt || comment.timestamp || Date.now()),
                 isComment: true,
-                message: `Komentar baru dari ${comment.username || 'Pengguna'}: "${comment.text.substring(0, 30)}${comment.text.length > 30 ? '...' : ''}"`
+                level: notifLevel,
+                message: notifMessage
               });
               AppState.set('notifications', notifications);
               AppState.set('unreadNotifications', (AppState.get('unreadNotifications') || 0) + 1);
 
               // Show toast
               EventBus.emit('toast:show', {
-                message: `Komentar baru di ${report.location} dari ${comment.username || 'Pengguna'}`,
+                message: notifMessage,
                 type: 'info'
               });
             }
@@ -86,8 +111,8 @@ class ReportServiceClass {
   }
 
   // Tambah komentar baru
-  async addComment(id, text) {
-    const response = await API.post(`/api/detections/${id}/comments`, { text });
+  async addComment(id, text, parentCommentId = null) {
+    const response = await API.post(`/api/detections/${id}/comments`, { text, parentCommentId });
     return response.data;
   }
 

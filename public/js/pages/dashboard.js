@@ -62,18 +62,6 @@ export class DashboardPage {
               <i data-lucide="plus-circle"></i> Hubungkan CCTV
             </button>
           ` : ''}
-          <div class="toggle-wrapper" style="position: relative; margin-right: 8px;">
-            <!-- Notification popover trigger button -->
-            <button id="btn-dashboard-notifications" class="btn btn-glass btn-rounded" style="padding: 10px 14px; position: relative;">
-              <i data-lucide="bell" style="width: 16px; height: 16px;"></i>
-              <span id="notif-badge-count" style="position: absolute; top: -4px; right: -4px; background: var(--danger); color: white; font-size: 0.6rem; font-weight: 800; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">3</span>
-            </button>
-            <!-- Dropdown Menu -->
-            <div id="dashboard-notif-popover" class="glass-card" style="display: none; position: absolute; top: 44px; right: 0; width: 280px; z-index: 100; padding: 12px; border-radius: 12px; box-shadow: var(--glass-shadow); border: 1px solid var(--border); background: #ffffff;">
-              <h5 style="margin: 0 0 10px 0; font-size: 0.85rem; font-weight: 800; color: var(--text-primary); border-bottom: 1.5px solid rgba(0,0,0,0.05); padding-bottom: 6px;">Alerts</h5>
-              <div style="display: flex; flex-direction: column; gap: 8px;" id="dashboard-notif-list"></div>
-            </div>
-          </div>
           <div class="toggle-wrapper" style="margin-right: 12px;">
             <span class="caption-label">Telegram Alerts</span>
             <label class="switch">
@@ -441,8 +429,6 @@ export class DashboardPage {
     const filterDateInput = document.getElementById('incident-filter-date');
     const filterStatusSelect = document.getElementById('incident-filter-status');
     const filterTabsContainer = document.getElementById('incident-filter-tabs');
-    const notifBtn = document.getElementById('btn-dashboard-notifications');
-    const notifPopover = document.getElementById('dashboard-notif-popover');
 
     if (selectCam) {
       selectCam.addEventListener('change', () => this.filterCCTVChannels(selectCam.value));
@@ -563,19 +549,6 @@ export class DashboardPage {
           this.animateStats();
         });
       });
-    }
-
-    // Notification Popover toggle handler
-    if (notifBtn && notifPopover) {
-      notifBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const isHidden = notifPopover.style.display === 'none' || !notifPopover.style.display;
-        notifPopover.style.display = isHidden ? 'block' : 'none';
-      });
-      document.addEventListener('click', () => {
-        notifPopover.style.display = 'none';
-      });
-      notifPopover.addEventListener('click', (e) => e.stopPropagation());
     }
 
     // Initialize Connection Modal Form
@@ -1921,29 +1894,27 @@ export class DashboardPage {
           }
 
           item.innerHTML = `
-            <div style="display:flex; align-items:center; gap:14px; min-width:0; flex: 1;">
-              <div style="width: 48px; height: 48px; border-radius: 8px; overflow:hidden; flex-shrink:0; background:#000;">
-                <img src="${r.image}" style="width:100%; height:100%; object-fit:cover;" alt="" />
-              </div>
-              <div style="min-width: 0; flex:1;">
-                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                  <span style="font-size: 0.6rem; font-weight: 900; color: ${severityColor};">${severityText}</span>
-                  <span style="font-size: 0.55rem; font-weight: 900; background: ${workflowColor}12; color: ${workflowColor}; border: 1px solid ${workflowColor}22; padding: 1px 6px; border-radius: 4px;">${workflowState}</span>
-                  <strong style="font-size:0.88rem; color:var(--text-primary);">${labelText}</strong>
-                  <span style="font-size: 0.68rem; font-weight: 700; color: var(--primary);">AI ${r.aiConfidence}%</span>
-                  ${waitingLabel ? `<span class="waiting-time-chip">${waitingLabel}</span>` : ''}
-                </div>
-                <div style="font-size:0.74rem; color:var(--text-secondary); margin-top:3px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                  <span><i data-lucide="map-pin" style="width:11px;height:11px;display:inline-block;vertical-align:middle;"></i> ${r.location}</span>
-                  <span>·</span>
-                  <span>${Formatter.formatTime(r.timestamp)}</span>
-                  <span>·</span>
-                  <span>#${r.id.toString().padStart(4, '0')}</span>
-                </div>
-                ${officerHtml}
-              </div>
+            <div style="width: 52px; height: 52px; border-radius: 10px; overflow:hidden; flex-shrink:0; background:#000; border: 1.5px solid var(--border);">
+              <img src="${r.image}" style="width:100%; height:100%; object-fit:cover;" alt="" />
             </div>
-            <button class="btn btn-sm btn-glass btn-open-incident" style="border-color: rgba(47, 107, 255, 0.25); color: var(--primary); padding: 6px 14px; font-size:0.7rem; font-weight:800; flex-shrink:0;">
+            <div style="min-width: 0; flex: 1;">
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <span style="font-size: 0.6rem; font-weight: 900; color: ${severityColor};">${severityText}</span>
+                <span style="font-size: 0.55rem; font-weight: 900; background: ${workflowColor}12; color: ${workflowColor}; border: 1px solid ${workflowColor}22; padding: 1px 6px; border-radius: 4px;">${workflowState}</span>
+                <strong style="font-size:0.88rem; color:var(--text-primary);">${labelText}</strong>
+                <span style="font-size: 0.68rem; font-weight: 700; color: var(--primary);">AI ${r.aiConfidence}%</span>
+                ${waitingLabel ? `<span class="waiting-time-chip">${waitingLabel}</span>` : ''}
+              </div>
+              <div style="font-size:0.74rem; color:var(--text-secondary); margin-top:4px; display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                <span><i data-lucide="map-pin" style="width:11px;height:11px;display:inline-block;vertical-align:middle;"></i> ${r.location}</span>
+                <span style="color:var(--text-muted);">·</span>
+                <span>${Formatter.formatTime(r.timestamp)}</span>
+                <span style="color:var(--text-muted);">·</span>
+                <span style="font-weight:600; color:var(--text-secondary);">#${r.id.toString().padStart(4, '0')}</span>
+              </div>
+              ${officerHtml}
+            </div>
+            <button class="btn btn-sm btn-glass btn-open-incident" style="margin-left: auto; border-color: rgba(47, 107, 255, 0.25); color: var(--primary); padding: 8px 18px; font-size:0.7rem; font-weight:800; flex-shrink:0; white-space:nowrap;">
               Open Incident
             </button>
           `;

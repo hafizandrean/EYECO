@@ -525,10 +525,21 @@ class HomePage {
       news.slice(0, 6).forEach((item, i) => {
         const card = document.createElement('div');
         card.className = 'news-card';
+        card.style.cursor = 'pointer';
         card.style.animationDelay = `${i * 0.1}s`;
+        card.addEventListener('click', () => {
+          window.location.href = '/berita/' + item.slug;
+        });
+        // Thumbnail
+        const thumbHtml = item.thumbnail
+          ? `<img src="${item.thumbnail}" alt="${item.title}" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;">`
+          : `<i data-lucide="${icons[i % icons.length]}" style="position:relative;z-index:1;"></i>`;
+        const thumbBg = item.thumbnail
+          ? 'background:#000;position:relative;overflow:hidden;'
+          : `background: ${gradients[i % gradients.length]};display:flex;align-items:center;justify-content:center;`;
         card.innerHTML = `
-          <div class="news-img" style="background: ${gradients[i % gradients.length]};">
-            <i data-lucide="${icons[i % icons.length]}"></i>
+          <div class="news-img" style="${thumbBg}">
+            ${thumbHtml}
           </div>
           <div class="news-body">
             <span class="news-tag">${item.category || 'Informasi'}</span>

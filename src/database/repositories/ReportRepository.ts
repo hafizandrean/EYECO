@@ -401,13 +401,25 @@ export class ReportRepository {
     reportId: number,
     userId: number,
     text: string,
-    workspaceId?: number
+    workspaceId?: number,
+    parentCommentId?: string | null
   ): Promise<IComment> {
     try {
       const sanitized = text.replace(/<[^>]*>/g, '').trim();
 
       if (sanitized.length < 2 || sanitized.length > 500) {
         throw new Error('Komentar harus terdiri dari 2 hingga 500 karakter.');
+      }
+
+      // If replying, validate parent comment exists first
+      if (parentCommentId) {
+        const parentReport = await ReportModel.findOne(
+          { id: reportId, deletedAt: null, 'comments._id': parentCommentId },
+          { 'comments.$': 1 }
+        ).lean().exec();
+        if (!parentReport || !parentReport.comments || parentReport.comments.length === 0) {
+          throw new Error('Komentar induk tidak ditemukan.');
+        }
       }
 
       // Query WITHOUT workspaceId — karena report LAMA tidak punya field workspaceId
@@ -431,7 +443,7 @@ export class ReportRepository {
         text: sanitized,
         likedBy: [],
         isDeleted: false,
-        parentCommentId: null
+        parentCommentId: parentCommentId || null
       } as any;
 
       // Gunakan findOneAndUpdate untuk atomic push (hindari masalah dengan timestamps)

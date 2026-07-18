@@ -23,7 +23,8 @@ export class HeaderComponent {
     this.tabs = {
       dashboard: this.container.querySelector('[data-tab="dashboard"]'),
       laporan: this.container.querySelector('[data-tab="laporan"]'),
-      upload: this.container.querySelector('[data-tab="upload"]')
+      upload: this.container.querySelector('[data-tab="upload"]'),
+      berita: this.container.querySelector('[data-tab="berita"]')
     };
     this.indicator = document.getElementById('nav-indicator');
     this.indicatorInitialized = false;
@@ -128,6 +129,11 @@ export class HeaderComponent {
     }
     if (this.tabs.laporan) this.tabs.laporan.style.display = 'inline-flex';
     if (this.tabs.upload) this.tabs.upload.style.display = 'inline-flex';
+    
+    // Berita tab: only for admin
+    if (this.tabs.berita) {
+      this.tabs.berita.style.display = isAdmin ? 'inline-flex' : 'none';
+    }
 
     // Export button visibility (Only on /dashboard/laporan for admins)
     if (exportBtn) {
@@ -142,6 +148,7 @@ export class HeaderComponent {
     if (currentPath === '/dashboard') activeKey = 'dashboard';
     else if (currentPath === '/dashboard/laporan') activeKey = 'laporan';
     else if (currentPath === '/dashboard/upload') activeKey = 'upload';
+    else if (currentPath === '/dashboard/berita') activeKey = 'berita';
     
     // Matikan semua kelas aktif
     Object.keys(this.tabs).forEach(key => {

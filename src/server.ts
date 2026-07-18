@@ -443,6 +443,11 @@ app.get('/dashboard/detections/:id', authMiddleware, roleGuard(['admin', 'user',
   res.sendFile(path.join(__dirname, '../public/views/dashboard.html'));
 });
 
+// News public detail page
+app.get('/berita/:slug', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/views/news-detail.html'));
+});
+
 // Select Workspace — user only
 app.get('/select-workspace', authMiddleware, roleGuard(['user', 'operator', 'supervisor', 'officer']), (req, res) => {
   res.sendFile(path.join(__dirname, '../public/views/select-workspace.html'));

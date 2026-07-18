@@ -320,11 +320,18 @@ class ReportRepository {
         }
     }
     // --- COMMENT METHODS ---
-    static async addComment(reportId, userId, text, workspaceId) {
+    static async addComment(reportId, userId, text, workspaceId, parentCommentId) {
         try {
             const sanitized = text.replace(/<[^>]*>/g, '').trim();
             if (sanitized.length < 2 || sanitized.length > 500) {
                 throw new Error('Komentar harus terdiri dari 2 hingga 500 karakter.');
+            }
+            // If replying, validate parent comment exists first
+            if (parentCommentId) {
+                const parentReport = await Report_1.ReportModel.findOne({ id: reportId, deletedAt: null, 'comments._id': parentCommentId }, { 'comments.$': 1 }).lean().exec();
+                if (!parentReport || !parentReport.comments || parentReport.comments.length === 0) {
+                    throw new Error('Komentar induk tidak ditemukan.');
+                }
             }
             // Query WITHOUT workspaceId — karena report LAMA tidak punya field workspaceId
             const query = { id: reportId, deletedAt: null };
@@ -344,7 +351,7 @@ class ReportRepository {
                 text: sanitized,
                 likedBy: [],
                 isDeleted: false,
-                parentCommentId: null
+                parentCommentId: parentCommentId || null
             };
             // Gunakan findOneAndUpdate untuk atomic push (hindari masalah dengan timestamps)
             const updated = await Report_1.ReportModel.findOneAndUpdate({ _id: report._id }, { $push: { comments: commentData } }, { new: true }).exec();

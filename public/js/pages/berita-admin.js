@@ -90,8 +90,20 @@ class BeritaAdminPage {
               <textarea id="news-content" class="input-control" rows="5" required placeholder="Isi berita lengkap..."></textarea>
             </div>
             <div class="form-group" style="margin:0;">
-              <label>URL Thumbnail (opsional)</label>
-              <input type="text" id="news-thumbnail" class="input-control" placeholder="https://...">
+              <label>Thumbnail Gambar</label>
+              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <input type="file" id="news-thumbnail-file" class="input-control" accept="image/jpeg,image/png,image/webp" style="flex:1;padding:8px 12px;">
+                <button type="button" class="btn btn-glass btn-sm" id="btn-news-upload-thumb" style="white-space:nowrap;">
+                  <i data-lucide="upload" style="width:14px;height:14px;"></i> Upload
+                </button>
+              </div>
+              <div id="news-thumbnail-preview" style="margin-top:8px;display:none;">
+                <img src="" alt="preview" style="max-width:200px;max-height:100px;border-radius:8px;object-fit:cover;">
+                <button type="button" id="btn-news-thumb-remove" style="background:none;border:none;color:var(--error);font-size:0.75rem;cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:4px 8px;">
+                  <i data-lucide="x" style="width:12px;height:12px;"></i> Hapus
+                </button>
+              </div>
+              <input type="hidden" id="news-thumbnail" value="">
             </div>
             <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px;">
               <button type="button" class="btn btn-glass" id="btn-news-cancel">Batal</button>
@@ -117,6 +129,9 @@ class BeritaAdminPage {
       e.preventDefault();
       this.saveNews();
     });
+    // Upload thumbnail
+    document.getElementById('btn-news-upload-thumb')?.addEventListener('click', () => this.uploadThumbnail());
+    document.getElementById('btn-news-thumb-remove')?.addEventListener('click', () => this.removeThumbnail());
     // Close modal on overlay click
     document.getElementById('modal-news-form')?.addEventListener('click', (e) => {
       if (e.target === e.currentTarget) this.closeForm();
@@ -200,6 +215,10 @@ class BeritaAdminPage {
     document.getElementById('news-content').value = '';
     document.getElementById('news-thumbnail').value = '';
 
+    // Reset thumbnail preview
+    const preview = document.getElementById('news-thumbnail-preview');
+    if (preview) preview.style.display = 'none';
+
     if (id) {
       try {
         const res = await fetch(`/api/news/${id}`, { credentials: 'include' });
@@ -212,6 +231,15 @@ class BeritaAdminPage {
           document.getElementById('news-summary').value = data.news.summary;
           document.getElementById('news-content').value = data.news.content;
           document.getElementById('news-thumbnail').value = data.news.thumbnail || '';
+          // Show thumbnail preview jika ada
+          if (data.news.thumbnail) {
+            const preview = document.getElementById('news-thumbnail-preview');
+            const img = preview?.querySelector('img');
+            if (preview && img) {
+              img.src = data.news.thumbnail;
+              preview.style.display = 'block';
+            }
+          }
         }
       } catch (_) {
         EventBus.emit('toast:show', { message: 'Gagal memuat data berita', type: 'danger' });
@@ -273,6 +301,45 @@ class BeritaAdminPage {
     } catch (_) {
       EventBus.emit('toast:show', { message: 'Gagal terhubung ke server.', type: 'danger' });
     }
+  }
+
+  async uploadThumbnail() {
+    const fileInput = document.getElementById('news-thumbnail-file');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+      EventBus.emit('toast:show', { message: 'Pilih file gambar terlebih dahulu.', type: 'warning' });
+      return;
+    }
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    try {
+      const res = await fetch('/api/news/upload-thumbnail', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById('news-thumbnail').value = data.url;
+        const preview = document.getElementById('news-thumbnail-preview');
+        const img = preview?.querySelector('img');
+        if (preview && img) {
+          img.src = data.url;
+          preview.style.display = 'block';
+        }
+        EventBus.emit('toast:show', { message: 'Thumbnail berhasil diupload.', type: 'success' });
+      } else {
+        EventBus.emit('toast:show', { message: data.error || 'Gagal upload.', type: 'danger' });
+      }
+    } catch (_) {
+      EventBus.emit('toast:show', { message: 'Gagal terhubung ke server.', type: 'danger' });
+    }
+  }
+
+  removeThumbnail() {
+    document.getElementById('news-thumbnail').value = '';
+    document.getElementById('news-thumbnail-file').value = '';
+    const preview = document.getElementById('news-thumbnail-preview');
+    if (preview) preview.style.display = 'none';
   }
 
   destroy() {}

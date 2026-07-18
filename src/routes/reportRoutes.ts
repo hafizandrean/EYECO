@@ -174,7 +174,22 @@ router.get('/detections/:id', async (req, res) => {
       return res.status(404).json({ error: 'Laporan tidak ditemukan' });
     }
 
-    res.json(report);
+    // Include info user yang upload laporan (untuk admin/superadmin)
+    const responseReport: Record<string, unknown> = { ...report };
+    if (user.role === 'admin' || user.role === 'superadmin') {
+      const uploader = await UserModel.findOne({ _id: report.userId as any }).select('username name avatar email phone').lean().exec();
+      if (uploader) {
+        responseReport.uploaderInfo = {
+          username: uploader.username,
+          name: uploader.name || '',
+          avatar: uploader.avatar || '',
+          email: uploader.email || '',
+          phone: uploader.phone || ''
+        };
+      }
+    }
+
+    res.json(responseReport);
   } catch (err) {
     console.error('[SERVER ERROR] Get single report failed:', err);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -238,15 +253,17 @@ router.get('/detections/:id/comments', async (req, res) => {
     const paginatedComments = activeComments.slice(skip, skip + limit);
 
     const uniqueUserIds = Array.from(new Set(paginatedComments.map((c) => c.userId)));
-    const users = await UserModel.find({ id: { $in: uniqueUserIds } }).select('id username role').lean();
-    const userMap = new Map(users.map((u) => [u.id, { username: u.username, role: u.role }]));
+    const users = await UserModel.find({ id: { $in: uniqueUserIds } }).select('id username role avatar').lean();
+    const userMap = new Map(users.map((u) => [u.id, { username: u.username, role: u.role, avatar: u.avatar || '' }]));
 
     const commentsWithUser = paginatedComments.map((c) => {
       const uInfo = userMap.get(c.userId);
       return {
         ...c,
+        parentCommentId: (c as any).parentCommentId || null,
         username: uInfo ? uInfo.username : 'Pengguna tidak dikenal',
-        role: uInfo ? uInfo.role : 'user'
+        role: uInfo ? uInfo.role : 'user',
+        avatar: uInfo ? uInfo.avatar : ''
       };
     });
 
@@ -270,10 +287,10 @@ router.post('/detections/:id/comments', commentLimiter, async (req, res) => {
     if (!user) return sendError(res, 'Unauthorized', 401);
 
     const reportId = parseInt(req.params.id);
-    const { text } = req.body;
+    const { text, parentCommentId } = req.body;
     if (!text || typeof text !== 'string') return sendError(res, 'Konten komentar harus diisi.', 400);
 
-    const comment = await ReportRepository.addComment(reportId, user.id, text, user.workspaceId);
+    const comment = await ReportRepository.addComment(reportId, user.id, text, user.workspaceId, parentCommentId || null);
     return sendSuccess(res, { ...comment, username: user.username, role: user.role }, 201);
   } catch (err: unknown) {
     console.error('[SERVER ERROR] Create comment failed:', err);

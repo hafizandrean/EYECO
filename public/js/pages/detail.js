@@ -93,6 +93,9 @@ export class DetailPage {
           background: #f1f5f9;
           color: #475569;
         }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
       </style>
 
       <!-- Back navigation bar -->
@@ -284,6 +287,28 @@ export class DetailPage {
               <span id="detail-sla-timer" style="font-family: monospace; font-size: 0.95rem; font-weight: 800; color: var(--danger); background: rgba(239, 68, 68, 0.05); padding: 4px 10px; border-radius: 6px;">0h 0m 0s</span>
             </div>
           </div>
+
+          ${isAdmin && report.uploaderInfo ? `
+          <!-- Uploader Info Card (Admin only) -->
+          <div class="glass-card" style="padding: var(--space-20); border-radius: var(--radius-card); border: 1.5px solid rgba(47, 107, 255, 0.15); background: rgba(47, 107, 255, 0.02);">
+            <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.82rem; font-weight: 800; color: var(--text-primary); margin: 0 0 var(--space-12) 0; display:flex; align-items:center; gap:6px;">
+              <i data-lucide="user" style="width: 14px; height: 14px; color: var(--primary);"></i> Informasi Pelapor
+            </h4>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="width: 40px; height: 40px; border-radius: 50%; background: ${report.uploaderInfo.avatar ? 'transparent' : 'rgba(47,107,255,0.15)'}; border: 1.5px solid var(--border); overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.8rem; color:var(--primary);">
+                ${report.uploaderInfo.avatar
+                  ? `<img src="${report.uploaderInfo.avatar}" style="width:100%;height:100%;object-fit:cover;" alt="">`
+                  : report.uploaderInfo.username.substring(0, 2).toUpperCase()}
+              </div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:0.82rem; font-weight:700; color:var(--text-primary);">${report.uploaderInfo.name || report.uploaderInfo.username}</div>
+                <div style="font-size:0.68rem; color:var(--text-secondary);">@${report.uploaderInfo.username}</div>
+                ${report.uploaderInfo.email ? `<div style="font-size:0.68rem; color:var(--text-muted);">${report.uploaderInfo.email}</div>` : ''}
+                ${report.uploaderInfo.phone ? `<div style="font-size:0.68rem; color:var(--text-muted);">${report.uploaderInfo.phone}</div>` : ''}
+              </div>
+            </div>
+          </div>
+          ` : ''}
 
           <!-- Officer Dispatch Status Widget (Item 11) -->
           ${report.assignedOfficer ? `
@@ -681,56 +706,79 @@ export class DetailPage {
 
     const currentUser = AppState.get('user');
     listEl.innerHTML = '';
-    
+
     // Sort pinned comments first
     const pinnedKey = `pinned_${this.reportId}`;
     const pinnedCommentId = localStorage.getItem(pinnedKey);
 
-    const sortedComments = [...this.comments].sort((a, b) => {
+    // Group: top-level vs replies
+    const replyMap = {};
+    const topLevelComments = [];
+
+    this.comments.forEach(c => {
+      const parentId = c.parentCommentId || null;
+      if (parentId) {
+        if (!replyMap[parentId]) replyMap[parentId] = [];
+        replyMap[parentId].push(c);
+      } else {
+        topLevelComments.push(c);
+      }
+    });
+
+    const sortFn = (a, b) => {
       if (a._id === pinnedCommentId) return -1;
       if (b._id === pinnedCommentId) return 1;
       return 0;
-    });
+    };
+    topLevelComments.sort(sortFn);
+    Object.values(replyMap).forEach(replies => replies.sort(sortFn));
 
-    sortedComments.forEach(comment => {
+    const renderComment = (comment, isReply = false) => {
       const isOwner = comment.userId === currentUser?.id;
       const isAdmin = currentUser?.role === 'admin';
       const isLiked = comment.likedBy.includes(currentUser?.id);
       const isPinned = comment._id === pinnedCommentId;
 
       const commentItem = document.createElement('div');
+      const replyIndent = isReply ? '24px' : '0px';
+      const replyBg = isReply ? 'rgba(0,0,0,0.01)' : 'rgba(255, 255, 255, 0.02)';
+      const replyBorder = isReply ? '1px solid rgba(0,0,0,0.04)' : 'var(--border)';
       commentItem.style.cssText = `
         display: flex;
         gap: 10px;
         padding: 10px;
+        padding-left: ${isReply ? '34px' : '10px'};
         border-radius: var(--radius-button);
-        background: ${isPinned ? 'rgba(47, 107, 255, 0.03)' : 'rgba(255, 255, 255, 0.02)'};
-        border: 1px solid ${isPinned ? 'rgba(47, 107, 255, 0.25)' : 'var(--border)'};
+        background: ${isPinned ? 'rgba(47, 107, 255, 0.03)' : replyBg};
+        border: 1px solid ${isPinned ? 'rgba(47, 107, 255, 0.25)' : replyBorder};
         transition: var(--motion-hover);
         flex-direction: column;
+        margin-left: ${replyIndent};
+        ${isReply ? 'border-left: 2px solid var(--primary);' : ''}
       `;
       
       const avatarInitials = comment.username ? comment.username.substring(0, 2).toUpperCase() : 'US';
-      // Cek apakah ini user saat ini — pakai foto profil jika ada
-      const isOwnComment = currentUser && comment.username === currentUser.username;
-      const commentAvatar = isOwnComment && currentUser.avatar
-        ? `<img src="${currentUser.avatar}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
-        : avatarInitials;
+      let commentAvatarHtml = '';
+      if (comment.avatar) {
+        commentAvatarHtml = `<img src="${comment.avatar}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+      } else {
+        commentAvatarHtml = avatarInitials;
+      }
       
-      // Dynamic Role Badges: Admin, Pelapor, Masyarakat
+      // Dynamic Role Badges
       let roleText = 'Masyarakat';
       let badgeClass = 'masyarakat';
       if (comment.role === 'admin') {
         roleText = 'Admin';
         badgeClass = 'admin';
-      } else if (comment.username === this.report.identity) {
+      } else if (comment.username === this.report?.identity) {
         roleText = 'Pelapor';
         badgeClass = 'pelapor';
       }
 
       const roleBadge = `<span class="discussion-badge ${badgeClass}">${roleText}</span>`;
 
-      // Custom tag category badge if exists (stored or parsed from text)
+      // Tag category
       let categoryTagHtml = '';
       const categoryMatch = comment.text.match(/^\[(Umum|Informasi Tambahan|Koreksi|Kondisi Terbaru|Saksi)\]\s*(.*)/);
       let cleanText = comment.text;
@@ -739,15 +787,19 @@ export class DetailPage {
         cleanText = categoryMatch[2];
       }
 
-      // Highlight mentions (@username)
+      // Highlight mentions
       cleanText = cleanText.replace(/(@[a-zA-Z0-9_]+)/g, '<span class="mention-tag" style="color:var(--primary); font-weight:700; background:rgba(59, 130, 246, 0.12); padding:1px 4px; border-radius:3px;">$1</span>');
+
+      // "Reply to" badge for replies
+      const replyToHtml = isReply ? `<span style="font-size:0.6rem; color:var(--text-muted); margin-right:4px;"><i data-lucide="corner-down-right" style="width:10px;height:10px;display:inline-block;vertical-align:middle;"></i> Reply</span>` : '';
 
       commentItem.innerHTML = `
         <div style="display:flex; gap:10px; width:100%;">
-          <div style="width: 28px; height: 28px; border-radius: 50%; background: ${isOwnComment && currentUser?.avatar ? 'transparent' : comment.role === 'admin' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.05)'}; color: ${comment.role === 'admin' ? 'var(--primary)' : 'var(--text-secondary)'}; border: 1px solid ${comment.role === 'admin' ? 'var(--primary)' : 'var(--border)'}; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; flex-shrink: 0; overflow:hidden;">${commentAvatar}</div>
+          <div style="width: 28px; height: 28px; border-radius: 50%; background: ${comment.avatar ? 'transparent' : comment.role === 'admin' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.05)'}; color: ${comment.role === 'admin' ? 'var(--primary)' : 'var(--text-secondary)'}; border: 1px solid ${comment.role === 'admin' ? 'var(--primary)' : 'var(--border)'}; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; flex-shrink: 0; overflow:hidden;">${commentAvatarHtml}</div>
           
           <div style="flex-grow:1; display:flex; flex-direction:column; gap:4px; min-width: 0;">
             <div style="display:flex; align-items:center; gap:6px;">
+              ${replyToHtml}
               <span style="font-size:0.78rem; font-weight:700; color:var(--text-primary); max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${comment.username || 'Pengguna'}</span>
               ${roleBadge}
               ${categoryTagHtml}
@@ -766,6 +818,10 @@ export class DetailPage {
             <span>${comment.likedBy ? comment.likedBy.length : 0}</span>
           </button>
           
+          <button class="btn-reply-comment" data-id="${comment._id}" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.68rem; font-weight:700; display:flex; align-items:center; gap:4px; padding: 0;">
+            <i data-lucide="corner-down-right" style="width:11px; height:11px;"></i> Reply
+          </button>
+          
           ${isAdmin ? `
             <button class="btn-pin-comment" data-id="${comment._id}" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.68rem; font-weight:700;">
               ${isPinned ? 'Unpin' : 'Pin'}
@@ -775,6 +831,17 @@ export class DetailPage {
           ${isOwner || isAdmin ? `
             <button class="btn-delete-comment text-danger" data-id="${comment._id}" style="background:none; border:none; color: var(--danger); cursor:pointer; font-size:0.68rem; font-weight:700; margin-left:auto;">Hapus</button>
           ` : ''}
+        </div>
+
+        <!-- Inline Reply Form (hidden by default) -->
+        <div class="reply-form-container" data-parent-id="${comment._id}" style="display:none; padding-left:38px; margin-top:6px;">
+          <form class="reply-form" style="display:flex; flex-direction:column; gap:6px;">
+            <textarea class="reply-input" placeholder="Tulis balasan Anda..." style="height:48px; font-size:0.78rem; padding: 6px 10px; resize:none; border-radius:8px; border:1px solid var(--border); background:var(--surface); width:100%; box-sizing:border-box;" maxlength="500"></textarea>
+            <div style="display:flex; gap:6px; justify-content:flex-end;">
+              <button type="button" class="btn-reply-cancel" style="background:none; border:1px solid var(--border); border-radius:8px; padding:4px 12px; font-size:0.72rem; font-weight:600; cursor:pointer; color:var(--text-secondary);">Batal</button>
+              <button type="submit" class="btn-reply-submit" style="background:var(--primary); color:#fff; border:none; border-radius:8px; padding:4px 14px; font-size:0.72rem; font-weight:700; cursor:pointer;">Kirim</button>
+            </div>
+          </form>
         </div>
       `;
 
@@ -792,6 +859,66 @@ export class DetailPage {
             }
             this.renderCommentsList();
           } catch (err) {}
+        });
+      }
+
+      // Bind reply toggle
+      const replyBtn = commentItem.querySelector('.btn-reply-comment');
+      const replyFormContainer = commentItem.querySelector('.reply-form-container');
+      if (replyBtn && replyFormContainer) {
+        replyBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          // Hide all other reply forms first
+          document.querySelectorAll('.reply-form-container').forEach(el => {
+            if (el !== replyFormContainer) el.style.display = 'none';
+          });
+          const isVisible = replyFormContainer.style.display === 'block';
+          replyFormContainer.style.display = isVisible ? 'none' : 'block';
+          if (!isVisible) {
+            const textarea = replyFormContainer.querySelector('.reply-input');
+            if (textarea) setTimeout(() => textarea.focus(), 50);
+          }
+        });
+      }
+
+      // Bind reply submit
+      const replyForm = commentItem.querySelector('.reply-form');
+      if (replyForm) {
+        replyForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const parentId = replyFormContainer.getAttribute('data-parent-id');
+          const input = replyForm.querySelector('.reply-input');
+          const text = input.value.trim();
+          if (!text) return;
+
+          const submitBtn = replyForm.querySelector('.btn-reply-submit');
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<span style="display:inline-block;width:10px;height:10px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite;"></span>';
+
+          try {
+            // Get category from parent for context
+            const category = document.getElementById('comment-input-category')?.value || 'Umum';
+            const formattedText = `[${category}] ${text}`;
+            await ReportService.addComment(this.reportId, formattedText, parentId);
+            input.value = '';
+            replyFormContainer.style.display = 'none';
+            EventBus.emit('toast:show', { message: 'Balasan terkirim!', type: 'success' });
+            await this.loadComments(true);
+          } catch (err) {
+            EventBus.emit('toast:show', { message: 'Gagal mengirim balasan.', type: 'danger' });
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Kirim';
+          }
+        });
+      }
+
+      // Bind cancel reply
+      const cancelBtn = commentItem.querySelector('.btn-reply-cancel');
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+          replyFormContainer.style.display = 'none';
+          const input = replyForm?.querySelector('.reply-input');
+          if (input) input.value = '';
         });
       }
 
@@ -833,7 +960,19 @@ export class DetailPage {
         });
       }
 
-      listEl.appendChild(commentItem);
+      return commentItem;
+    };
+
+    // Render top-level comments with their replies
+    topLevelComments.forEach(comment => {
+      const commentEl = renderComment(comment, false);
+      listEl.appendChild(commentEl);
+
+      const replies = replyMap[comment._id] || [];
+      replies.forEach(reply => {
+        const replyEl = renderComment(reply, true);
+        listEl.appendChild(replyEl);
+      });
     });
 
     if (window.lucide) window.lucide.createIcons();

@@ -390,6 +390,10 @@ app.get(['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/pr
 app.get('/dashboard/detections/:id', authMiddleware_2.authMiddleware, (0, RoleMiddleware_1.roleGuard)(['admin', 'user', 'operator', 'supervisor', 'officer']), (req, res) => {
     res.sendFile(path_1.default.join(__dirname, '../public/views/dashboard.html'));
 });
+// News public detail page
+app.get('/berita/:slug', (req, res) => {
+    res.sendFile(path_1.default.join(__dirname, '../public/views/news-detail.html'));
+});
 // Select Workspace — user only
 app.get('/select-workspace', authMiddleware_2.authMiddleware, (0, RoleMiddleware_1.roleGuard)(['user', 'operator', 'supervisor', 'officer']), (req, res) => {
     res.sendFile(path_1.default.join(__dirname, '../public/views/select-workspace.html'));
