@@ -8,6 +8,7 @@ const AiDetection_1 = require("../../database/models/AiDetection");
 const AiModelManager_1 = require("./AiModelManager");
 const TrackingEngine_1 = require("./TrackingEngine");
 const EvidenceService_1 = require("./EvidenceService");
+const Counter_1 = require("../../database/models/Counter");
 const crypto_1 = __importDefault(require("crypto"));
 class InferenceService {
     static tracker = new TrackingEngine_1.TrackingEngine();
@@ -43,9 +44,8 @@ class InferenceService {
             else if (hasBoat) {
                 severity = 'MEDIUM';
             }
-            // 4. Dapatkan autoincrement ID berikutnya untuk AiDetection
-            const lastDetection = await AiDetection_1.AiDetectionModel.findOne().sort({ id: -1 }).exec();
-            const nextId = lastDetection ? lastDetection.id + 1 : 1;
+            // 4. Dapatkan autoincrement ID berikutnya untuk AiDetection (Atomic)
+            const nextId = await (0, Counter_1.getNextSequence)('detectionId', AiDetection_1.AiDetectionModel);
             const trackingId = crypto_1.default.randomUUID();
             // Buat log deteksi AI mentah
             const aiDetection = await AiDetection_1.AiDetectionModel.create({

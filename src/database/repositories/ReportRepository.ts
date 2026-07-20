@@ -23,15 +23,15 @@ export class ReportRepository {
     updateData: Partial<IReport>, 
     session?: mongoose.mongo.ClientSession
   ): Promise<IReport | null> {
-    const options = { new: true, runValidators: true };
+    const options: any = { new: true, returnDocument: 'after', runValidators: true };
     if (session) {
       Object.assign(options, { session });
     }
-    const report = await ReportModel.findOneAndUpdate(
+    const report = (await ReportModel.findOneAndUpdate(
       { _id: id, deletedAt: null },
       { $set: updateData },
       options
-    ).exec();
+    ).exec() as unknown) as IReport | null;
     return report;
   }
 
@@ -42,11 +42,11 @@ export class ReportRepository {
     reason: string,
     session?: mongoose.mongo.ClientSession
   ): Promise<IReport | null> {
-    const options = { new: true };
+    const options: any = { new: true, returnDocument: 'after' };
     if (session) {
       Object.assign(options, { session });
     }
-    const report = await ReportModel.findOneAndUpdate(
+    const report = (await ReportModel.findOneAndUpdate(
       { _id: id, deletedAt: null },
       { 
         $set: { 
@@ -57,7 +57,7 @@ export class ReportRepository {
         } 
       },
       options
-    ).exec();
+    ).exec() as unknown) as IReport | null;
     return report;
   }
 
@@ -66,11 +66,11 @@ export class ReportRepository {
     reason: string,
     session?: mongoose.mongo.ClientSession
   ): Promise<IReport | null> {
-    const options = { new: true };
+    const options: any = { new: true, returnDocument: 'after' };
     if (session) {
       Object.assign(options, { session });
     }
-    const report = await ReportModel.findOneAndUpdate(
+    const report = (await ReportModel.findOneAndUpdate(
       { _id: id, deletedAt: { $ne: null } },
       { 
         $set: { 
@@ -81,7 +81,7 @@ export class ReportRepository {
         } 
       },
       options
-    ).exec();
+    ).exec() as unknown) as IReport | null;
     return report;
   }
 

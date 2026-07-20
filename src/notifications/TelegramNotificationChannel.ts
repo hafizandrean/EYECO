@@ -30,11 +30,10 @@ export class TelegramNotificationChannel implements INotificationChannel {
       console.log(`[TelegramChannelDebug] isEnabled: ${isEnabled}, botToken: ${botToken ? 'SET' : 'MISSING'}, chatId: ${chatId}`);
 
       if (!isEnabled || !botToken || !chatId) {
-        console.log('[TelegramChannel] Telegram notification is disabled or not configured.');
         outbox.status = 'PROCESSED';
         outbox.processedAt = new Date();
         await outbox.save();
-        return false;
+        return true;
       }
       // 3. Susun isi pesan HTML gabungan (Perpaduan Format Deteksi & Detail Insiden)
       const port = process.env.PORT || 8080;

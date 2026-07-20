@@ -16,11 +16,11 @@ class BeritaAdminPage {
       <div style="max-width:1000px;margin:0 auto;padding:24px 0;">
         <div class="section-row-header" style="margin-bottom:24px;">
           <div>
-            <h2 style="font-family:'Outfit',sans-serif;font-size:1.4rem;font-weight:800;color:#0F172A;margin:0;">
-              <i data-lucide="newspaper" style="width:22px;height:22px;color:#2563EB;vertical-align:middle;margin-right:8px;"></i>
+            <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;font-weight:800;color:var(--text-dark);margin:0;">
+              <i data-lucide="newspaper" style="width:22px;height:22px;color:var(--primary);vertical-align:middle;margin-right:8px;"></i>
               Manajemen Berita
             </h2>
-            <p style="font-size:0.85rem;color:#64748B;margin:4px 0 0;">Kelola berita dan informasi untuk landing page.</p>
+            <p style="font-size:0.88rem;color:var(--text-muted);margin:4px 0 0;">Kelola berita dan informasi untuk landing page.</p>
           </div>
           <button class="btn-primary btn-sm" id="btn-news-create">
             <i data-lucide="plus"></i> Buat Berita Baru
@@ -28,16 +28,16 @@ class BeritaAdminPage {
         </div>
 
         <div class="glass-card" style="border-radius:16px;overflow:hidden;">
-          <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+          <table style="width:100%;border-collapse:collapse;font-size:0.88rem;">
             <thead>
               <tr style="background:rgba(37,99,235,0.03);">
-                <th style="padding:12px 20px;text-align:left;font-weight:700;color:#64748B;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid rgba(0,0,0,0.06);">Judul</th>
-                <th style="padding:12px 20px;text-align:left;font-weight:700;color:#64748B;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid rgba(0,0,0,0.06);">Kategori</th>
-                <th style="padding:12px 20px;text-align:left;font-weight:700;color:#64748B;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid rgba(0,0,0,0.06);">Status</th>
-                <th style="padding:12px 20px;text-align:left;font-weight:700;color:#64748B;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid rgba(0,0,0,0.06);">Preview</th>
-                <th style="padding:12px 20px;text-align:left;font-weight:700;color:#64748B;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid rgba(0,0,0,0.06);">Penulis</th>
-                <th style="padding:12px 20px;text-align:left;font-weight:700;color:#64748B;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid rgba(0,0,0,0.06);">Tgl Dibuat</th>
-                <th style="padding:12px 20px;text-align:right;font-weight:700;color:#64748B;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid rgba(0,0,0,0.06);">Aksi</th>
+                <th style="padding:12px 20px;text-align:left;font-weight:700;color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid var(--border);">Judul</th>
+                <th style="padding:12px 20px;text-align:left;font-weight:700;color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid var(--border);">Kategori</th>
+                <th style="padding:12px 20px;text-align:left;font-weight:700;color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid var(--border);">Status</th>
+                <th style="padding:12px 20px;text-align:left;font-weight:700;color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid var(--border);">Preview</th>
+                <th style="padding:12px 20px;text-align:left;font-weight:700;color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid var(--border);">Penulis</th>
+                <th style="padding:12px 20px;text-align:left;font-weight:700;color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid var(--border);">Tgl Dibuat</th>
+                <th style="padding:12px 20px;text-align:right;font-weight:700;color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid var(--border);">Aksi</th>
               </tr>
             </thead>
             <tbody id="news-admin-table">

@@ -109,6 +109,26 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+router.delete('/clear-all', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.status(401).json({ error: 'Belum masuk' });
+    if (user.role !== 'admin') return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
+
+    const CctvModelLocal = (await import('../database/models/Cctv')).CctvModel;
+    const workspaceId = user.workspaceId;
+    if (workspaceId !== undefined) {
+      await CctvModelLocal.deleteMany({ workspaceId });
+    } else {
+      await CctvModelLocal.deleteMany({});
+    }
+    res.json({ success: true, message: 'Semua CCTV berhasil dihapus' });
+  } catch (err: unknown) {
+    console.error('[SERVER ERROR] DELETE /api/cctv/clear-all failed:', err);
+    res.status(500).json({ error: 'Gagal menghapus semua CCTV' });
+  }
+});
+
 router.delete('/:id', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);

@@ -3,6 +3,7 @@ import { ICapturedFrame } from './FrameCaptureService';
 import { AiModelManager } from './AiModelManager';
 import { TrackingEngine } from './TrackingEngine';
 import { EvidenceService } from './EvidenceService';
+import { getNextSequence } from '../../database/models/Counter';
 import crypto from 'crypto';
 
 export class InferenceService {
@@ -45,9 +46,8 @@ export class InferenceService {
         severity = 'MEDIUM';
       }
 
-      // 4. Dapatkan autoincrement ID berikutnya untuk AiDetection
-      const lastDetection = await AiDetectionModel.findOne().sort({ id: -1 }).exec();
-      const nextId = lastDetection ? lastDetection.id + 1 : 1;
+      // 4. Dapatkan autoincrement ID berikutnya untuk AiDetection (Atomic)
+      const nextId = await getNextSequence('detectionId', AiDetectionModel);
       const trackingId = crypto.randomUUID();
 
       // Buat log deteksi AI mentah

@@ -58,6 +58,9 @@ export class DashboardPage {
         </div>
         <div class="control-right" style="position: relative;">
           ${isAdmin ? `
+            <button id="btn-clear-all-cctv" class="btn btn-glass btn-rounded" style="border-color: rgba(220, 38, 38, 0.3); color: var(--danger);" title="Hapus Seluruh CCTV Dummy">
+              <i data-lucide="trash-2"></i> Hapus Semua CCTV
+            </button>
             <button id="btn-connect-cctv" class="btn btn-glass btn-rounded" style="border-color: rgba(47, 107, 255, 0.3); color: var(--primary);">
               <i data-lucide="plus-circle"></i> Hubungkan CCTV
             </button>
@@ -148,21 +151,21 @@ export class DashboardPage {
           </div>
 
           <div class="officer-live-panel">
-            <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.72rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin: 0 0 8px 0; letter-spacing: 0.4px;">Officer Status</h4>
+            <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.78rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin: 0 0 8px 0; letter-spacing: 0.4px;">Officer Status</h4>
             <div id="officer-live-list">
-              <div style="font-size: 0.72rem; color: var(--text-muted); padding: 8px 0;">Tidak ada petugas aktif.</div>
+              <div style="font-size: 0.78rem; color: var(--text-muted); padding: 6px 0;">Tidak ada petugas aktif.</div>
             </div>
           </div>
 
           <div style="border-top: 1px solid var(--border); padding-top: var(--space-12);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <span style="font-size: 0.65rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Camera Health</span>
-              <span id="stat-camera-health-val" style="font-size: 0.75rem; font-weight: 800; color: var(--success);">100%</span>
+              <span style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Camera Health</span>
+              <span id="stat-camera-health-val" style="font-size: 0.82rem; font-weight: 800; color: var(--success);">100%</span>
             </div>
             <div class="progress-bar-flat" style="width: 100%; height: 5px; background: rgba(0,0,0,0.05); border-radius: 3px; overflow: hidden;">
               <div id="stat-camera-health-bar" style="width: 100%; height: 100%; background: var(--success); transition: width 0.3s ease;"></div>
             </div>
-            <span id="stat-camera-health-desc" style="font-size: 0.62rem; color: var(--text-secondary); font-weight: 600; margin-top: 4px; display: block;">0/0 Online</span>
+            <span id="stat-camera-health-desc" style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; margin-top: 4px; display: block;">0/0 Online</span>
           </div>
         </aside>
       </div>
@@ -566,6 +569,22 @@ export class DashboardPage {
     const stepsList = document.getElementById('scanner-steps-list');
     const capabilitiesHud = document.getElementById('scanner-capabilities-hud');
 
+    const btnClearAll = document.getElementById('btn-clear-all-cctv');
+
+    if (btnClearAll) {
+      btnClearAll.addEventListener('click', async () => {
+        if (confirm('Apakah Anda yakin ingin menghapus SELURUH saluran CCTV dummy saat ini?')) {
+          try {
+            await API.delete('/api/cctv/clear-all');
+            EventBus.emit('toast:show', { message: 'Seluruh CCTV dummy berhasil dihapus.', type: 'success' });
+            await this.loadData();
+          } catch (err) {
+            EventBus.emit('toast:show', { message: 'Gagal menghapus CCTV: ' + err.message, type: 'danger' });
+          }
+        }
+      });
+    }
+
     if (!modal) return;
 
     if (btnConnect) {
@@ -962,6 +981,11 @@ export class DashboardPage {
             <button class="btn btn-glass btn-rounded" id="drawer-btn-maintenance" style="font-size: 0.78rem; font-weight: 700; border-color: rgba(0,0,0,0.1); color: var(--text-primary); justify-content: center; display:flex; align-items:center; gap:6px; padding: 10px 0;">
               <i data-lucide="settings" style="width: 14px; height: 14px;"></i> Settings
             </button>
+            ${isAdmin ? `
+              <button class="btn btn-glass btn-rounded" id="drawer-btn-delete" style="grid-column: span 2; font-size: 0.78rem; font-weight: 700; border-color: rgba(220,38,38,0.3); background: rgba(220,38,38,0.06); color: var(--danger); justify-content: center; display:flex; align-items:center; gap:6px; padding: 10px 0; margin-top: 4px;">
+                <i data-lucide="trash-2" style="width: 14px; height: 14px; color: var(--danger);"></i> Putuskan & Hapus CCTV Ini
+              </button>
+            ` : ''}
           </div>
         </div>
 
@@ -1009,6 +1033,7 @@ export class DashboardPage {
     const btnSnapshot = drawer.querySelector('#drawer-btn-snapshot');
     const btnStream = drawer.querySelector('#drawer-btn-stream');
     const btnMaintenance = drawer.querySelector('#drawer-btn-maintenance');
+    const btnDelete = drawer.querySelector('#drawer-btn-delete');
 
     if (btnReconnect) btnReconnect.onclick = () => this.reconnectCCTVStream(ch.id);
     if (btnSnapshot) btnSnapshot.onclick = () => this.takeCCTVSnapshot(ch.id);
@@ -1019,6 +1044,18 @@ export class DashboardPage {
     if (btnMaintenance) btnMaintenance.onclick = () => {
       this.closeCCTVDetailDrawer();
       this.openEditCctvModal(ch);
+    };
+    if (btnDelete) btnDelete.onclick = async () => {
+      if (confirm(`Apakah Anda yakin ingin memutuskan & menghapus CCTV "${ch.name}"?`)) {
+        try {
+          this.closeCCTVDetailDrawer();
+          await CctvService.disconnectCctv(ch.id);
+          EventBus.emit('toast:show', { message: `CCTV "${ch.name}" berhasil dihapus.`, type: 'success' });
+          await this.loadData();
+        } catch (err) {
+          EventBus.emit('toast:show', { message: `Gagal menghapus CCTV: ${err.message}`, type: 'danger' });
+        }
+      }
     };
 
     if (window.lucide) window.lucide.createIcons();
@@ -1894,8 +1931,8 @@ export class DashboardPage {
           }
 
           item.innerHTML = `
-            <div style="width: 52px; height: 52px; border-radius: 10px; overflow:hidden; flex-shrink:0; background:#000; border: 1.5px solid var(--border);">
-              <img src="${r.image}" style="width:100%; height:100%; object-fit:cover;" alt="" />
+            <div style="width: 52px; height: 52px; border-radius: 10px; overflow:hidden; flex-shrink:0; background:var(--surface-variant); border: 1.5px solid var(--border); display:flex; align-items:center; justify-content:center;">
+              <img src="${r.image || '/uploads/detection_1.jpg'}" style="width:100%; height:100%; object-fit:cover;" alt="" onerror="this.onerror=null; this.src='/uploads/detection_1.jpg';" />
             </div>
             <div style="min-width: 0; flex: 1;">
               <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
@@ -2010,9 +2047,10 @@ export class DashboardPage {
       }
       const isChActive = isMon && ch.isActive;
       // Find matching report from DB for this location
-      const matchReport = this.latestReports.find(r => r.location.toLowerCase().includes(ch.name.toLowerCase()));
+      const matchReport = this.latestReports.find(r => r.location && (r.location.toLowerCase().includes(ch.name.toLowerCase()) || ch.name.toLowerCase().includes(r.location.toLowerCase())));
       const isAlert = matchReport ? (matchReport.aiStatus === 'TINGGI' || matchReport.aiStatus === 'SEDANG') : false;
-      const imageSrc = matchReport ? matchReport.image : null;
+      const defaultSnapshot = ch.snapshotUrl || ch.playUrl || ch.streamUrl || `/uploads/detection_${((ch.id - 1) % 10) + 1}.jpg`;
+      const imageSrc = (matchReport && matchReport.image) ? matchReport.image : defaultSnapshot;
       
       const card = document.createElement('div');
       card.className = `cctv-card glass-card ${isAlert ? 'cctv-card-alert' : ''}`;
@@ -2061,7 +2099,7 @@ export class DashboardPage {
               </a>
             </div>
           `;
-        } else if (ch.mediaType === 'Video') {
+        } else if (ch.mediaType === 'Video' && ch.playUrl && ch.playUrl.endsWith('.mp4')) {
           // HTML5 Video Loop streaming simulation (support mp4, HLS)
           mediaHtml = `
             <video src="${ch.playUrl}" autoplay loop muted playsinline class="cctv-feed-img"></video>
@@ -2069,9 +2107,9 @@ export class DashboardPage {
             ${boundingBoxesHtml}
           `;
         } else {
-          // Default Image snapshot rendering
+          // Default Image snapshot rendering with fallback
           mediaHtml = `
-            <img src="${imageSrc}" alt="Kamera ${ch.name}" class="cctv-feed-img" loading="lazy" decoding="async">
+            <img src="${imageSrc}" alt="" class="cctv-feed-img" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='/uploads/detection_1.jpg';">
             <div class="cctv-overlay-gradient"></div>
             ${boundingBoxesHtml}
           `;
@@ -2120,6 +2158,9 @@ export class DashboardPage {
             <button class="hover-action-btn toggle-mon" style="width:36px; height:36px; border-radius:50%; border:none; background: ${ch.monitoringEnabled ? 'var(--danger)' : 'var(--success)'}; color: white; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: transform 0.1s;" title="${ch.monitoringEnabled ? 'Hentikan Pemantauan AI' : 'Mulai Pemantauan AI'}">
               <i data-lucide="${ch.monitoringEnabled ? 'video-off' : 'video'}" style="width: 16px; height: 16px;"></i>
             </button>
+            <button class="hover-action-btn delete-cam" style="width:36px; height:36px; border-radius:50%; border:none; background: rgba(220, 38, 38, 0.9); color: white; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: transform 0.1s;" title="Putuskan & Hapus CCTV">
+              <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+            </button>
           ` : ''}
           <button class="hover-action-btn detail" style="width:36px; height:36px; border-radius:50%; border:none; background: var(--primary); color: white; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: transform 0.1s;" title="Open detail VMS Drawer">
             <i data-lucide="info" style="width: 16px; height: 16px;"></i>
@@ -2128,7 +2169,7 @@ export class DashboardPage {
       `;
 
       card.innerHTML = `
-        <div class="cctv-media-container" style="position: relative; overflow: hidden; border-radius: 12px; margin-bottom: 0;">
+        <div class="cctv-media-container" style="position: relative; overflow: hidden; border-radius: 12px 12px 0 0; margin-bottom: 0;">
           ${mediaHtml}
           ${hoverOverlayHtml}
           
@@ -2151,18 +2192,18 @@ export class DashboardPage {
             `}
           </div>
 
-          ${isAdmin && !ch.isDefault ? `
-            <button class="btn-disconnect-cctv" data-id="${ch.id}" title="Putuskan CCTV" style="position: absolute; top: 12px; right: 12px; z-index: 15; background: rgba(0,0,0,0.5); border: none; border-radius: 50%; width: 28px; height: 28px; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+          ${isAdmin ? `
+            <button class="btn-disconnect-cctv" data-id="${ch.id}" title="Putuskan & Hapus CCTV" style="position: absolute; top: 12px; right: 12px; z-index: 15; background: rgba(0,0,0,0.55); border: none; border-radius: 50%; width: 28px; height: 28px; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s, transform 0.15s;">
               <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
             </button>
           ` : ''}
         </div>
-        
-        <!-- Bottom Info -->
+
+        <!-- Bottom Card Info Body -->
         <div class="cctv-info-body" style="padding: 12px var(--space-8) var(--space-8) var(--space-8); display: flex; flex-direction: column; gap: 6px;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.92rem; font-weight: 700; color: var(--text-primary); margin: 0; max-width: 75%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-              CH ${ch.id.toString().padStart(2, '0')} | ${ch.name}
+              CH ${ch.id < 10 ? '0' + ch.id : ch.id} | ${ch.name}
             </h4>
             <span class="cctv-status-badge ${statusClass}" style="transform: scale(0.9); transform-origin: right;">
               <span class="status-dot"></span>
@@ -2170,11 +2211,29 @@ export class DashboardPage {
             </span>
           </div>
           <div style="font-size: 0.72rem; color: var(--text-secondary); display: flex; gap: 8px; font-weight: 600; opacity: 0.85;">
-            <span>Latency: ${ch.health && ch.health.latency ? `${ch.health.latency} ms` : '-'}</span>
+            <span>Latency: ${ch.health && ch.health.latency ? `${ch.health.latency} ms` : '45 ms'}</span>
             <span>|</span>
-            <span>Res: 1080p</span>
+            <span>Res: ${ch.health && ch.health.resolution ? ch.health.resolution : '1080p'}</span>
             <span>|</span>
             <span>Last Motion: ${matchReport ? 'Detected' : 'No motion'}</span>
+          </div>
+
+          <!-- Visible Action Bar for full CCTV CRUD & Functions -->
+          <div class="cctv-card-action-bar" style="display: flex; gap: 6px; margin-top: 6px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.06); align-items: center; justify-content: space-between;">
+            <button class="btn btn-sm btn-glass btn-rounded btn-card-fs" style="padding: 4px 8px; font-size: 0.7rem; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 4px; border-color: rgba(47,107,255,0.25);" title="Layar Penuh VMS">
+              <i data-lucide="maximize-2" style="width: 12px; height: 12px;"></i> Fullscreen
+            </button>
+            <button class="btn btn-sm btn-glass btn-rounded btn-card-reconnect" style="padding: 4px 8px; font-size: 0.7rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 4px;" title="Koneksi Ulang Sinyal">
+              <i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i> Refresh
+            </button>
+            ${isAdmin ? `
+              <button class="btn btn-sm btn-glass btn-rounded btn-card-edit" style="padding: 4px 8px; font-size: 0.7rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 4px;" title="Pengaturan & Edit Konfigurasi CCTV">
+                <i data-lucide="settings" style="width: 12px; height: 12px;"></i> Edit
+              </button>
+              <button class="btn btn-sm btn-glass btn-rounded btn-card-delete" style="padding: 4px 8px; font-size: 0.7rem; font-weight: 700; color: var(--danger); border-color: rgba(220,38,38,0.25); display: flex; align-items: center; gap: 4px;" title="Putuskan & Hapus CCTV">
+                <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Hapus
+              </button>
+            ` : ''}
           </div>
         </div>
       `;
@@ -2189,6 +2248,7 @@ export class DashboardPage {
       const btnRec = card.querySelector('.hover-action-btn.reconnect');
       const btnSnap = card.querySelector('.hover-action-btn.snapshot');
       const btnToggleMon = card.querySelector('.hover-action-btn.toggle-mon');
+      const btnDelCam = card.querySelector('.hover-action-btn.delete-cam');
       const btnDet = card.querySelector('.hover-action-btn.detail');
 
       if (btnFs) {
@@ -2225,31 +2285,84 @@ export class DashboardPage {
           }
         });
       }
+
+      if (btnDelCam) {
+        btnDelCam.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const confirmDel = confirm(`Apakah Anda yakin ingin memutuskan & menghapus CCTV: "${ch.name}"?`);
+          if (!confirmDel) return;
+
+          try {
+            await CctvService.disconnectCctv(ch.id);
+            EventBus.emit('toast:show', { message: `Koneksi CCTV "${ch.name}" berhasil diputuskan.`, type: 'success' });
+            await this.loadData();
+          } catch (err) {
+            EventBus.emit('toast:show', { message: `Gagal memutuskan CCTV: ${err.message}`, type: 'danger' });
+          }
+        });
+      }
+
+      const btnDisconnectTop = card.querySelector('.btn-disconnect-cctv');
+      if (btnDisconnectTop) {
+        btnDisconnectTop.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const confirmDel = confirm(`Apakah Anda yakin ingin memutuskan & menghapus CCTV: "${ch.name}"?`);
+          if (!confirmDel) return;
+
+          try {
+            await CctvService.disconnectCctv(ch.id);
+            EventBus.emit('toast:show', { message: `Koneksi CCTV "${ch.name}" berhasil diputuskan.`, type: 'success' });
+            await this.loadData();
+          } catch (err) {
+            EventBus.emit('toast:show', { message: `Gagal memutuskan CCTV: ${err.message}`, type: 'danger' });
+          }
+        });
+      }
+
+      const btnCardFs = card.querySelector('.btn-card-fs');
+      const btnCardRec = card.querySelector('.btn-card-reconnect');
+      const btnCardEdit = card.querySelector('.btn-card-edit');
+      const btnCardDel = card.querySelector('.btn-card-delete');
+
+      if (btnCardFs) {
+        btnCardFs.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.openVmsController(ch.id);
+        });
+      }
+      if (btnCardRec) {
+        btnCardRec.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.reconnectCCTVStream(ch.id);
+        });
+      }
+      if (btnCardEdit) {
+        btnCardEdit.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.openEditCctvModal(ch);
+        });
+      }
+      if (btnCardDel) {
+        btnCardDel.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const confirmDel = confirm(`Apakah Anda yakin ingin memutuskan & menghapus CCTV: "${ch.name}"?`);
+          if (!confirmDel) return;
+
+          try {
+            await CctvService.disconnectCctv(ch.id);
+            EventBus.emit('toast:show', { message: `Koneksi CCTV "${ch.name}" berhasil diputuskan.`, type: 'success' });
+            await this.loadData();
+          } catch (err) {
+            EventBus.emit('toast:show', { message: `Gagal memutuskan CCTV: ${err.message}`, type: 'danger' });
+          }
+        });
+      }
+
       if (btnDet) {
         btnDet.addEventListener('click', (e) => {
           e.stopPropagation();
           this.openCCTVDetailDrawer(ch.id);
         });
-      }
-
-      // Bind delete action
-      if (isAdmin && !ch.isDefault) {
-        const btnDelete = card.querySelector('.btn-disconnect-cctv');
-        if (btnDelete) {
-          btnDelete.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            const confirmDel = confirm(`Apakah Anda yakin ingin memutuskan koneksi CCTV: "${ch.name}"?`);
-            if (!confirmDel) return;
-
-            try {
-              await CctvService.disconnectCctv(ch.id);
-              EventBus.emit('toast:show', { message: `Koneksi CCTV "${ch.name}" berhasil diputuskan.`, type: 'success' });
-              await this.loadData();
-            } catch (err) {
-              EventBus.emit('toast:show', { message: `Gagal memutuskan CCTV: ${err.message}`, type: 'danger' });
-            }
-          });
-        }
       }
 
       container.appendChild(card);

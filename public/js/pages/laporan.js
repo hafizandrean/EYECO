@@ -440,8 +440,8 @@ export class LaporanPage {
       const isAdmin = currentUser?.role === 'admin';
       if (isAdmin && report.adminStatus === 'MENUNGGU') {
         actionButtons = `
-          <button class="btn btn-glass btn-sm btn-quick-verify" data-id="${report.id}" data-action="VALID" title="Verifikasi Valid">Valid</button>
-          <button class="btn btn-glass btn-sm btn-quick-verify" data-id="${report.id}" data-action="DIABAIKAN" title="Abaikan Laporan">Abaikan</button>
+          <button class="btn btn-soft btn-sm btn-quick-verify" data-id="${report.id}" data-action="VALID" style="color: var(--success); background: var(--success-bg); border: 1px solid rgba(16,185,129,0.2); font-weight: 700;">Valid</button>
+          <button class="btn btn-soft btn-sm btn-quick-verify" data-id="${report.id}" data-action="DIABAIKAN" style="color: var(--danger); background: var(--danger-bg); border: 1px solid rgba(239,68,68,0.2); font-weight: 700;">Abaikan</button>
         `;
       }
 
@@ -462,8 +462,11 @@ export class LaporanPage {
 
       row.innerHTML = `
         <div class="col-thumbnail">
-          <div class="mini-thumbnail">
-            <img src="${report.image}" alt="Bukti #${report.id}" loading="lazy" decoding="async">
+          <div class="mini-thumbnail" style="display: flex; align-items: center; justify-content: center; background: var(--surface-soft);">
+            <img src="${report.image}" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+            <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; background: var(--surface-soft); color: var(--text-muted);">
+              <i data-lucide="image" style="width: 18px; height: 18px;"></i>
+            </div>
             ${boxesHtml}
           </div>
         </div>

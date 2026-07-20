@@ -24,7 +24,7 @@ class ReportRepository {
         return report;
     }
     static async update(id, updateData, session) {
-        const options = { new: true, runValidators: true };
+        const options = { new: true, returnDocument: 'after', runValidators: true };
         if (session) {
             Object.assign(options, { session });
         }
@@ -32,7 +32,7 @@ class ReportRepository {
         return report;
     }
     static async softDelete(id, actorId, actorName, reason, session) {
-        const options = { new: true };
+        const options = { new: true, returnDocument: 'after' };
         if (session) {
             Object.assign(options, { session });
         }
@@ -47,7 +47,7 @@ class ReportRepository {
         return report;
     }
     static async restore(id, reason, session) {
-        const options = { new: true };
+        const options = { new: true, returnDocument: 'after' };
         if (session) {
             Object.assign(options, { session });
         }

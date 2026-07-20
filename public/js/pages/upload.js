@@ -19,10 +19,10 @@ export class UploadPage {
       <div class="upload-container-layout" style="animation: pageFadeIn var(--motion-open);">
         <!-- Left: Upload Form Card -->
         <main class="glass-card upload-card" id="upload-main-card" style="padding: var(--space-32);">
-          <div class="card-header-clean" style="margin-bottom: var(--space-24);">
-            <span style="background: rgba(47, 107, 255, 0.1); color: var(--primary); font-size: 0.72rem; font-weight: 800; text-transform: uppercase; padding: 4px 12px; border-radius: var(--radius-pill); letter-spacing: 0.5px;">Unggah Bukti</span>
-            <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--text-primary); margin-top: 6px; margin-bottom: 0;">Lapor Keadaan Sungai</h2>
-            <p style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 4px;">Seret media foto sungai untuk mendeteksi pencemaran sampah otomatis berbasis AI</p>
+          <div style="margin-bottom: var(--space-24); display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+            <span style="background: rgba(47, 107, 255, 0.1); color: var(--primary); font-size: 0.75rem; font-weight: 800; text-transform: uppercase; padding: 4px 12px; border-radius: var(--radius-pill); letter-spacing: 0.5px;">Unggah Bukti</span>
+            <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--text-dark); margin-top: 4px; margin-bottom: 0;">Lapor Keadaan Sungai</h2>
+            <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 2px;">Seret media foto sungai untuk mendeteksi pencemaran sampah otomatis berbasis AI</p>
           </div>
 
           <form id="upload-form-element" class="upload-form" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: var(--space-20);">
@@ -80,9 +80,9 @@ export class UploadPage {
 
         <!-- Right: Upload History Card -->
         <section class="glass-card history-card" id="upload-history-card" style="padding: var(--space-32);">
-          <div class="card-header-clean" style="margin-bottom: var(--space-24); flex-direction: column; align-items: flex-start; gap: 2px;">
-            <h3 class="section-title" style="margin: 0;"><i data-lucide="clock"></i> Riwayat Laporan Saya</h3>
-            <p class="caption-label" style="white-space: normal; word-wrap: break-word;">Pantau perkembangan penanganan insiden yang Anda laporkan</p>
+          <div style="margin-bottom: var(--space-24); display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+            <h3 class="section-title" style="margin: 0; font-size: 1.15rem; font-weight: 800;"><i data-lucide="clock" style="color: var(--primary);"></i> Riwayat Laporan Saya</h3>
+            <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0; line-height: 1.4;">Pantau perkembangan penanganan insiden yang Anda laporkan</p>
           </div>
 
           <div class="history-list" id="history-list-container" style="display: flex; flex-direction: column; gap: var(--space-12);">
@@ -417,18 +417,21 @@ export class UploadPage {
         card.style.cssText = 'padding: 16px; display: flex; gap: 16px; align-items: center; cursor: pointer; border: 1px solid var(--border);';
         
         card.innerHTML = `
-          <div class="history-thumbnail" style="width: 68px; height: 68px; border-radius: 8px; overflow: hidden; background: #000; flex-shrink: 0;">
-            <img src="${report.image}" alt="Bukti" style="width: 100%; height: 100%; object-fit: cover;">
-          </div>
-          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
-            <div style="font-weight: 800; font-size: 0.88rem; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${report.location}</div>
-            <div style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600;">${Formatter.formatDate(report.timestamp)}</div>
-            <div style="display: flex; gap: 6px; align-items: center; margin-top: 2px;">
-              <span class="badge ${levelClass === 'high' ? 'bg-danger text-white' : (levelClass === 'medium' ? 'bg-warning text-white' : 'bg-primary text-white')}" style="font-size: 0.62rem; padding: 1px 6px;">AI: ${report.aiStatus}</span>
-              <span class="badge ${report.adminStatus === 'VALID' ? 'bg-success text-white' : (report.adminStatus === 'DIABAIKAN' ? 'bg-secondary text-white' : 'bg-warning text-white')}" style="font-size: 0.62rem; padding: 1px 6px;">${report.adminStatus}</span>
+          <div class="history-thumbnail" style="width: 60px; height: 60px; border-radius: 8px; overflow: hidden; background: var(--surface-soft); flex-shrink: 0; position: relative; display: flex; align-items: center; justify-content: center;">
+            <img src="${report.image}" alt="" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+            <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; background: var(--surface-soft); color: var(--text-muted);">
+              <i data-lucide="image" style="width: 20px; height: 20px;"></i>
             </div>
           </div>
-          <i data-lucide="chevron-right" style="width: 16px; height: 16px; color: var(--text-secondary); opacity: 0.5;"></i>
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+            <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-dark); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${report.location}</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">${Formatter.formatDate(report.timestamp)}</div>
+            <div style="display: flex; gap: 6px; align-items: center; margin-top: 2px;">
+              <span class="badge ${levelClass === 'high' ? 'badge-high' : (levelClass === 'medium' ? 'badge-medium' : 'badge-low')}" style="font-size: 0.72rem; padding: 2px 8px;">AI: ${report.aiStatus}</span>
+              <span class="status-badge ${report.adminStatus === 'VALID' ? 'status-valid' : (report.adminStatus === 'DIABAIKAN' ? 'status-ignored' : 'status-pending')}" style="font-size: 0.72rem; padding: 2px 8px;">${report.adminStatus}</span>
+            </div>
+          </div>
+          <i data-lucide="chevron-right" style="width: 16px; height: 16px; color: var(--text-muted); flex-shrink: 0;"></i>
         `;
 
         card.addEventListener('click', () => {

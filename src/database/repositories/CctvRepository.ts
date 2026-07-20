@@ -128,10 +128,6 @@ export class CctvRepository {
             throw new Error('CCTV tidak ditemukan.');
           }
     
-          if (cctv.isDefault) {
-            throw new Error('Kamera bawaan sistem tidak boleh dihapus.');
-          }
-    
           await CctvModel.deleteOne(workspaceId !== undefined ? { id, workspaceId } : { id });
           return true;
         } catch (err) {

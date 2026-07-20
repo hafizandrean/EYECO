@@ -8,6 +8,7 @@ const crypto_1 = __importDefault(require("crypto"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const AiEvidence_1 = require("../../database/models/AiEvidence");
+const Counter_1 = require("../../database/models/Counter");
 class EvidenceService {
     /**
      * Processes visual evidence: calculates file size, verifies MIME type,
@@ -15,8 +16,7 @@ class EvidenceService {
      */
     static async saveEvidence(cameraId, imagePath, timestamp, linkedDetectionId) {
         try {
-            const lastEvidence = await AiEvidence_1.AiEvidenceModel.findOne().sort({ id: -1 }).exec();
-            const nextEvidenceId = lastEvidence ? lastEvidence.id + 1 : 1;
+            const nextEvidenceId = await (0, Counter_1.getNextSequence)('evidenceId', AiEvidence_1.AiEvidenceModel);
             // Calculate SHA-256 hash integrity check
             const hashInput = imagePath + timestamp.toISOString();
             const fileHash = crypto_1.default.createHash('sha256').update(hashInput).digest('hex');

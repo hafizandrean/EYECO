@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { AiEvidenceModel } from '../../database/models/AiEvidence';
+import { getNextSequence } from '../../database/models/Counter';
 
 export class EvidenceService {
   /**
@@ -16,8 +17,7 @@ export class EvidenceService {
     linkedDetectionId: mongoose.Types.ObjectId
   ): Promise<any> {
     try {
-      const lastEvidence = await AiEvidenceModel.findOne().sort({ id: -1 }).exec();
-      const nextEvidenceId = lastEvidence ? lastEvidence.id + 1 : 1;
+      const nextEvidenceId = await getNextSequence('evidenceId', AiEvidenceModel);
 
       // Calculate SHA-256 hash integrity check
       const hashInput = imagePath + timestamp.toISOString();
