@@ -42,6 +42,7 @@ const NewsSchema = new mongoose_1.Schema({
     content: { type: String, required: true },
     category: { type: String, default: 'Informasi' },
     thumbnail: { type: String, default: '' },
+    images: { type: [String], default: [] },
     author: { type: String, required: true },
     authorId: { type: Number, default: null },
     status: { type: String, enum: ['draft', 'published'], default: 'published' },

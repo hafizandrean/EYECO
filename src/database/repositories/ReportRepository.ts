@@ -196,17 +196,16 @@ export class ReportRepository {
     try {
       const query: any = { deletedAt: null };
 
-      if (userContext.role === 'admin' || userContext.role === 'user') {
+      if (userContext.role === 'admin') {
         const user = await UserModel.findOne({ id: userContext.id }).lean().exec();
         if (user && (user as any).workspaceId) {
           query.workspaceId = (user as any).workspaceId;
-          if (userContext.role === 'user') {
-            query.userId = user._id;
-          }
         } else {
           // If no workspace is selected or found, return empty results
           query.workspaceId = -1;
         }
+      } else if (userContext.role === 'user') {
+        // User sees all non-deleted reports regardless of workspace
       } else if (userContext.role === 'superadmin') {
         // Superadmin only sees reports from workspaces they own
         const ownedWorkspaces = await WorkspaceModel.find({ superadminId: userContext.id }).lean().exec();

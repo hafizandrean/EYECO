@@ -186,6 +186,11 @@ router.post('/login', async (req, res) => {
     } else {
       const sha256Hash = crypto.createHash('sha256').update(password).digest('hex');
       match = (sha256Hash === user.passwordHash);
+      // If SHA-256 match, upgrade to bcrypt
+      if (match) {
+        user.passwordHash = await bcrypt.hash(password, 10);
+        await UserModel.updateOne({ id: user.id }, { $set: { passwordHash: user.passwordHash } }).exec();
+      }
     }
 
     if (!match) return res.status(401).json({ error: 'Username atau password salah' });

@@ -13,6 +13,7 @@ const express_rate_limit_1 = require("express-rate-limit");
 const authMiddleware_1 = require("./auth/authMiddleware");
 const db_1 = require("./database/db");
 const Report_1 = require("./database/models/Report");
+const User_1 = require("./database/models/User");
 const authMiddleware_2 = require("./auth/authMiddleware");
 const RoleMiddleware_1 = require("./auth/RoleMiddleware");
 const authRoutes_1 = __importDefault(require("./routes/authRoutes"));
@@ -780,6 +781,23 @@ app.post('/api/system-settings', async (req, res) => {
 let serverInstance;
 // --- START SERVER ---
 (0, db_1.connectDB)().then(async () => {
+    // Ensure all user passwords use bcrypt (migrate SHA-256 -> bcrypt)
+    try {
+        const bcrypt = require('bcrypt');
+        const userWithSha = await User_1.UserModel.find({
+            passwordHash: { $not: /^\$2/ }
+        }).select('+passwordHash').exec();
+        for (const u of userWithSha) {
+            if (u.passwordHash && !u.passwordHash.startsWith('$2')) {
+                u.passwordHash = await bcrypt.hash(u.passwordHash, 10);
+                await u.save();
+            }
+        }
+        if (userWithSha.length > 0) {
+            console.log(`[PASSWORD MIGRATION] Converted ${userWithSha.length} user password(s) from SHA-256 to bcrypt.`);
+        }
+    }
+    catch (_) { }
     // CCTV Health Engine is started inside listenWithFallback
     AiPipelineScheduler_1.AiPipelineScheduler.start();
     OutboxWorker_1.OutboxWorker.start();

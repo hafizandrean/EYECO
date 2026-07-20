@@ -884,6 +884,23 @@ let serverInstance: any;
 
 // --- START SERVER ---
 connectDB().then(async () => {
+  // Ensure all user passwords use bcrypt (migrate SHA-256 -> bcrypt)
+  try {
+    const bcrypt = require('bcrypt');
+    const userWithSha = await UserModel.find({
+      passwordHash: { $not: /^\$2/ }
+    }).select('+passwordHash').exec();
+    for (const u of userWithSha as any[]) {
+      if (u.passwordHash && !u.passwordHash.startsWith('$2')) {
+        u.passwordHash = await bcrypt.hash(u.passwordHash, 10);
+        await u.save();
+      }
+    }
+    if ((userWithSha as any[]).length > 0) {
+      console.log(`[PASSWORD MIGRATION] Converted ${(userWithSha as any[]).length} user password(s) from SHA-256 to bcrypt.`);
+    }
+  } catch (_) {}
+
   // CCTV Health Engine is started inside listenWithFallback
   AiPipelineScheduler.start();
   OutboxWorker.start();

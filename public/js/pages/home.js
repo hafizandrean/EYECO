@@ -266,20 +266,17 @@ class HomePage {
           </div>
         </section>
 
-        <!-- ═══ NEWS SECTION ═══ -->
+        <!-- ═══ NEWS MARQUEE (infinite scroll + swipe) ═══ -->
         <section class="landing-section" id="news">
-          <div class="section-row-header">
+          <div class="section-row-header" style="margin-bottom:0;">
             <div>
               <div class="section-label">Berita & Informasi</div>
               <h2 class="section-title">Update Lingkungan</h2>
             </div>
           </div>
-          <div class="news-grid" id="landing-news-grid">
-            <div class="reports-skeleton">
-              <div class="skeleton-card"></div>
-              <div class="skeleton-card"></div>
-              <div class="skeleton-card"></div>
-            </div>
+          <p class="section-desc" style="margin-bottom:8px;">Kabar terbaru dari lingkungan sekitar — geser untuk jelajahi.</p>
+          <div class="news-marquee">
+            <div class="news-marquee-row" id="news-marquee-track"></div>
           </div>
         </section>
 
@@ -490,25 +487,22 @@ class HomePage {
   }
 
   async loadNews() {
-    const container = document.getElementById('landing-news-grid');
-    if (!container) return;
+    const track = document.getElementById('news-marquee-track');
+    if (!track) return;
 
     try {
-      // Get workspaceId from AppState
       const user = AppState.get('user');
       const wsId = user?.workspaceId || 3;
       const res = await fetch(`/api/news/public/${wsId}`);
       const data = await res.json();
       const news = data.news || [];
-      container.innerHTML = '';
+      track.innerHTML = '';
 
       if (news.length === 0) {
-        container.innerHTML = `
-          <div class="reports-empty" style="grid-column:1/-1;">
-            <i data-lucide="newspaper"></i>
-            <p>Belum ada berita. Admin akan menambahkan informasi terbaru di sini.</p>
-          </div>
-        `;
+        track.innerHTML = `<div class="reports-empty" style="width:100%;">
+          <i data-lucide="newspaper"></i>
+          <p>Belum ada berita. Admin akan menambahkan informasi terbaru di sini.</p>
+        </div>`;
         return;
       }
 
@@ -522,43 +516,152 @@ class HomePage {
 
       const icons = ['droplets', 'recycle', 'megaphone', 'leaf', 'globe'];
 
-      news.slice(0, 6).forEach((item, i) => {
+      const sorted = [...news].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      sorted.forEach((item, i) => {
         const card = document.createElement('div');
-        card.className = 'news-card';
-        card.style.cursor = 'pointer';
-        card.style.animationDelay = `${i * 0.1}s`;
-        card.addEventListener('click', () => {
-          window.location.href = '/berita/' + item.slug;
-        });
-        // Thumbnail
+        card.className = 'news-mcard';
+        card.dataset.slug = item.slug || '';
         const thumbHtml = item.thumbnail
-          ? `<img src="${item.thumbnail}" alt="${item.title}" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;">`
-          : `<i data-lucide="${icons[i % icons.length]}" style="position:relative;z-index:1;"></i>`;
+          ? `<img src="${item.thumbnail}" alt="${item.title}" loading="lazy">`
+          : `<i data-lucide="${icons[i % icons.length]}"></i>`;
         const thumbBg = item.thumbnail
-          ? 'background:#000;position:relative;overflow:hidden;'
+          ? 'background:#0F172A;'
           : `background: ${gradients[i % gradients.length]};display:flex;align-items:center;justify-content:center;`;
         card.innerHTML = `
-          <div class="news-img" style="${thumbBg}">
+          <div class="news-mcard-img" style="${thumbBg}">
             ${thumbHtml}
           </div>
-          <div class="news-body">
-            <span class="news-tag">${item.category || 'Informasi'}</span>
+          <div class="news-mcard-body">
+            <span class="news-mcard-tag">${item.category || 'Informasi'}</span>
             <h3>${item.title}</h3>
-            <p>${item.summary}</p>
+            <p>${item.summary || ''}</p>
           </div>
         `;
-        container.appendChild(card);
+        track.appendChild(card);
       });
 
+      // Delegated click — works on clones too; skip if user was dragging
+      track.addEventListener('click', (e) => {
+        if (this._marqueeDragDistance && this._marqueeDragDistance > 5) return;
+        const card = e.target.closest('.news-mcard');
+        if (card && card.dataset.slug) {
+          window.location.href = '/berita/' + card.dataset.slug;
+        }
+      });
+
+      this.initMarqueeInfinite(track);
       if (window.lucide) window.lucide.createIcons();
     } catch (_) {
-      container.innerHTML = `
-        <div class="reports-empty" style="grid-column:1/-1;">
-          <i data-lucide="alert-circle"></i>
-          <p>Gagal memuat berita.</p>
-        </div>
-      `;
+      track.innerHTML = `<div class="reports-empty" style="width:100%;">
+        <i data-lucide="alert-circle"></i>
+        <p>Gagal memuat berita.</p>
+      </div>`;
     }
+  }
+
+  initMarqueeInfinite(track) {
+    // Duplicate all tiles for seamless infinite loop
+    const tiles = Array.from(track.children);
+    if (tiles.length === 0) return;
+
+    // Duplikat tile (kecuali empty state)
+    tiles.forEach(tile => {
+      const clone = tile.cloneNode(true);
+      clone.classList.add('clone');
+      track.appendChild(clone);
+    });
+
+    let speed = 0.6; // px per frame (~36px/s at 60fps)
+    let pos = 0;
+    let isPaused = false;
+    let isDragging = false;
+    let startX = 0;
+    let dragStartPos = 0;
+    let rafId = null;
+    let totalWidth = 0;
+
+    function calcTotalWidth() {
+      totalWidth = 0;
+      for (let i = 0; i < tiles.length; i++) {
+        totalWidth += tiles[i].offsetWidth + 20; // 20 = gap
+      }
+    }
+
+    calcTotalWidth();
+    // Recalc on resize
+    const resizeHandler = () => calcTotalWidth();
+    window.addEventListener('resize', resizeHandler);
+
+    // ── Animation Loop ──
+    function animate() {
+      if (!isPaused && !isDragging && totalWidth > 0) {
+        pos -= speed;
+        // Reset seamless: ketika udah scroll sejauh setengah (satu set tile)
+        if (Math.abs(pos) >= totalWidth) {
+          pos += totalWidth;
+        }
+        track.style.transform = `translateX(${pos}px)`;
+      }
+      rafId = requestAnimationFrame(animate);
+    }
+    rafId = requestAnimationFrame(animate);
+
+    // ── Hover pause ──
+    track.addEventListener('mouseenter', () => { isPaused = true; });
+    track.addEventListener('mouseleave', () => {
+      isPaused = false;
+      isDragging = false;
+      track.classList.remove('dragging');
+    });
+
+    // ── Manual Drag ──
+    const onStart = (clientX) => {
+      isDragging = true;
+      startX = clientX;
+      dragStartPos = pos;
+      this._marqueeDragDistance = 0;
+      track.classList.add('dragging');
+      track.style.cursor = 'grabbing';
+    };
+
+    const onMove = (clientX) => {
+      if (!isDragging) return;
+      const delta = (clientX - startX) * 1.5;
+      pos = dragStartPos + delta;
+      this._marqueeDragDistance = Math.abs(clientX - startX);
+      track.style.transform = `translateX(${pos}px)`;
+    };
+
+    const onEnd = () => {
+      isDragging = false;
+      track.classList.remove('dragging');
+      track.style.cursor = '';
+    };
+
+    // Mouse
+    track.addEventListener('mousedown', (e) => onStart(e.clientX));
+    window.addEventListener('mousemove', (e) => onMove(e.clientX));
+    window.addEventListener('mouseup', onEnd);
+
+    // Touch
+    track.addEventListener('touchstart', (e) => {
+      onStart(e.touches[0].clientX);
+    }, { passive: true });
+    window.addEventListener('touchmove', (e) => {
+      onMove(e.touches[0].clientX);
+    }, { passive: true });
+    window.addEventListener('touchend', onEnd, { passive: true });
+
+    // Cleanup on destroy
+    this._marqueeCleanup = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', resizeHandler);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onEnd);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onEnd);
+    };
   }
 
   initFAQ() {
@@ -667,7 +770,9 @@ class HomePage {
   }
 
   destroy() {
-    // Cleanup
+    if (typeof this._marqueeCleanup === 'function') {
+      this._marqueeCleanup();
+    }
   }
 }
 

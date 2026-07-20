@@ -82,21 +82,44 @@ router.get('/stats', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.roleG
         const recentNews = await NewsModel.find({ workspaceId: { $in: workspaceIds }, status: 'published' })
             .sort({ createdAt: -1 }).limit(3).lean().exec();
         // Enrich with usernames
-        const reportUserIds = [...new Set(recentReports.map(r => r.userId?.toString()).filter(Boolean))];
-        const newsAuthorIds = [...new Set(recentNews.map(n => n.authorId?.toString()).filter(Boolean))];
-        const allUserIds = [...new Set([...reportUserIds, ...newsAuthorIds])];
-        const userMap = new Map((await User_1.UserModel.find().where('_id').in(allUserIds).select('name username').lean().exec())
-            .map((u) => [u._id.toString(), u]));
+        const allUserIds = [];
+        const reportObjectIds = [];
+        recentReports.forEach(r => {
+            if (r.userId) {
+                const uid = r.userId.toString();
+                if (uid.length === 24)
+                    reportObjectIds.push(uid);
+                else
+                    allUserIds.push(uid);
+            }
+        });
+        recentNews.forEach(n => {
+            if (n.authorId)
+                allUserIds.push(n.authorId.toString());
+        });
+        // Cari user by _id (ObjectId) untuk reporter laporan
+        const userMapByObjectId = new Map();
+        if (reportObjectIds.length > 0) {
+            const users = await User_1.UserModel.find({ _id: { $in: reportObjectIds } }).select('name username').lean().exec();
+            users.forEach((u) => userMapByObjectId.set(u._id.toString(), u));
+        }
+        // Cari user by integer id untuk author berita
+        const intIds = [...new Set(allUserIds.map(Number).filter(n => !isNaN(n) && n > 0))];
+        const userMapByIntId = new Map();
+        if (intIds.length > 0) {
+            const users = await User_1.UserModel.find({ id: { $in: intIds } }).select('name username id').lean().exec();
+            users.forEach((u) => userMapByIntId.set(u.id.toString(), u));
+        }
         const activity = [];
         recentReports.forEach(r => {
-            const reporter = userMap.get(r.userId?.toString());
+            const reporter = userMapByObjectId.get(r.userId?.toString());
             activity.push({
                 type: 'report', text: `Laporan baru: ${r.location || '#' + r.id} oleh ${reporter?.name || reporter?.username || 'warga'}`,
                 time: r.timestamp || r.createdAt, wsId: r.workspaceId, color: '#2563EB'
             });
         });
         recentNews.forEach(n => {
-            const author = userMap.get(n.authorId?.toString());
+            const author = userMapByIntId.get(n.authorId?.toString());
             activity.push({
                 type: 'news', text: `Berita baru: "${n.title}" oleh ${author?.name || author?.username || n.author}`,
                 time: n.createdAt, wsId: n.workspaceId, color: '#8B5CF6'

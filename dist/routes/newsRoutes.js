@@ -7,12 +7,15 @@ const express_1 = require("express");
 const multer_1 = __importDefault(require("multer"));
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
+const child_process_1 = require("child_process");
+const util_1 = require("util");
 const News_1 = require("../database/models/News");
 const User_1 = require("../database/models/User");
 const authMiddleware_1 = require("../auth/authMiddleware");
 const RoleMiddleware_1 = require("../auth/RoleMiddleware");
+const execFileAsync = (0, util_1.promisify)(child_process_1.execFile);
 const router = (0, express_1.Router)();
-// Multer config untuk upload thumbnail berita
+// Multer config untuk upload gambar berita (max 3)
 const newsStorage = multer_1.default.diskStorage({
     destination: (req, file, cb) => {
         const uploadDir = path_1.default.join(__dirname, '../../public/uploads/berita');
@@ -29,26 +32,24 @@ const newsStorage = multer_1.default.diskStorage({
 });
 const newsUpload = (0, multer_1.default)({
     storage: newsStorage,
-    limits: { fileSize: 5 * 1024 * 1024 },
+    limits: { fileSize: 20 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
-        const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
         if (allowed.includes(file.mimetype)) {
             cb(null, true);
         }
         else {
-            cb(new Error('Hanya file gambar (JPEG, PNG, WebP) yang diizinkan.'));
+            cb(new Error('Hanya file gambar (JPEG, PNG, WebP, HEIC/HEIF) yang diizinkan.'));
         }
     },
 });
 function slugify(text) {
-    return text.toLowerCase()
-        .replace(/[^\w\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .trim()
-        .substring(0, 80);
+    return text
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
 }
-// ─── PUBLIC: Get single news by slug ───
+// ─── PUBLIC: Get single published news by slug ───
 router.get('/public/item/:slug', async (req, res) => {
     try {
         const item = await News_1.NewsModel.findOne({ slug: req.params.slug, status: 'published' }).lean().exec();
@@ -113,7 +114,7 @@ router.post('/create', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.rol
         const user = await User_1.UserModel.findOne({ id: userCtx.id }).lean();
         if (!user || !user.workspaceId)
             return res.status(400).json({ error: 'No workspace context' });
-        const { title, summary, content, category, thumbnail, status } = req.body;
+        const { title, summary, content, category, thumbnail, images, status } = req.body;
         if (!title || !summary || !content) {
             return res.status(400).json({ error: 'Judul, ringkasan, dan konten wajib diisi' });
         }
@@ -130,6 +131,7 @@ router.post('/create', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.rol
             content,
             category: category || 'Informasi',
             thumbnail: thumbnail || '',
+            images: Array.isArray(images) ? images : [],
             author: authorName,
             authorId: userCtx.id,
             status: status || 'published',
@@ -143,23 +145,105 @@ router.post('/create', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.rol
         res.status(500).json({ error: 'Gagal membuat berita' });
     }
 });
-// ─── ADMIN: Upload thumbnail ───
-router.post('/upload-thumbnail', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.roleGuard)(['admin', 'superadmin']), (req, res) => {
-    newsUpload.single('file')(req, res, (err) => {
-        if (err) {
-            return res.status(400).json({ success: false, error: err.message });
+// ─── ADMIN: Upload multiple images (max 3) ───
+router.post('/upload-images', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.roleGuard)(['admin', 'superadmin']), async (req, res) => {
+    // 1. Multer upload — wrapped in promise
+    try {
+        await new Promise((resolve, reject) => {
+            newsUpload.array('files', 3)(req, res, (err) => {
+                if (err)
+                    reject(err);
+                else
+                    resolve();
+            });
+        });
+    }
+    catch (err) {
+        return res.status(400).json({ success: false, error: err.message });
+    }
+    const files = req.files;
+    if (!files || files.length === 0) {
+        return res.status(400).json({ success: false, error: 'Tidak ada file yang diupload' });
+    }
+    const uploadBase = path_1.default.join(__dirname, '../../public/uploads/berita');
+    const urls = [];
+    for (const f of files) {
+        const ext = path_1.default.extname(f.filename).toLowerCase();
+        const sourcePath = f.path;
+        if (ext === '.heic' || ext === '.heif') {
+            const jpegName = f.filename.replace(/\.(heic|heif)$/i, '.jpg');
+            const jpegPath = path_1.default.join(uploadBase, jpegName);
+            try {
+                // Convert HEIC → JPEG menggunakan heif-convert dari libheif
+                // Output pake .jpg suffix biar heif-convert tau format output
+                // Multi-page HEIC (Live Photos) → output -1.jpg, -2.jpg
+                // Single-page HEIC → output langsung nama.jpg
+                const jpegOutputPath = path_1.default.join(uploadBase, jpegName);
+                const jpegBase = jpegOutputPath.replace(/\.jpg$/i, '');
+                // execFile lebih aman dari exec (gak lewat shell)
+                await execFileAsync('heif-convert', [sourcePath, jpegOutputPath]);
+                // Cari hasil: bisa langsung jpegName atau jpegName-1.jpg (multi-page)
+                let actualPath = jpegOutputPath;
+                let stat = null;
+                try {
+                    stat = fs_1.default.statSync(actualPath);
+                }
+                catch { /* not found */ }
+                if (!stat || stat.size < 100) {
+                    // Multi-page: coba -1.jpg
+                    actualPath = jpegBase + '-1.jpg';
+                    try {
+                        stat = fs_1.default.statSync(actualPath);
+                    }
+                    catch { /* not found */ }
+                }
+                if (!stat || stat.size < 100)
+                    throw new Error('Hasil konversi terlalu kecil');
+                // Hapus page 2+ kalo ada (Live Photo)
+                try {
+                    fs_1.default.unlinkSync(jpegBase + '-2.jpg');
+                }
+                catch { /* skip */ }
+                // Hapus HEIC asli
+                try {
+                    fs_1.default.unlinkSync(sourcePath);
+                }
+                catch { /* skip */ }
+                // Kalo actual beda dengan yg diinginkan, rename
+                if (actualPath !== jpegOutputPath) {
+                    fs_1.default.renameSync(actualPath, jpegOutputPath);
+                }
+                urls.push('/uploads/berita/' + jpegName);
+                console.log('[News] HEIC converted:', f.filename, '→', jpegName, (stat.size) + 'b');
+            }
+            catch (convertErr) {
+                console.error('[News] HEIC convert error:', convertErr.message);
+                // Hapus file .heic yg gagal
+                try {
+                    fs_1.default.unlinkSync(sourcePath);
+                }
+                catch { /* skip */ }
+                try {
+                    if (fs_1.default.existsSync(jpegPath))
+                        fs_1.default.unlinkSync(jpegPath);
+                }
+                catch { /* skip */ }
+                return res.status(400).json({
+                    success: false,
+                    error: 'Gagal memproses gambar HEIC. Pastikan file HEIC valid atau gunakan format JPG/PNG.',
+                });
+            }
         }
-        if (!req.file) {
-            return res.status(400).json({ success: false, error: 'Tidak ada file yang diupload' });
+        else {
+            urls.push('/uploads/berita/' + f.filename);
         }
-        const fileUrl = '/uploads/berita/' + req.file.filename;
-        res.json({ success: true, url: fileUrl, filename: req.file.filename });
-    });
+    }
+    res.json({ success: true, urls, thumbnail: urls[0] });
 });
 // ─── ADMIN: Update news ───
 router.put('/:id', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.roleGuard)(['admin', 'superadmin']), async (req, res) => {
     try {
-        const { title, summary, content, category, thumbnail, status } = req.body;
+        const { title, summary, content, category, thumbnail, images, status } = req.body;
         const updateData = {};
         if (title !== undefined)
             updateData.title = title;
@@ -171,6 +255,8 @@ router.put('/:id', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.roleGua
             updateData.category = category;
         if (thumbnail !== undefined)
             updateData.thumbnail = thumbnail;
+        if (images !== undefined)
+            updateData.images = images;
         if (status !== undefined) {
             updateData.status = status;
             updateData.publishedAt = status !== 'draft' ? new Date() : undefined;

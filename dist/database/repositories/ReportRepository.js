@@ -133,18 +133,18 @@ class ReportRepository {
     static async getFiltered(filters, userContext, page, limit) {
         try {
             const query = { deletedAt: null };
-            if (userContext.role === 'admin' || userContext.role === 'user') {
+            if (userContext.role === 'admin') {
                 const user = await User_1.UserModel.findOne({ id: userContext.id }).lean().exec();
                 if (user && user.workspaceId) {
                     query.workspaceId = user.workspaceId;
-                    if (userContext.role === 'user') {
-                        query.userId = user._id;
-                    }
                 }
                 else {
                     // If no workspace is selected or found, return empty results
                     query.workspaceId = -1;
                 }
+            }
+            else if (userContext.role === 'user') {
+                // User sees all non-deleted reports regardless of workspace
             }
             else if (userContext.role === 'superadmin') {
                 // Superadmin only sees reports from workspaces they own

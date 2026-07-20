@@ -265,6 +265,12 @@ export class UploadPage {
   async handleSubmit(e) {
     e.preventDefault();
 
+    // Guard: prevent duplicate upload while scanning or already completed
+    if (this.isScanning || this.scanCompleted) {
+      console.log('[UPLOAD] handleSubmit ditolak — sedang memproses atau sudah selesai.');
+      return;
+    }
+
     if (!this.selectedFile) {
       EventBus.emit('toast:show', { message: 'Silakan pilih file gambar/video terlebih dahulu.', type: 'warning' });
       return;
@@ -279,17 +285,13 @@ export class UploadPage {
     const time = document.getElementById('input-time').value;
     const notes = document.getElementById('input-notes').value.trim();
 
-    // Validate required fields
+    // Validate required fields — do NOT re-enable btnSubmit; user must still fill and submit afresh
     if (!location) {
       EventBus.emit('toast:show', { message: 'Lokasi sungai wajib diisi.', type: 'warning' });
-      btnSubmit.disabled = false;
-      btnSubmit.innerHTML = origHtml;
       return;
     }
     if (!time) {
       EventBus.emit('toast:show', { message: 'Waktu pengamatan wajib diisi.', type: 'warning' });
-      btnSubmit.disabled = false;
-      btnSubmit.innerHTML = origHtml;
       return;
     }
 
@@ -304,6 +306,7 @@ export class UploadPage {
     formData.append('additionalNotes', notes);
     formData.append('file', this.selectedFile);
 
+    let success = false;
     try {
       const response = await ReportService.uploadReport(formData);
       
@@ -358,14 +361,24 @@ export class UploadPage {
       }
       
       if (reportId) {
+        console.log('[UPLOAD_FRONTEND] Navigasi ke deteksi:', reportId);
+        this.isScanning = true; // lock form — stays locked even after finally (success flag)
+        success = true;
         Router.navigate(`/dashboard/detections/${reportId}`);
       } else {
         EventBus.emit('toast:show', { message: 'Laporan tersimpan, namun ID tidak ditemukan di respons.', type: 'info' });
+        // ID tidak ditemukan — set scanCompleted agar form tidak bisa di-klik lagi
+        this.scanCompleted = true;
       }
     } catch (err) {
       EventBus.emit('toast:show', { message: `Gagal mengirim laporan: ${err.message}`, type: 'danger' });
       btnSubmit.disabled = false;
       btnSubmit.innerHTML = origHtml;
+    } finally {
+      // Only release the lock on error/validation-failure; on success the form stays locked
+      if (!success) {
+        this.isScanning = false;
+      }
     }
   }
 

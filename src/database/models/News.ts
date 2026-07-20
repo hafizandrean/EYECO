@@ -7,6 +7,7 @@ export interface INews extends Document {
   content: string;
   category: string;
   thumbnail?: string;
+  images: string[];
   author: string;
   authorId?: number;
   status: 'draft' | 'published';
@@ -23,6 +24,7 @@ const NewsSchema = new Schema<INews>({
   content:        { type: String, required: true },
   category:       { type: String, default: 'Informasi' },
   thumbnail:      { type: String, default: '' },
+  images:         { type: [String], default: [] },
   author:         { type: String, required: true },
   authorId:       { type: Number, default: null },
   status:         { type: String, enum: ['draft', 'published'], default: 'published' },

@@ -448,6 +448,7 @@ export class DetailPage {
                 <i data-lucide="shield" style="color: var(--primary);"></i> Operator Action Center
               </h3>
 
+              ${report.adminStatus === 'MENUNGGU' ? `
               <form id="detail-verify-form" class="detail-verify-form" style="display:flex; flex-direction:column; gap:12px;">
                 <!-- Validate/Reject status -->
                 <div class="form-group">
@@ -495,6 +496,14 @@ export class DetailPage {
               <button class="btn btn-glass btn-rounded" id="btn-telegram-dispatch" style="width: 100%; color: var(--primary); border-color: rgba(47, 107, 255, 0.2); font-size: 0.8rem; font-weight: 700; height: 38px;">
                 <i data-lucide="send" style="width:14px; height:14px; margin-right:4px;"></i> Siarkan Telegram Respon
               </button>
+              ` : `
+              <div style="display:flex; flex-direction:column; gap:8px; padding: var(--space-16) 0;">
+                <span style="font-size:0.85rem; color: var(--text-primary); font-weight:600;">
+                  Status Laporan: <span style="color: ${report.adminStatus === 'VALID' ? 'var(--success)' : 'var(--warning)'};">${report.adminStatus === 'VALID' ? '✓ DIVALIDASI' : '✗ DIABAIKAN'}</span>
+                </span>
+                ${report.adminNotes ? `<p style="font-size:0.8rem; color: var(--text-secondary); margin:4px 0 0 0;">Catatan: ${report.adminNotes}</p>` : ''}
+              </div>
+              `}
             </div>
           ` : ''}
 
