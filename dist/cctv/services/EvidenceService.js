@@ -15,8 +15,6 @@ class EvidenceService {
      */
     static async saveEvidence(cameraId, imagePath, timestamp, linkedDetectionId) {
         try {
-            const lastEvidence = await AiEvidence_1.AiEvidenceModel.findOne().sort({ id: -1 }).exec();
-            const nextEvidenceId = lastEvidence ? lastEvidence.id + 1 : 1;
             // Calculate SHA-256 hash integrity check
             const hashInput = imagePath + timestamp.toISOString();
             const fileHash = crypto_1.default.createHash('sha256').update(hashInput).digest('hex');
@@ -27,24 +25,46 @@ class EvidenceService {
                 const stats = fs_1.default.statSync(absolutePath);
                 sizeBytes = stats.size;
             }
-            const evidence = await AiEvidence_1.AiEvidenceModel.create({
-                id: nextEvidenceId,
-                cameraId: cameraId,
-                capturedAt: timestamp,
-                storageKey: imagePath,
-                sha256: fileHash,
-                linkedDetectionId: linkedDetectionId,
-                // TTL 30 days default expiration for unpromoted evidence
-                expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-                mimeType: 'image/jpeg',
-                width: 1920,
-                height: 1080,
-                size: sizeBytes,
-                storage: 'LOCAL',
-                thumbnail: imagePath,
-                virusScanStatus: 'CLEAN'
-            });
-            console.log(`[EvidenceService] Evidence #${nextEvidenceId} processed and saved successfully.`);
+            let attempts = 0;
+            let evidence = null;
+            while (attempts < 5) {
+                try {
+                    const lastEvidence = await AiEvidence_1.AiEvidenceModel.findOne().sort({ id: -1 }).exec();
+                    const nextEvidenceId = lastEvidence ? lastEvidence.id + 1 : 1;
+                    evidence = await AiEvidence_1.AiEvidenceModel.create({
+                        id: nextEvidenceId,
+                        cameraId: cameraId,
+                        capturedAt: timestamp,
+                        storageKey: imagePath,
+                        sha256: fileHash,
+                        linkedDetectionId: linkedDetectionId,
+                        // TTL 30 days default expiration for unpromoted evidence
+                        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                        mimeType: 'image/jpeg',
+                        width: 1920,
+                        height: 1080,
+                        size: sizeBytes,
+                        storage: 'LOCAL',
+                        thumbnail: imagePath,
+                        virusScanStatus: 'CLEAN'
+                    });
+                    break;
+                }
+                catch (createErr) {
+                    if (createErr.code === 11000 || createErr.message.includes('E11000')) {
+                        attempts++;
+                        console.log(`[EvidenceService] Duplicate key error on Evidence ID. Retrying ID generation (Attempt ${attempts}/5)...`);
+                        await new Promise(resolve => setTimeout(resolve, Math.random() * 150 + 50));
+                    }
+                    else {
+                        throw createErr;
+                    }
+                }
+            }
+            if (!evidence) {
+                throw new Error('Gagal memproses bukti visual karena tabrakan ID yang persisten setelah 5 percobaan.');
+            }
+            console.log(`[EvidenceService] Evidence #${evidence.id} processed and saved successfully.`);
             return evidence;
         }
         catch (err) {

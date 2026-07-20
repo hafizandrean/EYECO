@@ -237,7 +237,7 @@ class DatabaseManager {
                     updateFields.status = 'DITOLAK';
                 }
             }
-            const updated = await Report_1.ReportModel.findOneAndUpdate({ id }, updateFields, { new: true }).lean();
+            const updated = await Report_1.ReportModel.findOneAndUpdate({ id }, updateFields, { returnDocument: 'after' }).lean();
             return updated;
         }
         catch (err) {

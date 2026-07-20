@@ -35,14 +35,38 @@ async function runTests() {
         }
     }, { upsert: true });
     console.log('[TEST] Cleaned up previous test states.');
+    // Helper to create test detection with autoincrement ID and retry block on collision
+    async function createTestDetection(data) {
+        let attempts = 0;
+        while (attempts < 5) {
+            try {
+                const last = await db_1.AiDetectionModel.findOne().sort({ id: -1 }).exec();
+                const nextId = last ? last.id + 1 : 1;
+                const doc = await db_1.AiDetectionModel.create({
+                    ...data,
+                    id: nextId
+                });
+                return doc;
+            }
+            catch (err) {
+                if (err.code === 11000 || err.message.includes('E11000')) {
+                    attempts++;
+                    await new Promise(resolve => setTimeout(resolve, Math.random() * 150 + 50));
+                }
+                else {
+                    throw err;
+                }
+            }
+        }
+        throw new Error('Failed to create test detection after 5 attempts.');
+    }
     try {
         // ----------------------------------------------------
         // TEST 1: Confidence Filter Rule
         // ----------------------------------------------------
         console.log('\n--- TEST 1: Confidence Filter Rule ---');
-        const lowConfDetection = await db_1.AiDetectionModel.create({
-            id: 9991,
-            cameraId: 1,
+        const lowConfDetection = await createTestDetection({
+            cameraId: 99,
             location: 'Test Location',
             capturedAt: new Date(),
             confidence: 0.65, // Below 0.70 threshold
@@ -55,17 +79,17 @@ async function runTests() {
             expiresAt: new Date(Date.now() + 100000)
         });
         await PromotionService_1.PromotionService.evaluateDetection(lowConfDetection);
-        const checkedLowConf = await db_1.AiDetectionModel.findOne({ id: 9991 });
+        const checkedLowConf = await db_1.AiDetectionModel.findOne({ id: lowConfDetection.id });
         console.log(`Low Confidence Status: ${checkedLowConf?.status} (Expected: LOW_CONFIDENCE)`);
         console.log(`Low Confidence Rejected Reason: ${checkedLowConf?.rejectedReason}`);
         // ----------------------------------------------------
         // TEST 2: Verification Window Rule (Consecutive frames checking)
         // ----------------------------------------------------
         console.log('\n--- TEST 2: Verification Window Rule ---');
+        const highConfDetections = [];
         for (let frame = 1; frame <= 3; frame++) {
-            const highConfDetection = await db_1.AiDetectionModel.create({
-                id: 9991 + frame,
-                cameraId: 1,
+            const highConfDetection = await createTestDetection({
+                cameraId: 99,
                 location: 'Test Location',
                 capturedAt: new Date(),
                 confidence: 0.85, // Above threshold
@@ -77,13 +101,14 @@ async function runTests() {
                 processingTimeMs: 12,
                 expiresAt: new Date(Date.now() + 100000)
             });
+            highConfDetections.push(highConfDetection);
             console.log(`Evaluating frame ${frame}/3...`);
             await PromotionService_1.PromotionService.evaluateDetection(highConfDetection);
-            const statusAfter = (await db_1.AiDetectionModel.findOne({ id: 9991 + frame }))?.status;
+            const statusAfter = (await db_1.AiDetectionModel.findOne({ id: highConfDetection.id }))?.status;
             console.log(`Frame ${frame} Status: ${statusAfter}`);
         }
         // After 3 consecutive frames, it should create a report and change detection status to PROMOTED
-        const finalFrameDetection = await db_1.AiDetectionModel.findOne({ id: 9994 });
+        const finalFrameDetection = await db_1.AiDetectionModel.findOne({ id: highConfDetections[2].id });
         console.log(`Final frame promoted: ${finalFrameDetection?.status} (Expected: PROMOTED)`);
         console.log(`Linked Report ID: ${finalFrameDetection?.promotedReportId}`);
         const createdReport = await db_1.ReportModel.findOne({ location: 'Test Location' });
@@ -94,9 +119,8 @@ async function runTests() {
         // TEST 3: Duplicate Detections Rule (Updates timeline, doesn't duplicate)
         // ----------------------------------------------------
         console.log('\n--- TEST 3: Duplicate Detections Rule ---');
-        const duplicateDetection = await db_1.AiDetectionModel.create({
-            id: 9995,
-            cameraId: 1,
+        const duplicateDetection = await createTestDetection({
+            cameraId: 99,
             location: 'Test Location',
             capturedAt: new Date(),
             confidence: 0.90,
@@ -109,7 +133,7 @@ async function runTests() {
             expiresAt: new Date(Date.now() + 100000)
         });
         await PromotionService_1.PromotionService.evaluateDetection(duplicateDetection);
-        const checkedDuplicate = await db_1.AiDetectionModel.findOne({ id: 9995 });
+        const checkedDuplicate = await db_1.AiDetectionModel.findOne({ id: duplicateDetection.id });
         console.log(`Duplicate Detection Status: ${checkedDuplicate?.status} (Expected: DUPLICATE)`);
         const timelineEventsCount = await db_1.TimelineEventModel.countDocuments({ reportId: createdReport?._id });
         console.log(`Timeline events on active report: ${timelineEventsCount} (Expected: 3, Initial 2 + 1 duplicate alert)`);
@@ -186,10 +210,11 @@ async function runTests() {
         // TEST 6: Priority-Based Queueing & Concurrency
         // ----------------------------------------------------
         console.log('\n--- TEST 6: Priority-Based Queueing ---');
+        InferenceQueue_1.InferenceQueue.minWorkers = 3;
         InferenceQueue_1.InferenceQueue.startWorkers();
-        const frameLow = { cameraId: 1, location: 'Test Location', timestamp: new Date(), imagePath: '/uploads/detection_1.jpg' };
-        const frameHigh = { cameraId: 2, location: 'Test Location', timestamp: new Date(), imagePath: '/uploads/detection_2.jpg' };
-        const frameCritical = { cameraId: 3, location: 'Test Location Critical', timestamp: new Date(), imagePath: '/uploads/detection_3.jpg' };
+        const frameLow = { cameraId: 91, location: 'Test Location', timestamp: new Date(), imagePath: '/uploads/detection_1.jpg' };
+        const frameHigh = { cameraId: 92, location: 'Test Location', timestamp: new Date(), imagePath: '/uploads/detection_2.jpg' };
+        const frameCritical = { cameraId: 93, location: 'Test Location Critical', timestamp: new Date(), imagePath: '/uploads/detection_3.jpg' };
         console.log('Enqueuing LOW priority frame...');
         const pLow = InferenceQueue_1.InferenceQueue.enqueue(frameLow, 'LOW');
         console.log('Enqueuing HIGH priority frame...');

@@ -66,7 +66,7 @@ class AiPipelineScheduler {
                         expiresAt: new Date(Date.now() + 60000) // Sewa lock 60 detik
                     }
                 }
-            }, { new: true }).exec();
+            }, { returnDocument: 'after' }).exec();
             if (!lockAcquired) {
                 console.log('[AiPipelineScheduler] Skip cycle: Lock diperoleh instance lain.');
                 this.isRunning = false;

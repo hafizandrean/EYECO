@@ -150,7 +150,7 @@ class AiModelManager {
                     heartbeatAt: new Date()
                 }
             }
-        }, { new: true }).exec();
+        }, { returnDocument: 'after' }).exec();
         if (!lockAcquired) {
             throw new Error('DEPLOYMENT_LOCKED: Another deployment process is currently active.');
         }

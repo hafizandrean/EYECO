@@ -60,7 +60,7 @@ class MaintenanceScheduler {
                         expiresAt: new Date(Date.now() + 5 * 60 * 1000) // 5-minute lease
                     }
                 }
-            }, { new: true }).exec();
+            }, { returnDocument: 'after' }).exec();
             if (!lockAcquired) {
                 console.log('[MaintenanceScheduler] Skip maintenance: Distributed lock held by another scheduler instance.');
                 this.isRunning = false;

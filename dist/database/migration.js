@@ -52,6 +52,24 @@ async function seedSystemSettingsAndModels() {
                     value: { locked: false, lockedBy: null, expiresAt: null },
                     description: 'Distributed lock untuk mencegah eksekusi paralel scheduler.',
                     updatedBy: 1
+                },
+                {
+                    key: 'eyeco.information',
+                    value: {
+                        about: "EYECO adalah platform monitoring aliran sungai berbasis AI berbasis Deep Learning (YOLOv8) untuk mendeteksi sampah dan aktivitas pembuangan sampah liar secara real-time.",
+                        terkini: [
+                            "Uji Coba Model AI Baru (yolov8-river-v1.1-canary) berhasil disebarkan di Sektor 7 Hulu.",
+                            "Fitur laporan otomatis via bot telegram interaktif kini dapat digunakan oleh seluruh warga.",
+                            "Pembersihan massal sungai Ciliwung bersama dinas kebersihan dijadwalkan pada hari Sabtu ini."
+                        ],
+                        sampah: [
+                            "Daur Ulang Plastik: Plastik PET membutuhkan waktu hingga 450 tahun untuk terurai di alam bebas.",
+                            "Bahaya Sampah Sungai: Penumpukan sampah organik di dasar sungai memicu eutrofikasi dan mengurangi oksigen air.",
+                            "Kampanye Pilah Sampah: Memisahkan sampah organik dan anorganik dari rumah membantu mempercepat proses daur ulang."
+                        ]
+                    },
+                    description: 'Informasi EYECO, pengumuman terkini, dan berita seputar sampah untuk landing page pengguna umum.',
+                    updatedBy: 1
                 }
             ]);
             console.log('[MIGRATION INFO] Seeded initial SystemSettings.');
@@ -119,6 +137,27 @@ async function seedSystemSettingsAndModels() {
                     key: 'ai.deployment.lock',
                     value: { locked: false, lockedBy: null, fencingToken: 0, expiresAt: null, heartbeatAt: null },
                     description: 'Distributed lock untuk mencegah tabrakan proses deployment model AI.',
+                    updatedBy: 1
+                });
+            }
+            const hasEyecoInfo = await SystemSettings_1.SystemSettingsModel.findOne({ key: 'eyeco.information' });
+            if (!hasEyecoInfo) {
+                await SystemSettings_1.SystemSettingsModel.create({
+                    key: 'eyeco.information',
+                    value: {
+                        about: "EYECO adalah platform monitoring aliran sungai berbasis AI berbasis Deep Learning (YOLOv8) untuk mendeteksi sampah dan aktivitas pembuangan sampah liar secara real-time.",
+                        terkini: [
+                            "Uji Coba Model AI Baru (yolov8-river-v1.1-canary) berhasil disebarkan di Sektor 7 Hulu.",
+                            "Fitur laporan otomatis via bot telegram interaktif kini dapat digunakan oleh seluruh warga.",
+                            "Pembersihan massal sungai Ciliwung bersama dinas kebersihan dijadwalkan pada hari Sabtu ini."
+                        ],
+                        sampah: [
+                            "Daur Ulang Plastik: Plastik PET membutuhkan waktu hingga 450 tahun untuk terurai di alam bebas.",
+                            "Bahaya Sampah Sungai: Penumpukan sampah organik di dasar sungai memicu eutrofikasi dan mengurangi oksigen air.",
+                            "Kampanye Pilah Sampah: Memisahkan sampah organik dan anorganik dari rumah membantu mempercepat proses daur ulang."
+                        ]
+                    },
+                    description: 'Informasi EYECO, pengumuman terkini, dan berita seputar sampah untuk landing page pengguna umum.',
                     updatedBy: 1
                 });
             }

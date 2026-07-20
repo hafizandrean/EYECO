@@ -13,8 +13,17 @@ export class FastApiAIEngine implements IAIEngine {
   public state: EngineState = EngineState.STARTING;
   private isInitialized = false;
   
-  private predictUrl = 'http://localhost:8000/api/v1/predict';
-  private reloadUrl = 'http://localhost:8000/api/v1/reload_model';
+  private get baseUrl(): string {
+    return process.env.AI_SERVICE_URL || 'http://localhost:8000';
+  }
+
+  private get predictUrl(): string {
+    return `${this.baseUrl}/api/v1/predict`;
+  }
+
+  private get reloadUrl(): string {
+    return `${this.baseUrl}/api/v1/reload_model`;
+  }
   
   // Model state variables
   private activeModelId = 'yolov8-river-v1.0';
@@ -46,7 +55,7 @@ export class FastApiAIEngine implements IAIEngine {
     // Get target runtime info from FastAPI first
     let runtimeInfo = { apiVersion: '1.0', engineVersion: '8.3.0', pythonVersion: '3.10.0', cudaVersion: '', torchVersion: '' };
     try {
-      const verRes = await fetch('http://localhost:8000/version', { signal: AbortSignal.timeout(3000) });
+      const verRes = await fetch(`${this.baseUrl}/version`, { signal: AbortSignal.timeout(3000) });
       if (verRes.ok) {
         runtimeInfo = await verRes.json();
       }
@@ -448,7 +457,7 @@ export class FastApiAIEngine implements IAIEngine {
     
     // Collect and record system hardware metrics from FastAPI health/system
     try {
-      const sysResponse = await fetch('http://localhost:8000/health/system', { signal: AbortSignal.timeout(2000) });
+      const sysResponse = await fetch(`${this.baseUrl}/health/system`, { signal: AbortSignal.timeout(2000) });
       if (sysResponse.ok) {
         const sysStats = await sysResponse.json();
         const { AiSystemMetricsModel } = require('../../database/models/AiSystemMetrics');

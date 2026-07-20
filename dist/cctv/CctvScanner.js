@@ -117,8 +117,8 @@ class CctvScanner {
                 result.cloud = true;
                 result.details.protocol = 'CLOUD_VIEWER';
                 result.details.mediaType = 'Cloud';
-                result.details.streamUrl = 'https://krisbowsync.com/device/cloud-viewer';
-                result.details.playUrl = '';
+                result.details.streamUrl = '/cloud-viewer';
+                result.details.playUrl = cleanHost;
                 result.details.vendor = vendorHint;
                 result.details.resolution = '2560x1440 (Ultra HD)';
             }
@@ -126,7 +126,8 @@ class CctvScanner {
                 result.cloud = true;
                 result.details.protocol = 'CLOUD_VIEWER';
                 result.details.mediaType = 'Cloud';
-                result.details.streamUrl = 'https://cloud-viewer.eyeco.id';
+                result.details.streamUrl = '/cloud-viewer';
+                result.details.playUrl = cleanHost;
                 result.details.vendor = vendorHint || 'GENERIC';
                 result.details.resolution = 'N/A';
             }
@@ -168,8 +169,8 @@ class CctvScanner {
                 else if (forcedMode === 'CLOUD_VIEWER') {
                     result.cloud = true;
                     result.details.mediaType = 'Cloud';
-                    result.details.streamUrl = vendorHint === 'KRISBOW' ? 'https://krisbowsync.com/device/cloud-viewer' : 'https://cloud-viewer.eyeco.id';
-                    result.details.playUrl = '';
+                    result.details.streamUrl = '/cloud-viewer';
+                    result.details.playUrl = cleanHost;
                 }
             }
         }

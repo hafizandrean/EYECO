@@ -28,6 +28,93 @@ const SessionService_1 = require("./services/SessionService");
 const AuditLogService_1 = require("./services/AuditLogService");
 const ApiResponse_1 = require("./services/ApiResponse");
 dotenv_1.default.config();
+// Tuya API integration for dynamic cloud camera streams (e.g. CCTV Krisbow Solar)
+let tuyaTokenCache = {};
+let tuyaStreamCache = {};
+async function getTuyaToken(clientId = 'r5vap3snnr339dyeua5j', secret = '5a93707b474b41b9b888b1e2a12ed1c9') {
+    const baseUrl = 'https://openapi-sg.iotbing.com';
+    const cached = tuyaTokenCache[clientId];
+    if (cached && cached.expiresAt > Date.now()) {
+        return cached.token;
+    }
+    try {
+        const t = Date.now().toString();
+        const tokenUrl = '/v1.0/token?grant_type=1';
+        const contentSha256 = crypto_1.default.createHash('sha256').update('').digest('hex');
+        const tokenStringToSign = `GET\n${contentSha256}\n\n${tokenUrl}`;
+        const tokenStr = `${clientId}${t}${tokenStringToSign}`;
+        const tokenSign = crypto_1.default.createHmac('sha256', secret).update(tokenStr).digest('hex').toUpperCase();
+        const tokenResponse = await fetch(`${baseUrl}${tokenUrl}`, {
+            method: 'GET',
+            headers: {
+                'client_id': clientId,
+                'sign': tokenSign,
+                't': t,
+                'sign_method': 'HMAC-SHA256'
+            }
+        });
+        const tokenData = await tokenResponse.json();
+        if (tokenData.success && tokenData.result) {
+            tuyaTokenCache[clientId] = {
+                token: tokenData.result.access_token,
+                expiresAt: Date.now() + (tokenData.result.expire_time - 60) * 1000
+            };
+            return tokenData.result.access_token;
+        }
+    }
+    catch (err) {
+        console.error('[TUYA API] Token fetch failed:', err);
+    }
+    return null;
+}
+async function getTuyaStreamUrl(deviceId, definition = 'hd', clientId = 'r5vap3snnr339dyeua5j', secret = '5a93707b474b41b9b888b1e2a12ed1c9') {
+    const baseUrl = 'https://openapi-sg.iotbing.com';
+    const cacheKey = `${deviceId}_${definition}`;
+    if (tuyaStreamCache[cacheKey] && tuyaStreamCache[cacheKey].expiresAt > Date.now()) {
+        return tuyaStreamCache[cacheKey].url;
+    }
+    const token = await getTuyaToken(clientId, secret);
+    if (!token)
+        return null;
+    try {
+        const t2 = Date.now().toString();
+        const httpMethod = 'POST';
+        const bodyObj = { type: 'hls', definition: definition };
+        const bodyStr = JSON.stringify(bodyObj);
+        const contentSha256 = crypto_1.default.createHash('sha256').update(bodyStr).digest('hex');
+        const allocateUrl = `/v1.0/devices/${deviceId}/stream/actions/allocate`;
+        const stringToSign = `${httpMethod}\n${contentSha256}\n\n${allocateUrl}`;
+        const str = `${clientId}${token}${t2}${stringToSign}`;
+        const sign = crypto_1.default.createHmac('sha256', secret).update(str).digest('hex').toUpperCase();
+        const response = await fetch(`${baseUrl}${allocateUrl}`, {
+            method: 'POST',
+            headers: {
+                'client_id': clientId,
+                'access_token': token,
+                'sign': sign,
+                't': t2,
+                'sign_method': 'HMAC-SHA256',
+                'Content-Type': 'application/json'
+            },
+            body: bodyStr
+        });
+        const data = await response.json();
+        if (data.success && data.result && data.result.url) {
+            tuyaStreamCache[cacheKey] = {
+                url: data.result.url,
+                expiresAt: Date.now() + 5400 * 1000 // Cache for 1.5 hours
+            };
+            return data.result.url;
+        }
+        else {
+            console.warn('[TUYA API] HLS stream allocation failed or not subscribed:', data.msg || data.error);
+        }
+    }
+    catch (err) {
+        console.error('[TUYA API] HLS stream allocation error:', err);
+    }
+    return null;
+}
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 8000;
 // Rate limiting for Auth endpoints to mitigate brute force attacks
@@ -40,11 +127,15 @@ const authLimiter = (0, express_rate_limit_1.default)({
 });
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
-// Request ID middleware
+// Request ID middleware and Disable Cache in Dev
 app.use((req, res, next) => {
     const reqId = crypto_1.default.randomUUID();
     req.requestId = reqId;
     res.setHeader('X-Request-ID', reqId);
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
     next();
 });
 // Setup middleware
@@ -625,6 +716,17 @@ app.get('/dashboard-user', async (req, res) => {
             return res.redirect(getRedirectPath(user.role));
         }
         res.sendFile(path_1.default.join(__dirname, '../public/views/dashboard-user.html'));
+    }
+    catch (err) {
+        res.redirect('/login');
+    }
+});
+app.get('/cloud-viewer', async (req, res) => {
+    try {
+        const user = await getLoggedInUser(req);
+        if (!user)
+            return res.redirect('/login');
+        res.sendFile(path_1.default.join(__dirname, '../public/views/cloud-viewer.html'));
     }
     catch (err) {
         res.redirect('/login');
@@ -1229,16 +1331,28 @@ app.get('/api/cctv', async (req, res) => {
         }
         const cctvs = await db_1.DatabaseManager.getAllCctv();
         // Decrypt / enrich each CCTV config with playUrl dynamically
-        const processed = cctvs.map(c => {
+        const processed = await Promise.all(cctvs.map(async (c) => {
             const playTarget = CctvAdapter_1.CctvAdapter.getPlayTarget(c);
+            let playUrl = playTarget.playUrl;
+            let mediaType = playTarget.playType;
+            if (c.protocol === 'CLOUD_VIEWER') {
+                const deviceId = c.playUrl || 'a368caa9d0ba8c2813gfir';
+                const clientId = c.username || 'r5vap3snnr339dyeua5j';
+                const secret = c.password ? db_1.DatabaseManager.decryptCctvPassword(c.password) : '5a93707b474b41b9b888b1e2a12ed1c9';
+                const tuyaUrl = await getTuyaStreamUrl(deviceId, 'hd', clientId, secret);
+                if (tuyaUrl) {
+                    playUrl = `/api/cctv/${c.id}/stream.m3u8`;
+                    mediaType = 'Video'; // Dynamic HLS stream plays as HTML5 Video
+                }
+            }
             return {
                 ...c,
-                playUrl: playTarget.playUrl,
-                mediaType: playTarget.playType,
+                playUrl,
+                mediaType,
                 // Hide password in listing
                 password: c.password ? '••••••••' : ''
             };
-        });
+        }));
         res.json({ success: true, data: processed });
     }
     catch (err) {
@@ -1266,12 +1380,24 @@ app.get('/api/cctv/:id', async (req, res) => {
             ? db_1.DatabaseManager.decryptCctvPassword(c.password)
             : '';
         const playTarget = CctvAdapter_1.CctvAdapter.getPlayTarget(c);
+        let playUrl = playTarget.playUrl;
+        let mediaType = playTarget.playType;
+        if (c.protocol === 'CLOUD_VIEWER') {
+            const deviceId = c.playUrl || 'a368caa9d0ba8c2813gfir';
+            const clientId = c.username || 'r5vap3snnr339dyeua5j';
+            const secret = c.password ? db_1.DatabaseManager.decryptCctvPassword(c.password) : '5a93707b474b41b9b888b1e2a12ed1c9';
+            const tuyaUrl = await getTuyaStreamUrl(deviceId, 'hd', clientId, secret);
+            if (tuyaUrl) {
+                playUrl = `/api/cctv/${c.id}/stream.m3u8`;
+                mediaType = 'Video';
+            }
+        }
         res.json({
             success: true,
             data: {
                 ...c,
-                playUrl: playTarget.playUrl,
-                mediaType: playTarget.playType,
+                playUrl: playUrl,
+                mediaType: mediaType,
                 password: decryptedPassword
             }
         });
@@ -1384,6 +1510,15 @@ app.post('/api/cctv/:id/reconnect', async (req, res) => {
         if (isNaN(id)) {
             return res.status(400).json({ error: 'ID tidak valid' });
         }
+        const camera = await db_1.DatabaseManager.getCctvById(id);
+        if (camera && camera.protocol === 'CLOUD_VIEWER') {
+            const deviceId = camera.playUrl || 'a368caa9d0ba8c2813gfir';
+            delete tuyaStreamCache[`${deviceId}_hd`];
+            delete tuyaStreamCache[`${deviceId}_sd`];
+            delete tuyaBaseUrlCache[`${deviceId}_hd`];
+            delete tuyaBaseUrlCache[`${deviceId}_sd`];
+            console.log(`[TUYA API] Cleared stream cache for device ${deviceId} via manual reconnect.`);
+        }
         const success = await CctvHealthEngine_1.CctvHealthEngine.manualReconnect(id);
         if (success) {
             res.json({ success: true, message: 'Reconnection triggered' });
@@ -1415,6 +1550,82 @@ app.get('/api/cctv/:id/snapshot', async (req, res) => {
         }
     }
     catch (err) {
+        res.status(500).send('Internal Server Error');
+    }
+});
+// Store the last retrieved HLS base URL in memory for segment forwarding
+let tuyaBaseUrlCache = {};
+// GET /api/cctv/:id/stream.m3u8 - HLS Stream Proxy
+app.get('/api/cctv/:id/stream.m3u8', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const camera = await db_1.DatabaseManager.getCctvById(id);
+        if (!camera || camera.protocol !== 'CLOUD_VIEWER') {
+            return res.status(404).send('Not a cloud camera');
+        }
+        const quality = req.query.quality === 'SD' ? 'sd' : 'hd';
+        const deviceId = camera.playUrl || 'a368caa9d0ba8c2813gfir';
+        const clientId = camera.username || 'r5vap3snnr339dyeua5j';
+        const secret = camera.password ? db_1.DatabaseManager.decryptCctvPassword(camera.password) : '5a93707b474b41b9b888b1e2a12ed1c9';
+        const tuyaUrl = await getTuyaStreamUrl(deviceId, quality, clientId, secret);
+        if (!tuyaUrl) {
+            console.warn(`[HLS PROXY] Tuya stream (${quality}) unavailable, redirecting to local fallback video`);
+            return res.redirect('/uploads/orang buang sampah.mp4');
+        }
+        // Save the base URL of the HLS stream (up to the last slash)
+        const lastSlashIdx = tuyaUrl.lastIndexOf('/');
+        if (lastSlashIdx !== -1) {
+            const cacheKey = `${deviceId}_${quality}`;
+            tuyaBaseUrlCache[cacheKey] = tuyaUrl.substring(0, lastSlashIdx + 1);
+        }
+        // Fetch the .m3u8 file content
+        const response = await fetch(tuyaUrl);
+        if (!response.ok) {
+            console.error(`[HLS PROXY] Failed to fetch .m3u8 (${quality}) from Tuya:`, response.statusText);
+            const cacheKey = `${deviceId}_${quality}`;
+            delete tuyaStreamCache[cacheKey];
+            delete tuyaBaseUrlCache[cacheKey];
+            return res.redirect('/uploads/orang buang sampah.mp4');
+        }
+        const m3u8Text = await response.text();
+        // Set headers
+        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.send(m3u8Text);
+    }
+    catch (err) {
+        console.error('[HLS PROXY] Error proxying .m3u8:', err.message);
+        res.redirect('/uploads/orang buang sampah.mp4');
+    }
+});
+// GET /api/cctv/:id/:filename.ts - HLS TS Segment Proxy
+app.get('/api/cctv/:id/:filename.ts', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const filename = req.params.filename;
+        const camera = await db_1.DatabaseManager.getCctvById(id);
+        const deviceId = camera?.playUrl || 'a368caa9d0ba8c2813gfir';
+        const quality = req.query.quality === 'SD' ? 'sd' : 'hd';
+        const cacheKey = `${deviceId}_${quality}`;
+        const baseUrl = tuyaBaseUrlCache[cacheKey] || tuyaBaseUrlCache[`${deviceId}_hd`] || tuyaBaseUrlCache[`${deviceId}_sd`];
+        if (!baseUrl) {
+            return res.status(404).send('Base URL not cached');
+        }
+        // Reconstruct the full query string
+        const queryStr = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+        const targetUrl = `${baseUrl}${filename}.ts${queryStr}`;
+        const response = await fetch(targetUrl);
+        if (!response.ok) {
+            return res.status(response.status).send(response.statusText);
+        }
+        // Forward the binary stream
+        res.setHeader('Content-Type', 'video/mp2t');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        const arrayBuffer = await response.arrayBuffer();
+        res.send(Buffer.from(arrayBuffer));
+    }
+    catch (err) {
+        console.error('[HLS PROXY] Error proxying segment:', err.message);
         res.status(500).send('Internal Server Error');
     }
 });
