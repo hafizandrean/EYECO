@@ -75,6 +75,8 @@
     .sa-nav-item i{width:20px;height:20px;flex-shrink:0}
     .sa-nav-item span{overflow:hidden;text-overflow:ellipsis;transition:opacity 0.15s}
     .sa-sidebar.collapsed .sa-nav-item span{opacity:0;width:0;margin:0}
+    .sa-sidebar.collapsed .sa-nav-item i,
+    .sa-sidebar.collapsed .sa-nav-item svg{width:20px!important;height:20px!important;flex-shrink:0}
     .sa-nav-item:hover{background:rgba(37,99,235,0.06);color:#1E293B}
     body.dark .sa-nav-item:hover{background:rgba(96,165,250,0.06);color:#E2E8F0}
     .sa-nav-item.active{background:linear-gradient(135deg,rgba(37,99,235,0.08),rgba(79,70,229,0.05));color:#2563EB}
@@ -364,7 +366,7 @@
   <aside class="sa-sidebar" id="sa-sidebar">
     <div class="sa-sidebar-header">
       <button class="sa-sidebar-toggle" id="sa-sidebar-toggle" aria-label="Toggle sidebar" data-tooltip="Tutup Sidebar">
-        <span class="toggle-icon-default"><i data-lucide="waves"></i></span>
+        <span class="toggle-icon-default"><img src="/uploads/logo-eyeco.png" alt="EYECO" class="sa-logo-img"></span>
         <span class="toggle-icon-hover"><i data-lucide="panel-left-close"></i></span>
       </button>
     </div>
@@ -732,8 +734,8 @@
       const sidebar = document.getElementById('sa-sidebar');
       const isCollapsed = sidebar.classList.toggle('collapsed');
       sToggle.setAttribute('data-tooltip', isCollapsed ? 'Buka Sidebar' : 'Tutup Sidebar');
-      sToggle.querySelector('.toggle-icon-default').innerHTML = isCollapsed ? '<i data-lucide="panel-left-close"></i>' : '<i data-lucide="waves"></i>';
-      sToggle.querySelector('.toggle-icon-hover').innerHTML = isCollapsed ? '<i data-lucide="waves"></i>' : '<i data-lucide="panel-left-close"></i>';
+      sToggle.querySelector('.toggle-icon-default').innerHTML = isCollapsed ? '<i data-lucide="panel-left-close"></i>' : '<img src="/uploads/logo-eyeco.png" alt="EYECO" class="sa-logo-img">';
+      sToggle.querySelector('.toggle-icon-hover').innerHTML = isCollapsed ? '<img src="/uploads/logo-eyeco.png" alt="EYECO" class="sa-logo-img">' : '<i data-lucide="panel-left-close"></i>';
       if (window.lucide) window.lucide.createIcons();
     });
     sToggle.addEventListener('mouseenter', () => {

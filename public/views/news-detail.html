@@ -117,6 +117,7 @@
     .news-loading .spinner{width:32px;height:32px;border:3px solid rgba(37,99,235,0.12);border-top-color:var(--primary);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:16px;}
     @keyframes spin{to{transform:rotate(360deg)}}
 
+    .news-logo-img { height: 18px; width: auto; vertical-align: middle; }
     @media(max-width:640px){
       .news-header h1{font-size:1.35rem;}
       .news-content{padding:20px;border-radius:12px;}
@@ -136,7 +137,7 @@
       <button class="news-back" onclick="history.back()">
         <i data-lucide="arrow-left" style="width:16px;height:16px;"></i> Kembali
       </button>
-      <div class="news-logo">EYECO<span>.</span></div>
+      <div class="news-logo"><img src="/uploads/logo-eyeco.png" alt="EYECO" class="news-logo-img"> EYECO<span>.</span></div>
     </nav>
 
     <div id="news-loading" class="news-loading">

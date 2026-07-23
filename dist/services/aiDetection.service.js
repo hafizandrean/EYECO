@@ -203,8 +203,13 @@ function yoloBboxToReportBox(bbox, imageWidth, imageHeight, className, confidenc
     };
 }
 // ---------------------------------------------------------------------------
-// Penentuan Status AI
+// Penentuan Status AI — EYECO Smart Logic v2
+// Person-only → Tidak Terindikasi
+// Person + trash overlapping (di tangan) → RENDAH
+// Person + trash terpisah (di tanah) → TINGGI
+// Trash aja → confidence-based
 // ---------------------------------------------------------------------------
+const PERSON_CLASSES = ['people', 'sitting', 'standing'];
 function determineAiStatus(detections, imageWidth, imageHeight) {
     if (detections.length === 0) {
         return {
@@ -214,18 +219,71 @@ function determineAiStatus(detections, imageWidth, imageHeight) {
         };
     }
     const maxConf = Math.max(...detections.map((d) => d.confidence));
-    const highConfCount = detections.filter((d) => d.confidence >= STATUS_THRESHOLDS.HIGH_MIN).length;
     const boxes = detections.map((d) => yoloBboxToReportBox(d.bbox, imageWidth, imageHeight, d.class, d.confidence));
+    // Pisahkan person vs trash
+    const personDets = detections.filter((d) => PERSON_CLASSES.includes(d.class.toLowerCase()));
+    const trashDets = detections.filter((d) => !PERSON_CLASSES.includes(d.class.toLowerCase()));
+    // Rule 1: Person AJA (tanpa trash) → Tidak Terindikasi
+    if (personDets.length > 0 && trashDets.length === 0) {
+        return {
+            status: 'Tidak Terindikasi',
+            confidence: null,
+            boxes: [],
+        };
+    }
+    // Rule 2: Person + Trash → cek overlap (IoU based)
+    if (personDets.length > 0 && trashDets.length > 0) {
+        let hasOverlap = false;
+        for (const trash of trashDets) {
+            const [tx1, ty1, tx2, ty2] = trash.bbox;
+            const trashArea = (tx2 - tx1) * (ty2 - ty1);
+            if (trashArea <= 0)
+                continue;
+            for (const person of personDets) {
+                const [px1, py1, px2, py2] = person.bbox;
+                const ix1 = Math.max(tx1, px1);
+                const iy1 = Math.max(ty1, py1);
+                const ix2 = Math.min(tx2, px2);
+                const iy2 = Math.min(ty2, py2);
+                if (ix1 < ix2 && iy1 < iy2) {
+                    const interArea = (ix2 - ix1) * (iy2 - iy1);
+                    const overlapRatio = interArea / trashArea;
+                    if (overlapRatio > 0.3) {
+                        hasOverlap = true;
+                        break;
+                    }
+                }
+            }
+            if (hasOverlap)
+                break;
+        }
+        if (hasOverlap) {
+            // Trash di tangan (overlap dengan person) → RENDAH
+            return {
+                status: 'RENDAH',
+                confidence: Math.round(maxConf * 100),
+                boxes,
+            };
+        }
+        else {
+            // Trash di tanah (tidak overlap person) → TINGGI
+            return {
+                status: 'TINGGI',
+                confidence: Math.round(maxConf * 100),
+                boxes,
+            };
+        }
+    }
+    // Rule 3: Trash aja (tanpa person) → confidence-based (existing logic)
+    const highConfCount = detections.filter((d) => d.confidence >= STATUS_THRESHOLDS.HIGH_MIN).length;
     let status;
     let confidence;
     if (maxConf >= STATUS_THRESHOLDS.HIGH_MIN &&
         highConfCount >= STATUS_THRESHOLDS.HIGH_MIN_COUNT) {
-        // Multiple high-confidence detections → TINGGI
         status = 'TINGGI';
         confidence = Math.round(maxConf * 100);
     }
     else if (maxConf >= STATUS_THRESHOLDS.HIGH_MIN) {
-        // Single high-confidence detection
         const highClasses = detections
             .filter((d) => d.confidence >= STATUS_THRESHOLDS.HIGH_MIN)
             .map((d) => d.class.toLowerCase());

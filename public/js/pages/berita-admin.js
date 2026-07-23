@@ -63,7 +63,7 @@ class BeritaAdminPage {
             <input type="hidden" id="news-id">
             <div class="form-group" style="margin:0;">
               <label>Judul Berita <span style="color:var(--error)">*</span></label>
-              <input type="text" id="news-title" class="input-control" required placeholder="Contoh: Program Kerja Bakti Sungai 2026">
+              <input type="text" id="news-title" class="input-control" required placeholder="Contoh: Program Kerja Bakti Lingkungan 2026">
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
               <div class="form-group" style="margin:0;">

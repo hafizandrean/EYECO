@@ -119,6 +119,13 @@ class ReportRepository {
                     updateFields.status = 'REJECTED';
                 }
             }
+            // Auto-delete 40 days after validation: set scheduledDeletionAt when VALID or DIABAIKAN
+            if (status === 'VALID' || status === 'DIABAIKAN') {
+                updateFields.scheduledDeletionAt = new Date(Date.now() + 40 * 24 * 60 * 60 * 1000);
+            }
+            else {
+                updateFields.scheduledDeletionAt = null;
+            }
             const query = { id };
             if (workspaceId !== undefined)
                 query.workspaceId = workspaceId;
@@ -144,7 +151,15 @@ class ReportRepository {
                 }
             }
             else if (userContext.role === 'user') {
-                // User sees all non-deleted reports regardless of workspace
+                // User sees all reports in their workspace
+                const user = await User_1.UserModel.findOne({ id: userContext.id }).lean().exec();
+                if (user && user.workspaceId) {
+                    query.workspaceId = user.workspaceId;
+                }
+                else {
+                    query.workspaceId = -1;
+                }
+                query.sourceType = { $ne: 'AI_CCTV' };
             }
             else if (userContext.role === 'superadmin') {
                 // Superadmin only sees reports from workspaces they own
@@ -220,9 +235,7 @@ class ReportRepository {
             const user = await User_1.UserModel.findOne({ id: userContext.id }).lean().exec();
             if (!user?.workspaceId)
                 return { workspaceId: -1 };
-            return userContext.role === 'user'
-                ? { workspaceId: user.workspaceId, userId: user._id }
-                : { workspaceId: user.workspaceId };
+            return { workspaceId: user.workspaceId };
         }
         if (userContext.role === 'superadmin') {
             const ownedWorkspaces = await Workspace_1.WorkspaceModel.find({ superadminId: userContext.id }).lean().exec();
@@ -264,7 +277,7 @@ class ReportRepository {
                             { timestamp: { $gte: fbSevenDaysAgo } }
                         ]
                     });
-                    return { total: total2, mostVulnerable: '-', valid: valid2, cancelled: cancelled2, pending: pending2, tinggi: fbTinggi, sedang: fbSedang, rendah: fbRendah, tidakTerindikasi: fbTidak, recent: fbRecent };
+                    return { total: total2, mostVulnerable: '-', valid: valid2, cancelled: cancelled2, pending: pending2, tinggi: fbTinggi, sedang: fbSedang, rendah: fbRendah, tidakTerindikasi: fbTidak, recent: fbRecent, myReports: 0 };
                 }
             }
             // Hitung distribusi AI status
@@ -301,6 +314,14 @@ class ReportRepository {
                     mostVulnerable = overallGroup[0]._id;
                 }
             }
+            // Hitung jumlah laporan milik user yang sedang login
+            let myReportsCount = 0;
+            if (userContext?.id) {
+                const currentUser = await User_1.UserModel.findOne({ id: userContext.id }).select('_id').lean().exec();
+                if (currentUser) {
+                    myReportsCount = await Report_1.ReportModel.countDocuments({ ...matchQuery, userId: currentUser._id }).exec();
+                }
+            }
             return {
                 total,
                 mostVulnerable,
@@ -311,7 +332,8 @@ class ReportRepository {
                 sedang,
                 rendah,
                 tidakTerindikasi,
-                recent
+                recent,
+                myReports: myReportsCount
             };
         }
         catch (err) {

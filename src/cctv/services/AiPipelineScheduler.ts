@@ -113,7 +113,8 @@ export class AiPipelineScheduler {
             
             // 4. Jika terdeteksi objek potensial, jalankan Promotion
             if (detection) {
-              await PromotionService.evaluateDetection(detection);
+              // PromotionService.evaluateDetection(detection); — disabled, no more CCTV reports
+              console.log(`[AiPipelineTrace](disabled) Detection found but promotion cancelled.`);
             }
             const promotionTime = Date.now() - promotionStartTime;
             const totalTime = captureTime + inferenceTime + promotionTime;

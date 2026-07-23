@@ -63,7 +63,9 @@ const UserSchema = new mongoose_1.Schema({
     phone: { type: String, trim: true, default: '' },
     avatar: { type: String, default: '' },
     workspaceId: { type: Number, index: true, sparse: true },
-    workspaceIds: { type: [Number], default: [] }
+    workspaceIds: { type: [Number], default: [] },
+    resetToken: { type: String, default: null, index: true },
+    resetTokenExpires: { type: Date, default: null }
 }, {
     timestamps: true
 });

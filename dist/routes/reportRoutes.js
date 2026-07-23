@@ -46,6 +46,8 @@ const User_1 = require("../database/models/User");
 const ReportRepository_1 = require("../database/repositories/ReportRepository");
 const authMiddleware_1 = require("../auth/authMiddleware");
 const aiDetection_service_1 = require("../services/aiDetection.service");
+const NotificationService_1 = require("../services/NotificationService");
+const Notification_1 = require("../database/models/Notification");
 const router = (0, express_1.Router)();
 // Allowed MIME types for upload
 const ALLOWED_MIMES = ['image/jpeg', 'image/jpg', 'image/png', 'video/mp4'];
@@ -103,8 +105,8 @@ router.get('/detections', async (req, res) => {
         const user = await (0, authMiddleware_1.getLoggedInUser)(req);
         if (!user)
             return res.status(401).json({ error: 'Unauthorized' });
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 5;
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
         const filters = {
             timeRange: req.query.timeRange,
             date: req.query.date,
@@ -230,6 +232,13 @@ router.post('/detections/:id/verify', async (req, res) => {
         const updatedReport = await ReportRepository_1.ReportRepository.updateVerification(id, status, notes || '', assignedOfficer, progressStatus, user.workspaceId);
         if (!updatedReport)
             return res.status(404).json({ error: 'Laporan tidak ditemukan' });
+        // Notify the report owner about validation
+        if (updatedReport.userId) {
+            const reportOwner = await User_1.UserModel.findById(updatedReport.userId).select('id').lean().exec();
+            if (reportOwner) {
+                NotificationService_1.NotificationService.notifyValidation(id, status, reportOwner.id, updatedReport.workspaceId);
+            }
+        }
         res.json(updatedReport);
     }
     catch (err) {
@@ -303,7 +312,22 @@ router.post('/detections/:id/comments', commentLimiter, async (req, res) => {
         const { text, parentCommentId } = req.body;
         if (!text || typeof text !== 'string')
             return sendError(res, 'Konten komentar harus diisi.', 400);
+        // Find the report to determine who owns it
+        const report = await Report_1.ReportModel.findOne({ id: reportId, deletedAt: null })
+            .select('userId workspaceId')
+            .lean()
+            .exec();
+        if (!report)
+            return sendError(res, 'Laporan tidak ditemukan', 404);
         const comment = await ReportRepository_1.ReportRepository.addComment(reportId, user.id, text, user.workspaceId, parentCommentId || null);
+        // Notify the report owner if someone else commented (don't notify on self-comment)
+        if (report.userId && !report.userId.equals(user._id)) {
+            // Resolve the report owner's numeric legacy ID for the notification service
+            const reportOwner = await User_1.UserModel.findById(report.userId).select('id').lean().exec();
+            if (reportOwner) {
+                NotificationService_1.NotificationService.notifyComment(reportId, user.name || user.username, reportOwner.id, report.workspaceId);
+            }
+        }
         return sendSuccess(res, { ...comment, username: user.username, role: user.role }, 201);
     }
     catch (err) {
@@ -473,6 +497,51 @@ router.post('/detections', (req, res, next) => {
         catch (err) {
             console.error('[SERVER ERROR] Error copying last capture image:', err);
         }
+        // ==============================
+        // STEP 5: Notifikasi cross-user — kirim notifikasi NEW_REPORT ke semua user dalam workspace kecuali uploader
+        // ==============================
+        console.log(`[NOTIF] Membuat notifikasi NEW_REPORT untuk report #${newReport.id}...`);
+        try {
+            const workspaceId = newReport.workspaceId;
+            if (workspaceId) {
+                const workspaceUsers = await User_1.UserModel.find({
+                    $or: [{ workspaceId }, { workspaceIds: workspaceId }],
+                    _id: { $ne: user._id }
+                })
+                    .select('_id')
+                    .lean()
+                    .exec();
+                console.log(`[NOTIF] Ditemukan ${workspaceUsers.length} user lain dalam workspace #${workspaceId}`);
+                if (workspaceUsers.length > 0) {
+                    const now = new Date();
+                    const expiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+                    const notifs = workspaceUsers.map((u) => ({
+                        workspaceId,
+                        recipientId: u._id,
+                        reportId: newReport._id,
+                        type: 'NEW_REPORT',
+                        title: 'Laporan Baru',
+                        message: `${user.name || user.username} melaporkan: ${newReport.location}`,
+                        actionUrl: `/dashboard/detections/${newReport.id}`,
+                        icon: 'upload-cloud',
+                        priority: 'MEDIUM',
+                        read: false,
+                        readAt: null,
+                        expiresAt,
+                        deletedAt: null,
+                    }));
+                    await Notification_1.NotificationModel.insertMany(notifs);
+                    console.log(`[NOTIF] ✅ ${notifs.length} notifikasi NEW_REPORT berhasil dibuat`);
+                }
+            }
+            else {
+                console.log('[NOTIF] Tidak ada workspaceId pada laporan, skip notifikasi');
+            }
+        }
+        catch (notifErr) {
+            console.error('[NOTIF] Gagal membuat notifikasi cross-user:', notifErr instanceof Error ? notifErr.message : notifErr);
+            // Non-fatal: jangan sampai error notifikasi menggagalkan response
+        }
         res.status(201).json(updatedReport);
     }
     catch (err) {
@@ -593,4 +662,37 @@ router.post('/detections/:id/signal', async (req, res) => {
         sendError(res, 'Internal Server Error', 500);
     }
 });
+// ── User Hapus Laporan Sendiri (dalam 10 menit) ──
+router.delete('/detections/:id', async (req, res) => {
+    try {
+        const user = await (0, authMiddleware_1.getLoggedInUser)(req);
+        if (!user)
+            return res.status(401).json({ error: 'Unauthorized' });
+        const reportId = parseInt(req.params.id);
+        if (!reportId)
+            return res.status(400).json({ error: 'ID laporan tidak valid' });
+        const report = await Report_1.ReportModel.findOne({ id: reportId, deletedAt: null }).lean().exec();
+        if (!report)
+            return res.status(404).json({ error: 'Laporan tidak ditemukan' });
+        // Pastikan user pemilik laporan
+        if (!report.userId || report.userId.toString() !== user._id.toString()) {
+            return res.status(403).json({ error: 'Anda hanya bisa menghapus laporan Anda sendiri' });
+        }
+        // Cek batas waktu 10 menit
+        const createdAt = report.createdAt || report.timestamp;
+        const elapsed = Date.now() - new Date(createdAt).getTime();
+        const TEN_MINUTES = 10 * 60 * 1000;
+        if (elapsed > TEN_MINUTES) {
+            return res.status(403).json({ error: 'Batas waktu 10 menit untuk menghapus laporan telah lewat' });
+        }
+        await Report_1.ReportModel.updateOne({ _id: report._id }, { $set: { deletedAt: new Date(), deletedById: user._id, deleteReason: 'Dihapus oleh user' } }).exec();
+        res.json({ success: true, message: 'Laporan berhasil dihapus' });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] User delete report failed:', err);
+        const msg = err instanceof Error ? err.message : 'Internal Server Error';
+        res.status(500).json({ error: msg });
+    }
+});
+// ── TEMP endpoints removed after AI_CCTV cleanup ──
 exports.default = router;

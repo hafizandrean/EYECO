@@ -211,27 +211,28 @@ router.post('/admins', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.rol
     const { name, workspaceId, workspaceCode } = req.body;
     if (!name)
         return res.status(400).json({ error: 'Nama Admin wajib diisi' });
+    if (!workspaceId && !workspaceCode)
+        return res.status(400).json({ error: 'Workspace wajib dipilih' });
     try {
         let workspaceName = 'default';
         let wId;
         let resolvedWorkspaceCode = '';
-        if (workspaceId || workspaceCode) {
-            const workspaceQuery = workspaceCode
-                ? { code: String(workspaceCode).trim().toUpperCase(), superadminId: req.userContext?.id }
-                : { id: Number(workspaceId), superadminId: req.userContext?.id };
-            const workspace = await Workspace_1.WorkspaceModel.findOne(workspaceQuery).lean().exec();
-            if (workspace) {
-                workspaceName = workspace.name;
-                wId = workspace.id;
-                resolvedWorkspaceCode = workspace.code;
-                // Check 3 Admin Limit
-                if (workspace.adminIds && workspace.adminIds.length >= 3) {
-                    return res.status(400).json({ error: 'Batas maksimal 3 Admin per Workspace telah tercapai' });
-                }
+        const workspaceQuery = workspaceCode
+            ? { code: String(workspaceCode).trim().toUpperCase(), superadminId: req.userContext?.id }
+            : { id: Number(workspaceId), superadminId: req.userContext?.id };
+        const workspace = await Workspace_1.WorkspaceModel.findOne(workspaceQuery).lean().exec();
+        if (workspace) {
+            workspaceName = workspace.name;
+            wId = workspace.id;
+            resolvedWorkspaceCode = workspace.code;
+            // Check 3 Admin Limit — count by ACTIVE admin users with this workspaceId
+            const existingAdminCount = await User_1.UserModel.countDocuments({ role: 'admin', workspaceId: wId }).exec();
+            if (existingAdminCount >= 3) {
+                return res.status(400).json({ error: 'Batas maksimal 3 Admin per Workspace telah tercapai' });
             }
-            else {
-                return res.status(403).json({ error: 'Workspace tidak valid atau tidak diizinkan' });
-            }
+        }
+        else {
+            return res.status(403).json({ error: 'Workspace tidak valid atau tidak diizinkan' });
         }
         const username = await generateAdminUsername(workspaceName);
         const passwordPlain = generateRandomPassword(8);
@@ -239,11 +240,9 @@ router.post('/admins', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.rol
         if (!newUser)
             return res.status(400).json({ error: 'Username admin sudah digunakan' });
         await User_1.UserModel.updateOne({ id: newUser.id }, { name: name.trim(), workspaceId: wId });
-        if (wId) {
-            await Workspace_1.WorkspaceModel.updateOne({ id: wId }, { $push: { adminIds: newUser.id } });
-        }
+        await Workspace_1.WorkspaceModel.updateOne({ id: wId }, { $push: { adminIds: newUser.id } });
         await SystemAuditLog_1.SystemAuditLogModel.create({
-            tenantId: wId ? String(wId) : 'system',
+            tenantId: String(wId),
             actorId: req.userContext?.id ? (await User_1.UserModel.findOne({ id: req.userContext.id }))?._id : null,
             actorName: req.userContext?.username || 'Unknown',
             action: 'Create Admin',
@@ -593,12 +592,25 @@ router.get('/workspaces/:id/detail', authMiddleware_1.authMiddleware, (0, RoleMi
         const workspace = await Workspace_1.WorkspaceModel.findOne({ id: workspaceId, superadminId }).lean().exec();
         if (!workspace)
             return res.status(404).json({ error: 'Workspace tidak ditemukan' });
-        // All members (admins + users) — admins store workspaceId (singular), users store workspaceIds (plural)
+        // Admins of this workspace
+        const admins = await User_1.UserModel.find({
+            $or: [
+                { workspaceIds: workspaceId },
+                { workspaceId: workspaceId }
+            ],
+            role: 'admin'
+        })
+            .select('id name username email role phone status createdAt updatedAt')
+            .sort({ createdAt: -1 })
+            .lean()
+            .exec();
+        // Regular users (citizens) — admins/superadmins excluded from "Data Warga"
         const members = await User_1.UserModel.find({
             $or: [
                 { workspaceIds: workspaceId },
                 { workspaceId: workspaceId }
-            ]
+            ],
+            role: { $in: ['user'] }
         })
             .select('id name username email role phone status createdAt updatedAt')
             .sort({ createdAt: -1 })
@@ -668,18 +680,17 @@ router.get('/workspaces/:id/detail', authMiddleware_1.authMiddleware, (0, RoleMi
         });
         recentMembers.forEach((m) => {
             activity.push({
-                text: `${m.role === 'admin' ? 'Admin' : 'Warga'} baru bergabung: <strong>${m.name || m.username}</strong>`,
+                text: `Warga baru bergabung: <strong>${m.name || m.username}</strong>`,
                 time: m.createdAt,
-                color: m.role === 'admin' ? '#8B5CF6' : '#10B981'
+                color: '#10B981'
             });
         });
         // Sort activity by time desc
         activity.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-        const adminCount = members.filter(m => m.role === 'admin').length;
-        const userCount = members.filter(m => m.role !== 'admin').length;
+        const adminCount = admins.length;
+        const userCount = members.length;
         // Enriched admins with validated report count + published news count
-        const enrichedAdmins = members.filter(m => m.role === 'admin');
-        const enrichedAdminData = await Promise.all(enrichedAdmins.map(async (admin) => {
+        const enrichedAdminData = await Promise.all(admins.map(async (admin) => {
             const adminValidatedReports = await ReportModel.countDocuments({ workspaceId, assignedOfficer: admin.username, adminStatus: 'VALID' }).exec();
             const adminPublishedNews = await NewsModelLocal.countDocuments({ workspaceId, author: admin.username, status: 'published' }).exec();
             return {
@@ -691,7 +702,7 @@ router.get('/workspaces/:id/detail', authMiddleware_1.authMiddleware, (0, RoleMi
             };
         }));
         // Enriched users with report count
-        const enrichedUsers = await Promise.all(members.filter((m) => m.role !== 'admin').map(async (user) => {
+        const enrichedUsers = await Promise.all(members.map(async (user) => {
             const userReportCount = await ReportModel.countDocuments({ workspaceId, userId: user._id }).exec();
             return {
                 id: user.id, name: user.name, username: user.username, email: user.email,

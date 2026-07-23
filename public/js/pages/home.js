@@ -22,9 +22,9 @@ class HomePage {
         <!-- ═══ HERO SECTION ═══ -->
         <section class="landing-hero">
           <div class="hero-content">
-            <span class="hero-badge"><i data-lucide="waves"></i> EYECO — Pantau Sungaimu</span>
-            <h1 class="hero-title">Bersama Menjaga<br/>Kebersihan Sungai</h1>
-            <p class="hero-subtitle">Laporkan pencemaran sampah di sungai dengan satu klik. 
+            <span class="hero-badge"><img src="/uploads/logo-eyeco.png" alt="EYECO" style="height:22px;width:auto;vertical-align:middle;margin-right:6px;"> EYECO — Pantau Lingkunganmu</span>
+            <h1 class="hero-title">Bersama Menjaga<br/>Kebersihan Lingkungan</h1>
+            <p class="hero-subtitle">Laporkan pencemaran sampah di lingkungan dengan satu klik. 
             AI kami akan mendeteksi, memverifikasi, dan meneruskan laporan ke dinas terkait.</p>
             <div class="hero-actions">
               <a class="hero-btn-primary" id="hero-btn-upload">
@@ -48,6 +48,11 @@ class HomePage {
               <div class="hero-stat">
                 <span class="hero-stat-value" id="hero-stat-pending">0</span>
                 <span class="hero-stat-label">Menunggu Verifikasi</span>
+              </div>
+              <div class="hero-stat-divider"></div>
+              <div class="hero-stat">
+                <span class="hero-stat-value" id="hero-stat-myreports">0</span>
+                <span class="hero-stat-label">Laporan Saya</span>
               </div>
             </div>
           </div>
@@ -155,8 +160,8 @@ class HomePage {
         <!-- ═══ ABOUT SECTION ═══ -->
         <section class="landing-section" id="about">
           <div class="section-label">Tentang EYECO</div>
-          <h2 class="section-title">Platform Pemantauan Sungai<br/>Berbasis AI</h2>
-          <p class="section-desc">EYECO adalah sistem pemantauan kualitas sungai yang menggunakan kecerdasan buatan 
+          <h2 class="section-title">Platform Pemantauan Lingkungan<br/>Berbasis AI</h2>
+          <p class="section-desc">EYECO adalah sistem pemantauan kualitas lingkungan yang menggunakan kecerdasan buatan 
           untuk mendeteksi pencemaran sampah secara otomatis. Warga dapat melapor, dan AI kami memverifikasi 
           serta meneruskan ke petugas terkait.</p>
           <div class="about-grid">
@@ -165,7 +170,7 @@ class HomePage {
                 <i data-lucide="brain-circuit"></i>
               </div>
               <h3>AI Detection</h3>
-              <p>Model YOLOv8 mendeteksi sampah di sungai secara real-time dari kamera CCTV dan foto warga.</p>
+              <p>Model YOLOv8 mendeteksi sampah di lingkungan secara real-time dari kamera CCTV dan foto warga.</p>
             </div>
             <div class="about-card">
               <div class="about-icon" style="background: rgba(16,185,129,0.1); color: #10B981;">
@@ -194,7 +199,7 @@ class HomePage {
               <div class="step-number">1</div>
               <div class="step-icon"><i data-lucide="camera"></i></div>
               <h3>Ambil Foto</h3>
-              <p>Foto kondisi sungai atau sampah yang mencurigakan menggunakan HP kamu.</p>
+              <p>Foto kondisi lingkungan atau sampah yang mencurigakan menggunakan HP kamu.</p>
             </div>
             <div class="step-connector">
               <i data-lucide="arrow-right"></i>
@@ -241,7 +246,7 @@ class HomePage {
             <div class="benefit-card">
               <i data-lucide="users" class="benefit-icon" style="color: #8B5CF6;"></i>
               <h3>Kolaborasi</h3>
-              <p>Warga, pemerintah, dan akademisi dapat berkolaborasi menjaga kebersihan sungai.</p>
+              <p>Warga, pemerintah, dan akademisi dapat berkolaborasi menjaga kebersihan lingkungan.</p>
             </div>
           </div>
         </section>
@@ -292,7 +297,7 @@ class HomePage {
                 <i data-lucide="chevron-down" class="faq-chevron"></i>
               </button>
               <div class="faq-answer">
-                <p>EYECO adalah sistem pemantauan sungai berbasis AI yang memungkinkan masyarakat melaporkan pencemaran sampah. Laporan akan diverifikasi oleh AI dan diteruskan ke dinas terkait.</p>
+                <p>EYECO adalah sistem pemantauan lingkungan berbasis AI yang memungkinkan masyarakat melaporkan pencemaran sampah. Laporan akan diverifikasi oleh AI dan diteruskan ke dinas terkait.</p>
               </div>
             </div>
             <div class="faq-item">
@@ -301,7 +306,7 @@ class HomePage {
                 <i data-lucide="chevron-down" class="faq-chevron"></i>
               </button>
               <div class="faq-answer">
-                <p>Cukup klik "Laporkan Sekarang", upload foto sungai atau sampah, isi lokasi, dan kirim. AI kami akan memproses laporan secara otomatis.</p>
+                <p>Cukup klik "Laporkan Sekarang", upload foto lingkungan atau sampah, isi lokasi, dan kirim. AI kami akan memproses laporan secara otomatis.</p>
               </div>
             </div>
             <div class="faq-item">
@@ -338,7 +343,7 @@ class HomePage {
         <section class="landing-cta">
           <div class="cta-content">
             <h2>Siap Berkontribusi?</h2>
-            <p>Mulai laporkan kondisi sungai di sekitarmu sekarang juga. Bersama kita jaga lingkungan.</p>
+            <p>Mulai laporkan kondisi lingkungan di sekitarmu sekarang juga. Bersama kita jaga lingkungan.</p>
             <a class="hero-btn-primary" id="cta-btn-upload">
               <i data-lucide="upload-cloud"></i> Laporkan Sekarang
             </a>
@@ -348,10 +353,10 @@ class HomePage {
         <!-- ═══ FOOTER ═══ -->
         <footer class="landing-footer">
           <div class="footer-brand">
-            <i data-lucide="waves"></i>
+            <img src="/uploads/logo-eyeco.png" alt="EYECO" style="height:24px;width:auto;">
             <span>EYECO</span>
           </div>
-          <p class="footer-desc">Sistem pemantauan kebersihan sungai berbasis AI untuk Indonesia yang lebih bersih.</p>
+          <p class="footer-desc">Sistem pemantauan kebersihan lingkungan berbasis AI untuk Indonesia yang lebih bersih.</p>
           <div class="footer-links">
             <span>© ${new Date().getFullYear()} EYECO</span>
             <span class="footer-dot">·</span>
@@ -423,6 +428,11 @@ class HomePage {
         if (pendingEl) {
           pendingEl.textContent = '0';
           animateCounter(pendingEl, data.pending ?? 0, 1400);
+        }
+        const myReportsEl = document.getElementById('hero-stat-myreports');
+        if (myReportsEl) {
+          myReportsEl.textContent = '0';
+          animateCounter(myReportsEl, data.myReports ?? 0, 1400);
         }
       }
     } catch (_) {}
