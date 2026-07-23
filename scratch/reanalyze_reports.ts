@@ -6,11 +6,11 @@ import { aiEngine } from '../src/services/ai/aiEngine';
 
 async function reanalyzeTarget() {
   await connectDB();
-  console.log('[REANALYZE] Target re-analyzing Report #335...');
+  console.log('[REANALYZE] Target re-analyzing Report #363...');
 
-  const report = await ReportModel.findOne({ id: 335 }).exec();
+  const report = await ReportModel.findOne({ id: 363 }).exec();
   if (!report || !report.image) {
-    console.error('Report #335 not found!');
+    console.error('Report #363 not found!');
     process.exit(1);
   }
 
@@ -20,7 +20,7 @@ async function reanalyzeTarget() {
     absPath = path.resolve(__dirname, '../uploads', imgFileName);
   }
 
-  console.log(`[REANALYZE] Processing Report #335 (${absPath})...`);
+  console.log(`[REANALYZE] Processing Report #363 (${absPath})...`);
   const analysis = await aiEngine.analyze(absPath, { reportId: report.id, forceReanalysis: true });
 
   await ReportModel.updateOne(
@@ -49,7 +49,7 @@ async function reanalyzeTarget() {
     }
   ).exec();
 
-  console.log(`[REANALYZE] Report #335 updated -> Status: ${analysis.decision.status}, Score: ${analysis.decision.violationScore}, BBoxes: ${JSON.stringify(analysis.objects.map((o:any)=>[o.class, o.x, o.y, o.w, o.h]))}`);
+  console.log(`[REANALYZE] Report #363 updated -> Status: ${analysis.decision.status}, Score: ${analysis.decision.violationScore}, BBoxes: ${JSON.stringify(analysis.objects.map((o:any)=>[o.class, o.x, o.y, o.w, o.h]))}`);
   process.exit(0);
 }
 

@@ -29,6 +29,7 @@ export class RuleBasedStrategy implements IDecisionStrategy {
     if (fv.trashOnWaterZone) score += (w.trashOnWaterZone || 15);
     if (fv.trashOnRoadZone) score += (w.trashOnRoadZone || 10);
     if (fv.trashInsideBinZone) score += (w.trashInsideBinZone || -35);
+    if (fv.trashLargePile) score += (w.trashLargePile || 30);
 
     // Clamp score to 0 - 100
     const violationScore = Math.max(0, Math.min(100, Math.round(score)));

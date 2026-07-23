@@ -74,6 +74,7 @@ export interface FeatureVector {
   trashOnWaterZone: boolean;
   trashOnRoadZone: boolean;
   trashInsideBinZone: boolean;
+  trashLargePile: boolean;
   imageQuality: ImageQualityMetrics;
   evidenceCoverage: number; // 0-1
   analyzersAvailable: string[];
