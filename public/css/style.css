@@ -3196,3 +3196,550 @@ body.dark-mode .news-mcard-body p {
   }
 }
 
+/* ==========================================================================
+   ENHANCED LIVE CCTV GRID & VMS COMMAND CENTER (FULLSCREEN & 4-CHANNEL MODE)
+   ========================================================================== */
+
+/* Main CCTV Grid Layout (4 columns on desktop) */
+.cctv-section-compact .cctv-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1280px) {
+  .cctv-section-compact .cctv-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .cctv-section-compact .cctv-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cctv-card {
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.cctv-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  border-color: rgba(47, 107, 255, 0.3);
+}
+
+.cctv-media-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #090d16;
+  overflow: hidden;
+}
+
+.cctv-feed-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Hover Overlay with 6 circular action buttons (Image 4 design) */
+.cctv-hover-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  opacity: 0;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 20;
+}
+
+.cctv-media-container:hover .cctv-hover-overlay {
+  opacity: 1;
+}
+
+.hover-circle-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.hover-circle-btn:hover {
+  background: #ffffff;
+  color: #0f172a;
+  transform: scale(1.12);
+  border-color: #ffffff;
+}
+
+.hover-circle-btn.btn-danger-hover:hover {
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #ef4444;
+}
+
+.hover-circle-btn svg, .hover-circle-btn i {
+  width: 16px;
+  height: 16px;
+}
+
+/* Bounding box styling inside feed */
+.yolo-preview-box {
+  position: absolute;
+  border: 2px solid #38bdf8;
+  background: rgba(56, 189, 248, 0.15);
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.yolo-preview-box.yolo-person {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.yolo-preview-box.yolo-trash {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.18);
+}
+
+.yolo-preview-box.yolo-boat {
+  border-color: #06b6d4;
+  background: rgba(6, 182, 212, 0.15);
+}
+
+.yolo-preview-label {
+  position: absolute;
+  top: -24px;
+  left: -2px;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  border: 1px solid rgba(255,255,255,0.2);
+  z-index: 15;
+}
+
+.yolo-person .yolo-preview-label {
+  background: #2563eb;
+}
+
+.yolo-trash .yolo-preview-label {
+  background: #dc2626;
+}
+
+.yolo-boat .yolo-preview-label {
+  background: #0891b2;
+}
+
+/* Fullscreen VMS Command Center Container (Images 2 & 3) */
+.vms-fullscreen-view {
+  position: fixed;
+  inset: 0;
+  background: #080c14;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  color: #ffffff;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* VMS Header Bar */
+.vms-fs-header {
+  height: 52px;
+  background: #0b1120;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  flex-shrink: 0;
+}
+
+.vms-fs-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vms-fs-btn-back {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.vms-fs-btn-back:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.vms-fs-cam-title {
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #ffffff;
+  text-transform: uppercase;
+}
+
+.vms-fs-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vms-fs-icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vms-fs-icon-btn:hover, .vms-fs-icon-btn.active {
+  background: rgba(47, 107, 255, 0.2);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+/* VMS Body Split Layout */
+.vms-fs-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  background: #04070d;
+}
+
+/* Left Video Workspace */
+.vms-fs-video-workspace {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: #000000;
+  overflow: hidden;
+}
+
+.vms-fs-screen-container {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  height: calc(100% - 44px);
+  background: #000000;
+}
+
+/* 4-Channel 2x2 Grid View (Image 2 style) */
+.vms-fs-grid-2x2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+  background: #000000;
+}
+
+.vms-fs-grid-cell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #0a0e17;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: border-color 0.15s ease;
+}
+
+.vms-fs-grid-cell:hover {
+  border-color: rgba(56, 189, 248, 0.5);
+}
+
+.vms-fs-grid-cell img, .vms-fs-grid-cell video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vms-fs-cell-tag {
+  position: absolute;
+  bottom: 8px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Single Channel View (Image 3 style) */
+.vms-fs-single-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000000;
+  position: relative;
+}
+
+.vms-fs-single-container img, .vms-fs-single-container video {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.vms-fs-timestamp-overlay {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: #ffffff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.4);
+  padding: 4px 10px;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Video Player Overlay Bottom Bar */
+.vms-fs-video-bar {
+  height: 44px;
+  background: #0a0e17;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  color: rgba(255, 255, 255, 0.85);
+  flex-shrink: 0;
+}
+
+.vms-fs-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.vms-fs-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vms-bar-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.vms-bar-btn:hover, .vms-bar-btn.active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.vms-bar-btn svg, .vms-bar-btn i {
+  width: 16px;
+  height: 16px;
+}
+
+/* Right VMS Sidebar Panel (Width 300px) */
+.vms-fs-sidebar {
+  width: 300px;
+  background: #0b1120;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  color: #ffffff;
+  font-size: 0.8rem;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.vms-fs-sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vms-fs-sidebar-title {
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Operator Actions Grid */
+.vms-fs-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.vms-action-tile {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 10px;
+  color: #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vms-action-tile:hover {
+  background: rgba(47, 107, 255, 0.15);
+  border-color: rgba(56, 189, 248, 0.3);
+  color: #38bdf8;
+}
+
+.vms-action-tile.active {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+
+.vms-action-tile svg, .vms-action-tile i {
+  width: 15px;
+  height: 15px;
+}
+
+/* Status Specs Table */
+.vms-status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 12px;
+}
+
+.vms-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+}
+
+.vms-status-label {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.vms-status-value {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.vms-status-value.accent-cyan {
+  color: #38bdf8;
+}
+
+.vms-status-value.accent-green {
+  color: #22c55e;
+}
+
+.vms-status-value.accent-red {
+  color: #ef4444;
+}
+
+/* Event Logs List */
+.vms-event-logs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 12px;
+}
+
+.vms-event-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.72rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vms-event-time {
+  color: #94a3b8;
+  font-size: 0.65rem;
+}
+
+.vms-event-desc {
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+

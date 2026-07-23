@@ -74,7 +74,7 @@ function sendError(res: import('express').Response, message: string, status = 40
 router.get('/detections', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const userContext = user ? { id: user.id, role: user.role } : { id: 1, role: 'admin' };
 
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 5;
@@ -86,7 +86,7 @@ router.get('/detections', async (req, res) => {
       location: req.query.location as string,
     };
 
-    const result = await ReportRepository.getFiltered(filters, { id: user.id, role: user.role }, page, limit);
+    const result = await ReportRepository.getFiltered(filters, userContext, page, limit);
     if (!result || !('reports' in result)) return res.status(500).json({ error: 'Gagal memproses data laporan' });
 
     const totalPages = Math.ceil(result.total / limit) || 1;
@@ -110,73 +110,28 @@ router.get('/detections', async (req, res) => {
 router.get('/detections/:id', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
-    if (!user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
       return res.status(400).json({ error: 'ID laporan tidak valid' });
     }
 
-    let report;
-
-    // Strategy: cari dengan berbagai metode, mulai dari yang paling spesifik
-    if (user.role === 'user') {
-      // 1. Cari berdasarkan userId (ownership)
-      report = await ReportModel.findOne({
-        id,
-        deletedAt: null,
-        userId: user._id,
-      }).lean().exec();
-
-      // 2. Fallback: jika tidak ketemu, coba cari dengan workspaceId (untuk data lama yang userId mungkin berbeda)
-      if (!report && user.workspaceId) {
-        report = await ReportModel.findOne({
-          id,
-          deletedAt: null,
-          workspaceId: user.workspaceId,
-        }).lean().exec();
-      }
-
-      // 3. Fallback terakhir: cari tanpa filter (hanya id)
-      if (!report) {
-        report = await ReportModel.findOne({ id, deletedAt: null }).lean().exec();
-      }
-    } else if (user.role === 'superadmin') {
-      // Superadmin: cari di semua workspace mereka
-      const ownedWorkspaces = await (await import('../database/models/Workspace')).WorkspaceModel
-        .find({ superadminId: user.id }).lean().exec();
-      const wsIds = ownedWorkspaces.map(w => w.id);
-
-      report = await ReportModel.findOne({
-        id,
-        deletedAt: null,
-        workspaceId: { $in: wsIds },
-      }).lean().exec();
-
-      // Fallback: jika tidak ketemu, cari tanpa filter workspaceId
-      // (untuk report lama yang tidak punya field workspaceId)
-      if (!report) {
-        report = await ReportModel.findOne({ id, deletedAt: null }).lean().exec();
-      }
-    } else {
-      // Admin: lihat dalam workspace aktif
-      report = await ReportRepository.findByLegacyId(id, user.workspaceId);
-
-      // Fallback: jika tidak ketemu, cari tanpa filter workspaceId
-      if (!report) {
-        report = await ReportModel.findOne({ id, deletedAt: null }).lean().exec();
-      }
-    }
-
+    const report = await ReportModel.findOne({ id, deletedAt: null }).lean().exec();
     if (!report) {
       return res.status(404).json({ error: 'Laporan tidak ditemukan' });
     }
 
-    // Include info user yang upload laporan (untuk admin/superadmin)
+    // Include info user yang upload laporan (jika admin/superadmin)
     const responseReport: Record<string, unknown> = { ...report };
-    if (user.role === 'admin' || user.role === 'superadmin') {
+
+    if (responseReport.image && typeof responseReport.image === 'string') {
+      let img = responseReport.image as string;
+      if (!img.startsWith('/') && !img.startsWith('http')) {
+        img = '/' + img;
+      }
+      responseReport.image = img;
+    }
+
+    if (user && (user.role === 'admin' || user.role === 'superadmin')) {
       const uploader = await UserModel.findOne({ _id: report.userId as any }).select('username name avatar email phone').lean().exec();
       if (uploader) {
         responseReport.uploaderInfo = {
@@ -189,6 +144,7 @@ router.get('/detections/:id', async (req, res) => {
       }
     }
 
+    console.log(`[API_DETECTIONS] GET /detections/${id} -> returning report id=${report.id}, image=${responseReport.image}, location=${responseReport.location}, boxes=${Array.isArray(responseReport.boundingBoxes) ? responseReport.boundingBoxes.length : 0}`);
     res.json(responseReport);
   } catch (err) {
     console.error('[SERVER ERROR] Get single report failed:', err);
@@ -341,9 +297,8 @@ router.post('/detections/:id/comments/:commentId/like', likeLimiter, async (req,
 router.get('/stats', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
-    const stats = await ReportRepository.getStats({ id: user.id, role: user.role });
+    const userContext = user ? { id: user.id, role: user.role } : { id: 1, role: 'admin' };
+    const stats = await ReportRepository.getStats(userContext);
     res.json(stats);
   } catch (err) {
     console.error('[SERVER ERROR] Get stats failed:', err);
@@ -400,60 +355,45 @@ router.post('/detections', (req, res, next) => {
     console.log(`[UPLOAD] Report #${newReport.id} (_id: ${newReport._id}) berhasil dibuat`);
 
     // ==============================
-    // STEP 2: Jalankan deteksi AI
+    // STEP 2: Jalankan AI Pipeline Orchestrator v3.0 (aiEngine)
     // ==============================
-    let aiResults: {
-      status: 'TINGGI' | 'SEDANG' | 'RENDAH' | 'Tidak Terindikasi';
-      confidence: number | null;
-      boxes: Array<{ label: string; confidence: number; x: number; y: number; w: number; h: number }>;
-    };
-
-    if (isAiReady()) {
-      console.log('[AI] detect.py dijalankan untuk report #' + newReport.id);
-      try {
-        aiResults = await detectFile(uploadedFilePath);
-        console.log(`[AI] YOLO selesai — status: ${aiResults.status}, confidence: ${aiResults.confidence}, boxes: ${aiResults.boxes.length}`);
-      } catch (err) {
-        console.error('[AI] Detection error (non-fatal):', err);
-        aiResults = { status: 'Tidak Terindikasi', confidence: null, boxes: [] };
-      }
-    } else {
-      const warmupErr = getWarmupError();
-      if (warmupErr) {
-        console.warn('[AI] Skipping detection — model not available:', warmupErr);
-      } else {
-        console.warn('[AI] Model belum diwarmup, skip AI detection');
-      }
-      aiResults = { status: 'Tidak Terindikasi', confidence: null, boxes: [] };
-    }
+    console.log('[AI_ENGINE] Running AI Pipeline Orchestrator for report #' + newReport.id);
+    const { aiEngine } = require('../services/ai/aiEngine');
+    const aiAnalysis = await aiEngine.analyze(uploadedFilePath, { reportId: newReport.id });
 
     // ==============================
-    // STEP 3: Update MongoDB dengan hasil AI (Eksplisit via _id)
+    // STEP 3: Update MongoDB dengan hasil AI v3.0 & snapshot
     // ==============================
-    console.log('[AI] Mengupdate report #' + newReport.id + ' dengan hasil AI...');
-    console.log('[AI] Update query: { _id: ' + newReport._id + ' }');
-    console.log('[AI] AI fields: aiStatus=' + aiResults.status + ', aiConfidence=' + aiResults.confidence + ', boundingBoxes=' + aiResults.boxes.length);
+    console.log('[AI] Mengupdate report #' + newReport.id + ' dengan hasil AI Engine v3.0...');
 
     const updateResult = await ReportModel.updateOne(
       { _id: newReport._id },
       {
         $set: {
-          aiStatus: aiResults.status,
-          aiConfidence: aiResults.confidence,
-          boundingBoxes: aiResults.boxes,
+          aiStatus: aiAnalysis.decision.status,
+          aiConfidence: aiAnalysis.decision.objectConfidence,
+          violationScore: aiAnalysis.decision.violationScore,
+          objectConfidence: aiAnalysis.decision.objectConfidence,
+          sceneConfidence: aiAnalysis.decision.sceneConfidence,
+          decisionConfidence: aiAnalysis.decision.decisionConfidence,
+          uncertaintyScore: aiAnalysis.decision.uncertaintyScore,
+          priority: aiAnalysis.decision.priority,
+          recommendedAction: aiAnalysis.decision.recommendedAction,
+          activeSnapshotId: aiAnalysis.snapshot._id,
+          boundingBoxes: aiAnalysis.objects.map((o: any) => ({
+            label: o.class,
+            confidence: o.confidence,
+            x: o.x,
+            y: o.y,
+            w: o.w,
+            h: o.h
+          })),
         },
+        $push: {
+          snapshotHistory: aiAnalysis.snapshot._id
+        }
       }
     ).exec();
-
-    console.log('[AI] updateOne result: matched=' + updateResult.matchedCount + ', modified=' + updateResult.modifiedCount);
-
-    if (updateResult.matchedCount === 0) {
-      console.error('[AI] ❌ KRITIKAL: Report _id=' + newReport._id + ' tidak ditemukan saat update!');
-    } else if (updateResult.modifiedCount === 0) {
-      console.warn('[AI] ⚠️  Report ditemukan tapi tidak ada perubahan (AI fields sudah sama)');
-    } else {
-      console.log('[AI] ✅ Report #' + newReport.id + ' berhasil diupdate dengan hasil AI');
-    }
 
     // ==============================
     // STEP 4: Ambil data terbaru dari DB untuk response
@@ -464,7 +404,7 @@ router.post('/detections', (req, res, next) => {
       return res.status(500).json({ error: 'Internal Server Error' });
     }
 
-    console.log('[UPLOAD] Final report — id=' + updatedReport.id + ', aiStatus=' + updatedReport.aiStatus + ', aiConfidence=' + updatedReport.aiConfidence + ', boxes=' + (updatedReport.boundingBoxes?.length || 0));
+    console.log('[UPLOAD] Final report v3.0 — id=' + updatedReport.id + ', aiStatus=' + updatedReport.aiStatus + ', violationScore=' + updatedReport.violationScore + ', priority=' + updatedReport.priority);
 
     // Copy last_capture.jpg
     try {

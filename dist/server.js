@@ -57,6 +57,10 @@ mongoose_1.default.connection.on('error', (err) => {
 app.use((0, cookie_parser_1.default)());
 // --- MIDDLEWARE ---
 app.use(express_1.default.json());
+app.use((req, res, next) => {
+    console.log(`[HTTP REQ] ${req.method} ${req.url}`);
+    next();
+});
 app.use(express_1.default.urlencoded({ extended: true }));
 app.use((0, cookie_parser_1.default)());
 // API Versioning Rewriter (Translates /api/v1/* to /api/* internally for seamless backward compatibility)
@@ -98,6 +102,8 @@ app.use('/api/auth', authRoutes_1.default);
 app.use('/api/superadmin', superadminRoutes_1.default);
 app.use('/api/workspaces', workspaceRoutes_1.default);
 app.use('/admin', adminRoutes_1.default);
+app.use('/api/cctv', cctvRoutes_1.default);
+app.use('/api/news', newsRoutes_1.default);
 app.use('/api', reportRoutes_1.default);
 // --- HEALTH CHECK ENDPOINTS ---
 app.get('/health/live', (req, res) => {
@@ -202,47 +208,61 @@ app.get('/register-superadmin', async (req, res) => {
         res.redirect('/login');
     }
 });
-// --- SECURE DATA API ENDPOINTS ---
-// API: Get Filtered & Paginated Reports (Database-Level pagination optimized)
-app.get('/api/detections', async (req, res) => {
+// API: Get single report detail by ID (Public read access)
+app.get('/api/detections/:id', async (req, res) => {
     try {
         const user = await (0, authMiddleware_1.getLoggedInUser)(req);
-        if (!user) {
-            return res.status(401).json({ error: 'Unauthorized' });
+        const id = parseInt(req.params.id, 10);
+        if (isNaN(id)) {
+            return res.status(400).json({ error: 'ID laporan tidak valid' });
         }
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 5;
-        const filters = {
-            timeRange: req.query.timeRange,
-            date: req.query.date,
-            aiStatus: req.query.aiStatus,
-            adminStatus: req.query.adminStatus,
-            location: req.query.location,
-        };
-        const userContext = { id: user.id, role: user.role };
-        // Call database-level paginated query
-        const result = await db_1.DatabaseManager.getFiltered(filters, userContext, page, limit);
-        if (result && 'reports' in result) {
-            const { reports: paginatedReports, total: totalReports } = result;
-            const totalPages = Math.ceil(totalReports / limit) || 1;
-            res.json({
-                reports: paginatedReports,
-                pagination: {
-                    page,
-                    limit,
-                    totalReports,
-                    totalPages,
-                    hasPrev: page > 1,
-                    hasNext: page < totalPages,
-                },
-            });
+        const report = await Report_1.ReportModel.findOne({ id, deletedAt: null }).lean().exec();
+        if (!report) {
+            return res.status(404).json({ error: 'Laporan tidak ditemukan' });
         }
-        else {
-            res.status(500).json({ error: 'Gagal memproses data laporan' });
+        const responseReport = { ...report };
+        if (responseReport.image && typeof responseReport.image === 'string') {
+            let img = responseReport.image;
+            if (!img.startsWith('/') && !img.startsWith('http')) {
+                img = '/' + img;
+            }
+            responseReport.image = img;
         }
+        if (user && (user.role === 'admin' || user.role === 'superadmin')) {
+            const uploader = await User_1.UserModel.findOne({ _id: report.userId }).select('username name avatar email phone').lean().exec();
+            if (uploader) {
+                responseReport.uploaderInfo = {
+                    username: uploader.username,
+                    name: uploader.name || '',
+                    avatar: uploader.avatar || '',
+                    email: uploader.email || '',
+                };
+            }
+        }
+        // Attach active AiSnapshot metadata if available
+        try {
+            const { AiSnapshotModel } = require('./database/models/AiSnapshot');
+            let snapshot = null;
+            if (report.activeSnapshotId) {
+                snapshot = await AiSnapshotModel.findById(report.activeSnapshotId).lean().exec();
+            }
+            if (!snapshot) {
+                snapshot = await AiSnapshotModel.findOne({ reportId: id, isActive: true }).sort({ createdAt: -1 }).lean().exec();
+            }
+            if (snapshot) {
+                responseReport.snapshot = snapshot;
+                responseReport.evidenceItems = snapshot.evidenceItems || [];
+                responseReport.limitations = snapshot.limitations || [];
+                responseReport.featureVector = snapshot.featureVector || null;
+            }
+        }
+        catch (sErr) {
+            console.warn('[SERVER] Could not load AiSnapshot for report #' + id + ':', sErr.message);
+        }
+        res.json(responseReport);
     }
     catch (err) {
-        console.error('[SERVER ERROR] Get reports list failed:', err);
+        console.error('[SERVER ERROR] GET /api/detections/:id failed:', err);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });

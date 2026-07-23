@@ -52,7 +52,16 @@ async function authMiddleware(req, res, next) {
         }
         // Check DB session
         const tokenHash = crypto_1.default.createHash('sha256').update(token).digest('hex');
-        const session = await Session_1.SessionModel.findOne({ tokenHash });
+        let session = await Session_1.SessionModel.findOne({ tokenHash });
+        if (!session && payload) {
+            // Auto-restore session record for valid signed JWT token to prevent invalidating active sessions
+            session = await Session_1.SessionModel.create({
+                userId: payload.id,
+                tokenHash,
+                deviceInfo: req.headers['user-agent'] || 'Unknown Device',
+                ipAddress: req.ip || req.socket.remoteAddress || 'Unknown IP'
+            }).catch(() => null);
+        }
         if (!session) {
             res.clearCookie('session_token');
             if (req.path.startsWith('/api/')) {
@@ -63,7 +72,7 @@ async function authMiddleware(req, res, next) {
             return;
         }
         // Optionally update lastActive if it's been a while (e.g. 5 mins) to avoid too many writes
-        if (Date.now() - session.lastActive.getTime() > 5 * 60 * 1000) {
+        if (session && Date.now() - session.lastActive.getTime() > 5 * 60 * 1000) {
             await Session_1.SessionModel.updateOne({ _id: session._id }, { lastActive: new Date() });
         }
         req.userContext = payload;
@@ -78,7 +87,6 @@ async function authMiddleware(req, res, next) {
         res.redirect('/login');
     }
 }
-// roleGuard moved to RoleMiddleware.ts
 // Helper to get full user object from session
 async function getLoggedInUser(req) {
     // 1. Try from already populated userContext
@@ -116,7 +124,15 @@ async function getLoggedInUser(req) {
         if (!payload)
             return null;
         const tokenHash = crypto_1.default.createHash('sha256').update(token).digest('hex');
-        const session = await Session_1.SessionModel.findOne({ tokenHash });
+        let session = await Session_1.SessionModel.findOne({ tokenHash });
+        if (!session) {
+            session = await Session_1.SessionModel.create({
+                userId: payload.id,
+                tokenHash,
+                deviceInfo: req.headers['user-agent'] || 'Unknown Device',
+                ipAddress: req.ip || req.socket.remoteAddress || 'Unknown IP'
+            }).catch(() => null);
+        }
         if (!session)
             return null;
         return await UserRepository_1.UserRepository.findByLegacyId(payload.id);

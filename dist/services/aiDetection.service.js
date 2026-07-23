@@ -48,7 +48,7 @@ const STATUS_THRESHOLDS = {
  * Selalu resolve (tidak throw) — error dikembalikan via AiDetectionResult.
  */
 function runPythonDetection(filePath, options = {}) {
-    const { model = DEFAULT_MODEL, conf = 0.25, iou = 0.45, maxFrames = 0, timeout = 30_000, } = options;
+    const { model = DEFAULT_MODEL, conf = 0.15, iou = 0.45, maxFrames = 0, timeout = 30_000, } = options;
     return new Promise((resolve) => {
         const args = [
             DETECT_SCRIPT,

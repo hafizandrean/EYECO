@@ -84,11 +84,20 @@ const ReportSchema = new mongoose_1.Schema({
     timestamp: { type: Date, required: true, index: true },
     aiStatus: {
         type: String,
-        enum: ['TINGGI', 'SEDANG', 'RENDAH', 'Tidak Terindikasi'],
+        enum: ['Indikasi Tinggi', 'Indikasi Sedang', 'Indikasi Rendah', 'Tidak Terindikasi', 'TINGGI', 'SEDANG', 'RENDAH'],
         required: true,
         index: true
     },
     aiConfidence: { type: Number, default: null },
+    violationScore: { type: Number, default: 0 },
+    objectConfidence: { type: Number, default: 0 },
+    sceneConfidence: { type: Number, default: 0 },
+    decisionConfidence: { type: Number, default: 0 },
+    uncertaintyScore: { type: Number, default: 0 },
+    priority: { type: String, enum: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'NONE'], default: 'NONE' },
+    recommendedAction: { type: String, default: '' },
+    activeSnapshotId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'AiSnapshot', default: null },
+    snapshotHistory: [{ type: mongoose_1.Schema.Types.ObjectId, ref: 'AiSnapshot' }],
     adminStatus: {
         type: String,
         enum: ['MENUNGGU', 'VALID', 'DIABAIKAN'],

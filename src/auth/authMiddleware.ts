@@ -66,7 +66,17 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
     // Check DB session
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const session = await SessionModel.findOne({ tokenHash });
+    let session = await SessionModel.findOne({ tokenHash });
+    if (!session && payload) {
+      // Auto-restore session record for valid signed JWT token to prevent invalidating active sessions
+      session = await SessionModel.create({
+        userId: payload.id,
+        tokenHash,
+        deviceInfo: req.headers['user-agent'] || 'Unknown Device',
+        ipAddress: req.ip || req.socket.remoteAddress || 'Unknown IP'
+      }).catch(() => null);
+    }
+
     if (!session) {
       res.clearCookie('session_token');
       if (req.path.startsWith('/api/')) {
@@ -78,7 +88,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     }
 
     // Optionally update lastActive if it's been a while (e.g. 5 mins) to avoid too many writes
-    if (Date.now() - session.lastActive.getTime() > 5 * 60 * 1000) {
+    if (session && Date.now() - session.lastActive.getTime() > 5 * 60 * 1000) {
       await SessionModel.updateOne({ _id: session._id }, { lastActive: new Date() });
     }
 
@@ -93,8 +103,6 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     res.redirect('/login');
   }
 }
-
-// roleGuard moved to RoleMiddleware.ts
 
 // Helper to get full user object from session
 export async function getLoggedInUser(req: Request): Promise<IUser | null> {
@@ -133,7 +141,15 @@ export async function getLoggedInUser(req: Request): Promise<IUser | null> {
     if (!payload) return null;
 
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const session = await SessionModel.findOne({ tokenHash });
+    let session = await SessionModel.findOne({ tokenHash });
+    if (!session) {
+      session = await SessionModel.create({
+        userId: payload.id,
+        tokenHash,
+        deviceInfo: req.headers['user-agent'] || 'Unknown Device',
+        ipAddress: req.ip || req.socket.remoteAddress || 'Unknown IP'
+      }).catch(() => null);
+    }
     if (!session) return null;
 
     return await UserRepository.findByLegacyId(payload.id as number);

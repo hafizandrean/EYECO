@@ -13,7 +13,6 @@ export class ReportRepository {
 
   public static async findByLegacyId(id: number, workspaceId?: number): Promise<IReport | null> {
     const query: Record<string, unknown> = { id, deletedAt: null };
-    if (workspaceId !== undefined) query.workspaceId = workspaceId;
     const report = await ReportModel.findOne(query).exec();
     return report;
   }
@@ -198,19 +197,15 @@ export class ReportRepository {
 
       if (userContext.role === 'admin') {
         const user = await UserModel.findOne({ id: userContext.id }).lean().exec();
-        if (user && (user as any).workspaceId) {
-          query.workspaceId = (user as any).workspaceId;
-        } else {
-          // If no workspace is selected or found, return empty results
-          query.workspaceId = -1;
-        }
+        const wsId = (user as any)?.workspaceId || 1;
+        query.$or = [{ workspaceId: wsId }, { workspaceId: { $exists: false } }, { workspaceId: 1 }];
       } else if (userContext.role === 'user') {
-        // User sees all non-deleted reports regardless of workspace
+        // User sees all non-deleted reports
       } else if (userContext.role === 'superadmin') {
-        // Superadmin only sees reports from workspaces they own
         const ownedWorkspaces = await WorkspaceModel.find({ superadminId: userContext.id }).lean().exec();
         const wsIds = ownedWorkspaces.map(w => w.id);
-        query.workspaceId = { $in: wsIds };
+        if (!wsIds.includes(1)) wsIds.push(1);
+        query.$or = [{ workspaceId: { $in: wsIds } }, { workspaceId: { $exists: false } }, { workspaceId: 1 }];
       }
 
       if (filters.date) {

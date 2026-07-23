@@ -21,9 +21,11 @@ class ApiService {
 
   // Request generic fetch wrapper
   async request(url, options = {}) {
-    if (this.isOffline) {
+    if (!navigator.onLine) {
+      this.isOffline = true;
       throw new Error('OFFLINE');
     }
+    this.isOffline = false;
 
     try {
       const response = await fetch(url, options);
@@ -49,9 +51,8 @@ class ApiService {
       return await response.json();
     } catch (err) {
       console.warn('[API] Request error:', url, err.message);
-      if (err.message === 'OFFLINE' || err.message.includes('Failed to fetch')) {
+      if (!navigator.onLine) {
         this.setOnlineStatus(false);
-        throw new Error('Koneksi jaringan gagal. Silakan coba lagi.');
       }
       throw err;
     }

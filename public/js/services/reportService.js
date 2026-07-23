@@ -142,7 +142,7 @@ class ReportServiceClass {
 
   // Ambil laporan tunggal berdasarkan ID
   async getReportById(id) {
-    const url = `/api/detections/${id}`;
+    const url = `/api/detections/${id}?t=${Date.now()}`;
     console.log('[REPORT_SERVICE] getReportById:', url);
     try {
       const result = await API.get(url);

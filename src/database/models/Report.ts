@@ -40,8 +40,17 @@ export interface IReport extends Document {
   tenantId: string;
   location: string;
   timestamp: Date;
-  aiStatus: 'TINGGI' | 'SEDANG' | 'RENDAH' | 'Tidak Terindikasi';
+  aiStatus: 'Indikasi Tinggi' | 'Indikasi Sedang' | 'Indikasi Rendah' | 'Tidak Terindikasi' | 'TINGGI' | 'SEDANG' | 'RENDAH';
   aiConfidence: number | null;
+  violationScore?: number;
+  objectConfidence?: number;
+  sceneConfidence?: number;
+  decisionConfidence?: number;
+  uncertaintyScore?: number;
+  priority?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE';
+  recommendedAction?: string;
+  activeSnapshotId?: mongoose.Types.ObjectId | null;
+  snapshotHistory?: mongoose.Types.ObjectId[];
   adminStatus: 'MENUNGGU' | 'VALID' | 'DIABAIKAN';
   image: string;
   identity: string;
@@ -141,11 +150,20 @@ const ReportSchema = new Schema<IReport>({
   timestamp: { type: Date, required: true, index: true },
   aiStatus: { 
     type: String, 
-    enum: ['TINGGI', 'SEDANG', 'RENDAH', 'Tidak Terindikasi'], 
+    enum: ['Indikasi Tinggi', 'Indikasi Sedang', 'Indikasi Rendah', 'Tidak Terindikasi', 'TINGGI', 'SEDANG', 'RENDAH'], 
     required: true, 
     index: true 
   },
   aiConfidence: { type: Number, default: null },
+  violationScore: { type: Number, default: 0 },
+  objectConfidence: { type: Number, default: 0 },
+  sceneConfidence: { type: Number, default: 0 },
+  decisionConfidence: { type: Number, default: 0 },
+  uncertaintyScore: { type: Number, default: 0 },
+  priority: { type: String, enum: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'NONE'], default: 'NONE' },
+  recommendedAction: { type: String, default: '' },
+  activeSnapshotId: { type: Schema.Types.ObjectId, ref: 'AiSnapshot', default: null },
+  snapshotHistory: [{ type: Schema.Types.ObjectId, ref: 'AiSnapshot' }],
   adminStatus: { 
     type: String, 
     enum: ['MENUNGGU', 'VALID', 'DIABAIKAN'], 

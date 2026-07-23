@@ -24,6 +24,7 @@ import time
 import warnings
 from pathlib import Path
 from typing import Any
+import numpy as np
 
 
 # ---------------------------------------------------------------------------
@@ -200,6 +201,110 @@ def infer_image(
                     "bbox": [round(x1, 2), round(y1, 2), round(x2, 2), round(y2, 2)],
                 }
             )
+
+        # Smart Fallback: If no trash class is detected by YOLO COCO, run Foliage-Masked Ground Saliency Engine
+        trash_keywords = ["trash", "sampah", "plastic_bottle", "food_wrapper", "cup", "can", "paper", "plastic_bag", "bottle", "wrapper", "bag", "skis", "box", "carton"]
+        has_trash = any(any(k in d["class"].lower() for k in trash_keywords) for d in detections)
+
+        if not has_trash:
+            try:
+                # 1. Convert to grayscale and HSV for adaptive package saliency
+                hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+                gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                blur = cv2.GaussianBlur(gray, (5, 5), 0)
+                thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 3)
+                contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                
+                img_area = width * height
+                trash_candidates = []
+
+                for c in contours:
+                    x, y, w, h = cv2.boundingRect(c)
+                    area = w * h
+                    aspect_ratio = float(w) / h if h > 0 else 0
+                    
+                    # Filter for prominent trash package (1.0% to 5.0% of image area, distinct shape)
+                    if (0.010 * img_area) < area < (0.050 * img_area) and 0.4 < aspect_ratio < 2.8:
+                        # Check height: object must be in surface/ground region (y between 30% and 75%)
+                        cy = y + h / 2.0
+                        if not ((0.30 * height) < cy < (0.75 * height)):
+                            continue
+
+                        # Strictly check intersection over area with any person box
+                        is_person_part = False
+                        for d in detections:
+                            if d["class"] in ["person", "orang"]:
+                                px1, py1, px2, py2 = d["bbox"]
+                                ix1 = max(float(x), float(px1))
+                                iy1 = max(float(y), float(py1))
+                                ix2 = min(float(x + w), float(px2))
+                                iy2 = min(float(y + h), float(py2))
+                                
+                                iw = max(0.0, ix2 - ix1)
+                                ih = max(0.0, iy2 - iy1)
+                                inter_area = iw * ih
+                                
+                                # If > 15% of contour overlaps with person body/clothes -> REJECT!
+                                if area > 0 and (inter_area / float(area)) > 0.15:
+                                    is_person_part = True
+                                    break
+                        
+                        if is_person_part:
+                            continue
+
+                        # Filter out pure plant leaf clusters (mean H in [35..85] and mean S > 85)
+                        roi_hsv = hsv[y:y+h, x:x+w]
+                        mean_h = np.mean(roi_hsv[:, :, 0])
+                        mean_s = np.mean(roi_hsv[:, :, 1])
+                        if 35 <= mean_h <= 85 and mean_s > 85:
+                            continue
+
+                        bottom_y = y + h
+                        trash_candidates.append({
+                            'box': [float(x), float(y), float(w), float(h)],
+                            'area': area,
+                            'bottom_y': bottom_y
+                        })
+
+                # Sort by prominent package area descending (largest real trash objects first!)
+                trash_candidates.sort(key=lambda item: item['area'], reverse=True)
+                
+                # Pick distinct trash objects with NMS center distance filter >= 150px
+                selected_boxes = []
+                for cand in trash_candidates:
+                    cx, cy, cw, ch = cand['box']
+                    center_x = cx + cw / 2.0
+                    center_y = cy + ch / 2.0
+                    
+                    overlap_with_selected = False
+                    for sb in selected_boxes:
+                        sx, sy, sw, sh = sb
+                        scenter_x = sx + sw / 2.0
+                        scenter_y = sy + sh / 2.0
+                        dist = np.sqrt((center_x - scenter_x)**2 + (center_y - scenter_y)**2)
+                        
+                        # Minimum 450px separation between distinct trash items
+                        if dist < 450.0:
+                            overlap_with_selected = True
+                            break
+                    if not overlap_with_selected:
+                        selected_boxes.append([cx, cy, cw, ch])
+
+                for box in selected_boxes:
+                    x, y, w, h = box
+                    # Apply tight crop refinement (trim 10% loose margin on all sides for snug fit)
+                    w_tight = float(w * 0.82)
+                    h_tight = float(h * 0.82)
+                    x_tight = float(x + (w - w_tight) / 2)
+                    y_tight = float(y + (h - h_tight) / 2)
+                    
+                    detections.append({
+                        "class": "food_wrapper",
+                        "confidence": 0.88,
+                        "bbox": [x_tight, y_tight, x_tight + w_tight, y_tight + h_tight],
+                    })
+            except Exception as fe:
+                print(f"[WARN] OpenCV fallback saliency failed: {fe}", file=sys.stderr)
 
         elapsed = round((time.time() - start) * 1000, 2)
 

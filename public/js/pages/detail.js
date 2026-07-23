@@ -142,16 +142,12 @@ export class DetailPage {
       console.log('[DETAIL_FRONTEND] endpoint GET:', endpoint);
 
       const report = await ReportService.getReportById(this.reportId);
+      if (!report || (!report.id && !report._id)) {
+        throw new Error(`Data Laporan #${this.reportId} tidak dapat ditemukan.`);
+      }
       this.report = report;
 
-      console.log('[DETAIL_FRONTEND] ✅ Report berhasil dimuat:', report ? `id=${report.id}, _id=${report._id}` : 'null');
-      console.log('[DETAIL_FRONTEND]   location:', report?.location);
-      console.log('[DETAIL_FRONTEND]   image:', report?.image);
-      console.log('[DETAIL_FRONTEND]   aiStatus:', report?.aiStatus);
-      console.log('[DETAIL_FRONTEND]   aiConfidence:', report?.aiConfidence);
-      console.log('[DETAIL_FRONTEND]   boundingBoxes count:', report?.boundingBoxes?.length);
-      console.log('[DETAIL_FRONTEND]   workspaceId:', report?.workspaceId);
-      console.log('[DETAIL_FRONTEND]   adminStatus:', report?.adminStatus);
+      console.log('[DETAIL_FRONTEND] ✅ Report berhasil dimuat:', `id=${report.id}, location=${report.location}, image=${report.image}`);
 
       // Check current user role
       const currentUser = AppState.get('user');
@@ -165,9 +161,7 @@ export class DetailPage {
         voted: false
       };
       
-      // Determine active lifecycle step index (Item 1 & 2)
-      // 0: Deteksi AI (NEW), 1: Tinjauan Operator (UNDER REVIEW), 2: Validasi (VALIDATED),
-      // 3: Petugas Ditunjuk (ASSIGNED), 4: Penanganan (IN PROGRESS), 5: Lokasi Pulih (RESOLVED), 6: Kasus Tutup (CLOSED)
+      // Determine active lifecycle step index
       let activeStep = 1; // Default UNDER REVIEW
       if (report.adminStatus === 'VALID') {
         activeStep = 2; // VALIDATED
@@ -186,23 +180,25 @@ export class DetailPage {
       } else if (report.adminStatus === 'DIABAIKAN') {
         activeStep = 6; // CLOSED
       }
+      // Generate YOLO Boxes with precise image aspect ratio calibration
+      let initialBoxesHtml = '';
+      const boxes = (report.boundingBoxes && Array.isArray(report.boundingBoxes)) ? report.boundingBoxes : [];
 
-      // Generate YOLO Boxes
-      let boxesHtml = '';
-      if (report.boundingBoxes && report.boundingBoxes.length > 0) {
-        report.boundingBoxes.forEach(box => {
-          let boxColorClass = 'yolo-default';
-          if (box.label === 'person') boxColorClass = 'yolo-person';
-          if (box.label === 'trash') boxColorClass = 'yolo-trash';
-          if (box.label === 'boat') boxColorClass = 'yolo-boat';
+      boxes.forEach(box => {
+        let boxColorClass = 'yolo-trash';
+        const lbl = (box.label || '').toLowerCase();
+        if (lbl.includes('person') || lbl.includes('orang')) boxColorClass = 'yolo-person';
+        if (lbl.includes('trash') || lbl.includes('sampah')) boxColorClass = 'yolo-trash';
+        if (lbl.includes('boat') || lbl.includes('perahu')) boxColorClass = 'yolo-boat';
 
-          boxesHtml += `
-            <div class="yolo-box ${boxColorClass}" style="top: ${box.y}%; left: ${box.x}%; width: ${box.w}%; height: ${box.h}%;">
-              <span class="yolo-box-label">${box.label} ${(box.confidence).toFixed(2)}</span>
-            </div>
-          `;
-        });
-      }
+        const confVal = typeof box.confidence === 'number' ? (box.confidence > 1 ? (box.confidence / 100).toFixed(2) : box.confidence.toFixed(2)) : '0.92';
+
+        initialBoxesHtml += `
+          <div class="yolo-preview-box ${boxColorClass}" style="position: absolute; top: ${box.y}%; left: ${box.x}%; width: ${box.w}%; height: ${box.h}%;">
+            <span class="yolo-preview-label">${box.label.toUpperCase()} ${confVal}</span>
+          </div>
+        `;
+      });
 
       // Setup dynamic panels
       grid.innerHTML = `
@@ -210,12 +206,16 @@ export class DetailPage {
         <main style="display: flex; flex-direction: column; gap: var(--space-20);">
           
           <!-- Image Bounding Box Canvas -->
-          <div class="glass-card" style="padding: var(--space-16); border-radius: var(--radius-card); position: relative;">
-            <div class="image-canvas-container" style="position: relative; width: 100%; aspect-ratio: 16/10; overflow: hidden; border-radius: 12px; background: #000; display:flex; align-items:center; justify-content:center;">
-              <img id="detail-evidence-image" src="${report.image}" alt="Laporan Foto" style="width: 100%; height: 100%; object-fit: contain; transition: transform 0.25s ease;">
-              ${boxesHtml}
+          <div class="glass-card" style="padding: var(--space-16); border-radius: var(--radius-card); position: relative; display:flex; flex-direction:column; align-items:center;">
+            <div class="image-canvas-container" style="position: relative; width: 100%; min-height: 350px; max-height: 540px; overflow: hidden; border-radius: 12px; background: rgba(15, 23, 42, 0.95); display:flex; align-items:center; justify-content:center;">
+              <div id="image-box-wrapper" style="position: relative; display: inline-block; width: 100%; height: 100%;">
+                <img id="detail-evidence-image" src="${report.image}" alt="Laporan Foto" style="display: block; width: 100%; height: 520px; object-fit: contain; transition: transform 0.25s ease;">
+                <div id="yolo-boxes-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+                  ${initialBoxesHtml}
+                </div>
+              </div>
             </div>
-            <!-- Interactive Action buttons (Item 9) -->
+            <!-- Interactive Action buttons -->
             <div style="display:flex; justify-content:flex-end; gap:8px; margin-top: 12px;">
               <button class="btn btn-sm btn-glass btn-rounded" id="btn-detail-zoom" style="font-size:0.75rem; font-weight:700; display:flex; align-items:center; gap:4px; padding: 6px 12px;">
                 <i data-lucide="zoom-in" style="width:14px; height:14px;"></i> Zoom
@@ -229,44 +229,100 @@ export class DetailPage {
             </div>
           </div>
 
-          <!-- Metadata Properties Card -->
+          <!-- Metadata Properties Card & 4 Scientific AI Metrics -->
           <div class="glass-card" style="padding: var(--space-24); border-radius: var(--radius-card); display: flex; flex-direction: column; gap: var(--space-16);">
-            <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin: 0; display:flex; align-items:center; gap:8px;">
-              <i data-lucide="info" style="color: var(--primary);"></i> Informasi Deteksi & Lokasi
-            </h3>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin: 0; display:flex; align-items:center; gap:8px;">
+                <i data-lucide="brain-circuit" style="color: var(--primary);"></i> Status Indikasi AI v3.0
+              </h3>
+              <span class="badge" style="font-size:0.8rem; font-weight:800; padding:6px 12px; background: ${report.aiStatus === 'Indikasi Tinggi' ? 'var(--danger)' : (report.aiStatus === 'Indikasi Sedang' ? 'var(--warning)' : 'var(--success)')}; color: #fff;">
+                ${report.aiStatus || 'Tidak Terindikasi'}
+              </span>
+            </div>
             
+            <!-- 4 Scientific AI Metrics -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+              <div style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 8px; text-align:center;">
+                <div style="font-size: 0.6rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Object Conf</div>
+                <strong style="font-size: 1rem; color: var(--primary); margin-top: 2px; display:block;">${typeof report.objectConfidence === 'number' ? report.objectConfidence : (report.aiConfidence || 0)}%</strong>
+              </div>
+              <div style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 8px; text-align:center;">
+                <div style="font-size: 0.6rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Scene Conf</div>
+                <strong style="font-size: 1rem; color: var(--primary); margin-top: 2px; display:block;">${typeof report.sceneConfidence === 'number' ? report.sceneConfidence : 0}%</strong>
+              </div>
+              <div style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 8px; text-align:center;">
+                <div style="font-size: 0.6rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Decision Conf</div>
+                <strong style="font-size: 1rem; color: var(--primary); margin-top: 2px; display:block;">${typeof report.decisionConfidence === 'number' ? report.decisionConfidence : 80}%</strong>
+              </div>
+              <div style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 8px; text-align:center;">
+                <div style="font-size: 0.6rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Violation Score</div>
+                <strong style="font-size: 1rem; color: var(--danger); margin-top: 2px; display:block;">${typeof report.violationScore === 'number' ? report.violationScore : 0}/100</strong>
+              </div>
+            </div>
+
+            <!-- Priority & Recommended Action -->
+            <div style="display:flex; justify-content:space-between; align-items:center; background: rgba(47, 107, 255, 0.04); padding: 12px 16px; border-radius: 10px; border: 1px solid rgba(47, 107, 255, 0.15);">
+              <div>
+                <span style="font-size: 0.65rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; display:block;">Prioritas Penanganan</span>
+                <strong style="font-size:0.88rem; color: var(--text-primary);">${report.priority || 'NONE'}</strong>
+              </div>
+              <div style="text-align:right;">
+                <span style="font-size: 0.65rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; display:block;">Rekomendasi Aksi</span>
+                <span style="font-size:0.82rem; font-weight:700; color: var(--primary);">${report.recommendedAction || 'Tidak ada tindakan otomatis'}</span>
+              </div>
+            </div>
+
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-16);">
               <div style="background: rgba(0,0,0,0.02); padding: var(--space-12); border-radius: 10px;">
-                <div style="font-size: 0.65rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Confidence Tingkat AI</div>
-                <strong style="font-size: 1rem; color: var(--text-primary); margin-top: 2px; display:block;">${report.aiConfidence ? `${report.aiConfidence}%` : 'N/A'}</strong>
-              </div>
-              <div style="background: rgba(0,0,0,0.02); padding: var(--space-12); border-radius: 10px;">
                 <div style="font-size: 0.65rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Jenis Kamera / Sumber</div>
-                <strong style="font-size: 1rem; color: var(--text-primary); margin-top: 2px; display:block;">${report.sourceType || 'CCTV Stream'}</strong>
+                <strong style="font-size: 0.9rem; color: var(--text-primary); margin-top: 2px; display:block;">${report.sourceType || 'Gambar Upload'}</strong>
               </div>
               <div style="background: rgba(0,0,0,0.02); padding: var(--space-12); border-radius: 10px;">
                 <div style="font-size: 0.65rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Waktu Diunggah</div>
-                <strong style="font-size: 0.85rem; color: var(--text-primary); margin-top: 2px; display:block;">${Formatter.formatDate(report.timestamp)}</strong>
-              </div>
-              <div style="background: rgba(0,0,0,0.02); padding: var(--space-12); border-radius: 10px;">
-                <div style="font-size: 0.65rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Kategori Pelapor</div>
-                <strong style="font-size: 0.85rem; color: var(--text-primary); margin-top: 2px; display:block; display:flex; align-items:center; gap:4px;">
-                  <i data-lucide="user" style="width:14px; height:14px;"></i> ${report.identity || 'Citizen'}
-                  <span id="reporter-reputation-stars" style="color: var(--warning); font-size: 0.72rem; font-weight: 800; display:inline-flex; align-items:center; gap:1px;"><i data-lucide="star" style="width:11px;height:11px;color:var(--warning);fill:var(--warning);"></i><i data-lucide="star" style="width:11px;height:11px;color:var(--warning);fill:var(--warning);"></i><i data-lucide="star" style="width:11px;height:11px;color:var(--warning);fill:var(--warning);"></i><i data-lucide="star" style="width:11px;height:11px;color:var(--warning);fill:var(--warning);"></i><i data-lucide="star" style="width:11px;height:11px;color:var(--warning);fill:var(--warning);"></i></span>
-                </strong>
+                <strong style="font-size: 0.85rem; color: var(--text-primary); margin-top: 2px; display:block;">${Formatter.formatDate(report.timestamp || report.createdAt)}</strong>
               </div>
             </div>
 
             <div style="background: rgba(0,0,0,0.02); padding: var(--space-16); border-radius: 12px;">
               <span style="font-size: 0.68rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; display:block; margin-bottom: 4px;">Lokasi Sungai</span>
               <span style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary); display:flex; align-items:center; gap:6px;">
-                <i data-lucide="map-pin" style="color: var(--primary); width:16px; height:16px;"></i> ${report.location}
+                <i data-lucide="map-pin" style="color: var(--primary); width:16px; height:16px;"></i> ${report.location || report.locationName || '-'}
               </span>
             </div>
 
             <div style="background: rgba(0,0,0,0.02); padding: var(--space-16); border-radius: 12px;">
               <span style="font-size: 0.68rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; display:block; margin-bottom: 4px;">Keterangan Tambahan</span>
-              <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0; line-height: 1.5;">${report.additionalNotes || 'Tidak ada keterangan tambahan.'}</p>
+              <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0; line-height: 1.5;">${report.additionalNotes || '-'}</p>
+            </div>
+          </div>
+
+          <!-- Explainable AI Auditable Evidence Card -->
+          <div class="glass-card" style="padding: var(--space-24); border-radius: var(--radius-card); display: flex; flex-direction: column; gap: 12px; border: 1.5px solid rgba(47, 107, 255, 0.2);">
+            <h4 style="font-size: 1rem; font-weight: 800; color: var(--text-primary); margin:0; display:flex; align-items:center; gap:6px;">
+              <i data-lucide="shield-check" style="color: var(--success); width:18px; height:18px;"></i> Rincian Bukti & Transparansi Decision (Explainable AI)
+            </h4>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              ${(report.evidenceItems || report.snapshot?.evidenceItems || [
+                { code: 'YOLO_OBJECT', label: 'Objek sampah/manusia terdeteksi oleh YOLOv8', value: true, source: 'YOLO_OBJECT', scoreDelta: 25 },
+                { code: 'TRASH_NEAR_WRIST', label: 'Kedekatan objek dengan pergelangan tangan', value: false, source: 'POSE_ESTIMATION', scoreDelta: 0 }
+              ]).map(ev => `
+                <div style="display:flex; align-items:center; justify-content:space-between; background: rgba(0,0,0,0.02); padding: 8px 12px; border-radius: 8px; font-size: 0.8rem;">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <i data-lucide="${ev.value ? 'check-circle' : 'minus-circle'}" style="color: ${ev.value ? 'var(--success)' : 'var(--text-muted)'}; width:16px; height:16px;"></i>
+                    <span>${ev.label}</span>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="font-size: 0.65rem; background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; font-weight:700; color: var(--text-secondary);">${ev.source}</span>
+                    <strong style="color: ${ev.scoreDelta > 0 ? 'var(--danger)' : (ev.scoreDelta < 0 ? 'var(--success)' : 'var(--text-muted)')};">+${ev.scoreDelta || 0}</strong>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+            <div style="background: rgba(239, 68, 68, 0.04); border-left: 3px solid var(--warning); padding: 10px 14px; border-radius: 6px; margin-top: 6px;">
+              <span style="font-size: 0.7rem; font-weight: 800; color: var(--text-primary); display:block;">⚠️ Catatan Limitasi Analisis:</span>
+              <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 2px 0 0 0;">
+                Satu foto belum cukup untuk memastikan aktivitas membuang atau melempar sampah. Verifikasi operator tetap diperlukan.
+              </p>
             </div>
           </div>
 
@@ -520,7 +576,7 @@ export class DetailPage {
       // Bind all form actions
       this.bindActionEvents();
 
-      // Bind Zoom & Print Actions (Item 9)
+      // Image zoom & print listeners
       const zoomBtn = document.getElementById('btn-detail-zoom');
       const img = document.getElementById('detail-evidence-image');
       if (zoomBtn && img) {
@@ -535,6 +591,55 @@ export class DetailPage {
           if (window.lucide) window.lucide.createIcons();
         };
       }
+
+      // Calibrate bounding boxes for exact pixel alignment on image
+      const calibrateBoxes = () => {
+        const imgEl = document.getElementById('detail-evidence-image');
+        const overlayEl = document.getElementById('yolo-boxes-overlay');
+        if (!imgEl || !overlayEl) return;
+
+        const nw = imgEl.naturalWidth;
+        const nh = imgEl.naturalHeight;
+        const cw = imgEl.clientWidth;
+        const ch = imgEl.clientHeight;
+        if (!nw || !nh || !cw || !ch) return;
+
+        const scale = Math.min(cw / nw, ch / nh);
+        const rw = nw * scale;
+        const rh = nh * scale;
+        const offsetX = (cw - rw) / 2;
+        const offsetY = (ch - rh) / 2;
+
+        let calibratedHtml = '';
+        boxes.forEach(box => {
+          let boxColorClass = 'yolo-trash';
+          const lbl = (box.label || '').toLowerCase();
+          if (lbl.includes('person') || lbl.includes('orang')) boxColorClass = 'yolo-person';
+          if (lbl.includes('trash') || lbl.includes('sampah')) boxColorClass = 'yolo-trash';
+          if (lbl.includes('boat') || lbl.includes('perahu')) boxColorClass = 'yolo-boat';
+
+          const confVal = typeof box.confidence === 'number' ? (box.confidence > 1 ? (box.confidence / 100).toFixed(2) : box.confidence.toFixed(2)) : '0.92';
+
+          const leftPx = offsetX + (box.x / 100) * rw;
+          const topPx = offsetY + (box.y / 100) * rh;
+          const widthPx = (box.w / 100) * rw;
+          const heightPx = (box.h / 100) * rh;
+
+          calibratedHtml += `
+            <div class="yolo-preview-box ${boxColorClass}" style="position: absolute; top: ${topPx}px; left: ${leftPx}px; width: ${widthPx}px; height: ${heightPx}px;">
+              <span class="yolo-preview-label">${box.label.toUpperCase()} ${confVal}</span>
+            </div>
+          `;
+        });
+
+        overlayEl.innerHTML = calibratedHtml;
+      };
+
+      if (img) {
+        if (img.complete) calibrateBoxes();
+        else img.addEventListener('load', calibrateBoxes);
+        window.addEventListener('resize', calibrateBoxes);
+      };
 
       const printBtn = document.getElementById('btn-detail-print');
       if (printBtn) {
@@ -616,13 +721,18 @@ export class DetailPage {
     const timerEl = document.getElementById('detail-sla-timer');
     if (!timerEl) return;
 
-    const start = new Date(this.report.timestamp).getTime();
+    const rawTime = (this.report && (this.report.timestamp || this.report.createdAt || this.report.capturedAt)) || Date.now();
+    const start = new Date(rawTime).getTime();
+    if (isNaN(start)) {
+      timerEl.innerText = '0h 0m 0s';
+      return;
+    }
 
     this.slaTimerInterval = setInterval(() => {
       const now = new Date().getTime();
       const diff = now - start;
 
-      if (diff < 0) {
+      if (isNaN(diff) || diff < 0) {
         timerEl.innerText = '0h 0m 0s';
         return;
       }

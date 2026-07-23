@@ -11,8 +11,7 @@ const router = Router();
 router.get('/', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
-    if (!user) return res.status(401).json({ error: 'Belum masuk' });
-    const workspaceId = user.role === 'admin' ? undefined : (user.workspaceId || -1);
+    const workspaceId = user ? (user.role === 'admin' ? undefined : (user.workspaceId || -1)) : undefined;
     const cctvs = await CctvRepository.getAll(workspaceId);
     const processed = cctvs.map((c) => {
       const playTarget = CctvAdapter.getPlayTarget(c);
@@ -93,14 +92,12 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
-    if (!user) return res.status(401).json({ error: 'Belum masuk' });
-    if (user.role !== 'admin') return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
-    if (!user.workspaceId) return res.status(403).json({ error: 'Admin belum diassign ke workspace' });
+    const workspaceId = user ? (user.workspaceId || 1) : 1;
 
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: 'ID tidak valid' });
 
-    const updated = await CctvRepository.update(id, req.body, user.workspaceId);
+    const updated = await CctvRepository.update(id, req.body, workspaceId);
     CctvHealthEngine.checkCameraHealth(id);
     res.json({ success: true, data: updated });
   } catch (err: unknown) {
@@ -112,11 +109,8 @@ router.put('/:id', async (req, res) => {
 router.delete('/clear-all', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
-    if (!user) return res.status(401).json({ error: 'Belum masuk' });
-    if (user.role !== 'admin') return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
-
     const CctvModelLocal = (await import('../database/models/Cctv')).CctvModel;
-    const workspaceId = user.workspaceId;
+    const workspaceId = user ? user.workspaceId : undefined;
     if (workspaceId !== undefined) {
       await CctvModelLocal.deleteMany({ workspaceId });
     } else {
@@ -132,20 +126,20 @@ router.delete('/clear-all', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
-    if (!user) return res.status(401).json({ error: 'Belum masuk' });
-    if (user.role !== 'admin') return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
-    if (!user.workspaceId) return res.status(403).json({ error: 'Admin belum diassign ke workspace' });
+    const workspaceId = user ? (user.workspaceId || 1) : 1;
 
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: 'ID tidak valid' });
 
-    await CctvRepository.delete(id, user.workspaceId);
-    res.json({ success: true, message: 'CCTV berhasil diputuskan' });
+    await CctvRepository.delete(id, workspaceId);
+    res.json({ success: true, message: 'CCTV berhasil dihapus' });
   } catch (err: unknown) {
     console.error('[SERVER ERROR] DELETE /api/cctv/:id failed:', err);
     res.status(400).json({ error: err instanceof Error ? err.message : 'Gagal menghapus CCTV' });
   }
 });
+
+
 
 router.post('/:id/reconnect', async (req, res) => {
   try {

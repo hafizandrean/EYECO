@@ -1,0 +1,21 @@
+{
+  "policyVersion": "policy-v1.0",
+  "description": "EYECO AI Engine v3.0 Decision Weight Policy",
+  "weights": {
+    "personDetected": 10,
+    "trashDetected": 25,
+    "trashHighConfidence": 10,
+    "trashNearWrist": 20,
+    "trashAppearsAirborne": 15,
+    "trashOnWaterZone": 15,
+    "trashOnRoadZone": 10,
+    "trashInsideBinZone": -35,
+    "noPersonDetected": -15,
+    "noTrashDetected": -30
+  },
+  "thresholds": {
+    "highMinScore": 75,
+    "mediumMinScore": 50,
+    "lowMinScore": 25
+  }
+}

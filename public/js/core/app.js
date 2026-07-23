@@ -75,12 +75,11 @@ class AppInitializer {
       const isAdmin = user?.role === 'admin';
 
       if (path === '/dashboard') {
-        if (isAdmin) {
-          this.currentPageInstance = Dashboard;
+        this.currentPageInstance = Dashboard;
+        try {
           await Dashboard.render(this.viewport);
-        } else {
-          this.currentPageInstance = Home;
-          await Home.render(this.viewport);
+        } catch (dashErr) {
+          console.error('[Dashboard Render Error]', dashErr);
         }
       } else if (path === '/dashboard/laporan') {
         this.currentPageInstance = Laporan;
@@ -118,7 +117,8 @@ class AppInitializer {
       }, 400);
     } catch (err) {
       console.error('[Router Error] Gagal memuat halaman:', err);
-      this.renderRouterError();
+      this.viewport.style.opacity = '1';
+      this.renderRouterError(err);
     }
   }
 

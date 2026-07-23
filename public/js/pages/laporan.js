@@ -479,7 +479,9 @@ export class LaporanPage {
             <span class="pill-dot" style="background-color: currentColor;"></span>
             AI: ${report.aiStatus}
           </span>
-          ${report.aiConfidence ? `<span class="row-confidence-label">${report.aiConfidence}% match</span>` : ''}
+          ${typeof report.violationScore === 'number' 
+            ? `<span class="row-confidence-label" style="font-weight:800; font-size:0.75rem; color:${report.violationScore >= 75 ? 'var(--danger)' : (report.violationScore >= 50 ? 'var(--warning)' : 'var(--text-secondary)')}; display:block; margin-top:2px;">Skor: ${report.violationScore}/100</span>` 
+            : (report.aiConfidence ? `<span class="row-confidence-label" style="font-size:0.72rem; color:var(--text-secondary); display:block; margin-top:2px;">Deteksi: ${report.aiConfidence}%</span>` : '')}
         </div>
         <div class="col-badge">
           <span class="status-badge ${adminBadgeClass}">${report.adminStatus}</span>
