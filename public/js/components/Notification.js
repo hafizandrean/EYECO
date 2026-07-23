@@ -11,6 +11,7 @@ export class NotificationCenter {
     this.dropdown = null;
     this.badge = null;
     this.workspaceRequests = [];
+    this.dbNotifications = [];
     
     // Subscribe ke update notifications di AppState
     EventBus.on('state:notifications', ({ newValue }) => this.renderList());
@@ -30,6 +31,13 @@ export class NotificationCenter {
       this.dropdown.classList.toggle('active');
       if (this.dropdown.classList.contains('active')) {
         this.fetchWorkspaceRequests();
+        this.fetchDBNotifications();
+        // Clear badge count when opening dropdown
+        this.clearBadge();
+        // Mark all as read on backend
+        API.patch('/api/notifications/read-all').catch(() => {});
+        // Reset AppState unread count
+        AppState.set('unreadNotifications', 0);
       }
     });
 
@@ -44,6 +52,7 @@ export class NotificationCenter {
     
     // Initial fetch
     this.fetchWorkspaceRequests();
+    this.fetchDBNotifications();
   }
 
   async fetchWorkspaceRequests() {
@@ -59,6 +68,25 @@ export class NotificationCenter {
       }
     }
     this.renderList();
+  }
+
+  async fetchDBNotifications() {
+    try {
+      const res = await API.get('/api/notifications');
+      if (res.success) {
+        this.dbNotifications = res.notifications || [];
+        this.renderList();
+      }
+    } catch (err) {
+      console.error('Failed to fetch DB notifications', err);
+    }
+  }
+
+  clearBadge() {
+    if (!this.badge) return;
+    this.badge.innerText = '';
+    this.badge.classList.remove('visible');
+    this.badge.classList.remove('show');
   }
 
   async handleRequestAction(reqId, action) {
@@ -80,7 +108,7 @@ export class NotificationCenter {
     if (count > 0) {
       this.badge.innerText = count;
       this.badge.classList.add('visible');
-      this.badge.classList.add('show'); // Added .show per new CSS
+      this.badge.classList.add('show');
     } else {
       this.badge.classList.remove('visible');
       this.badge.classList.remove('show');
@@ -93,20 +121,27 @@ export class NotificationCenter {
 
     const baseNotifications = AppState.get('notifications') || [];
     
-    // Combine requests and notifications — newest first
-    const allItems = [
-      ...baseNotifications.map(notif => ({ type: 'alert', data: notif })),
-      ...this.workspaceRequests.map(req => ({ type: 'workspace_request', data: req }))
-    ];
-    
-    // Sort: newest by createdAt/timestamp first
+    // Convert DB notifications to the alert format used in the UI
+    const dbNotifItems = this.dbNotifications.map(n => ({
+      type: 'db_notification',
+      data: this.mapDBNotificationToAlert(n),
+    }));
+
+    const appStateItems = baseNotifications.map(notif => ({ type: 'alert', data: notif }));
+    const requestItems = this.workspaceRequests.map(req => ({ type: 'workspace_request', data: req }));
+
+    // Combine and sort newest first
+    const allItems = [...appStateItems, ...dbNotifItems, ...requestItems];
     allItems.sort((a, b) => {
       const aTime = a.data.createdAt || a.data.timestamp || 0;
       const bTime = b.data.createdAt || b.data.timestamp || 0;
       return new Date(bTime).getTime() - new Date(aTime).getTime();
     });
 
-    this.updateBadge(this.workspaceRequests.length + (AppState.get('unreadNotifications') || 0));
+    // Badge count = unread DB notifs + unread AppState + workspace requests
+    const unreadDb = this.dbNotifications.filter(n => !n.read).length;
+    const unreadApp = AppState.get('unreadNotifications') || 0;
+    this.updateBadge(this.workspaceRequests.length + unreadDb + unreadApp);
 
     if (allItems.length === 0) {
       listContainer.innerHTML = `
@@ -143,7 +178,6 @@ export class NotificationCenter {
           </div>
         `;
         
-        // Add event listeners to buttons
         setTimeout(() => {
           const acceptBtn = el.querySelector('.notif-btn-accept');
           const declineBtn = el.querySelector('.notif-btn-decline');
@@ -154,23 +188,35 @@ export class NotificationCenter {
       } else {
         const alert = item.data;
         let level = alert.level || 'info';
-        if (!alert.isCustom) {
-          if (alert.aiStatus === 'TINGGI') level = 'high';
-          else if (alert.aiStatus === 'SEDANG') level = 'medium';
-          else if (alert.aiStatus === 'RENDAH') level = 'low';
-          else if (alert.isComment) level = 'comment';
-        }
-
         let icon = 'info';
         let bgStyle = '';
-        if (level === 'high') { icon = 'alert-triangle'; bgStyle = 'background: rgba(239,68,68,0.1); color: var(--error);'; }
-        else if (level === 'medium') { icon = 'alert-circle'; bgStyle = 'background: rgba(245,158,11,0.1); color: var(--warning);'; }
-        else if (level === 'low') icon = 'eye';
-        else if (level === 'success') { icon = 'shield-check'; bgStyle = 'background: rgba(16,185,129,0.1); color: var(--success);'; }
-        else if (level === 'comment') icon = 'message-square';
-        else icon = 'video';
 
-        const titleText = alert.location || 'Notifikasi Baru';
+        // Determine level and icon from notification type
+        if (alert.type === 'COMMENT' || alert.isComment) {
+          level = 'comment';
+          icon = 'message-square';
+          bgStyle = 'background: rgba(37,99,235,0.1); color: #2563EB;';
+        } else if (alert.type === 'VALIDATION') {
+          level = 'success';
+          icon = 'shield-check';
+          bgStyle = 'background: rgba(16,185,129,0.1); color: var(--success);';
+        } else if (alert.type === 'NEWS') {
+          level = 'info';
+          icon = 'newspaper';
+          bgStyle = 'background: rgba(139,92,246,0.1); color: #8B5CF6;';
+        } else if (!alert.isCustom) {
+          // Legacy AI detection notifications
+          if (alert.aiStatus === 'TINGGI') { level = 'high'; icon = 'alert-triangle'; bgStyle = 'background: rgba(239,68,68,0.1); color: var(--error);'; }
+          else if (alert.aiStatus === 'SEDANG') { level = 'medium'; icon = 'alert-circle'; bgStyle = 'background: rgba(245,158,11,0.1); color: var(--warning);'; }
+          else if (alert.aiStatus === 'RENDAH') { level = 'low'; icon = 'eye'; }
+          else { icon = 'video'; }
+        } else {
+          // Custom notifications (upload success, etc.)
+          if (level === 'success') { icon = 'shield-check'; bgStyle = 'background: rgba(16,185,129,0.1); color: var(--success);'; }
+          else if (level === 'high') { icon = 'alert-triangle'; bgStyle = 'background: rgba(239,68,68,0.1); color: var(--error);'; }
+        }
+
+        const titleText = alert.title || alert.location || 'Notifikasi Baru';
         const messageText = alert.message || (alert.isComment 
           ? alert.message 
           : `Terdeteksi indikasi ${alert.aiStatus || 'Aktif'} (${alert.aiConfidence || 0}%)`);
@@ -180,15 +226,19 @@ export class NotificationCenter {
             <i data-lucide="${icon}"></i>
           </div>
           <div class="notif-content">
-            <div class="notif-title">${titleText}</div>
+            <div class="notif-title" style="${!alert.read && alert._id ? 'font-weight:800;' : ''}">${titleText}</div>
             <div class="notif-desc">${messageText}</div>
-            <div class="notif-time">${Formatter.formatTime ? Formatter.formatTime(alert.timestamp) : Formatter.formatDate(alert.timestamp)}</div>
+            <div class="notif-time">${Formatter.formatTime ? Formatter.formatTime(alert.timestamp || alert.createdAt) : Formatter.formatDate(alert.timestamp || alert.createdAt)}</div>
           </div>
         `;
 
         el.addEventListener('click', () => {
           this.dropdown.classList.remove('active');
-          Router.navigate(`/dashboard/detections/${alert.id}`);
+          // Mark as read if DB notification
+          if (alert._id && !alert.read) {
+            API.patch(`/api/notifications/${alert._id}/read`).catch(() => {});
+          }
+          Router.navigate(alert.actionUrl || `/dashboard/detections/${alert.id || alert.reportId}`);
         });
       }
 
@@ -198,5 +248,23 @@ export class NotificationCenter {
     if (window.lucide) {
       window.lucide.createIcons();
     }
+  }
+
+  mapDBNotificationToAlert(n) {
+    return {
+      _id: n._id,
+      id: n.reportId,
+      reportId: n.reportId,
+      type: n.type,
+      title: n.title,
+      message: n.message,
+      actionUrl: n.actionUrl,
+      icon: n.icon,
+      level: n.priority === 'HIGH' ? 'high' : n.priority === 'MEDIUM' ? 'medium' : 'info',
+      timestamp: n.createdAt,
+      createdAt: n.createdAt,
+      read: n.read,
+      isCustom: true,
+    };
   }
 }

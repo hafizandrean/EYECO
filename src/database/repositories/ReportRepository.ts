@@ -165,6 +165,13 @@ export class ReportRepository {
         }
       }
 
+      // Auto-delete 40 days after validation: set scheduledDeletionAt when VALID or DIABAIKAN
+      if (status === 'VALID' || status === 'DIABAIKAN') {
+        updateFields.scheduledDeletionAt = new Date(Date.now() + 40 * 24 * 60 * 60 * 1000);
+      } else {
+        updateFields.scheduledDeletionAt = null;
+      }
+
       const query: Record<string, unknown> = { id };
       if (workspaceId !== undefined) query.workspaceId = workspaceId;
 
@@ -201,6 +208,13 @@ export class ReportRepository {
         query.$or = [{ workspaceId: wsId }, { workspaceId: { $exists: false } }, { workspaceId: 1 }];
       } else if (userContext.role === 'user') {
         // User sees all non-deleted reports
+        const user = await UserModel.findOne({ id: userContext.id }).lean().exec();
+        if (user && (user as any).workspaceId) {
+          query.workspaceId = (user as any).workspaceId;
+        } else {
+          query.workspaceId = -1;
+        }
+        query.sourceType = { $ne: 'AI_CCTV' };
       } else if (userContext.role === 'superadmin') {
         const ownedWorkspaces = await WorkspaceModel.find({ superadminId: userContext.id }).lean().exec();
         const wsIds = ownedWorkspaces.map(w => w.id);
@@ -279,9 +293,7 @@ export class ReportRepository {
     if (userContext.role === 'admin' || userContext.role === 'user') {
       const user = await UserModel.findOne({ id: userContext.id }).lean().exec();
       if (!user?.workspaceId) return { workspaceId: -1 };
-      return userContext.role === 'user'
-        ? { workspaceId: user.workspaceId, userId: user._id }
-        : { workspaceId: user.workspaceId };
+      return { workspaceId: user.workspaceId };
     }
 
     if (userContext.role === 'superadmin') {
@@ -328,7 +340,7 @@ export class ReportRepository {
               { timestamp: { $gte: fbSevenDaysAgo } }
             ]
           });
-          return { total: total2, mostVulnerable: '-', valid: valid2, cancelled: cancelled2, pending: pending2, tinggi: fbTinggi, sedang: fbSedang, rendah: fbRendah, tidakTerindikasi: fbTidak, recent: fbRecent };
+          return { total: total2, mostVulnerable: '-', valid: valid2, cancelled: cancelled2, pending: pending2, tinggi: fbTinggi, sedang: fbSedang, rendah: fbRendah, tidakTerindikasi: fbTidak, recent: fbRecent, myReports: 0 };
         }
       }
 
@@ -371,6 +383,15 @@ export class ReportRepository {
         }
       }
 
+      // Hitung jumlah laporan milik user yang sedang login
+      let myReportsCount = 0;
+      if (userContext?.id) {
+        const currentUser = await UserModel.findOne({ id: userContext.id }).select('_id').lean().exec();
+        if (currentUser) {
+          myReportsCount = await ReportModel.countDocuments({ ...matchQuery, userId: currentUser._id }).exec();
+        }
+      }
+
       return {
         total,
         mostVulnerable,
@@ -381,7 +402,8 @@ export class ReportRepository {
         sedang,
         rendah,
         tidakTerindikasi,
-        recent
+        recent,
+        myReports: myReportsCount
       };
     } catch (err) {
       console.error('[DATABASE ERROR] getStats failed:', err);

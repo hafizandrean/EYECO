@@ -22,13 +22,10 @@
       <!-- Left side: Brand Logo & Search Box -->
       <div class="header-left-group">
         <a href="/dashboard" class="brand-logo" id="btn-brand-logo">
-          <i data-lucide="waves" class="brand-icon"></i>
+          <img src="/uploads/logo-eyeco.png" alt="EYECO" class="brand-logo-img">
           <span>EYECO</span>
         </a>
-        <div class="global-search-wrapper">
-          <i data-lucide="search" class="search-input-icon"></i>
-          <input type="text" id="header-global-search" class="header-search-control" placeholder="Cari lokasi, ID... (Ctrl + K)">
-        </div>
+
       </div>
 
       <!-- Center: Navigation Capsule (Sliding Bubble Tab Bar) -->
@@ -36,16 +33,16 @@
         <div class="nav-tabs">
           <div class="nav-indicator" id="nav-indicator"></div>
           <a href="/dashboard" class="nav-tab active" data-tab="dashboard">
-            <i data-lucide="layout-dashboard"></i> Dashboard
+            <i data-lucide="layout-dashboard"></i> <span class="nav-text">Dashboard</span>
           </a>
           <a href="/dashboard/laporan" class="nav-tab" data-tab="laporan">
-            <i data-lucide="file-text"></i> Daftar Laporan
+            <i data-lucide="file-text"></i> <span class="nav-text">Daftar Laporan</span>
           </a>
           <a href="/dashboard/upload" class="nav-tab" data-tab="upload">
-            <i data-lucide="upload-cloud"></i> Upload Bukti
+            <i data-lucide="upload-cloud"></i> <span class="nav-text">Upload Bukti</span>
           </a>
           <a href="/dashboard/berita" class="nav-tab" data-tab="berita" style="display:none;" id="nav-tab-berita">
-            <i data-lucide="newspaper"></i> Berita
+            <i data-lucide="newspaper"></i> <span class="nav-text">Berita</span>
           </a>
         </div>
       </nav>

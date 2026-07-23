@@ -24,6 +24,7 @@ import { CctvAdapter } from './cctv/CctvAdapter';
 import { AiPipelineScheduler } from './cctv/services/AiPipelineScheduler';
 import { AiEngineHealthMonitor } from './cctv/services/AiEngineHealthMonitor';
 import { OutboxWorker } from './notifications/OutboxWorker';
+import { NotificationModel } from './database/models/Notification';
 import { TelegramNotificationChannel } from './notifications/TelegramNotificationChannel';
 import { warmupAI } from './services/aiDetection.service';
 
@@ -466,6 +467,27 @@ app.get('/berita/:slug', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/views/news-detail.html'));
 });
 
+// --- PUBLIC INFO PAGES (no auth required) ---
+app.get('/tentang', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/views/tentang.html'));
+});
+
+app.get('/kebijakan', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/views/kebijakan.html'));
+});
+
+app.get('/kontak', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/views/kontak.html'));
+});
+
+// Forgot & Reset Password pages (no auth)
+app.get('/lupa-password', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/views/forgot-password.html'));
+});
+app.get('/reset-password', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/views/reset-password.html'));
+});
+
 // Select Workspace — user only
 app.get('/select-workspace', authMiddleware, roleGuard(['user', 'operator', 'supervisor', 'officer']), (req, res) => {
   res.sendFile(path.join(__dirname, '../public/views/select-workspace.html'));
@@ -519,6 +541,68 @@ function listenWithFallback(port: number, attempts = 10): Promise<number> {
     });
   });
 }
+
+// --- NOTIFICATIONS API ---
+
+// GET /api/notifications — Fetch in-app notifications for current user
+app.get('/api/notifications', authMiddleware, async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const notifications = await NotificationModel.find({
+      recipientId: user._id,
+      deletedAt: null,
+    })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean()
+      .exec();
+
+    res.json({ success: true, notifications });
+  } catch (err: any) {
+    console.error('[SERVER ERROR] Fetch notifications failed:', err.message);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// PATCH /api/notifications/:id/read — Mark single notification as read
+app.patch('/api/notifications/:id/read', authMiddleware, async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const notif = await NotificationModel.findOneAndUpdate(
+      { _id: req.params.id, recipientId: user._id, deletedAt: null },
+      { read: true, readAt: new Date() },
+      { new: true },
+    );
+    if (!notif) return res.status(404).json({ error: 'Notifikasi tidak ditemukan' });
+
+    res.json({ success: true, notification: notif });
+  } catch (err: any) {
+    console.error('[SERVER ERROR] Mark notification read failed:', err.message);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// PATCH /api/notifications/read-all — Mark all notifications as read
+app.patch('/api/notifications/read-all', authMiddleware, async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    await NotificationModel.updateMany(
+      { recipientId: user._id, read: false, deletedAt: null },
+      { read: true, readAt: new Date() },
+    );
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('[SERVER ERROR] Mark all notifications read failed:', err.message);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 
 // --- CCTV API ENDPOINTS ---
 
@@ -920,7 +1004,7 @@ connectDB().then(async () => {
   } catch (_) {}
 
   // CCTV Health Engine is started inside listenWithFallback
-  AiPipelineScheduler.start();
+  // AiPipelineScheduler.start(); — disabled, no more CCTV reports
   OutboxWorker.start();
   
   const activePort = await listenWithFallback(PORT);

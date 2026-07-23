@@ -1,4 +1,4 @@
-// laporan.js - Kontroler Halaman Daftar Laporan Sungai (Card Table)
+// laporan.js - Kontroler Halaman Daftar Laporan Lingkungan (Card Table)
 import { ReportService } from '../services/reportService.js';
 import { StatsService } from '../services/statsService.js';
 import { Router } from '../core/router.js';
@@ -149,7 +149,7 @@ export class LaporanPage {
       <!-- Logs Card Table -->
       <section class="glass-card card-table-section">
         <div class="card-header-clean">
-          <div class="section-title"><i data-lucide="database"></i> Log Aktivitas Sungai</div>
+          <div class="section-title"><i data-lucide="database"></i> Log Aktivitas Lingkungan</div>
           ${AppState.get('user')?.role === 'admin' ? `
             <button class="btn btn-glass btn-sm btn-rounded" id="btn-clear-all-reports" style="color: var(--error); border-color: rgba(239,68,68,0.3);">
               <i data-lucide="trash-2"></i> Hapus Semua Data

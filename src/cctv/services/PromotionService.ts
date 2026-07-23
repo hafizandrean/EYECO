@@ -93,7 +93,8 @@ export class PromotionService {
         adminStatus: 'MENUNGGU',
         image: imagePath,
         identity: `CCTV-CAM-${detection.cameraId.toString().padStart(2, '0')}`,
-        sourceType: 'AI_CCTV',
+        // sourceType: 'AI_CCTV', — disabled
+        sourceType: 'Otomatis',
         additionalNotes: `Deteksi otomatis oleh model AI di kamera ${detection.location}.`,
         adminNotes: '',
         boundingBoxes: detection.detections.map(d => ({

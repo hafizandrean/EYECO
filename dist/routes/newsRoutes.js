@@ -13,6 +13,7 @@ const News_1 = require("../database/models/News");
 const User_1 = require("../database/models/User");
 const authMiddleware_1 = require("../auth/authMiddleware");
 const RoleMiddleware_1 = require("../auth/RoleMiddleware");
+const NotificationService_1 = require("../services/NotificationService");
 const execFileAsync = (0, util_1.promisify)(child_process_1.execFile);
 const router = (0, express_1.Router)();
 // Multer config untuk upload gambar berita (max 3)
@@ -138,6 +139,10 @@ router.post('/create', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.rol
             publishedAt: status !== 'draft' ? now : undefined,
             workspaceId: user.workspaceId,
         });
+        // Notify all workspace users about new news (only for published articles)
+        if (news.status === 'published') {
+            NotificationService_1.NotificationService.notifyNewNews(news.title, news.workspaceId);
+        }
         res.status(201).json({ success: true, news });
     }
     catch (err) {

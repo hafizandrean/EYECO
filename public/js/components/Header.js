@@ -93,18 +93,6 @@ export class HeaderComponent {
       });
     }
 
-    // Global Search Bar
-    const searchInput = document.getElementById('header-global-search');
-    if (searchInput) {
-      searchInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-          const query = searchInput.value.trim();
-          // Real navigation to laporan route with search param
-          window.location.href = `/dashboard/laporan?location=${encodeURIComponent(query)}`;
-        }
-      });
-    }
-
     // Initial Sync
     this.syncNavbarState(true); // initial = tanpa animasi indicator
     this.renderUserProfile();
@@ -121,9 +109,9 @@ export class HeaderComponent {
     // Role Guard Tab: Rename first tab dynamically based on role (Dashboard vs Beranda)
     if (this.tabs.dashboard) {
       if (isAdmin) {
-        this.tabs.dashboard.innerHTML = '<i data-lucide="layout-dashboard"></i> Dashboard';
+        this.tabs.dashboard.innerHTML = '<i data-lucide="layout-dashboard"></i> <span class="nav-text">Dashboard</span>';
       } else {
-        this.tabs.dashboard.innerHTML = '<i data-lucide="home"></i> Beranda';
+        this.tabs.dashboard.innerHTML = '<i data-lucide="home"></i> <span class="nav-text">Beranda</span>';
       }
       this.tabs.dashboard.style.display = 'inline-flex';
     }

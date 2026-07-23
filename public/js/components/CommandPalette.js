@@ -64,13 +64,13 @@ export class CommandPalette {
       });
       this.commands.push({
         title: 'Buka Daftar Laporan',
-        subtitle: 'Cari logs deteksi sungai dan validasi admin',
+        subtitle: 'Cari logs deteksi lingkungan dan validasi admin',
         shortcut: '↵',
         action: () => Router.navigate('/dashboard/laporan')
       });
       this.commands.push({
         title: 'Ekspor Seluruh Laporan (CSV)',
-        subtitle: 'Unduh file CSV riwayat aktivitas sungai',
+        subtitle: 'Unduh file CSV riwayat aktivitas lingkungan',
         shortcut: '↵',
         action: () => ReportService.exportCSV()
       });

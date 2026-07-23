@@ -1,4 +1,4 @@
-// reportService.js - Layanan Kelola Data Laporan & Aktivitas Sungai
+// reportService.js - Layanan Kelola Data Laporan & Aktivitas Lingkungan
 import { API } from './api.js';
 import { EventBus } from '../core/eventBus.js';
 import { AppState } from '../core/state.js';

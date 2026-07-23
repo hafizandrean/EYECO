@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EYECO — Kontak</title>
+  <meta name="description" content="Hubungi EYECO - Sistem pemantauan kebersihan lingkungan berbasis AI untuk Indonesia yang lebih bersih.">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #F0F4FF;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .info-wrapper {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    .info-card {
+      background: rgba(255,255,255,0.92);
+      border: 1.5px solid rgba(0,0,0,0.06);
+      border-radius: 20px;
+      padding: 40px 36px 36px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 12px 48px rgba(37,99,235,0.06);
+      transition: box-shadow 0.2s, border-color 0.2s;
+    }
+    .info-card:hover {
+      box-shadow: 0 8px 32px rgba(0,0,0,0.08), 0 16px 64px rgba(37,99,235,0.08);
+    }
+    .info-brand {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .info-brand img {
+      width: auto;
+      max-height: 60px;
+      display: block;
+      margin: 0 auto 10px;
+    }
+    .info-brand h1 {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 1.8rem;
+      color: #1e3a8a;
+      margin: 0 0 4px;
+    }
+    .info-brand p {
+      font-size: 0.88rem;
+      color: #6B7280;
+      margin-top: 4px;
+      font-weight: 500;
+    }
+    .contact-list {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 20px;
+      border: 1.5px solid rgba(37,99,235,0.1);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.6);
+      transition: all 0.2s;
+      text-decoration: none;
+      color: inherit;
+    }
+    .contact-item:hover {
+      border-color: #2563EB;
+      background: rgba(37,99,235,0.04);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(37,99,235,0.08);
+    }
+    .contact-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #2563EB 0%, #4F46E5 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .contact-icon i {
+      width: 24px; height: 24px;
+      color: #fff;
+    }
+    .contact-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .contact-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #2563EB;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .contact-value {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #1F2937;
+    }
+    .contact-item:hover .contact-value {
+      color: #2563EB;
+    }
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 32px;
+      padding: 10px 20px;
+      border: 1.5px solid rgba(37,99,235,0.2);
+      border-radius: 10px;
+      color: #2563EB;
+      font-size: 0.88rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.18s;
+      background: rgba(255,255,255,0.6);
+    }
+    .back-link:hover {
+      background: #2563EB;
+      color: #fff;
+      border-color: #2563EB;
+    }
+    .back-link i { width: 16px; height: 16px; }
+    .back-wrap { text-align: center; }
+
+    /* Dark mode */
+    .dark-mode { background: #0F172A; }
+    .dark-mode .info-card {
+      background: rgba(30,41,59,0.95);
+      border-color: rgba(148,163,184,0.1);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+    }
+    .dark-mode .info-card:hover {
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .dark-mode .info-brand h1 { color: #E2E8F0 !important; }
+    .dark-mode .info-brand p, .dark-mode p { color: #E2E8F0 !important; }
+    .dark-mode .contact-item {
+      background: rgba(30,41,59,0.6);
+      border-color: rgba(148,163,184,0.08);
+    }
+    .dark-mode .contact-item:hover {
+      border-color: #3B82F6;
+      background: rgba(59,130,246,0.08);
+    }
+    .dark-mode .contact-value { color: #E2E8F0 !important; }
+    .dark-mode .contact-item:hover .contact-value { color: #3B82F6; }
+    .dark-mode .back-link {
+      background: rgba(30,41,59,0.8);
+      color: #94A3B8;
+      border-color: rgba(148,163,184,0.1);
+    }
+    .dark-mode .back-link:hover {
+      background: #2563EB;
+      color: #fff;
+    }
+    .dark-mode hr.divider { border-color: rgba(148,163,184,0.1); }
+    .dark-mode .tag { background: rgba(148,163,184,0.08); color: #94A3B8; }
+    .dark-mode h1, .dark-mode h2, .dark-mode li { color: #E2E8F0 !important; }
+
+    @media (max-width: 480px) {
+      .info-card { padding: 28px 20px 24px; border-radius: 16px; }
+      .info-brand h1 { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+<script>(function(){const t=localStorage.getItem('eyeco-theme');if(t==='dark')document.documentElement.classList.add('dark-mode')})();</script>
+  <div class="bg-blobs">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+  </div>
+
+  <div class="info-wrapper">
+    <div class="info-card">
+      <div class="info-brand">
+        <img src="/uploads/logo-eyeco.png" alt="EYECO" class="auth-logo-img">
+        <h1>EYECO</h1>
+        <p>Hubungi Kami</p>
+      </div>
+
+      <div class="contact-list">
+        <a href="https://linktr.ee/eyeco.official" target="_blank" rel="noopener noreferrer" class="contact-item linktree-main">
+          <div class="contact-icon">
+            <i data-lucide="external-link"></i>
+          </div>
+          <div class="contact-info">
+            <span class="contact-label">Semua Link</span>
+            <span class="contact-value">linktr.ee/eyeco.official</span>
+          </div>
+          <i data-lucide="arrow-up-right" style="width:14px;height:14px;color:#2563EB;flex-shrink:0;"></i>
+        </a>
+      </div>
+
+      <div class="back-wrap">
+        <a href="#" onclick="history.back(); return false;" class="back-link">
+          <i data-lucide="arrow-left"></i>
+          Kembali ke Beranda
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>

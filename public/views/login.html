@@ -40,18 +40,12 @@
       text-align: center;
       margin-bottom: 28px;
     }
-    .auth-brand h1 {
-      font-family: 'Outfit', sans-serif;
-      font-size: 2rem;
-      font-weight: 800;
-      color: #1e3a8a;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      letter-spacing: -0.03em;
+    .auth-brand img {
+      width: auto;
+      max-height: 60px;
+      display: block;
+      margin: 0 auto 10px;
     }
-    .auth-brand h1 i, .auth-brand h1 svg { width: 30px; height: 30px; color: #2563EB; }
     .auth-brand p {
       font-size: 0.88rem;
       color: #6B7280;
@@ -197,7 +191,8 @@
   <div class="auth-wrapper">
     <div class="auth-card">
       <div class="auth-brand">
-        <h1><i data-lucide="waves"></i> EYECO</h1>
+        <img src="/uploads/logo-eyeco.png" alt="EYECO" class="auth-logo-img">
+        <h1 style="font-family:'Outfit',sans-serif;font-weight:800;font-size:1.8rem;color:#1e3a8a;margin:0 0 4px;">EYECO</h1>
         <p>Incident Command Center</p>
       </div>
 
@@ -228,7 +223,7 @@
           <label>
             <input type="checkbox" id="remember-me"> Ingat saya
           </label>
-          <a href="#" onclick="alert('Silakan hubungi administrator untuk mereset password Anda.'); return false;">Lupa Password?</a>
+          <a href="/lupa-password">Lupa Password?</a>
         </div>
 
         <button type="submit" class="auth-btn" id="btn-submit">

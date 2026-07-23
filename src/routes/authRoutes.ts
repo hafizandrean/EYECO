@@ -493,3 +493,117 @@ router.delete('/sessions', authMiddleware, async (req, res) => {
 });
 
 export default router;
+
+// ──────────────────────────────────────────────
+//  Forgot / Reset Password (no auth required)
+// ──────────────────────────────────────────────
+
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { identifier } = req.body;
+    if (!identifier) return res.status(400).json({ error: 'Masukkan username atau email' });
+
+    const user = await UserModel.findOne({
+      $or: [
+        { username: identifier.toLowerCase().trim() },
+        { email: identifier.toLowerCase().trim() }
+      ]
+    }).exec();
+
+    if (!user) {
+      return res.status(404).json({ error: 'Akun tidak ditemukan' });
+    }
+
+    // Mask phone for display
+    const phone = user.phone || '';
+    const maskedPhone = phone.length >= 4
+      ? phone.slice(0, -4).replace(/\d/g, '*') + phone.slice(-4)
+      : '***';
+
+    res.json({
+      success: true,
+      name: user.name || user.username,
+      maskedPhone,
+      hasPhone: !!user.phone,
+    });
+  } catch (err: any) {
+    console.error('[SERVER ERROR] Forgot password failed:', err.message);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+router.post('/verify-phone', async (req, res) => {
+  try {
+    const { identifier, phone } = req.body;
+    if (!identifier) return res.status(400).json({ error: 'Masukkan username atau email' });
+    if (!phone) return res.status(400).json({ error: 'Masukkan nomor telepon' });
+
+    const user = await UserModel.findOne({
+      $or: [
+        { username: identifier.toLowerCase().trim() },
+        { email: identifier.toLowerCase().trim() }
+      ]
+    }).exec();
+
+    if (!user) {
+      return res.status(404).json({ error: 'Akun tidak ditemukan' });
+    }
+
+    // Normalize phone comparison
+    const cleanInput = phone.replace(/[^0-9]/g, '');
+    const cleanStored = (user.phone || '').replace(/[^0-9]/g, '');
+    if (cleanInput !== cleanStored) {
+      return res.status(400).json({ error: 'Nomor telepon tidak cocok' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 jam
+
+    user.resetToken = token;
+    user.resetTokenExpires = expires;
+    await user.save();
+
+    console.log(`[FORGOT PASSWORD] Reset token for ${user.username}: ${token}`);
+
+    res.json({
+      success: true,
+      token,
+    });
+  } catch (err: any) {
+    console.error('[SERVER ERROR] Verify phone failed:', err.message);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token reset diperlukan' });
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password minimal 6 karakter' });
+    }
+
+    const user = await UserModel.findOne({
+      resetToken: token,
+      resetTokenExpires: { $gt: new Date() },
+    }).exec();
+
+    if (!user) {
+      return res.status(400).json({ error: 'Token tidak valid atau sudah kedaluwarsa. Minta reset ulang.' });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    user.passwordHash = passwordHash;
+    user.resetToken = undefined;
+    user.resetTokenExpires = undefined;
+    await user.save();
+
+    // Hapus semua sesi user ini
+    await SessionModel.deleteMany({ userId: user.id });
+
+    res.json({ success: true, message: 'Password berhasil direset. Silakan login.' });
+  } catch (err: any) {
+    console.error('[SERVER ERROR] Reset password failed:', err.message);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});

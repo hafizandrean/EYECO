@@ -123,6 +123,7 @@ const ReportSchema = new mongoose_1.Schema({
     currentResolutionId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Resolution', default: null },
     sla: { type: SlaSchema, required: true },
     deletedAt: { type: Date, default: null },
+    scheduledDeletionAt: { type: Date, default: null },
     deletedById: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', default: null },
     deletedByName: { type: String, default: null },
     deleteReason: { type: String, default: null },
@@ -146,4 +147,6 @@ const ReportSchema = new mongoose_1.Schema({
 ReportSchema.index({ timestamp: -1, adminStatus: 1 });
 // Compound index for sorted status queries
 ReportSchema.index({ status: 1, timestamp: -1 });
+// TTL index: auto-delete validated reports 40 days after scheduledDeletionAt is set
+ReportSchema.index({ scheduledDeletionAt: 1 }, { expireAfterSeconds: 0 });
 exports.ReportModel = mongoose_1.default.model('Report', ReportSchema);

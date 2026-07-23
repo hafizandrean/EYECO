@@ -29,6 +29,7 @@ const CctvAdapter_1 = require("./cctv/CctvAdapter");
 const AiPipelineScheduler_1 = require("./cctv/services/AiPipelineScheduler");
 const AiEngineHealthMonitor_1 = require("./cctv/services/AiEngineHealthMonitor");
 const OutboxWorker_1 = require("./notifications/OutboxWorker");
+const Notification_1 = require("./database/models/Notification");
 const TelegramNotificationChannel_1 = require("./notifications/TelegramNotificationChannel");
 const aiDetection_service_1 = require("./services/aiDetection.service");
 dotenv_1.default.config();
@@ -415,6 +416,23 @@ app.get('/dashboard/detections/:id', authMiddleware_2.authMiddleware, (0, RoleMi
 app.get('/berita/:slug', (req, res) => {
     res.sendFile(path_1.default.join(__dirname, '../public/views/news-detail.html'));
 });
+// --- PUBLIC INFO PAGES (no auth required) ---
+app.get('/tentang', (req, res) => {
+    res.sendFile(path_1.default.join(__dirname, '../public/views/tentang.html'));
+});
+app.get('/kebijakan', (req, res) => {
+    res.sendFile(path_1.default.join(__dirname, '../public/views/kebijakan.html'));
+});
+app.get('/kontak', (req, res) => {
+    res.sendFile(path_1.default.join(__dirname, '../public/views/kontak.html'));
+});
+// Forgot & Reset Password pages (no auth)
+app.get('/lupa-password', (req, res) => {
+    res.sendFile(path_1.default.join(__dirname, '../public/views/forgot-password.html'));
+});
+app.get('/reset-password', (req, res) => {
+    res.sendFile(path_1.default.join(__dirname, '../public/views/reset-password.html'));
+});
 // Select Workspace — user only
 app.get('/select-workspace', authMiddleware_2.authMiddleware, (0, RoleMiddleware_1.roleGuard)(['user', 'operator', 'supervisor', 'officer']), (req, res) => {
     res.sendFile(path_1.default.join(__dirname, '../public/views/select-workspace.html'));
@@ -464,6 +482,58 @@ function listenWithFallback(port, attempts = 10) {
         });
     });
 }
+// --- NOTIFICATIONS API ---
+// GET /api/notifications — Fetch in-app notifications for current user
+app.get('/api/notifications', authMiddleware_2.authMiddleware, async (req, res) => {
+    try {
+        const user = await (0, authMiddleware_1.getLoggedInUser)(req);
+        if (!user)
+            return res.status(401).json({ error: 'Unauthorized' });
+        const notifications = await Notification_1.NotificationModel.find({
+            recipientId: user._id,
+            deletedAt: null,
+        })
+            .sort({ createdAt: -1 })
+            .limit(50)
+            .lean()
+            .exec();
+        res.json({ success: true, notifications });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] Fetch notifications failed:', err.message);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+// PATCH /api/notifications/:id/read — Mark single notification as read
+app.patch('/api/notifications/:id/read', authMiddleware_2.authMiddleware, async (req, res) => {
+    try {
+        const user = await (0, authMiddleware_1.getLoggedInUser)(req);
+        if (!user)
+            return res.status(401).json({ error: 'Unauthorized' });
+        const notif = await Notification_1.NotificationModel.findOneAndUpdate({ _id: req.params.id, recipientId: user._id, deletedAt: null }, { read: true, readAt: new Date() }, { new: true });
+        if (!notif)
+            return res.status(404).json({ error: 'Notifikasi tidak ditemukan' });
+        res.json({ success: true, notification: notif });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] Mark notification read failed:', err.message);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+// PATCH /api/notifications/read-all — Mark all notifications as read
+app.patch('/api/notifications/read-all', authMiddleware_2.authMiddleware, async (req, res) => {
+    try {
+        const user = await (0, authMiddleware_1.getLoggedInUser)(req);
+        if (!user)
+            return res.status(401).json({ error: 'Unauthorized' });
+        await Notification_1.NotificationModel.updateMany({ recipientId: user._id, read: false, deletedAt: null }, { read: true, readAt: new Date() });
+        res.json({ success: true });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] Mark all notifications read failed:', err.message);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
 // --- CCTV API ENDPOINTS ---
 // GET /api/cctv - List all CCTV channels
 app.get('/api/cctv', async (req, res) => {
@@ -819,7 +889,7 @@ let serverInstance;
     }
     catch (_) { }
     // CCTV Health Engine is started inside listenWithFallback
-    AiPipelineScheduler_1.AiPipelineScheduler.start();
+    // AiPipelineScheduler.start(); — disabled, no more CCTV reports
     OutboxWorker_1.OutboxWorker.start();
     const activePort = await listenWithFallback(PORT);
     console.log(`[SERVER] EYECO berjalan di http://localhost:${activePort}`);

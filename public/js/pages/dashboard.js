@@ -1,4 +1,4 @@
-// dashboard.js - Kontroler Halaman Dashboard Pemantauan Sungai
+// dashboard.js - Kontroler Halaman Dashboard Pemantauan Lingkungan
 import { StatsService } from '../services/statsService.js';
 import { ReportService } from '../services/reportService.js';
 import { CctvService } from '../services/cctvService.js';
@@ -201,7 +201,7 @@ export class DashboardPage {
                 </div>
                 <div class="form-group">
                   <label class="form-label">Lokasi Pemantauan</label>
-                  <input type="text" id="cctv-input-location" class="filter-control input-rounded" value="Sungai Ciliwangi" required>
+                  <input type="text" id="cctv-input-location" class="filter-control input-rounded" value="Lingkungan Ciliwangi" required>
                 </div>
               </div>
               
@@ -2163,7 +2163,7 @@ export class DashboardPage {
           </div>
           <div>
             <h4 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin: 0;">Belum Ada Kamera Terhubung</h4>
-            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 6px; max-width: 320px; line-height: 1.5; margin-bottom: 0;">Sambungkan kamera pemantauan baru untuk memulai pengawasan real-time sungai.</p>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 6px; max-width: 320px; line-height: 1.5; margin-bottom: 0;">Sambungkan kamera pemantauan baru untuk memulai pengawasan real-time lingkungan.</p>
           </div>
           ${isAdmin ? `
             <button class="btn btn-primary btn-rounded" id="btn-empty-connect-cctv" style="font-weight: 700; padding: 10px 20px;">
@@ -2564,7 +2564,7 @@ export class DashboardPage {
         <div class="glass-card error-alert-card" style="grid-column: 1 / -1; padding: 32px; text-align: center;">
           <i data-lucide="alert-circle" style="width: 48px; height: 48px; color: var(--danger); margin-bottom: 12px;"></i>
           <h3>Koneksi Data Gagal</h3>
-          <p style="color: var(--text-secondary); margin: 8px 0 16px 0;">Gagal memuat status dan deteksi CCTV sungai dari server. Silakan klik Coba Lagi atau muat ulang halaman.</p>
+          <p style="color: var(--text-secondary); margin: 8px 0 16px 0;">Gagal memuat status dan deteksi CCTV lingkungan dari server. Silakan klik Coba Lagi atau muat ulang halaman.</p>
           <button id="btn-retry-dashboard" class="btn btn-primary btn-rounded">
             <i data-lucide="refresh-cw"></i> Coba Lagi
           </button>

@@ -18,11 +18,13 @@ class ReportRepository {
     }
     static async findByLegacyId(id, workspaceId) {
         const query = { id, deletedAt: null };
+        if (workspaceId !== undefined)
+            query.workspaceId = workspaceId;
         const report = await Report_1.ReportModel.findOne(query).exec();
         return report;
     }
     static async update(id, updateData, session) {
-        const options = { new: true, returnDocument: 'after', runValidators: true };
+        const options = { new: true, runValidators: true };
         if (session) {
             Object.assign(options, { session });
         }
@@ -30,7 +32,7 @@ class ReportRepository {
         return report;
     }
     static async softDelete(id, actorId, actorName, reason, session) {
-        const options = { new: true, returnDocument: 'after' };
+        const options = { new: true };
         if (session) {
             Object.assign(options, { session });
         }
@@ -45,7 +47,7 @@ class ReportRepository {
         return report;
     }
     static async restore(id, reason, session) {
-        const options = { new: true, returnDocument: 'after' };
+        const options = { new: true };
         if (session) {
             Object.assign(options, { session });
         }
@@ -117,6 +119,13 @@ class ReportRepository {
                     updateFields.status = 'REJECTED';
                 }
             }
+            // Auto-delete 40 days after validation: set scheduledDeletionAt when VALID or DIABAIKAN
+            if (status === 'VALID' || status === 'DIABAIKAN') {
+                updateFields.scheduledDeletionAt = new Date(Date.now() + 40 * 24 * 60 * 60 * 1000);
+            }
+            else {
+                updateFields.scheduledDeletionAt = null;
+            }
             const query = { id };
             if (workspaceId !== undefined)
                 query.workspaceId = workspaceId;
@@ -133,18 +142,30 @@ class ReportRepository {
             const query = { deletedAt: null };
             if (userContext.role === 'admin') {
                 const user = await User_1.UserModel.findOne({ id: userContext.id }).lean().exec();
-                const wsId = user?.workspaceId || 1;
-                query.$or = [{ workspaceId: wsId }, { workspaceId: { $exists: false } }, { workspaceId: 1 }];
+                if (user && user.workspaceId) {
+                    query.workspaceId = user.workspaceId;
+                }
+                else {
+                    // If no workspace is selected or found, return empty results
+                    query.workspaceId = -1;
+                }
             }
             else if (userContext.role === 'user') {
-                // User sees all non-deleted reports
+                // User sees all reports in their workspace
+                const user = await User_1.UserModel.findOne({ id: userContext.id }).lean().exec();
+                if (user && user.workspaceId) {
+                    query.workspaceId = user.workspaceId;
+                }
+                else {
+                    query.workspaceId = -1;
+                }
+                query.sourceType = { $ne: 'AI_CCTV' };
             }
             else if (userContext.role === 'superadmin') {
+                // Superadmin only sees reports from workspaces they own
                 const ownedWorkspaces = await Workspace_1.WorkspaceModel.find({ superadminId: userContext.id }).lean().exec();
                 const wsIds = ownedWorkspaces.map(w => w.id);
-                if (!wsIds.includes(1))
-                    wsIds.push(1);
-                query.$or = [{ workspaceId: { $in: wsIds } }, { workspaceId: { $exists: false } }, { workspaceId: 1 }];
+                query.workspaceId = { $in: wsIds };
             }
             if (filters.date) {
                 const start = new Date(filters.date);
@@ -214,9 +235,7 @@ class ReportRepository {
             const user = await User_1.UserModel.findOne({ id: userContext.id }).lean().exec();
             if (!user?.workspaceId)
                 return { workspaceId: -1 };
-            return userContext.role === 'user'
-                ? { workspaceId: user.workspaceId, userId: user._id }
-                : { workspaceId: user.workspaceId };
+            return { workspaceId: user.workspaceId };
         }
         if (userContext.role === 'superadmin') {
             const ownedWorkspaces = await Workspace_1.WorkspaceModel.find({ superadminId: userContext.id }).lean().exec();
@@ -258,7 +277,7 @@ class ReportRepository {
                             { timestamp: { $gte: fbSevenDaysAgo } }
                         ]
                     });
-                    return { total: total2, mostVulnerable: '-', valid: valid2, cancelled: cancelled2, pending: pending2, tinggi: fbTinggi, sedang: fbSedang, rendah: fbRendah, tidakTerindikasi: fbTidak, recent: fbRecent };
+                    return { total: total2, mostVulnerable: '-', valid: valid2, cancelled: cancelled2, pending: pending2, tinggi: fbTinggi, sedang: fbSedang, rendah: fbRendah, tidakTerindikasi: fbTidak, recent: fbRecent, myReports: 0 };
                 }
             }
             // Hitung distribusi AI status
@@ -295,6 +314,14 @@ class ReportRepository {
                     mostVulnerable = overallGroup[0]._id;
                 }
             }
+            // Hitung jumlah laporan milik user yang sedang login
+            let myReportsCount = 0;
+            if (userContext?.id) {
+                const currentUser = await User_1.UserModel.findOne({ id: userContext.id }).select('_id').lean().exec();
+                if (currentUser) {
+                    myReportsCount = await Report_1.ReportModel.countDocuments({ ...matchQuery, userId: currentUser._id }).exec();
+                }
+            }
             return {
                 total,
                 mostVulnerable,
@@ -305,7 +332,8 @@ class ReportRepository {
                 sedang,
                 rendah,
                 tidakTerindikasi,
-                recent
+                recent,
+                myReports: myReportsCount
             };
         }
         catch (err) {

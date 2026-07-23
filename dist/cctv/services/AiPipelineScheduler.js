@@ -5,7 +5,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AiPipelineScheduler = void 0;
 const FrameCaptureService_1 = require("./FrameCaptureService");
-const PromotionService_1 = require("./PromotionService");
 const AiDetection_1 = require("../../database/models/AiDetection");
 const AiMetric_1 = require("../../database/models/AiMetric");
 const SystemSettings_1 = require("../../database/models/SystemSettings");
@@ -100,7 +99,8 @@ class AiPipelineScheduler {
                     const promotionStartTime = Date.now();
                     // 4. Jika terdeteksi objek potensial, jalankan Promotion
                     if (detection) {
-                        await PromotionService_1.PromotionService.evaluateDetection(detection);
+                        // PromotionService.evaluateDetection(detection); — disabled, no more CCTV reports
+                        console.log(`[AiPipelineTrace](disabled) Detection found but promotion cancelled.`);
                     }
                     const promotionTime = Date.now() - promotionStartTime;
                     const totalTime = captureTime + inferenceTime + promotionTime;

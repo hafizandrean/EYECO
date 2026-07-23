@@ -1,4 +1,4 @@
-// detail.js - Kontroler Halaman Detail Analisis Laporan Sungai (Collaborative Review Workflow)
+// detail.js - Kontroler Halaman Detail Analisis Laporan Lingkungan (Collaborative Review Workflow)
 import { ReportService } from '../services/reportService.js';
 import { Router } from '../core/router.js';
 import { Formatter } from '../utils/formatter.js';
@@ -226,6 +226,11 @@ export class DetailPage {
               <button class="btn btn-sm btn-glass btn-rounded" id="btn-detail-print" style="font-size:0.75rem; font-weight:700; display:flex; align-items:center; gap:4px; padding: 6px 12px;">
                 <i data-lucide="file-text" style="width:14px; height:14px;"></i> Export PDF
               </button>
+              ${this.canDelete(report) ? `
+              <button class="btn btn-sm btn-danger btn-rounded" id="btn-delete-report" style="font-size:0.75rem; font-weight:700; display:flex; align-items:center; gap:4px; padding: 6px 12px; background:rgba(239,68,68,0.12); color:var(--danger); border:1px solid rgba(239,68,68,0.2);">
+                <i data-lucide="trash-2" style="width:14px; height:14px;"></i> Hapus
+              </button>
+              ` : ''}
             </div>
           </div>
 
@@ -284,7 +289,7 @@ export class DetailPage {
             </div>
 
             <div style="background: rgba(0,0,0,0.02); padding: var(--space-16); border-radius: 12px;">
-              <span style="font-size: 0.68rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; display:block; margin-bottom: 4px;">Lokasi Sungai</span>
+              <span style="font-size: 0.68rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; display:block; margin-bottom: 4px;">Lokasi Lingkungan</span>
               <span style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary); display:flex; align-items:center; gap:6px;">
                 <i data-lucide="map-pin" style="color: var(--primary); width:16px; height:16px;"></i> ${report.location || report.locationName || '-'}
               </span>
@@ -446,8 +451,8 @@ export class DetailPage {
                 <div class="lifecycle-dot ${activeStep >= 5 ? (activeStep === 5 ? 'active' : 'completed') : ''}">6</div>
                 <div class="lifecycle-line ${activeStep > 5 ? 'completed' : ''}"></div>
                 <div style="display:flex; flex-direction:column;">
-                  <span style="font-size: 0.82rem; font-weight: 800; color: var(--text-primary);">Lokasi Sungai Pulih (RESOLVED)</span>
-                  <span style="font-size: 0.68rem; color: var(--text-secondary);">Sungai bersih, tumpukan plastik diangkut</span>
+                  <span style="font-size: 0.82rem; font-weight: 800; color: var(--text-primary);">Lokasi Lingkungan Pulih (RESOLVED)</span>
+                  <span style="font-size: 0.68rem; color: var(--text-secondary);">Lingkungan bersih, tumpukan plastik diangkut</span>
                 </div>
               </div>
 
@@ -523,7 +528,7 @@ export class DetailPage {
                     <option value="" ${!report.assignedOfficer ? 'selected' : ''}>-- Belum Ditunjuk --</option>
                     <option value="BBWS" ${report.assignedOfficer === 'BBWS' ? 'selected' : ''}>BBWS (River Authority)</option>
                     <option value="DLH" ${report.assignedOfficer === 'DLH' ? 'selected' : ''}>DLH (Dinas Lingkungan Hidup)</option>
-                    <option value="Relawan" ${report.assignedOfficer === 'Relawan' ? 'selected' : ''}>Relawan Sungai Lokal</option>
+                    <option value="Relawan" ${report.assignedOfficer === 'Relawan' ? 'selected' : ''}>Relawan Lingkungan Lokal</option>
                   </select>
                 </div>
 
@@ -648,6 +653,34 @@ export class DetailPage {
         };
       }
 
+      // Delete report button (user can delete own report within 10 min)
+      const deleteBtn = document.getElementById('btn-delete-report');
+      if (deleteBtn) {
+        deleteBtn.onclick = async () => {
+          if (!confirm('Yakin hapus laporan ini? Tindakan ini tidak dapat dibatalkan.')) return;
+          deleteBtn.disabled = true;
+          deleteBtn.innerHTML = '<span class="status-pulse-dot" style="width:8px;height:8px;background:white;border-radius:50%;display:inline-block;margin-right:6px;"></span> Menghapus...';
+          try {
+            const res = await fetch(`/api/detections/${this.reportId}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) {
+              EventBus.emit('toast:show', { message: 'Laporan berhasil dihapus', type: 'success' });
+              setTimeout(() => Router.navigate('/dashboard/laporan'), 1000);
+            } else {
+              EventBus.emit('toast:show', { message: data.error || 'Gagal menghapus laporan', type: 'danger' });
+              deleteBtn.disabled = false;
+              deleteBtn.innerHTML = '<i data-lucide="trash-2" style="width:14px;height:14px;"></i> Hapus';
+              if (window.lucide) window.lucide.createIcons();
+            }
+          } catch (err) {
+            EventBus.emit('toast:show', { message: 'Gagal menghapus laporan', type: 'danger' });
+            deleteBtn.disabled = false;
+            deleteBtn.innerHTML = '<i data-lucide="trash-2" style="width:14px;height:14px;"></i> Hapus';
+            if (window.lucide) window.lucide.createIcons();
+          }
+        };
+      }
+
       // Load comments
       await this.loadComments(true);
 
@@ -679,8 +712,8 @@ export class DetailPage {
     const statusPill = document.getElementById('detail-workflow-status-pill');
     if (!statusPill) return;
 
-    let statusText = 'NEW';
-    let badgeClass = 'bg-primary text-white';
+    let statusText = 'MENUNGGU REVIEW';
+    let badgeClass = 'bg-warning text-white';
 
     if (this.report.adminStatus === 'MENUNGGU') {
       statusText = 'UNDER REVIEW';
@@ -1301,7 +1334,7 @@ export class DetailPage {
           await new Promise(resolve => setTimeout(resolve, 1500));
           
           // Mock append update log to discussion list
-          const formattedText = `[Kondisi Terbaru] Warga menambahkan foto pengamatan terbaru dari lokasi sungai.`;
+          const formattedText = `[Kondisi Terbaru] Warga menambahkan foto pengamatan terbaru dari lokasi lingkungan.`;
           await ReportService.addComment(this.reportId, formattedText);
 
           EventBus.emit('toast:show', { message: 'Foto kondisi terbaru berhasil diunggah!', type: 'success' });
@@ -1315,6 +1348,19 @@ export class DetailPage {
         }
       };
     }
+  }
+
+  canDelete(report) {
+    // Only owner can delete, within 10 minutes
+    const currentUser = AppState.get('user');
+    if (!currentUser || !report) return false;
+    // Check ownership: compare user's ObjectId with report.userId
+    if (!report.userId || report.userId !== currentUser.id && report.userId !== currentUser._id) return false;
+    // Check 10-minute window
+    const createdAt = report.createdAt || report.timestamp;
+    if (!createdAt) return false;
+    const elapsed = Date.now() - new Date(createdAt).getTime();
+    return elapsed < 10 * 60 * 1000;
   }
 
   destroy() {

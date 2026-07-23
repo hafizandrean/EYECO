@@ -8,6 +8,7 @@ import { NewsModel } from '../database/models/News';
 import { UserModel } from '../database/models/User';
 import { authMiddleware } from '../auth/authMiddleware';
 import { roleGuard } from '../auth/RoleMiddleware';
+import { NotificationService } from '../services/NotificationService';
 
 const execFileAsync = promisify(execFile);
 
@@ -138,6 +139,11 @@ router.post('/create', authMiddleware, roleGuard(['admin', 'superadmin']), async
       publishedAt: status !== 'draft' ? now : undefined,
       workspaceId: user.workspaceId,
     });
+
+    // Notify all workspace users about new news (only for published articles)
+    if (news.status === 'published') {
+      NotificationService.notifyNewNews(news.title, news.workspaceId);
+    }
 
     res.status(201).json({ success: true, news });
   } catch (err) {

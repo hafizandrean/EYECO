@@ -19,10 +19,10 @@ export class UploadPage {
       <div class="upload-container-layout" style="animation: pageFadeIn var(--motion-open);">
         <!-- Left: Upload Form Card -->
         <main class="glass-card upload-card" id="upload-main-card" style="padding: var(--space-32);">
-          <div style="margin-bottom: var(--space-24); display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
-            <span style="background: rgba(47, 107, 255, 0.1); color: var(--primary); font-size: 0.75rem; font-weight: 800; text-transform: uppercase; padding: 4px 12px; border-radius: var(--radius-pill); letter-spacing: 0.5px;">Unggah Bukti</span>
-            <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--text-dark); margin-top: 4px; margin-bottom: 0;">Lapor Keadaan Sungai</h2>
-            <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 2px;">Seret media foto sungai untuk mendeteksi pencemaran sampah otomatis berbasis AI</p>
+          <div class="card-header-clean" style="margin-bottom: var(--space-24);">
+            <span style="background: rgba(47, 107, 255, 0.1); color: var(--primary); font-size: 0.72rem; font-weight: 800; text-transform: uppercase; padding: 4px 12px; border-radius: var(--radius-pill); letter-spacing: 0.5px;">Unggah Bukti</span>
+            <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--text-primary); margin-top: 6px; margin-bottom: 0;">Lapor Keadaan Lingkungan</h2>
+            <p style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 4px;">Seret media foto lingkungan untuk mendeteksi pencemaran sampah otomatis berbasis AI</p>
           </div>
 
           <form id="upload-form-element" class="upload-form" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: var(--space-20);">
@@ -51,8 +51,8 @@ export class UploadPage {
             <div id="form-metadata-fields" style="display: none; flex-direction: column; gap: var(--space-16); animation: pageFadeIn 0.3s ease;">
               <!-- Location Input -->
               <div class="form-group">
-                <label class="form-label" for="input-location">Lokasi Sungai / Sektor <span class="required">*</span></label>
-                <input type="text" class="form-control input-rounded" id="input-location" placeholder="Masukkan lokasi detail sungai (e.g. Sungai Ciliwung Pintu Air Manggarai)" required>
+                <label class="form-label" for="input-location">Lokasi Lingkungan / Sektor <span class="required">*</span></label>
+                <input type="text" class="form-control input-rounded" id="input-location" placeholder="Masukkan lokasi detail lingkungan (e.g. Lingkungan Ciliwung Pintu Air Manggarai)" required>
               </div>
 
               <!-- Datetime Input -->
@@ -67,7 +67,7 @@ export class UploadPage {
               <!-- Notes Description -->
               <div class="form-group">
                 <label class="form-label" for="input-notes">Deskripsi Visual Laporan (Opsional)</label>
-                <textarea class="form-control textarea-rounded" id="input-notes" placeholder="Tambahkan deskripsi atau ciri-ciri khusus sampah sungai di lokasi..."></textarea>
+                <textarea class="form-control textarea-rounded" id="input-notes" placeholder="Tambahkan deskripsi atau ciri-ciri khusus sampah lingkungan di lokasi..."></textarea>
               </div>
 
               <!-- Submit Button -->
@@ -89,6 +89,28 @@ export class UploadPage {
             <!-- Populated dynamically -->
           </div>
         </section>
+      </div>
+
+      <!-- Upload Processing Modal -->
+      <div class="modal-overlay" id="upload-progress-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); z-index:9999; align-items:center; justify-content:center;">
+        <div class="modal-content" style="background:var(--card-bg); border-radius:var(--radius-card); padding:var(--space-32); max-width:400px; width:90%; text-align:center; border:1px solid var(--border); box-shadow:var(--shadow-xl);">
+          <div id="upload-modal-state">
+            <!-- Processing State -->
+            <div id="modal-processing">
+              <div class="upload-spinner" style="width:56px; height:56px; border:4px solid var(--surface-soft); border-top-color:var(--primary); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 20px;"></div>
+              <h3 style="font-family:'Outfit',sans-serif; font-weight:700; font-size:1.2rem; margin:0 0 8px; color:var(--text-primary);">Memproses Laporan</h3>
+              <p style="font-size:0.85rem; color:var(--text-secondary); margin:0;">AI sedang memverifikasi dan menyimpan laporan Anda...</p>
+            </div>
+            <!-- Success State -->
+            <div id="modal-success" style="display:none;">
+              <div style="width:56px; height:56px; border-radius:50%; background:rgba(16,185,129,0.12); display:flex; align-items:center; justify-content:center; margin:0 auto 20px;">
+                <i data-lucide="check-circle" style="width:32px; height:32px; color:#10B981;"></i>
+              </div>
+              <h3 style="font-family:'Outfit',sans-serif; font-weight:700; font-size:1.2rem; margin:0 0 8px; color:var(--text-primary);">Laporan Terkirim!</h3>
+              <p style="font-size:0.85rem; color:var(--text-secondary); margin:0;">Laporan Anda berhasil disimpan dan akan segera diproses.</p>
+            </div>
+          </div>
+        </div>
       </div>
     `;
 
@@ -281,13 +303,22 @@ export class UploadPage {
     btnSubmit.disabled = true;
     btnSubmit.innerHTML = `<span class="status-pulse-dot" style="width:8px; height:8px; background:white; border-radius:50%; display:inline-block; margin-right:6px;"></span> Mengirim Laporan...`;
 
+    // Show processing modal
+    const modal = document.getElementById('upload-progress-modal');
+    const modalProcessing = document.getElementById('modal-processing');
+    const modalSuccess = document.getElementById('modal-success');
+    if (modal) modal.style.display = 'flex';
+    if (modalProcessing) modalProcessing.style.display = 'block';
+    if (modalSuccess) modalSuccess.style.display = 'none';
+    if (window.lucide) window.lucide.createIcons();
+
     const location = document.getElementById('input-location').value.trim();
     const time = document.getElementById('input-time').value;
     const notes = document.getElementById('input-notes').value.trim();
 
     // Validate required fields — do NOT re-enable btnSubmit; user must still fill and submit afresh
     if (!location) {
-      EventBus.emit('toast:show', { message: 'Lokasi sungai wajib diisi.', type: 'warning' });
+      EventBus.emit('toast:show', { message: 'Lokasi lingkungan wajib diisi.', type: 'warning' });
       return;
     }
     if (!time) {
@@ -330,8 +361,8 @@ export class UploadPage {
       if (user) {
         const notifications = AppState.get('notifications') || [];
         notifications.unshift({
-          id: reportId,
-          location: report.location || 'Lokasi tidak diketahui',
+          id: response?.id || response?._id || Date.now(),
+          location: response?.location || 'Lokasi tidak diketahui',
           aiStatus: 'Info',
           aiConfidence: 0,
           timestamp: new Date(),
@@ -346,36 +377,34 @@ export class UploadPage {
       
       console.log('[UPLOAD_FRONTEND] Response dari server:', JSON.stringify(response, null, 2));
       
-      // Navigate using the returned report id — response may be wrapped in { success: true, data: { ... } }
-      const report = response.data || response;
-      let reportId = report.id || report._id;
-      
-      console.log('[UPLOAD_FRONTEND] report.id:', report.id, '(type:', typeof report.id, ')');
-      console.log('[UPLOAD_FRONTEND] report._id:', report._id, '(type:', typeof report._id, ')');
-      console.log('[UPLOAD_FRONTEND] reportId dipilih:', reportId);
-      
-      // Pastikan reportId adalah Number jika berbentuk numeric string
-      if (typeof reportId === 'string' && /^\d+$/.test(reportId)) {
-        reportId = parseInt(reportId, 10);
-        console.log('[UPLOAD_FRONTEND] reportId dikonversi ke Number:', reportId);
+      // Transition modal from processing → success
+      if (modalProcessing) modalProcessing.style.display = 'none';
+      if (modalSuccess) {
+        modalSuccess.style.display = 'block';
+        // Animate success icon in
+        const successIcon = modalSuccess.querySelector('i');
+        if (successIcon) {
+          successIcon.style.transform = 'scale(0)';
+          successIcon.style.transition = 'transform 0.3s cubic-bezier(0.34,1.56,0.64,1)';
+          requestAnimationFrame(() => { successIcon.style.transform = 'scale(1)'; });
+        }
       }
+      if (window.lucide) window.lucide.createIcons();
       
-      if (reportId) {
-        console.log('[UPLOAD_FRONTEND] Navigasi ke deteksi:', reportId);
-        this.isScanning = true; // lock form — stays locked even after finally (success flag)
-        success = true;
-        Router.navigate(`/dashboard/detections/${reportId}`);
-      } else {
-        EventBus.emit('toast:show', { message: 'Laporan tersimpan, namun ID tidak ditemukan di respons.', type: 'info' });
-        // ID tidak ditemukan — set scanCompleted agar form tidak bisa di-klik lagi
-        this.scanCompleted = true;
-      }
+      this.isScanning = true;
+      success = true;
+      
+      // Force redirect to report list after a short pause
+      setTimeout(() => {
+        if (modal) modal.style.display = 'none';
+        Router.navigate('/dashboard/laporan');
+      }, 800);
     } catch (err) {
       EventBus.emit('toast:show', { message: `Gagal mengirim laporan: ${err.message}`, type: 'danger' });
+      if (modal) modal.style.display = 'none';
       btnSubmit.disabled = false;
       btnSubmit.innerHTML = origHtml;
     } finally {
-      // Only release the lock on error/validation-failure; on success the form stays locked
       if (!success) {
         this.isScanning = false;
       }
