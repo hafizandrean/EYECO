@@ -33,6 +33,8 @@ class RuleBasedStrategy {
             score += (w.trashOnRoadZone || 10);
         if (fv.trashInsideBinZone)
             score += (w.trashInsideBinZone || -35);
+        if (fv.trashLargePile)
+            score += (w.trashLargePile || 30);
         // Clamp score to 0 - 100
         const violationScore = Math.max(0, Math.min(100, Math.round(score)));
         // Calculate Heuristic Decision Confidence
