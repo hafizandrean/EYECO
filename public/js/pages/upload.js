@@ -138,13 +138,19 @@ export class UploadPage {
     // Camera capture
     const cameraBtn = document.getElementById('btn-camera-capture');
     if (cameraBtn) {
-      cameraBtn.addEventListener('click', () => this.openCamera());
+      cameraBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.openCamera();
+      });
     }
 
     // Browse files
     const browseBtn = document.getElementById('btn-browse-files');
     if (browseBtn) {
-      browseBtn.addEventListener('click', () => fileInput?.click());
+      browseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        fileInput?.click();
+      });
     }
 
     if (dropZone && fileInput) {
@@ -203,7 +209,6 @@ export class UploadPage {
   }
 
   async openCamera() {
-    // Camera modal overlay
     const overlay = document.createElement('div');
     overlay.className = 'macos-modal-overlay';
     overlay.id = 'camera-modal-overlay';
@@ -211,109 +216,141 @@ export class UploadPage {
     overlay.innerHTML = `
       <div style="background:var(--surface);border-radius:var(--radius-xl);padding:24px;max-width:720px;width:95%;text-align:center;box-shadow:var(--shadow-xl);">
         <h3 style="font-family:'Outfit',sans-serif;font-weight:800;margin:0 0 12px;display:flex;align-items:center;gap:8px;justify-content:center;">
-          <i data-lucide="camera" style="width:20px;height:20px;color:var(--primary);"></i> Ambil Foto dengan Kamera
+          <i data-lucide="scan" style="width:20px;height:20px;color:var(--primary);"></i> Live AI Detection
         </h3>
         <div style="position:relative;background:#000;border-radius:var(--radius-lg);overflow:hidden;min-height:340px;display:flex;align-items:center;justify-content:center;">
           <video id="camera-feed" autoplay playsinline style="width:100%;max-height:440px;object-fit:contain;display:block;"></video>
           <div id="camera-detection-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></div>
         </div>
-        <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;">
-          <button type="button" class="btn btn-glass btn-rounded" id="btn-cam-capture" style="padding:10px 28px;font-weight:700;">
-            <i data-lucide="camera" style="width:18px;height:18px;"></i> Jepret & Deteksi
-          </button>
-          <button type="button" class="btn btn-secondary-sheet" id="btn-cam-close" style="padding:10px 28px;font-weight:700;">
-            <i data-lucide="x" style="width:18px;height:18px;"></i> Tutup
+        <div style="display:flex;gap:10px;justify-content:center;align-items:center;margin-top:12px;">
+          <span id="cam-live-status" style="font-size:0.75rem;font-weight:700;color:var(--success);display:flex;align-items:center;gap:6px;">
+            <span id="cam-live-dot" style="width:8px;height:8px;border-radius:50%;background:#10B981;display:inline-block;"></span>
+            Live Detection Aktif
+          </span>
+          <span id="cam-detect-count" style="font-size:0.75rem;color:var(--text-secondary);font-weight:600;">0 detected</span>
+          <button type="button" class="btn btn-secondary-sheet" id="btn-cam-close" style="padding:8px 20px;font-weight:700;">
+            <i data-lucide="x" style="width:16px;height:16px;"></i> Stop
           </button>
         </div>
-        <div id="camera-detection-result" style="margin-top:12px;display:none;font-size:0.85rem;font-weight:700;"></div>
+        <div id="camera-detection-result" style="margin-top:8px;display:none;font-size:0.75rem;font-weight:600;"></div>
       </div>
     `;
     document.body.appendChild(overlay);
     if (window.lucide) window.lucide.createIcons();
 
-    const video = document.getElementById('camera-feed') as HTMLVideoElement;
-    const captureBtn = document.getElementById('btn-cam-capture');
+    const video = document.getElementById('camera-feed');
     const closeBtn = document.getElementById('btn-cam-close');
-    const resultDiv = document.getElementById('camera-detection-result');
     const overlayBoxes = document.getElementById('camera-detection-overlay');
+    const detectCount = document.getElementById('cam-detect-count');
+    const liveDot = document.getElementById('cam-live-dot');
 
-    let stream: MediaStream | null = null;
+    let stream = null;
+    let detecting = false;
+    let frameTimer = null;
+    let totalDetected = 0;
+    let lastAutoUpload = 0;
 
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } });
       video.srcObject = stream;
       await video.play();
     } catch (err) {
-      resultDiv.style.display = 'block';
-      resultDiv.innerHTML = '<span style="color:var(--danger);">❌ Gagal membuka kamera. Izinkan akses kamera di browser.</span>';
+      const resultDiv = document.getElementById('camera-detection-result');
+      if (resultDiv) { resultDiv.style.display = 'block'; resultDiv.innerHTML = '<span style="color:var(--danger);">❌ Gagal membuka kamera. Izinkan akses kamera di browser.</span>'; }
+      return;
     }
 
-    // Capture & detect
-    captureBtn?.addEventListener('click', async () => {
-      if (!stream || !video.videoWidth) return;
-      captureBtn.disabled = true;
-      captureBtn.innerHTML = '<span class="status-pulse-dot" style="width:8px;height:8px;background:white;border-radius:50%;display:inline-block;margin-right:6px;"></span> Mendeteksi...';
+    // Tunggu video benar-benar siap
+    await new Promise(r => { if (video.videoWidth) r(); else video.onloadedmetadata = r; });
 
-      // Capture frame ke canvas
+    // ── Live continuous detection ──
+    const processFrame = async () => {
+      if (detecting || !stream || !video.videoWidth) return;
+      detecting = true;
+
       const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d')!;
+      const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-
-      // Convert dataUrl ke Blob
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
       const blob = await (await fetch(dataUrl)).blob();
       const formData = new FormData();
-      formData.append('file', blob, 'camera_capture.jpg');
+      formData.append('file', blob, 'frame.jpg');
 
       try {
         const res = await fetch('/api/detect-preview', { method: 'POST', body: formData, credentials: 'include' });
         const data = await res.json();
 
-        if (data.success && data.boxes?.length > 0) {
-          // Render bounding boxes
-          overlayBoxes!.innerHTML = data.boxes.map((b: any) => `
-            <div style="position:absolute;top:${b.y}%;left:${b.x}%;width:${b.w}%;height:${b.h}%;border:2px solid ${b.label === 'person' ? '#10B981' : '#EF4444'};background:${b.label === 'person' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)'};border-radius:4px;display:flex;align-items:flex-end;justify-content:flex-start;">
-              <span style="background:${b.label === 'person' ? '#10B981' : '#EF4444'};color:white;font-size:9px;font-weight:800;padding:1px 5px;border-radius:0 4px 0 0;">${b.label} ${b.confidence}%</span>
-            </div>
-          `).join('');
+        if (data.success) {
+          if (data.boxes?.length > 0) {
+            // Render bounding boxes langsung di video
+            overlayBoxes.innerHTML = data.boxes.map(b => `
+              <div style="position:absolute;top:${b.y}%;left:${b.x}%;width:${b.w}%;height:${b.h}%;border:2px solid ${b.label === 'person' ? '#10B981' : '#EF4444'};background:${b.label === 'person' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)'};border-radius:4px;display:flex;align-items:flex-end;justify-content:flex-start;">
+                <span style="background:${b.label === 'person' ? '#10B981' : '#EF4444'};color:white;font-size:9px;font-weight:800;padding:1px 5px;border-radius:0 4px 0 0;">${b.label} ${b.confidence}%</span>
+              </div>`).join('');
 
-          resultDiv.style.display = 'block';
-          resultDiv.innerHTML = `<span style="color:${data.aiStatus === 'Indikasi Sedang' || data.aiStatus === 'Indikasi Tinggi' ? 'var(--danger)' : 'var(--success)'};">✅ AI: ${data.aiStatus} — ${data.totalDetections} objek terdeteksi</span>`;
+            const hasPerson = data.boxes.some(b => b.label === 'person');
+            if (hasPerson) {
+              totalDetected++;
+              detectCount.textContent = `${totalDetected} person detected`;
+              liveDot.style.background = '#EF4444';
+              liveDot.style.animation = 'pulse-dot 0.6s ease-in-out infinite';
 
-          // Set file ke form untuk upload
-          this.selectedFile = new File([blob], 'camera_capture.jpg', { type: 'image/jpeg' });
-          this.handleFileSelected(this.selectedFile);
-
-          // Tambahin bounding boxes ke preview
-          setTimeout(() => this.injectDetectionBoxes(data.boxes, data.aiStatus, data.totalDetections), 300);
-        } else {
-          resultDiv.style.display = 'block';
-          resultDiv.innerHTML = '<span style="color:var(--text-secondary);">✅ Tidak ada objek terdeteksi. Foto tetap bisa diupload.</span>';
-          this.selectedFile = new File([blob], 'camera_capture.jpg', { type: 'image/jpeg' });
-          this.handleFileSelected(this.selectedFile);
+              // Auto-upload setiap 10 detik (kalo masih ada person)
+              const now = Date.now();
+              if (now - lastAutoUpload > 10_000) {
+                lastAutoUpload = now;
+                const formData2 = new FormData();
+                formData2.append('file', blob, `auto_${Date.now()}.jpg`);
+                formData2.append('location', 'Lokasi tidak diketahui');
+                formData2.append('sourceType', 'AI_CCTV');
+                formData2.append('additionalNotes', 'Auto-capture dari live AI detection');
+                try {
+                  const uploadRes = await fetch('/api/detections', { method: 'POST', body: formData2, credentials: 'include' });
+                  if (uploadRes.ok) {
+                    const newReport = await uploadRes.json();
+                    // Matiin kamera + stop semua track + redirect
+                    if (frameTimer) clearInterval(frameTimer);
+                    detecting = false;
+                    if (stream) stream.getTracks().forEach(t => t.stop());
+                    overlay.remove();
+                    window.location.href = `/dashboard/detections/${newReport.id}`;
+                  }
+                } catch (_) {}
+              }
+            } else {
+              liveDot.style.background = '#10B981';
+              liveDot.style.animation = 'pulse-dot 0.8s ease-in-out infinite';
+            }
+          } else {
+            overlayBoxes.innerHTML = '';
+            liveDot.style.background = '#10B981';
+            liveDot.style.animation = 'pulse-dot 0.8s ease-in-out infinite';
+          }
         }
-      } catch (err) {
-        resultDiv.style.display = 'block';
-        resultDiv.innerHTML = '<span style="color:var(--danger);">❌ Gagal mendeteksi AI. Coba lagi.</span>';
-      }
+      } catch (_) { /* skip frame on error */ }
 
-      captureBtn.disabled = false;
-      captureBtn.innerHTML = '<i data-lucide="camera" style="width:18px;height:18px;"></i> Jepret & Deteksi';
-      if (window.lucide) window.lucide.createIcons();
-    });
+      detecting = false;
+    };
 
-    // Close
+    // Mulai continuous detection setiap 3 detik
+    frameTimer = setInterval(processFrame, 3000);
+    // Langsung jalanin sekali pas buka
+    setTimeout(processFrame, 500);
+
+    // Stop
     const doClose = () => {
-      if (stream) { stream.getTracks().forEach(t => t.stop()); }
+      if (frameTimer) clearInterval(frameTimer);
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      detecting = false;
       overlay.remove();
     };
     closeBtn?.addEventListener('click', doClose);
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) doClose(); });
+    overlay.addEventListener('click', e => { if (e.target === overlay) doClose(); });
   }
 
-  injectDetectionBoxes(boxes: any[], aiStatus: string, total: number) {
+  injectDetectionBoxes(boxes, aiStatus, total) {
     const preview = document.getElementById('file-preview');
     if (!preview || boxes.length === 0) return;
     // Tambah overlay bounding box + status bar di preview
@@ -326,7 +363,7 @@ export class UploadPage {
     `;
     preview.appendChild(statusBar);
 
-    boxes.forEach((b: any) => {
+    boxes.forEach((b) => {
       const box = document.createElement('div');
       box.style.cssText = `position:absolute;top:${b.y}%;left:${b.x}%;width:${b.w}%;height:${b.h}%;border:2px solid ${b.label === 'person' ? '#10B981' : '#EF4444'};background:${b.label === 'person' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'};border-radius:3px;pointer-events:none;z-index:5;display:flex;align-items:flex-end;`;
       box.innerHTML = `<span style="background:${b.label === 'person' ? '#10B981' : '#EF4444'};color:white;font-size:8px;font-weight:800;padding:1px 4px;border-radius:0 3px 0 0;">${b.label} ${b.confidence}%</span>`;

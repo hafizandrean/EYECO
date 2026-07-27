@@ -402,10 +402,8 @@ def infer_image(
             proc_h, proc_w = img_h, img_w  # fallback: raw path, gak ada preprocessing
 
         # ── Model 1: COCO (yolov8n.pt) untuk objek general ──
-        # Conf 0.20 — naikin dari 0.15 karena noise terlalu banyak (potted plant, food wrapper di kepala)
-        # Motorcycle di 0.45 masih aman, handbag di 0.13 memang hilang tapi gak esensial
-        # Custom model tetap di 0.15 untuk tangkap sampah kecil
-        coco_conf = 0.20
+        # Conf mengikuti threshold utama biar konsisten (kecil = tangkap bottle/cup/person)
+        coco_conf = conf_threshold
         coco_dets = run_coco_inference(processed_img, iou_threshold, coco_conf)
 
         # ── Model 2: Custom (best.pt) untuk sampah spesifik ──

@@ -649,11 +649,12 @@ export class DetailPage {
         overlayEl.innerHTML = calibratedHtml;
       };
 
-      if (img) {
-        if (img.complete) calibrateBoxes();
-        else img.addEventListener('load', calibrateBoxes);
+      const imgEl = document.getElementById('detail-evidence-image');
+      if (imgEl) {
+        if (imgEl.complete) calibrateBoxes();
+        else imgEl.addEventListener('load', calibrateBoxes);
         window.addEventListener('resize', calibrateBoxes);
-      };
+      }
 
       const exportPdfBtn = document.getElementById('btn-detail-export-pdf');
       if (exportPdfBtn) {

@@ -709,9 +709,9 @@ router.post('/detect-preview', upload.single('file'), async (req, res) => {
         if (!req.file)
             return res.status(400).json({ error: 'File gambar wajib diupload' });
         const uploadedFilePath = path_1.default.join(__dirname, '../../public/uploads', req.file.filename);
-        // Jalankan AI detection via detectFile (kembaliin AiStatusResult)
+        // Gunakan YOLOv8n (COCO) untuk preview — mendeteksi 80 class termasuk bottle, cup, phone
         const { detectFile } = require('../services/aiDetection.service');
-        const result = await detectFile(uploadedFilePath);
+        const result = await detectFile(uploadedFilePath, { model: 'yolov8n.pt', conf: 0.05 });
         // Hapus file temp
         try {
             fs_1.default.unlinkSync(uploadedFilePath);
@@ -722,15 +722,15 @@ router.post('/detect-preview', upload.single('file'), async (req, res) => {
             confidence: b.confidence,
             x: b.x, y: b.y, w: b.w, h: b.h,
         }));
+        // Person detection for auto-upload trigger & status
         const personBoxes = boxes.filter((b) => ['person', 'cctv persons', 'people'].includes(b.label.toLowerCase()));
-        const trashBoxes = boxes.filter((b) => !['person', 'cctv persons', 'people'].includes(b.label.toLowerCase()));
         let aiStatus = 'Tidak Terindikasi';
-        if (personBoxes.length > 0 && trashBoxes.length === 0)
-            aiStatus = 'Tidak Terindikasi';
-        else if (personBoxes.length > 0 && trashBoxes.length > 0)
-            aiStatus = 'Indikasi Sedang';
-        else if (personBoxes.length === 0 && trashBoxes.length > 0)
+        if (boxes.length > 0 && personBoxes.length === 0)
             aiStatus = 'Indikasi Rendah';
+        else if (personBoxes.length > 0 && boxes.length > personBoxes.length)
+            aiStatus = 'Indikasi Sedang';
+        else if (personBoxes.length > 0)
+            aiStatus = 'Tidak Terindikasi';
         res.json({
             success: true,
             boxes,
