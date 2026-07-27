@@ -186,11 +186,18 @@ export class DetailPage {
       const boxes = (report.boundingBoxes && Array.isArray(report.boundingBoxes)) ? report.boundingBoxes : [];
 
       boxes.forEach(box => {
-        let boxColorClass = 'yolo-trash';
         const lbl = (box.label || '').toLowerCase();
-        if (lbl.includes('person') || lbl.includes('orang')) boxColorClass = 'yolo-person';
-        if (lbl.includes('trash') || lbl.includes('sampah')) boxColorClass = 'yolo-trash';
-        if (lbl.includes('boat') || lbl.includes('perahu')) boxColorClass = 'yolo-boat';
+        const trashKeywords = ['trash', 'sampah', 'plastic', 'bottle', 'bag', 'wrapper', 'pack', 'cup', 'can', 'paper', 'waste', 'litter'];
+        const isTrash = trashKeywords.some(k => lbl.includes(k));
+
+        let boxColorClass = 'yolo-default';
+        if (lbl.includes('person') || lbl.includes('orang')) {
+          boxColorClass = 'yolo-person';
+        } else if (lbl.includes('boat') || lbl.includes('perahu')) {
+          boxColorClass = 'yolo-boat';
+        } else if (isTrash && report.aiStatus !== 'Tidak Terindikasi') {
+          boxColorClass = 'yolo-trash';
+        }
 
         const confVal = typeof box.confidence === 'number' ? (box.confidence > 1 ? (box.confidence / 100).toFixed(2) : box.confidence.toFixed(2)) : '0.92';
 
@@ -209,8 +216,8 @@ export class DetailPage {
           <!-- Image Bounding Box Canvas -->
           <div class="glass-card" style="padding: var(--space-16); border-radius: var(--radius-card); position: relative; display:flex; flex-direction:column; align-items:center;">
             <div class="image-canvas-container" style="position: relative; width: 100%; min-height: 350px; max-height: 540px; overflow: hidden; border-radius: 12px; background: rgba(15, 23, 42, 0.95); display:flex; align-items:center; justify-content:center;">
-              <div id="image-box-wrapper" style="position: relative; display: inline-block; width: 100%; height: 100%;">
-                <img id="detail-evidence-image" src="${report.image}" alt="Laporan Foto" style="display: block; width: 100%; height: 520px; object-fit: contain; transition: transform 0.25s ease;">
+              <div id="image-box-wrapper" style="position: relative; display: inline-block; max-width: 100%; max-height: 100%;">
+                <img id="detail-evidence-image" src="${report.image}" alt="Laporan Foto" style="display: block; max-width: 100%; max-height: 520px; width: auto; height: auto; transition: transform 0.25s ease;">
                 <div id="yolo-boxes-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
                   ${initialBoxesHtml}
                 </div>
@@ -584,68 +591,20 @@ export class DetailPage {
 
       // Image zoom & print listeners
       const zoomBtn = document.getElementById('btn-detail-zoom');
-      const img = document.getElementById('detail-evidence-image');
-      if (zoomBtn && img) {
+      const wrapper = document.getElementById('image-box-wrapper');
+      if (zoomBtn && wrapper) {
         let scaled = false;
         zoomBtn.onclick = () => {
           scaled = !scaled;
-          img.style.transform = scaled ? 'scale(1.5)' : 'scale(1)';
-          img.style.zIndex = scaled ? '20' : '1';
+          wrapper.style.transform = scaled ? 'scale(1.5)' : 'scale(1)';
+          wrapper.style.zIndex = scaled ? '20' : '1';
+          wrapper.style.transition = 'transform 0.25s ease';
           zoomBtn.innerHTML = scaled 
             ? `<i data-lucide="zoom-out" style="width:14px; height:14px;"></i> Zoom Out` 
             : `<i data-lucide="zoom-in" style="width:14px; height:14px;"></i> Zoom`;
           if (window.lucide) window.lucide.createIcons();
         };
       }
-
-      // Calibrate bounding boxes for exact pixel alignment on image
-      const calibrateBoxes = () => {
-        const imgEl = document.getElementById('detail-evidence-image');
-        const overlayEl = document.getElementById('yolo-boxes-overlay');
-        if (!imgEl || !overlayEl) return;
-
-        const nw = imgEl.naturalWidth;
-        const nh = imgEl.naturalHeight;
-        const cw = imgEl.clientWidth;
-        const ch = imgEl.clientHeight;
-        if (!nw || !nh || !cw || !ch) return;
-
-        const scale = Math.min(cw / nw, ch / nh);
-        const rw = nw * scale;
-        const rh = nh * scale;
-        const offsetX = (cw - rw) / 2;
-        const offsetY = (ch - rh) / 2;
-
-        let calibratedHtml = '';
-        boxes.forEach(box => {
-          let boxColorClass = 'yolo-trash';
-          const lbl = (box.label || '').toLowerCase();
-          if (lbl.includes('person') || lbl.includes('orang')) boxColorClass = 'yolo-person';
-          if (lbl.includes('trash') || lbl.includes('sampah')) boxColorClass = 'yolo-trash';
-          if (lbl.includes('boat') || lbl.includes('perahu')) boxColorClass = 'yolo-boat';
-
-          const confVal = typeof box.confidence === 'number' ? (box.confidence > 1 ? (box.confidence / 100).toFixed(2) : box.confidence.toFixed(2)) : '0.92';
-
-          const leftPx = offsetX + (box.x / 100) * rw;
-          const topPx = offsetY + (box.y / 100) * rh;
-          const widthPx = (box.w / 100) * rw;
-          const heightPx = (box.h / 100) * rh;
-
-          calibratedHtml += `
-            <div class="yolo-preview-box ${boxColorClass}" style="position: absolute; top: ${topPx}px; left: ${leftPx}px; width: ${widthPx}px; height: ${heightPx}px;">
-              <span class="yolo-preview-label">${box.label.toUpperCase()} ${confVal}</span>
-            </div>
-          `;
-        });
-
-        overlayEl.innerHTML = calibratedHtml;
-      };
-
-      if (img) {
-        if (img.complete) calibrateBoxes();
-        else img.addEventListener('load', calibrateBoxes);
-        window.addEventListener('resize', calibrateBoxes);
-      };
 
       const printBtn = document.getElementById('btn-detail-print');
       if (printBtn) {

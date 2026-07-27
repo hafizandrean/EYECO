@@ -6,6 +6,9 @@
  * to prevent false positives (e.g. 'handbag' should NOT match 'bag').
  */
 
+import fs from 'fs';
+import path from 'path';
+
 export interface TrashCategoryInfo {
   id: string;
   label: string;
@@ -111,6 +114,13 @@ export function isTrashClass(rawClass: string): boolean {
 
   // Fast-path: exact match on safe classes
   if (SAFE_CLASSES.has(cls)) return false;
+
+  // In fallback mode, ignore generic everyday objects (bottle, cup, bowl, vase, etc.)
+  const isFallback = !fs.existsSync(path.join(process.cwd(), 'ai/models/best.pt'));
+  if (isFallback) {
+    const genericEverydayClasses = new Set(['bottle', 'cup', 'bowl', 'vase', 'backpack', 'handbag', 'suitcase', 'tie', 'book']);
+    if (genericEverydayClasses.has(cls)) return false;
+  }
 
   // Word-boundary match against trash keywords
   const clsWords = words(cls);

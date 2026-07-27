@@ -3336,6 +3336,11 @@ body.dark-mode .news-mcard-body p {
   background: rgba(6, 182, 212, 0.15);
 }
 
+.yolo-preview-box.yolo-default {
+  border-color: #64748b;
+  background: rgba(100, 116, 139, 0.15);
+}
+
 .yolo-preview-label {
   position: absolute;
   top: -24px;
@@ -3364,6 +3369,10 @@ body.dark-mode .news-mcard-body p {
 
 .yolo-boat .yolo-preview-label {
   background: #0891b2;
+}
+
+.yolo-default .yolo-preview-label {
+  background: #64748b;
 }
 
 /* Fullscreen VMS Command Center Container (Images 2 & 3) */

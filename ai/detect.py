@@ -368,6 +368,11 @@ def infer_image(
     start = time.time()
     import cv2
 
+    def is_person(cls_name: str) -> bool:
+        cls_lower = cls_name.lower()
+        person_variants = ['person', 'people', 'sitting', 'standing', 'fall-detected', 'orang']
+        return any(v in cls_lower for v in person_variants)
+
     try:
         # ── Blur score dari gambar asli (sebelum preprocessing) ──
         raw_img = cv2.imread(source_path)
@@ -450,7 +455,7 @@ def infer_image(
 
         # ── Hand Region Re-Detection ──
         processed_np = processed_img if isinstance(processed_img, np.ndarray) else cv2.imread(source_path)
-        hand_boxes = [d["bbox"] for d in final if 'person' in d["class"].lower()]
+        hand_boxes = [d["bbox"] for d in final if is_person(d["class"])]
         # Get COCO model for hand region
         coco_model, coco_names = get_coco_model()
         for hdet in hand_region_detection(processed_np, hand_boxes, model, coco_model, class_names, coco_names, iou_threshold):
@@ -465,8 +470,8 @@ def infer_image(
         # ── STEP 1: Person Aggressive NMS ──
         # Merge all overlapping person boxes (COCO person + custom person variants)
         # Person class bbox sering ganda dari dual model, merge agresif
-        person_dets = [d for d in final if 'person' in d["class"].lower()]
-        non_person_dets = [d for d in final if 'person' not in d["class"].lower()]
+        person_dets = [d for d in final if is_person(d["class"])]
+        non_person_dets = [d for d in final if not is_person(d["class"])]
         persons_merged = []
         for d in person_dets:
             is_dup = False
@@ -483,12 +488,17 @@ def infer_image(
                     inter = (ix2 - ix1) * (iy2 - iy1)
                     marea = (mx2 - mx1) * (my2 - my1)
                     iou = inter / (darea + marea - inter + 1e-6)
-                    # Merge jika IOU > 0.25 ATAU center distance < 30% dari bbox terbesar
+                    
+                    # Tambahan: Hitung rasio overlap terhadap luas kotak terkecil (handle containment)
+                    min_area = min(darea, marea)
+                    overlap_ratio = inter / (min_area + 1e-6)
+                    
+                    # Merge jika IOU > 0.15 ATAU salah satu kotak berada di dalam kotak lain (>50% overlap) ATAU center distance < 35%
                     mcx = (mx1 + mx2) / 2
                     mcy = (my1 + my2) / 2
                     mh = max(my2 - my1, dy2 - dy1)
                     center_dist = ((dcx - mcx)**2 + (dcy - mcy)**2)**0.5
-                    if iou > 0.25 or center_dist < mh * 0.3:
+                    if iou > 0.15 or overlap_ratio > 0.50 or center_dist < mh * 0.35:
                         if d['confidence'] > m['confidence']:
                             m['bbox'] = d['bbox']
                             m['confidence'] = d['confidence']
@@ -509,7 +519,7 @@ def infer_image(
         # Food wrapper / trash kecil di upper 38% person bbox = false positive (rambut/kepala)
         person_bboxes_upper = []
         for d in final:
-            if 'person' in d["class"].lower():
+            if is_person(d["class"]):
                 x1, y1, x2, y2 = d["bbox"]
                 ph = y2 - y1
                 person_bboxes_upper.append((x1, y1, x2, y1 + ph * 0.38))
@@ -517,7 +527,7 @@ def infer_image(
             filtered_upper = []
             for d in final:
                 cls_lower = d["class"].lower()
-                if 'person' in cls_lower:
+                if is_person(cls_lower):
                     filtered_upper.append(d)
                     continue
                 dx = (d["bbox"][0] + d["bbox"][2]) / 2
@@ -619,19 +629,29 @@ def infer_image(
         # Hapus yang di-mark __skip__
         final = [d for d in final if d.get("class") != "__skip__"]
 
-        # ── STEP 6: Minimum Confidence Floor ──
-        # Person: skip yang terlalu noise (< 0.25) kecuali di scene crowded (>4 person)
-        # Non-person: minimum 0.25 (COCO conf 0.15 terlalu rendah)
-        PERSON_MIN_CONF = 0.25
-        NON_PERSON_MIN_CONF = 0.25
-        person_count = len([d for d in final if 'person' in d["class"].lower()])
-        # Kalo scene crowded (>4 person), turunin threshold biar gak kehilangan real person
-        person_conf_threshold = PERSON_MIN_CONF if person_count <= 4 else 0.15
-        final = [
-            d for d in final
-            if ('person' in d["class"].lower() and d["confidence"] >= person_conf_threshold)
-            or ('person' not in d["class"].lower() and d["confidence"] >= NON_PERSON_MIN_CONF)
-        ]
+        # ── STEP 6: Minimum Confidence Floor & Size Filter ──
+        # Person: skip yang terlalu noise (< 0.35) kecuali di scene crowded (>6 person)
+        # Non-person: minimum 0.40 untuk kurangi false alarm pada baju/background
+        PERSON_MIN_CONF = 0.35
+        NON_PERSON_MIN_CONF = 0.40
+        person_count = len([d for d in final if is_person(d["class"])])
+        # Kalo scene crowded (>6 person), turunin threshold biar gak kehilangan real person
+        person_conf_threshold = PERSON_MIN_CONF if person_count <= 6 else 0.30
+        
+        filtered_final = []
+        for d in final:
+            x1, y1, x2, y2 = d["bbox"]
+            bw_pct = (x2 - x1) / proc_w * 100
+            bh_pct = (y2 - y1) / proc_h * 100
+            
+            if is_person(d["class"]):
+                # Filter person: minimal threshold confidence DAN ukuran w >= 4%, h >= 8%
+                if d["confidence"] >= person_conf_threshold and bw_pct >= 4.0 and bh_pct >= 8.0:
+                    filtered_final.append(d)
+            else:
+                if d["confidence"] >= NON_PERSON_MIN_CONF:
+                    filtered_final.append(d)
+        final = filtered_final
 
         elapsed = round((time.time() - start) * 1000, 2)
 

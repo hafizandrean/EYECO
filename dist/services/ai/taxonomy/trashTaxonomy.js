@@ -6,10 +6,15 @@
  * Uses word-boundary matching: class label is split into individual words
  * to prevent false positives (e.g. 'handbag' should NOT match 'bag').
  */
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TRASH_TAXONOMY_GROUPS = exports.MVP_TRASH_CLASSES = void 0;
 exports.isTrashClass = isTrashClass;
 exports.mapToTrashTaxonomy = mapToTrashTaxonomy;
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
 // 6 Core MVP Classes
 exports.MVP_TRASH_CLASSES = {
     plastic_bottle: { id: 'plastic_bottle', label: 'Plastic Bottle', categoryGroup: 'Plastik', isMvpClass: true },
@@ -102,6 +107,13 @@ function isTrashClass(rawClass) {
     // Fast-path: exact match on safe classes
     if (SAFE_CLASSES.has(cls))
         return false;
+    // In fallback mode, ignore generic everyday objects (bottle, cup, bowl, vase, etc.)
+    const isFallback = !fs_1.default.existsSync(path_1.default.join(process.cwd(), 'ai/models/best.pt'));
+    if (isFallback) {
+        const genericEverydayClasses = new Set(['bottle', 'cup', 'bowl', 'vase', 'backpack', 'handbag', 'suitcase', 'tie', 'book']);
+        if (genericEverydayClasses.has(cls))
+            return false;
+    }
     // Word-boundary match against trash keywords
     const clsWords = words(cls);
     return clsWords.some(w => TRASH_KEYWORDS.has(w));
