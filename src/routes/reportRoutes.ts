@@ -86,15 +86,28 @@ router.get('/detections', async (req, res) => {
       aiStatus: req.query.aiStatus as string,
       adminStatus: req.query.adminStatus as string,
       location: req.query.location as string,
+      myReports: req.query.myReports === 'true' ? true : false,
     };
 
     const result = await ReportRepository.getFiltered(filters, userContext, page, limit);
 
     if (!result || !('reports' in result)) return res.status(500).json({ error: 'Gagal memproses data laporan' });
 
+    // Inject canDelete flag per report
+    const TEN_MINUTES = 10 * 60 * 1000;
+    const userObjectId = user ? ((user as any)._id?.toString() || '') : '';
+    const reportsWithFlags = (result.reports as any[]).map(r => {
+      const plain = typeof r.toObject === 'function' ? r.toObject() : r;
+      const repCreatedAt = plain.createdAt || plain.timestamp;
+      const canDelete = !!userObjectId && plain.userId
+        && plain.userId.toString() === userObjectId
+        && repCreatedAt && (Date.now() - new Date(repCreatedAt).getTime()) < TEN_MINUTES;
+      return { ...plain, canDelete };
+    });
+
     const totalPages = Math.ceil(result.total / limit) || 1;
     res.json({
-      reports: result.reports,
+      reports: reportsWithFlags,
       pagination: {
         page,
         limit,
@@ -133,6 +146,14 @@ router.get('/detections/:id', async (req, res) => {
       }
       responseReport.image = img;
     }
+
+    // Add canDelete flag: owner within 10 min
+    const TEN_MINUTES = 10 * 60 * 1000;
+    const repCreatedAt = report.createdAt || report.timestamp;
+    const canDelete = user && report.userId
+      && report.userId.toString() === (user as any)._id?.toString()
+      && repCreatedAt && (Date.now() - new Date(repCreatedAt).getTime()) < TEN_MINUTES;
+    responseReport.canDelete = !!canDelete;
 
     if (user && (user.role === 'admin' || user.role === 'superadmin')) {
       const uploader = await UserModel.findOne({ _id: report.userId as any }).select('username name avatar email phone').lean().exec();
@@ -409,7 +430,7 @@ router.post('/detections', (req, res, next) => {
       {
         $set: {
           aiStatus: aiAnalysis.decision.status,
-          aiConfidence: aiAnalysis.decision.objectConfidence,
+          aiConfidence: aiAnalysis.decision.decisionConfidence,
           violationScore: aiAnalysis.decision.violationScore,
           objectConfidence: aiAnalysis.decision.objectConfidence,
           sceneConfidence: aiAnalysis.decision.sceneConfidence,
@@ -563,9 +584,42 @@ router.delete('/clear-all', async (req, res) => {
       return res.status(400).json({ error: 'Tidak ada workspace aktif' });
     }
 
+    // 1. Ambil semua laporan yang akan dihapus (dapatkan path gambar)
+    const reports = await ReportModel.find({ workspaceId: user.workspaceId })
+      .select('image')
+      .lean()
+      .exec();
+    const imagePaths = reports
+      .map(r => r.image)
+      .filter(img => img && img.startsWith('/uploads/'));
+
+    // 2. Hapus file gambar dari disk
+    const uploadDir = path.join(__dirname, '../../public');
+    let deletedFiles = 0;
+    let failedFiles = 0;
+    for (const imgPath of imagePaths) {
+      const fullPath = path.join(uploadDir, imgPath);
+      try {
+        if (fs.existsSync(fullPath)) {
+          fs.unlinkSync(fullPath);
+          deletedFiles++;
+        }
+      } catch (fileErr) {
+        failedFiles++;
+        console.error(`[ADMIN] Gagal hapus file: ${imgPath}`, fileErr);
+      }
+    }
+
+    // 3. Hapus semua record dari database (hard delete permanent)
     const result = await ReportModel.deleteMany({ workspaceId: user.workspaceId });
-    console.log(`[ADMIN] Cleared ${result.deletedCount} reports from workspace ${user.workspaceId}`);
-    res.json({ success: true, deleted: result.deletedCount });
+
+    console.log(`[ADMIN] Cleared ${result.deletedCount} reports + ${deletedFiles} files from workspace ${user.workspaceId}${failedFiles > 0 ? ` (${failedFiles} file gagal dihapus)` : ''}`);
+    res.json({
+      success: true,
+      deleted: result.deletedCount,
+      filesDeleted: deletedFiles,
+      filesFailed: failedFiles
+    });
   } catch (err) {
     console.error('[SERVER ERROR] Clear all reports failed:', err);
     res.status(500).json({ error: 'Internal Server Error' });

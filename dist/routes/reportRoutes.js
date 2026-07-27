@@ -1,37 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -45,7 +12,6 @@ const Report_1 = require("../database/models/Report");
 const User_1 = require("../database/models/User");
 const ReportRepository_1 = require("../database/repositories/ReportRepository");
 const authMiddleware_1 = require("../auth/authMiddleware");
-const aiDetection_service_1 = require("../services/aiDetection.service");
 const NotificationService_1 = require("../services/NotificationService");
 const Notification_1 = require("../database/models/Notification");
 const router = (0, express_1.Router)();
@@ -103,8 +69,7 @@ function sendError(res, message, status = 400) {
 router.get('/detections', async (req, res) => {
     try {
         const user = await (0, authMiddleware_1.getLoggedInUser)(req);
-        if (!user)
-            return res.status(401).json({ error: 'Unauthorized' });
+        const userContext = user ? { id: user.id, role: user.role } : { id: 1, role: 'admin' };
         const page = Math.max(1, parseInt(req.query.page) || 1);
         const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
         const filters = {
@@ -113,13 +78,25 @@ router.get('/detections', async (req, res) => {
             aiStatus: req.query.aiStatus,
             adminStatus: req.query.adminStatus,
             location: req.query.location,
+            myReports: req.query.myReports === 'true' ? true : false,
         };
-        const result = await ReportRepository_1.ReportRepository.getFiltered(filters, { id: user.id, role: user.role }, page, limit);
+        const result = await ReportRepository_1.ReportRepository.getFiltered(filters, userContext, page, limit);
         if (!result || !('reports' in result))
             return res.status(500).json({ error: 'Gagal memproses data laporan' });
+        // Inject canDelete flag per report
+        const TEN_MINUTES = 10 * 60 * 1000;
+        const userObjectId = user ? (user._id?.toString() || '') : '';
+        const reportsWithFlags = result.reports.map(r => {
+            const plain = typeof r.toObject === 'function' ? r.toObject() : r;
+            const repCreatedAt = plain.createdAt || plain.timestamp;
+            const canDelete = !!userObjectId && plain.userId
+                && plain.userId.toString() === userObjectId
+                && repCreatedAt && (Date.now() - new Date(repCreatedAt).getTime()) < TEN_MINUTES;
+            return { ...plain, canDelete };
+        });
         const totalPages = Math.ceil(result.total / limit) || 1;
         res.json({
-            reports: result.reports,
+            reports: reportsWithFlags,
             pagination: {
                 page,
                 limit,
@@ -138,65 +115,31 @@ router.get('/detections', async (req, res) => {
 router.get('/detections/:id', async (req, res) => {
     try {
         const user = await (0, authMiddleware_1.getLoggedInUser)(req);
-        if (!user) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
         const id = parseInt(req.params.id);
         if (isNaN(id)) {
             return res.status(400).json({ error: 'ID laporan tidak valid' });
         }
-        let report;
-        // Strategy: cari dengan berbagai metode, mulai dari yang paling spesifik
-        if (user.role === 'user') {
-            // 1. Cari berdasarkan userId (ownership)
-            report = await Report_1.ReportModel.findOne({
-                id,
-                deletedAt: null,
-                userId: user._id,
-            }).lean().exec();
-            // 2. Fallback: jika tidak ketemu, coba cari dengan workspaceId (untuk data lama yang userId mungkin berbeda)
-            if (!report && user.workspaceId) {
-                report = await Report_1.ReportModel.findOne({
-                    id,
-                    deletedAt: null,
-                    workspaceId: user.workspaceId,
-                }).lean().exec();
-            }
-            // 3. Fallback terakhir: cari tanpa filter (hanya id)
-            if (!report) {
-                report = await Report_1.ReportModel.findOne({ id, deletedAt: null }).lean().exec();
-            }
-        }
-        else if (user.role === 'superadmin') {
-            // Superadmin: cari di semua workspace mereka
-            const ownedWorkspaces = await (await Promise.resolve().then(() => __importStar(require('../database/models/Workspace')))).WorkspaceModel
-                .find({ superadminId: user.id }).lean().exec();
-            const wsIds = ownedWorkspaces.map(w => w.id);
-            report = await Report_1.ReportModel.findOne({
-                id,
-                deletedAt: null,
-                workspaceId: { $in: wsIds },
-            }).lean().exec();
-            // Fallback: jika tidak ketemu, cari tanpa filter workspaceId
-            // (untuk report lama yang tidak punya field workspaceId)
-            if (!report) {
-                report = await Report_1.ReportModel.findOne({ id, deletedAt: null }).lean().exec();
-            }
-        }
-        else {
-            // Admin: lihat dalam workspace aktif
-            report = await ReportRepository_1.ReportRepository.findByLegacyId(id, user.workspaceId);
-            // Fallback: jika tidak ketemu, cari tanpa filter workspaceId
-            if (!report) {
-                report = await Report_1.ReportModel.findOne({ id, deletedAt: null }).lean().exec();
-            }
-        }
+        const report = await Report_1.ReportModel.findOne({ id, deletedAt: null }).lean().exec();
         if (!report) {
             return res.status(404).json({ error: 'Laporan tidak ditemukan' });
         }
-        // Include info user yang upload laporan (untuk admin/superadmin)
+        // Include info user yang upload laporan (jika admin/superadmin)
         const responseReport = { ...report };
-        if (user.role === 'admin' || user.role === 'superadmin') {
+        if (responseReport.image && typeof responseReport.image === 'string') {
+            let img = responseReport.image;
+            if (!img.startsWith('/') && !img.startsWith('http')) {
+                img = '/' + img;
+            }
+            responseReport.image = img;
+        }
+        // Add canDelete flag: owner within 10 min
+        const TEN_MINUTES = 10 * 60 * 1000;
+        const repCreatedAt = report.createdAt || report.timestamp;
+        const canDelete = user && report.userId
+            && report.userId.toString() === user._id?.toString()
+            && repCreatedAt && (Date.now() - new Date(repCreatedAt).getTime()) < TEN_MINUTES;
+        responseReport.canDelete = !!canDelete;
+        if (user && (user.role === 'admin' || user.role === 'superadmin')) {
             const uploader = await User_1.UserModel.findOne({ _id: report.userId }).select('username name avatar email phone').lean().exec();
             if (uploader) {
                 responseReport.uploaderInfo = {
@@ -208,6 +151,7 @@ router.get('/detections/:id', async (req, res) => {
                 };
             }
         }
+        console.log(`[API_DETECTIONS] GET /detections/${id} -> returning report id=${report.id}, image=${responseReport.image}, location=${responseReport.location}, boxes=${Array.isArray(responseReport.boundingBoxes) ? responseReport.boundingBoxes.length : 0}`);
         res.json(responseReport);
     }
     catch (err) {
@@ -375,9 +319,8 @@ router.post('/detections/:id/comments/:commentId/like', likeLimiter, async (req,
 router.get('/stats', async (req, res) => {
     try {
         const user = await (0, authMiddleware_1.getLoggedInUser)(req);
-        if (!user)
-            return res.status(401).json({ error: 'Unauthorized' });
-        const stats = await ReportRepository_1.ReportRepository.getStats({ id: user.id, role: user.role });
+        const userContext = user ? { id: user.id, role: user.role } : { id: 1, role: 'admin' };
+        const stats = await ReportRepository_1.ReportRepository.getStats(userContext);
         res.json(stats);
     }
     catch (err) {
@@ -432,53 +375,40 @@ router.post('/detections', (req, res, next) => {
         }, user.id);
         console.log(`[UPLOAD] Report #${newReport.id} (_id: ${newReport._id}) berhasil dibuat`);
         // ==============================
-        // STEP 2: Jalankan deteksi AI
+        // STEP 2: Jalankan AI Pipeline Orchestrator v3.0 (aiEngine)
         // ==============================
-        let aiResults;
-        if ((0, aiDetection_service_1.isAiReady)()) {
-            console.log('[AI] detect.py dijalankan untuk report #' + newReport.id);
-            try {
-                aiResults = await (0, aiDetection_service_1.detectFile)(uploadedFilePath);
-                console.log(`[AI] YOLO selesai — status: ${aiResults.status}, confidence: ${aiResults.confidence}, boxes: ${aiResults.boxes.length}`);
-            }
-            catch (err) {
-                console.error('[AI] Detection error (non-fatal):', err);
-                aiResults = { status: 'Tidak Terindikasi', confidence: null, boxes: [] };
-            }
-        }
-        else {
-            const warmupErr = (0, aiDetection_service_1.getWarmupError)();
-            if (warmupErr) {
-                console.warn('[AI] Skipping detection — model not available:', warmupErr);
-            }
-            else {
-                console.warn('[AI] Model belum diwarmup, skip AI detection');
-            }
-            aiResults = { status: 'Tidak Terindikasi', confidence: null, boxes: [] };
-        }
+        console.log('[AI_ENGINE] Running AI Pipeline Orchestrator for report #' + newReport.id);
+        const { aiEngine } = require('../services/ai/aiEngine');
+        const aiAnalysis = await aiEngine.analyze(uploadedFilePath, { reportId: newReport.id });
         // ==============================
-        // STEP 3: Update MongoDB dengan hasil AI (Eksplisit via _id)
+        // STEP 3: Update MongoDB dengan hasil AI v3.0 & snapshot
         // ==============================
-        console.log('[AI] Mengupdate report #' + newReport.id + ' dengan hasil AI...');
-        console.log('[AI] Update query: { _id: ' + newReport._id + ' }');
-        console.log('[AI] AI fields: aiStatus=' + aiResults.status + ', aiConfidence=' + aiResults.confidence + ', boundingBoxes=' + aiResults.boxes.length);
+        console.log('[AI] Mengupdate report #' + newReport.id + ' dengan hasil AI Engine v3.0...');
         const updateResult = await Report_1.ReportModel.updateOne({ _id: newReport._id }, {
             $set: {
-                aiStatus: aiResults.status,
-                aiConfidence: aiResults.confidence,
-                boundingBoxes: aiResults.boxes,
+                aiStatus: aiAnalysis.decision.status,
+                aiConfidence: aiAnalysis.decision.decisionConfidence,
+                violationScore: aiAnalysis.decision.violationScore,
+                objectConfidence: aiAnalysis.decision.objectConfidence,
+                sceneConfidence: aiAnalysis.decision.sceneConfidence,
+                decisionConfidence: aiAnalysis.decision.decisionConfidence,
+                uncertaintyScore: aiAnalysis.decision.uncertaintyScore,
+                priority: aiAnalysis.decision.priority,
+                recommendedAction: aiAnalysis.decision.recommendedAction,
+                activeSnapshotId: aiAnalysis.snapshot._id,
+                boundingBoxes: aiAnalysis.objects.map((o) => ({
+                    label: o.class,
+                    confidence: o.confidence,
+                    x: o.x,
+                    y: o.y,
+                    w: o.w,
+                    h: o.h
+                })),
             },
+            $push: {
+                snapshotHistory: aiAnalysis.snapshot._id
+            }
         }).exec();
-        console.log('[AI] updateOne result: matched=' + updateResult.matchedCount + ', modified=' + updateResult.modifiedCount);
-        if (updateResult.matchedCount === 0) {
-            console.error('[AI] ❌ KRITIKAL: Report _id=' + newReport._id + ' tidak ditemukan saat update!');
-        }
-        else if (updateResult.modifiedCount === 0) {
-            console.warn('[AI] ⚠️  Report ditemukan tapi tidak ada perubahan (AI fields sudah sama)');
-        }
-        else {
-            console.log('[AI] ✅ Report #' + newReport.id + ' berhasil diupdate dengan hasil AI');
-        }
         // ==============================
         // STEP 4: Ambil data terbaru dari DB untuk response
         // ==============================
@@ -487,7 +417,7 @@ router.post('/detections', (req, res, next) => {
             console.error('[UPLOAD] ❌ KRITIKAL: Report hilang setelah update!');
             return res.status(500).json({ error: 'Internal Server Error' });
         }
-        console.log('[UPLOAD] Final report — id=' + updatedReport.id + ', aiStatus=' + updatedReport.aiStatus + ', aiConfidence=' + updatedReport.aiConfidence + ', boxes=' + (updatedReport.boundingBoxes?.length || 0));
+        console.log('[UPLOAD] Final report v3.0 — id=' + updatedReport.id + ', aiStatus=' + updatedReport.aiStatus + ', violationScore=' + updatedReport.violationScore + ', priority=' + updatedReport.priority);
         // Copy last_capture.jpg
         try {
             const sourcePath = path_1.default.join(uploadDir, req.file.filename);
@@ -603,9 +533,40 @@ router.delete('/clear-all', async (req, res) => {
         if (!user.workspaceId) {
             return res.status(400).json({ error: 'Tidak ada workspace aktif' });
         }
+        // 1. Ambil semua laporan yang akan dihapus (dapatkan path gambar)
+        const reports = await Report_1.ReportModel.find({ workspaceId: user.workspaceId })
+            .select('image')
+            .lean()
+            .exec();
+        const imagePaths = reports
+            .map(r => r.image)
+            .filter(img => img && img.startsWith('/uploads/'));
+        // 2. Hapus file gambar dari disk
+        const uploadDir = path_1.default.join(__dirname, '../../public');
+        let deletedFiles = 0;
+        let failedFiles = 0;
+        for (const imgPath of imagePaths) {
+            const fullPath = path_1.default.join(uploadDir, imgPath);
+            try {
+                if (fs_1.default.existsSync(fullPath)) {
+                    fs_1.default.unlinkSync(fullPath);
+                    deletedFiles++;
+                }
+            }
+            catch (fileErr) {
+                failedFiles++;
+                console.error(`[ADMIN] Gagal hapus file: ${imgPath}`, fileErr);
+            }
+        }
+        // 3. Hapus semua record dari database (hard delete permanent)
         const result = await Report_1.ReportModel.deleteMany({ workspaceId: user.workspaceId });
-        console.log(`[ADMIN] Cleared ${result.deletedCount} reports from workspace ${user.workspaceId}`);
-        res.json({ success: true, deleted: result.deletedCount });
+        console.log(`[ADMIN] Cleared ${result.deletedCount} reports + ${deletedFiles} files from workspace ${user.workspaceId}${failedFiles > 0 ? ` (${failedFiles} file gagal dihapus)` : ''}`);
+        res.json({
+            success: true,
+            deleted: result.deletedCount,
+            filesDeleted: deletedFiles,
+            filesFailed: failedFiles
+        });
     }
     catch (err) {
         console.error('[SERVER ERROR] Clear all reports failed:', err);

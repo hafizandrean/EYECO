@@ -3,15 +3,16 @@ import { CctvAdapter } from '../cctv/CctvAdapter';
 import { CctvHealthEngine } from '../cctv/CctvHealthEngine';
 import { CctvScanner } from '../cctv/CctvScanner';
 import { CctvRepository } from '../database/repositories/CctvRepository';
+import { AiPipelineScheduler } from '../cctv/services/AiPipelineScheduler';
+import { AiDetectionModel } from '../database/models/AiDetection';
 import { authMiddleware, getLoggedInUser } from '../auth/authMiddleware';
 import { roleGuard } from '../auth/RoleMiddleware';
-
 const router = Router();
 
 router.get('/', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
-    const workspaceId = user ? (user.role === 'admin' ? undefined : (user.workspaceId || -1)) : undefined;
+    const workspaceId = user ? (user.workspaceId || -1) : -1;
     const cctvs = await CctvRepository.getAll(workspaceId);
     const processed = cctvs.map((c) => {
       const playTarget = CctvAdapter.getPlayTarget(c);
@@ -92,7 +93,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
-    const workspaceId = user ? (user.workspaceId || 1) : 1;
+    const workspaceId = user ? (user.workspaceId || -1) : -1;
 
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: 'ID tidak valid' });
@@ -126,7 +127,7 @@ router.delete('/clear-all', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
-    const workspaceId = user ? (user.workspaceId || 1) : 1;
+    const workspaceId = user ? (user.workspaceId || -1) : -1;
 
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: 'ID tidak valid' });
@@ -159,6 +160,83 @@ router.post('/:id/reconnect', async (req, res) => {
     else res.status(400).json({ error: 'Failed to trigger reconnect' });
   } catch (err) {
     console.error('[SERVER ERROR] POST /api/cctv/:id/reconnect failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// ── Monitoring Endpoints ──
+router.post('/monitoring/start', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.status(401).json({ error: 'Belum masuk' });
+    if (user.role !== 'admin') return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
+    if (!user.workspaceId) return res.status(403).json({ error: 'Admin belum diassign ke workspace' });
+
+    AiPipelineScheduler.start(20000, user.workspaceId);
+    res.json({ success: true, message: 'AI monitoring pipeline started' });
+  } catch (err) {
+    console.error('[SERVER ERROR] POST /monitoring/start failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+router.post('/monitoring/stop', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.status(401).json({ error: 'Belum masuk' });
+    if (user.role !== 'admin') return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
+
+    await AiPipelineScheduler.stop();
+    res.json({ success: true, message: 'AI monitoring pipeline stopped' });
+  } catch (err) {
+    console.error('[SERVER ERROR] POST /monitoring/stop failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+router.get('/monitoring/detections', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.status(401).json({ error: 'Belum masuk' });
+
+    const limit = Math.min(50, parseInt(req.query.limit as string) || 20);
+    const workspaceId = user.workspaceId;
+    
+    // Get camera IDs in this workspace
+    const CctvModel = (await import('../database/models/Cctv')).CctvModel;
+    const camerasInWs = await CctvModel.find({ workspaceId }).select('id').lean().exec();
+    const cameraIds = camerasInWs.map(c => c.id);
+    
+    if (cameraIds.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const detections = await AiDetectionModel.find({ 
+      status: { $in: ['INFERENCED', 'PROMOTED'] },
+      cameraId: { $in: cameraIds }
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean()
+      .exec();
+
+    // Enrich with auto-reported info
+    const enriched = detections.map(d => ({
+      id: d.id,
+      cameraId: d.cameraId,
+      location: d.location,
+      capturedAt: d.capturedAt,
+      confidence: d.confidence,
+      severity: d.severity,
+      status: d.status,
+      autoReported: d.status === 'PROMOTED' && !!d.promotedReportId,
+      promotedReportId: d.promotedReportId || null,
+      createdAt: d.createdAt
+    }));
+
+    res.json({ success: true, data: enriched });
+  } catch (err) {
+    console.error('[SERVER ERROR] GET /monitoring/detections failed:', err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });

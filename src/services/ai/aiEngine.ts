@@ -106,7 +106,15 @@ export class AiEngine {
       poseResult.poses,
       spatialData.relations,
       semanticData,
-      analyzersAvailable
+      analyzersAvailable,
+      yoloResult.qualityStatus ? {
+        blurScore: yoloResult.blurScore ?? 0,
+        brightnessScore: 80,
+        resolutionAdequate: true,
+        qualityStatus: yoloResult.qualityStatus === 'BLURRY' ? 'POOR'
+          : yoloResult.qualityStatus === 'LOW' ? 'ACCEPTABLE'
+          : 'GOOD',
+      } : undefined
     );
 
     // 6. Layer 3 — Decision Engine (Strategy Pattern + Policy Validation)

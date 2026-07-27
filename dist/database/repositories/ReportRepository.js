@@ -24,7 +24,7 @@ class ReportRepository {
         return report;
     }
     static async update(id, updateData, session) {
-        const options = { new: true, runValidators: true };
+        const options = { new: true, returnDocument: 'after', runValidators: true };
         if (session) {
             Object.assign(options, { session });
         }
@@ -32,7 +32,7 @@ class ReportRepository {
         return report;
     }
     static async softDelete(id, actorId, actorName, reason, session) {
-        const options = { new: true };
+        const options = { new: true, returnDocument: 'after' };
         if (session) {
             Object.assign(options, { session });
         }
@@ -47,7 +47,7 @@ class ReportRepository {
         return report;
     }
     static async restore(id, reason, session) {
-        const options = { new: true };
+        const options = { new: true, returnDocument: 'after' };
         if (session) {
             Object.assign(options, { session });
         }
@@ -122,9 +122,12 @@ class ReportRepository {
             // Auto-delete 40 days after validation: set scheduledDeletionAt when VALID or DIABAIKAN
             if (status === 'VALID' || status === 'DIABAIKAN') {
                 updateFields.scheduledDeletionAt = new Date(Date.now() + 40 * 24 * 60 * 60 * 1000);
+                // Catat waktu verifikasi (untuk review duration)
+                updateFields.verifiedAt = new Date();
             }
             else {
                 updateFields.scheduledDeletionAt = null;
+                updateFields.verifiedAt = null;
             }
             const query = { id };
             if (workspaceId !== undefined)
@@ -142,16 +145,16 @@ class ReportRepository {
             const query = { deletedAt: null };
             if (userContext.role === 'admin') {
                 const user = await User_1.UserModel.findOne({ id: userContext.id }).lean().exec();
-                if (user && user.workspaceId) {
-                    query.workspaceId = user.workspaceId;
+                const wsId = user?.workspaceId;
+                if (wsId) {
+                    query.workspaceId = wsId;
                 }
                 else {
-                    // If no workspace is selected or found, return empty results
-                    query.workspaceId = -1;
+                    query.workspaceId = -1; // No workspace assigned = no results
                 }
             }
-            else if (userContext.role === 'user') {
-                // User sees all reports in their workspace
+            else if (userContext.role === 'user' || userContext.role === 'operator') {
+                // User/Operator sees all non-deleted reports in their workspace
                 const user = await User_1.UserModel.findOne({ id: userContext.id }).lean().exec();
                 if (user && user.workspaceId) {
                     query.workspaceId = user.workspaceId;
@@ -162,10 +165,14 @@ class ReportRepository {
                 query.sourceType = { $ne: 'AI_CCTV' };
             }
             else if (userContext.role === 'superadmin') {
-                // Superadmin only sees reports from workspaces they own
                 const ownedWorkspaces = await Workspace_1.WorkspaceModel.find({ superadminId: userContext.id }).lean().exec();
                 const wsIds = ownedWorkspaces.map(w => w.id);
-                query.workspaceId = { $in: wsIds };
+                if (wsIds.length > 0) {
+                    query.workspaceId = { $in: wsIds };
+                }
+                else {
+                    query.workspaceId = -1; // No owned workspaces = no results
+                }
             }
             if (filters.date) {
                 const start = new Date(filters.date);
@@ -199,6 +206,13 @@ class ReportRepository {
                     { location: regex },
                     { identity: regex }
                 ];
+            }
+            // ── Filter: Laporan Saya ──
+            if (filters.myReports) {
+                const currentUser = await User_1.UserModel.findOne({ id: userContext.id }).lean().exec();
+                if (currentUser) {
+                    query.userId = currentUser._id;
+                }
             }
             const q = Report_1.ReportModel.find(query).sort({ timestamp: -1 });
             if (page !== undefined && limit !== undefined) {
@@ -239,7 +253,11 @@ class ReportRepository {
         }
         if (userContext.role === 'superadmin') {
             const ownedWorkspaces = await Workspace_1.WorkspaceModel.find({ superadminId: userContext.id }).lean().exec();
-            return { workspaceId: { $in: ownedWorkspaces.map((workspace) => workspace.id) } };
+            const wsIds = ownedWorkspaces.map(w => w.id);
+            if (wsIds.length > 0) {
+                return { workspaceId: { $in: wsIds } };
+            }
+            return { workspaceId: -1 };
         }
         return { workspaceId: -1 };
     }
@@ -390,13 +408,12 @@ class ReportRepository {
     }
     static async deleteComment(reportId, commentId, userId, isAdmin, workspaceId) {
         try {
+            // Try without workspaceId first
             const query = { id: reportId, deletedAt: null };
-            let report = await Report_1.ReportModel.findOne(query);
-            if (!report && workspaceId !== undefined) {
+            if (workspaceId !== undefined) {
                 query.workspaceId = workspaceId;
-                console.log('[DELETECOMMENT] Fallback: coba dengan workspaceId');
-                report = await Report_1.ReportModel.findOne(query);
             }
+            const report = await Report_1.ReportModel.findOne(query).exec();
             if (!report) {
                 throw new Error('Laporan tidak ditemukan.');
             }
@@ -404,12 +421,12 @@ class ReportRepository {
             if (!comment) {
                 throw new Error('Komentar tidak ditemukan.');
             }
-            if (comment.userId !== userId && !isAdmin) {
-                throw new Error('Anda tidak memiliki akses untuk menghapus komentar ini.');
+            // Only allow deletion if user owns comment or is admin
+            if (!isAdmin && comment.userId !== userId) {
+                throw new Error('Tidak diizinkan menghapus komentar orang lain.');
             }
             comment.isDeleted = true;
             await report.save();
-            return comment;
         }
         catch (err) {
             console.error('[DATABASE ERROR] deleteComment failed:', err);
@@ -419,12 +436,10 @@ class ReportRepository {
     static async toggleLikeComment(reportId, commentId, userId, workspaceId) {
         try {
             const query = { id: reportId, deletedAt: null };
-            let report = await Report_1.ReportModel.findOne(query);
-            if (!report && workspaceId !== undefined) {
+            if (workspaceId !== undefined) {
                 query.workspaceId = workspaceId;
-                console.log('[TOGGLELIKE] Fallback: coba dengan workspaceId');
-                report = await Report_1.ReportModel.findOne(query);
             }
+            const report = await Report_1.ReportModel.findOne(query).exec();
             if (!report) {
                 throw new Error('Laporan tidak ditemukan.');
             }
@@ -432,15 +447,12 @@ class ReportRepository {
             if (!comment) {
                 throw new Error('Komentar tidak ditemukan.');
             }
-            if (comment.isDeleted) {
-                throw new Error('Komentar telah dihapus.');
-            }
-            const index = comment.likedBy.indexOf(userId);
-            if (index > -1) {
-                comment.likedBy.splice(index, 1);
+            const likedIndex = comment.likedBy.indexOf(userId);
+            if (likedIndex === -1) {
+                comment.likedBy.push(userId);
             }
             else {
-                comment.likedBy.push(userId);
+                comment.likedBy.splice(likedIndex, 1);
             }
             await report.save();
             return comment;

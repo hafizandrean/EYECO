@@ -8,8 +8,29 @@ exports.featureExtractorService = exports.FeatureExtractorService = void 0;
 const trashTaxonomy_1 = require("../taxonomy/trashTaxonomy");
 class FeatureExtractorService {
     extractFeatures(objects, poses, relations, semanticData, analyzersAvailable, qualityOverride) {
-        const personObjects = objects.filter(o => o.class === 'person' || o.class === 'orang');
+        const personObjects = objects.filter(o => {
+            const pc = o.class.toLowerCase();
+            return ['person', 'orang'].includes(pc);
+        });
         const trashObjects = objects.filter(o => (0, trashTaxonomy_1.isTrashClass)(o.class));
+        // Vehicle detection — kendaraan sebagai context clues, bukan sampah
+        const VEHICLE_CLASSES = new Set(['car', 'motorcycle', 'motorbike', 'bus', 'truck', 'bicycle', 'bike', 'train']);
+        const vehicleObjects = objects.filter(o => VEHICLE_CLASSES.has(o.class.toLowerCase()));
+        const vehicleCount = vehicleObjects.length;
+        // Ground-level objects — non-person, non-vehicle, non-trash objects on ground as potential trash
+        const groundObjectCount = objects.filter(o => {
+            const cls = o.class.toLowerCase();
+            // Not person, not vehicle, not already counted as trash
+            if (['person', 'orang'].includes(cls))
+                return false;
+            if (VEHICLE_CLASSES.has(cls))
+                return false;
+            if ((0, trashTaxonomy_1.isTrashClass)(o.class))
+                return false;
+            // Ground-level heuristic: bottom of bbox near bottom of image (>70% y + h)
+            const bottomY = (o.y || 0) + (o.h || 0);
+            return bottomY > 70;
+        }).length;
         const personCount = personObjects.length;
         const trashCount = trashObjects.length;
         const trashConfs = trashObjects.map(o => o.confidence);
@@ -50,6 +71,8 @@ class FeatureExtractorService {
             imageQuality,
             evidenceCoverage,
             analyzersAvailable,
+            vehicleCount,
+            groundObjectCount,
         };
     }
 }

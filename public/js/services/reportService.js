@@ -17,7 +17,8 @@ class ReportServiceClass {
       date: filters.date || '',
       aiStatus: filters.aiStatus || 'semua',
       adminStatus: filters.adminStatus || 'semua',
-      location: filters.location || ''
+      location: filters.location || '',
+      myReports: filters.myReports ? 'true' : '',
     });
 
     const response = await API.get(`/api/detections?${queryParams.toString()}`);

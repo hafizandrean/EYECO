@@ -1,9 +1,11 @@
 import { FrameCaptureService } from './FrameCaptureService';
 import { InferenceService } from './InferenceService';
 import { PromotionService } from './PromotionService';
+import { CctvAutoReportService } from './CctvAutoReportService';
 import { AiDetectionModel } from '../../database/models/AiDetection';
 import { AiMetricModel } from '../../database/models/AiMetric';
 import { SystemSettingsModel } from '../../database/models/SystemSettings';
+import { CctvModel } from '../../database/models/Cctv';
 import { InferenceQueue } from './InferenceQueue';
 import crypto from 'crypto';
 
@@ -11,17 +13,21 @@ export class AiPipelineScheduler {
   private static intervalId: NodeJS.Timeout | null = null;
   private static isRunning = false;
   private static instanceId = crypto.randomUUID();
+  private static workspaceId: number | null = null;
 
   /**
    * Starts the background AI pipeline scheduler.
+   * If workspaceId is provided, only processes cameras in that workspace.
    */
-  public static start(intervalMs: number = 20000) {
+  public static start(intervalMs: number = 20000, workspaceId?: number) {
     if (this.intervalId) return;
 
     // Inisialisasi worker pool antrean AI
     InferenceQueue.startWorkers();
 
-    console.log(`[AiPipelineScheduler] AI Detection Pipeline Scheduler started (${intervalMs}ms intervals).`);
+    this.workspaceId = workspaceId ?? null;
+
+    console.log(`[AiPipelineScheduler] AI Detection Pipeline Scheduler started (${intervalMs}ms intervals)${workspaceId ? ` for workspace ${workspaceId}` : ''}.`);
     this.intervalId = setInterval(async () => {
       await this.runPipelineCycle();
     }, intervalMs);
@@ -91,7 +97,16 @@ export class AiPipelineScheduler {
 
     try {
       // 1. Ambil kamera aktif yang online dan memiliki monitoringEnabled = true
-      const cameras = await FrameCaptureService.getActiveCamerasForMonitoring();
+      // Filter by workspace if specified
+      const filter: any = {
+        isActive: true,
+        monitoringEnabled: true,
+        status: { $in: ['ONLINE', 'MONITORING'] }
+      };
+      if (this.workspaceId !== null) {
+        filter.workspaceId = this.workspaceId;
+      }
+      const cameras = await CctvModel.find(filter).lean().exec();
       framesProcessed = cameras.length;
 
       for (const camera of cameras) {
@@ -111,10 +126,16 @@ export class AiPipelineScheduler {
             const inferenceTime = Date.now() - captureStartTime - captureTime;
             const promotionStartTime = Date.now();
             
-            // 4. Jika terdeteksi objek potensial, jalankan Promotion
+            // 4. Jika terdeteksi objek potensial, jalankan auto-report dan promotion
             if (detection) {
-              // PromotionService.evaluateDetection(detection); — disabled, no more CCTV reports
-              console.log(`[AiPipelineTrace](disabled) Detection found but promotion cancelled.`);
+              // Auto-create report if person detected
+              const autoReportResult = await CctvAutoReportService.processDetection(frame, detection);
+              if (autoReportResult) {
+                console.log(`[AiPipelineTrace] Auto-report #${autoReportResult.reportId} created for camera #${camera.id}`);
+              }
+
+              // Legacy promotion check (disabled by default)
+              console.log(`[AiPipelineTrace] Detection found.${autoReportResult ? ' Auto-report created.' : ' No person detected.'}`);
             }
             const promotionTime = Date.now() - promotionStartTime;
             const totalTime = captureTime + inferenceTime + promotionTime;

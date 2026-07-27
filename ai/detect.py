@@ -28,8 +28,14 @@ import numpy as np
 
 
 # ---------------------------------------------------------------------------
-# JSON Output Helpers
+# JSON Output Builder
 # ---------------------------------------------------------------------------
+
+_model_instance = None
+_model_class_names: dict[int, str] = {}
+_coco_instance = None
+_coco_class_names: dict[int, str] = {}
+
 
 def make_result(
     success: bool,
@@ -76,10 +82,6 @@ def _json_default(obj: Any) -> Any:
 # Model Loader (singleton pattern — model dimuat sekali)
 # ---------------------------------------------------------------------------
 
-_model_instance = None
-_model_class_names: dict[int, str] = {}
-
-
 def get_model(model_path: str):
     """Muat model YOLO sekali (singleton). Panggil berkali-kali aman.
 
@@ -124,6 +126,121 @@ def get_model(model_path: str):
         sys.exit(1)
 
 
+def get_coco_model():
+    """Muat COCO (yolov8n.pt) sekali (singleton)."""
+    global _coco_instance, _coco_class_names
+
+    if _coco_instance is not None:
+        return _coco_instance, _coco_class_names
+
+    try:
+        from ultralytics import YOLO
+
+        _coco_instance = YOLO("yolov8n.pt")
+        _coco_class_names = _coco_instance.names
+        print(f"[AI] COCO model loaded ({len(_coco_class_names)} classes)", file=sys.stderr)
+        return _coco_instance, _coco_class_names
+    except Exception as e:
+        print(f"[WARN] Failed to load COCO model: {e}", file=sys.stderr)
+        return None, {}
+
+
+# ---------------------------------------------------------------------------
+# COCO class filter — hanya ambil objek non-sampah yang relevan
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Image Preprocessing (CLAHE + Sharpen) untuk CCTV/image burik
+# ---------------------------------------------------------------------------
+
+def preprocess_image(source_path: str, quality_status: str = 'GOOD') -> np.ndarray | None:
+    """Tingkatkan kualitas gambar burik (CCTV resolusi rendah, malam, dll).
+    
+    Pipeline:
+    1. CLAHE (Contrast Limited Adaptive Histogram Equalization) — tarik detail
+    2. Unsharp Masking — lebih kuat dari sharpen kernel biasa
+    3. Denoise ringan — kurangi noise dari sharpening
+    4. Upscale untuk CCTV resolusi rendah
+    5. Gamma correction untuk gambar gelap
+    """
+    import cv2
+    img = cv2.imread(source_path)
+    if img is None:
+        return None
+
+    h, w = img.shape[:2]
+    is_low_res = max(h, w) < 800
+    
+    # Konversi ke LAB untuk CLAHE di channel L (lightness)
+    lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+    l, a, b_ = cv2.split(lab)
+    
+    # CLAHE lebih agresif buat gambar burik
+    clip_limit = 4.0 if quality_status in ('BLURRY', 'LOW') else 3.0
+    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(8, 8))
+    l = clahe.apply(l)
+    lab = cv2.merge([l, a, b_])
+    img = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+    
+    # Unsharp Masking (lebih kuat dari sharpen kernel biasa)
+    gaussian = cv2.GaussianBlur(img, (0, 0), 2.0)
+    strength = 1.8 if quality_status in ('BLURRY', 'LOW') else 1.2
+    img = cv2.addWeighted(img, 1.0 + strength, gaussian, -strength, 0)
+    
+    # Denoise ringan
+    img = cv2.fastNlMeansDenoisingColored(img, None, 5, 5, 7, 21)
+    
+    # Upscale kalo resolusi terlalu kecil (CCTV 640x480 dll)
+    if is_low_res:
+        scale = 800.0 / max(h, w)
+        new_w = int(w * scale)
+        new_h = int(h * scale)
+        img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+    
+    # Gamma correction buat gambar gelap (malam hari)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    mean_brightness = np.mean(gray)
+    if mean_brightness < 80:
+        gamma = 0.7  # Terangin
+        inv_gamma = 1.0 / gamma
+        table = np.array([(i / 255.0) ** inv_gamma * 255 for i in np.arange(0, 256)]).astype("uint8")
+        img = cv2.LUT(img, table)
+    
+    return img
+
+
+# ---------------------------------------------------------------------------
+# COCO class filter — ambil SEMUA class biar tiap barang ke detect
+# (backend determineAiStatus yang akan pisahkan person vs trash)
+# ---------------------------------------------------------------------------
+def run_coco_inference(source, iou_threshold: float, coco_conf: float = 0.20) -> list[dict]:
+    """Jalankan COCO untuk deteksi general.
+    source bisa str (file path) atau np.ndarray (preprocessed image).
+    coco_conf bisa diadaptasi: gambar blur → 0.15, normal → 0.20
+    """
+    detections = []
+    try:
+        coco, names = get_coco_model()
+        if coco is None:
+            return detections
+
+        results = coco(source, conf=coco_conf, iou=iou_threshold, verbose=False)
+        boxes = results[0].boxes
+        if boxes is None:
+            return detections
+
+        for box, conf, cls_id in zip(boxes.xyxy.cpu().numpy(), boxes.conf.cpu().numpy(), boxes.cls.cpu().numpy().astype(int)):
+            cls_name = names.get(int(cls_id), f"coco_{cls_id}")
+            detections.append({
+                "class": cls_name,
+                "confidence": round(float(conf), 4),
+                "bbox": [round(float(box[0]), 2), round(float(box[1]), 2), round(float(box[2]), 2), round(float(box[3]), 2)],
+            })
+    except Exception as e:
+        print(f"[WARN] COCO inference failed: {e}", file=sys.stderr)
+
+    return detections
+
+
 # ---------------------------------------------------------------------------
 # Validasi File Source
 # ---------------------------------------------------------------------------
@@ -143,184 +260,410 @@ def validate_source(source_path: str) -> tuple[str | None, str | None]:
 
     if ext in image_exts:
         return "image", None
-    elif ext in video_exts:
+    if ext in video_exts:
         return "video", None
-    else:
-        return None, f"Format file tidak didukung: {ext}"
+    return None, f"Format file tidak didukung: {ext}"
 
 
 # ---------------------------------------------------------------------------
 # Inference Functions
 # ---------------------------------------------------------------------------
 
+def hand_region_detection(img: np.ndarray, person_boxes: list, model, coco_model, class_names: dict, coco_names: dict, iou_threshold: float) -> list[dict]:
+    """Deteksi objek di area tangan person (bawah 70% bbox) dengan conf rendah.
+    
+    Crop area bawah person (dari 30% height sampai bawah + sedikit ekstra),
+    run YOLO custom model + COCO dengan conf=0.10.
+    Hasil dimapping balik ke koordinat gambar asli dan di-merge ke deteksi utama.
+    """
+    extra_dets = []
+    h, w = img.shape[:2]
+    import cv2
+    for pbox in person_boxes:
+        x1, y1, x2, y2 = pbox
+        ph = y2 - y1
+        pw = x2 - x1
+        if ph < 30 or pw < 20:
+            continue
+        
+        # Hand region: bawah 70% person (dari 30% height sampai agak kebawah),
+        # diperluas 25% ke samping biar nangkep tangan yang nengok ke samping
+        hand_y1 = int(max(0, y1 + ph * 0.28))
+        hand_y2 = int(min(h, y2 + ph * 0.15))
+        hand_x1 = int(max(0, x1 - pw * 0.25))
+        hand_x2 = int(min(w, x2 + pw * 0.25))
+        
+        if hand_x2 <= hand_x1 or hand_y2 <= hand_y1:
+            continue
+        
+        crop = img[hand_y1:hand_y2, hand_x1:hand_x2]
+        if crop.shape[0] < 20 or crop.shape[1] < 20:
+            continue
+        
+        # ── Upscale crop tangan biar YOLO bisa liat detail ──
+        # Plastik sampah di tangan cuma 10-20 pixel di resolusi rendah
+        crop_h, crop_w = crop.shape[:2]
+        upscale = 1.0
+        if max(crop_w, crop_h) < 200:
+            upscale = 200.0 / min(crop_w, crop_h)
+            if upscale > 1.0:
+                new_w = int(crop_w * upscale)
+                new_h = int(crop_h * upscale)
+                crop = cv2.resize(crop, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+        
+        # Koordinat YOLO dari upscaled crop perlu di-scale balik ke processed space
+        scale_back = 1.0 / upscale
+        
+        try:
+            # Run BOTH models on hand crop with conf=0.10
+            # Custom model
+            results = model(crop, conf=0.10, iou=iou_threshold, verbose=False)
+            boxes = results[0].boxes
+            if boxes is not None:
+                for box, conf, cls_id in zip(boxes.xyxy.cpu().numpy(), boxes.conf.cpu().numpy(), boxes.cls.cpu().numpy().astype(int)):
+                    cls_name = class_names.get(int(cls_id), f"class_{cls_id}")
+                    ox1 = round(float(box[0]) * scale_back + hand_x1, 2)
+                    oy1 = round(float(box[1]) * scale_back + hand_y1, 2)
+                    ox2 = round(float(box[2]) * scale_back + hand_x1, 2)
+                    oy2 = round(float(box[3]) * scale_back + hand_y1, 2)
+                    extra_dets.append({
+                        "class": cls_name,
+                        "confidence": round(float(conf), 4),
+                        "bbox": [ox1, oy1, ox2, oy2],
+                    })
+            # COCO model
+            coco_results = coco_model(crop, conf=0.10, iou=iou_threshold, verbose=False)
+            coco_boxes = coco_results[0].boxes
+            if coco_boxes is not None:
+                for box, conf, cls_id in zip(coco_boxes.xyxy.cpu().numpy(), coco_boxes.conf.cpu().numpy(), coco_boxes.cls.cpu().numpy().astype(int)):
+                    cls_name = coco_names.get(int(cls_id), f"coco_{cls_id}")
+                    ox1 = round(float(box[0]) * scale_back + hand_x1, 2)
+                    oy1 = round(float(box[1]) * scale_back + hand_y1, 2)
+                    ox2 = round(float(box[2]) * scale_back + hand_x1, 2)
+                    oy2 = round(float(box[3]) * scale_back + hand_y1, 2)
+                    extra_dets.append({
+                        "class": cls_name,
+                        "confidence": round(float(conf), 4),
+                        "bbox": [ox1, oy1, ox2, oy2],
+                    })
+        except Exception as e:
+            print(f"[WARN] Hand region inference failed: {e}", file=sys.stderr)
+    
+    return extra_dets
+
+
 def infer_image(
     source_path: str,
     model_path: str = "ai/models/best.pt",
-    conf_threshold: float = 0.25,
+    conf_threshold: float = 0.35,
     iou_threshold: float = 0.45,
 ) -> str:
-    """Jalankan inferensi YOLOv8 pada satu gambar."""
+    """Jalankan inferensi dual model dengan preprocessing CLAHE + Sharpen:
+    1. COCO — deteksi objek general (person, monitor, keyboard, backpack)
+    2. Custom model — deteksi sampah spesifik + person variants
+    Ditambah hand region re-detection untuk tangkap objek di tangan person.
+
+    Gambar dipreprocess dulu (CLAHE + sharpen) biar CCTV burik tetap kebaca.
+    """
+    start = time.time()
     import cv2
 
-    model, class_names = get_model(model_path)
-    start = time.time()
-
     try:
-        # Baca gambar untuk dapatkan dimensi
-        image = cv2.imread(source_path)
-        if image is None:
-            return make_result(
-                success=False, error=f"Gagal membaca gambar: {source_path}"
-            )
+        # ── Blur score dari gambar asli (sebelum preprocessing) ──
+        raw_img = cv2.imread(source_path)
+        img_h, img_w = raw_img.shape[:2] if raw_img is not None else (640, 640)
+        img_quality = 'GOOD'
+        if raw_img is not None:
+            gray = cv2.cvtColor(raw_img, cv2.COLOR_BGR2GRAY)
+            blur_score = int(round(cv2.Laplacian(gray, cv2.CV_64F).var()))
+            if blur_score < 80:
+                img_quality = 'BLURRY'
+            elif blur_score < 150:
+                img_quality = 'LOW'
+            else:
+                img_quality = 'GOOD'
+        else:
+            blur_score = 0
 
-        height, width = image.shape[:2]
+        # ── Preprocess: sekali, dipake kedua model ──
+        processed_img = preprocess_image(source_path, img_quality)
+        if processed_img is None:
+            processed_img = source_path  # fallback ke raw path
 
-        # Inferensi
-        raw_results = model(
-            source_path,
-            conf=conf_threshold,
-            iou=iou_threshold,
-            verbose=False,
-        )
+        # Catat dimensi processed (buat scale balik bbox ke ukuran asli)
+        if isinstance(processed_img, np.ndarray):
+            proc_h, proc_w = processed_img.shape[:2]
+        else:
+            proc_h, proc_w = img_h, img_w  # fallback: raw path, gak ada preprocessing
 
-        # Parse hasil
-        dets = raw_results[0].boxes
-        boxes_np = dets.xyxy.cpu().numpy() if dets is not None else []
-        confs_np = dets.conf.cpu().numpy() if dets is not None else []
-        cls_np = dets.cls.cpu().numpy().astype(int) if dets is not None else []
+        # ── Model 1: COCO (yolov8n.pt) untuk objek general ──
+        # Conf 0.20 — naikin dari 0.15 karena noise terlalu banyak (potted plant, food wrapper di kepala)
+        # Motorcycle di 0.45 masih aman, handbag di 0.13 memang hilang tapi gak esensial
+        # Custom model tetap di 0.15 untuk tangkap sampah kecil
+        coco_conf = 0.20
+        coco_dets = run_coco_inference(processed_img, iou_threshold, coco_conf)
 
-        detections = []
-        for i in range(len(boxes_np)):
-            x1, y1, x2, y2 = boxes_np[i].tolist()
-            confidence = float(confs_np[i])
-            cls_id = int(cls_np[i])
-            detections.append(
-                {
-                    "class": class_names.get(cls_id, f"class_{cls_id}"),
-                    "confidence": round(confidence, 4),
-                    "bbox": [round(x1, 2), round(y1, 2), round(x2, 2), round(y2, 2)],
-                }
-            )
+        # ── Model 2: Custom (best.pt) untuk sampah spesifik ──
+        custom_dets = []
+        model, class_names = get_model(model_path)
+        custom_results = model(processed_img, conf=conf_threshold, iou=iou_threshold, verbose=False)
+        custom_boxes = custom_results[0].boxes
+        if custom_boxes is not None:
+            for box, conf, cls_id in zip(custom_boxes.xyxy.cpu().numpy(), custom_boxes.conf.cpu().numpy(), custom_boxes.cls.cpu().numpy().astype(int)):
+                custom_dets.append({
+                    "class": class_names.get(int(cls_id), f"class_{cls_id}"),
+                    "confidence": round(float(conf), 4),
+                    "bbox": [round(float(box[0]), 2), round(float(box[1]), 2), round(float(box[2]), 2), round(float(box[3]), 2)],
+                })
 
-        # Smart Fallback: If no trash class is detected by YOLO COCO, run Foliage-Masked Ground Saliency Engine
-        trash_keywords = ["trash", "sampah", "plastic_bottle", "food_wrapper", "cup", "can", "paper", "plastic_bag", "bottle", "wrapper", "bag", "skis", "box", "carton"]
-        has_trash = any(any(k in d["class"].lower() for k in trash_keywords) for d in detections)
+        # ── Merge: COCO + Custom, deduplikasi ──
+        def bbox_iou(a, b):
+            ix1 = max(a[0], b[0])
+            iy1 = max(a[1], b[1])
+            ix2 = min(a[2], b[2])
+            iy2 = min(a[3], b[3])
+            iw = max(0.0, ix2 - ix1)
+            ih = max(0.0, iy2 - iy1)
+            inter = iw * ih
+            area_a = (a[2] - a[0]) * (a[3] - a[1])
+            area_b = (b[2] - b[0]) * (b[3] - b[1])
+            return inter / (area_a + area_b - inter + 1e-6)
 
-        if not has_trash:
-            try:
-                # 1. Convert to grayscale and HSV for adaptive package saliency
-                hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-                gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-                blur = cv2.GaussianBlur(gray, (5, 5), 0)
-                thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 3)
-                contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                
-                img_area = width * height
-                trash_candidates = []
+        # Gabung, urut confidence descending
+        merged = coco_dets + custom_dets
+        merged.sort(key=lambda d: d["confidence"], reverse=True)
 
-                for c in contours:
-                    x, y, w, h = cv2.boundingRect(c)
-                    area = w * h
-                    aspect_ratio = float(w) / h if h > 0 else 0
-                    
-                    # Filter for prominent trash package (1.0% to 5.0% of image area, distinct shape)
-                    if (0.010 * img_area) < area < (0.050 * img_area) and 0.4 < aspect_ratio < 2.8:
-                        # Check height: object must be in surface/ground region (y between 30% and 75%)
-                        cy = y + h / 2.0
-                        if not ((0.30 * height) < cy < (0.75 * height)):
-                            continue
+        # Dedup: hapus overlap, prefer custom model (nama lebih panjang = lebih spesifik)
+        final = []
+        for d in merged:
+            is_dup = False
+            for f in final:
+                if bbox_iou(d["bbox"], f["bbox"]) > 0.5:
+                    # Merge: prefer nama lebih panjang (custom model)
+                    if len(d["class"]) > len(f["class"]):
+                        f["class"] = d["class"]
+                    f["confidence"] = max(f["confidence"], d["confidence"])
+                    is_dup = True
+                    break
+            if not is_dup:
+                final.append(d)
 
-                        # Strictly check intersection over area with any person box
-                        is_person_part = False
-                        for d in detections:
-                            if d["class"] in ["person", "orang"]:
-                                px1, py1, px2, py2 = d["bbox"]
-                                ix1 = max(float(x), float(px1))
-                                iy1 = max(float(y), float(py1))
-                                ix2 = min(float(x + w), float(px2))
-                                iy2 = min(float(y + h), float(py2))
-                                
-                                iw = max(0.0, ix2 - ix1)
-                                ih = max(0.0, iy2 - iy1)
-                                inter_area = iw * ih
-                                
-                                # If > 15% of contour overlaps with person body/clothes -> REJECT!
-                                if area > 0 and (inter_area / float(area)) > 0.15:
-                                    is_person_part = True
-                                    break
-                        
-                        if is_person_part:
-                            continue
+        # ── Hand Region Re-Detection ──
+        processed_np = processed_img if isinstance(processed_img, np.ndarray) else cv2.imread(source_path)
+        hand_boxes = [d["bbox"] for d in final if 'person' in d["class"].lower()]
+        # Get COCO model for hand region
+        coco_model, coco_names = get_coco_model()
+        for hdet in hand_region_detection(processed_np, hand_boxes, model, coco_model, class_names, coco_names, iou_threshold):
+            is_dup = False
+            for f in final:
+                if bbox_iou(hdet["bbox"], f["bbox"]) > 0.4:
+                    is_dup = True
+                    break
+            if not is_dup:
+                final.append(hdet)
 
-                        # Filter out pure plant leaf clusters (mean H in [35..85] and mean S > 85)
-                        roi_hsv = hsv[y:y+h, x:x+w]
-                        mean_h = np.mean(roi_hsv[:, :, 0])
-                        mean_s = np.mean(roi_hsv[:, :, 1])
-                        if 35 <= mean_h <= 85 and mean_s > 85:
-                            continue
+        # ── STEP 1: Person Aggressive NMS ──
+        # Merge all overlapping person boxes (COCO person + custom person variants)
+        # Person class bbox sering ganda dari dual model, merge agresif
+        person_dets = [d for d in final if 'person' in d["class"].lower()]
+        non_person_dets = [d for d in final if 'person' not in d["class"].lower()]
+        persons_merged = []
+        for d in person_dets:
+            is_dup = False
+            dx1, dy1, dx2, dy2 = d['bbox']
+            dcx = (dx1 + dx2) / 2
+            dcy = (dy1 + dy2) / 2
+            darea = (dx2 - dx1) * (dy2 - dy1)
+            for m in persons_merged:
+                mx1, my1, mx2, my2 = m['bbox']
+                # Hitung IOU
+                ix1, iy1 = max(dx1, mx1), max(dy1, my1)
+                ix2, iy2 = min(dx2, mx2), min(dy2, my2)
+                if ix1 < ix2 and iy1 < iy2:
+                    inter = (ix2 - ix1) * (iy2 - iy1)
+                    marea = (mx2 - mx1) * (my2 - my1)
+                    iou = inter / (darea + marea - inter + 1e-6)
+                    # Merge jika IOU > 0.25 ATAU center distance < 30% dari bbox terbesar
+                    mcx = (mx1 + mx2) / 2
+                    mcy = (my1 + my2) / 2
+                    mh = max(my2 - my1, dy2 - dy1)
+                    center_dist = ((dcx - mcx)**2 + (dcy - mcy)**2)**0.5
+                    if iou > 0.25 or center_dist < mh * 0.3:
+                        if d['confidence'] > m['confidence']:
+                            m['bbox'] = d['bbox']
+                            m['confidence'] = d['confidence']
+                            m['class'] = 'person'
+                        is_dup = True
+                        break
+            if not is_dup:
+                d['class'] = 'person'
+                persons_merged.append(d)
+        final = persons_merged + non_person_dets
 
-                        bottom_y = y + h
-                        trash_candidates.append({
-                            'box': [float(x), float(y), float(w), float(h)],
-                            'area': area,
-                            'bottom_y': bottom_y
-                        })
+        # ── STEP 2: Skip kelas yang gak relevan ──
+        # User request: tanaman gak perlu di-label, fokus sampah/barang di tanah/motor
+        SKIP_CLASSES = {'potted plant', 'pottedplant', 'house plant', 'tree'}
+        final = [d for d in final if d["class"].lower() not in SKIP_CLASSES]
 
-                # Sort by prominent package area descending (largest real trash objects first!)
-                trash_candidates.sort(key=lambda item: item['area'], reverse=True)
-                
-                # Pick distinct trash objects with NMS center distance filter >= 150px
-                selected_boxes = []
-                for cand in trash_candidates:
-                    cx, cy, cw, ch = cand['box']
-                    center_x = cx + cw / 2.0
-                    center_y = cy + ch / 2.0
-                    
-                    overlap_with_selected = False
-                    for sb in selected_boxes:
-                        sx, sy, sw, sh = sb
-                        scenter_x = sx + sw / 2.0
-                        scenter_y = sy + sh / 2.0
-                        dist = np.sqrt((center_x - scenter_x)**2 + (center_y - scenter_y)**2)
-                        
-                        # Minimum 450px separation between distinct trash items
-                        if dist < 450.0:
-                            overlap_with_selected = True
+        # ── STEP 2b: FP di kepala manusia ──
+        # Food wrapper / trash kecil di upper 38% person bbox = false positive (rambut/kepala)
+        person_bboxes_upper = []
+        for d in final:
+            if 'person' in d["class"].lower():
+                x1, y1, x2, y2 = d["bbox"]
+                ph = y2 - y1
+                person_bboxes_upper.append((x1, y1, x2, y1 + ph * 0.38))
+        if person_bboxes_upper:
+            filtered_upper = []
+            for d in final:
+                cls_lower = d["class"].lower()
+                if 'person' in cls_lower:
+                    filtered_upper.append(d)
+                    continue
+                dx = (d["bbox"][0] + d["bbox"][2]) / 2
+                dy = (d["bbox"][1] + d["bbox"][3]) / 2
+                is_upper_fp = False
+                for ux1, uy1, ux2, uy2 in person_bboxes_upper:
+                    if ux1 <= dx <= ux2 and uy1 <= dy <= uy2:
+                        # Centroid ada di area kepala/rambut orang → false positive
+                        print(f"[FP-FILTER] Upper body FP: {d['class']} {d['confidence']:.4f} di area kepala person", file=sys.stderr)
+                        is_upper_fp = True
+                        break
+                if not is_upper_fp:
+                    filtered_upper.append(d)
+            final = filtered_upper
+
+        # ── STEP 3: Non-Person NMS ──
+        # Merge duplicate non-person (car double, dll) — IOU > 0.4
+        non_person_nms = []
+        for d in final:
+            is_dup = False
+            for m in non_person_nms:
+                if bbox_iou(d["bbox"], m["bbox"]) > 0.4:
+                    if d["confidence"] > m["confidence"]:
+                        m["bbox"] = d["bbox"]
+                        m["confidence"] = d["confidence"]
+                        m["class"] = d["class"]
+                    is_dup = True
+                    break
+            if not is_dup:
+                non_person_nms.append(d)
+        final = non_person_nms
+
+        # ── STEP 4: Trash Pile False Positive Filter ──
+        # Custom model best.pt punya class 'Trash pile' yang sering FP ke mobil/pohon
+        # Filter ketat: spatial (bawah 50% gambar), confidence >= 0.40, gak overlap vehicle
+        TRASH_PILE_MIN_CONF = 0.40
+        filtered_fp = []
+        for d in final:
+            cls_lower = d["class"].lower()
+            is_trash_pile = ('trash_pile' in cls_lower or 'trash pile' in cls_lower or d["class"] in ('Trash pile', 'Trash Pile'))
+            if is_trash_pile:
+                # (a) Confidence floor khusus trash_pile
+                if d["confidence"] < TRASH_PILE_MIN_CONF:
+                    print(f"[FP-FILTER] Trash pile conf too low: {d['confidence']:.4f} < {TRASH_PILE_MIN_CONF}", file=sys.stderr)
+                    continue
+                # (b) Cek centroid — trash pile harus di bawah 50% tinggi gambar
+                _, y1, _, y2 = d["bbox"]
+                cy = (y1 + y2) / 2
+                if cy < img_h * 0.45:
+                    print(f"[FP-FILTER] Trash pile di upper area (cy={cy:.0f}), skip", file=sys.stderr)
+                    continue
+                # (c) Cek overlap dengan vehicle (car, motorcycle)
+                overlaps_vehicle = False
+                for other in final:
+                    if other is d:
+                        continue
+                    if any(v in other["class"].lower() for v in ('car', 'motorcycle', 'bicycle', 'truck', 'bus', 'train')):
+                        if bbox_iou(d["bbox"], other["bbox"]) > 0.25:
+                            overlaps_vehicle = True
+                            print(f"[FP-FILTER] Trash pile overlap {other['class']} {other['confidence']:.4f}, skip", file=sys.stderr)
                             break
-                    if not overlap_with_selected:
-                        selected_boxes.append([cx, cy, cw, ch])
+                if overlaps_vehicle:
+                    continue
+                # (d) Rasio aspect — trash pile normalnya lebih lebar dari tinggi
+                bw = d["bbox"][2] - d["bbox"][0]
+                bh = d["bbox"][3] - d["bbox"][1]
+                if bh > 0 and (bw / bh) < 0.4:  # Vertikal tall → pohon/batang
+                    print(f"[FP-FILTER] Trash pile aspect ratio {(bw/bh):.2f} terlalu vertikal", file=sys.stderr)
+                    continue
+                filtered_fp.append(d)
+            else:
+                filtered_fp.append(d)
+        final = filtered_fp
 
-                for box in selected_boxes:
-                    x, y, w, h = box
-                    # Apply tight crop refinement (trim 10% loose margin on all sides for snug fit)
-                    w_tight = float(w * 0.82)
-                    h_tight = float(h * 0.82)
-                    x_tight = float(x + (w - w_tight) / 2)
-                    y_tight = float(y + (h - h_tight) / 2)
-                    
-                    detections.append({
-                        "class": "food_wrapper",
-                        "confidence": 0.88,
-                        "bbox": [x_tight, y_tight, x_tight + w_tight, y_tight + h_tight],
-                    })
-            except Exception as fe:
-                print(f"[WARN] OpenCV fallback saliency failed: {fe}", file=sys.stderr)
+        # ── STEP 5: Size-based Trash Classification ──
+        # Bedakan tumpukan sampah (pile) vs sampah terpisah (item)
+        # HANYA untuk class garbage/trash yang asalnya dari COCO (conf 0.15 bisa FP)
+        # JANGAN ubah class custom model (Plastic bag, Bottle, dll)
+        img_area = proc_w * proc_h
+        for d in final:
+            cls_lower = d["class"].lower()
+            # Hanya proses kalo class dari COCO (garbage, trash) — BUKAN custom
+            # Custom model punya 'Trash pile' sendiri yang udah di-filter di atas
+            # Custom model juga output 'Garbage' — itu residue, kecil kemungkinan
+            if cls_lower in ('garbage', 'trash'):
+                bw = d["bbox"][2] - d["bbox"][0]
+                bh = d["bbox"][3] - d["bbox"][1]
+                bbox_area_pct = (bw * bh) / img_area * 100
+                if bbox_area_pct > 12:
+                    # Gede banget — mungkin false positive. Cek juga aspect ratio
+                    if bbox_area_pct > 30:
+                        # Terlalu gede (setengah foto) → skip, ini pasti false positive
+                        print(f"[FP-FILTER] Trash too large ({bbox_area_pct:.0f}% image), removing", file=sys.stderr)
+                        d["class"] = "__skip__"  # marker buat dihapus
+                    else:
+                        d["class"] = "trash_pile"
+                else:
+                    d["class"] = "trash"
+        # Hapus yang di-mark __skip__
+        final = [d for d in final if d.get("class") != "__skip__"]
+
+        # ── STEP 6: Minimum Confidence Floor ──
+        # Person: skip yang terlalu noise (< 0.25) kecuali di scene crowded (>4 person)
+        # Non-person: minimum 0.25 (COCO conf 0.15 terlalu rendah)
+        PERSON_MIN_CONF = 0.25
+        NON_PERSON_MIN_CONF = 0.25
+        person_count = len([d for d in final if 'person' in d["class"].lower()])
+        # Kalo scene crowded (>4 person), turunin threshold biar gak kehilangan real person
+        person_conf_threshold = PERSON_MIN_CONF if person_count <= 4 else 0.15
+        final = [
+            d for d in final
+            if ('person' in d["class"].lower() and d["confidence"] >= person_conf_threshold)
+            or ('person' not in d["class"].lower() and d["confidence"] >= NON_PERSON_MIN_CONF)
+        ]
 
         elapsed = round((time.time() - start) * 1000, 2)
 
+        # Scale balik bbox dari koordinat processed ke dimensi asli (img_w, img_h)
+        # karena preprocessing (upscale/resize) mengubah ukuran gambar
+        scale_x = img_w / proc_w
+        scale_y = img_h / proc_h
+        for d in final:
+            d['bbox'][0] = round(d['bbox'][0] * scale_x, 2)
+            d['bbox'][1] = round(d['bbox'][1] * scale_y, 2)
+            d['bbox'][2] = round(d['bbox'][2] * scale_x, 2)
+            d['bbox'][3] = round(d['bbox'][3] * scale_y, 2)
+
+        # Dimensi & blur score sudah di-capture dari awal (sebelum preprocessing)
+        # img_h, img_w, blur_score, img_quality (quality_status) udah dihitung di atas
+
         return make_result(
             success=True,
-            detections=detections,
-            total_detections=len(detections),
+            detections=final,
+            total_detections=len(final),
             processingTimeMs=elapsed,
-            imageWidth=width,
-            imageHeight=height,
+            imageWidth=img_w,
+            imageHeight=img_h,
+            blurScore=blur_score,
+            qualityStatus=img_quality,
         )
 
     except Exception as e:
+        elapsed = round((time.time() - start) * 1000, 2)
         return make_result(
             success=False,
-            error=f"Error saat inferensi: {type(e).__name__}: {e}",
+            error=f"Error saat inferensi dual model ({elapsed}ms): {type(e).__name__}: {e}",
         )
 
 
@@ -382,14 +725,12 @@ def infer_video(
                         "timestamp_sec": round(frame_idx / fps, 2) if fps > 0 else 0,
                     }
                 )
-
-            if len(boxes_np) > 0:
-                frames_with_detections += 1
+                if len(all_detections) == 1:
+                    frames_with_detections += 1
 
             frame_idx += 1
 
         cap.release()
-
         elapsed = round((time.time() - start) * 1000, 2)
 
         return make_result(
@@ -401,7 +742,7 @@ def infer_video(
             imageHeight=height,
             videoMeta={
                 "totalFrames": total_frames,
-                "fps": round(fps, 2) if fps else 0,
+                "fps": fps,
                 "processedFrames": frame_idx,
                 "framesWithDetections": frames_with_detections,
             },
@@ -418,18 +759,9 @@ def infer_video(
 # CLI Entrypoint
 # ---------------------------------------------------------------------------
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="EYECO AI — YOLOv8 Detection Engine",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Contoh:
-  python3 ai/detect.py image.jpg
-  python3 ai/detect.py video.mp4 --model ai/models/best.pt --conf 0.5
-  python3 ai/detect.py image.jpg --verbose
-        """,
-    )
 
+def main() -> None:
+    parser = argparse.ArgumentParser(description="EYECO AI — YOLOv8 Inference")
     parser.add_argument("source", type=str, nargs="?", default=None,
                         help="Path ke file gambar atau video")
     parser.add_argument(

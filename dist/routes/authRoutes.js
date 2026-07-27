@@ -217,7 +217,7 @@ router.post('/login', async (req, res) => {
             maxAge: 24 * 60 * 60 * 1000
         });
         const redirect = user.role === 'superadmin' ? '/superadmin' : user.role === 'admin' ? '/dashboard' : '/select-workspace';
-        res.json({ id: user.id, username: user.username, role: user.role, status: user.status, redirect });
+        res.json({ _id: user._id, id: user.id, username: user.username, role: user.role, status: user.status, redirect });
     }
     catch (err) {
         console.error('[SERVER ERROR] Login failed:', err);
@@ -263,6 +263,7 @@ router.get('/me', authMiddleware_1.authMiddleware, async (req, res) => {
         if (!user)
             return res.status(401).json({ error: 'User tidak ditemukan' });
         res.json({
+            _id: user._id,
             id: user.id,
             username: user.username,
             role: user.role,

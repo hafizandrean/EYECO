@@ -20,8 +20,8 @@ exports.InvalidDecisionPolicyError = InvalidDecisionPolicyError;
 const DEFAULT_POLICY = {
     policyVersion: 'policy-v1.0-fallback',
     weights: {
-        personDetected: 10,
-        trashDetected: 25,
+        personDetected: 20,
+        trashDetected: 50,
         trashHighConfidence: 10,
         trashNearWrist: 20,
         trashAppearsAirborne: 15,
@@ -32,9 +32,9 @@ const DEFAULT_POLICY = {
         noTrashDetected: -30,
     },
     thresholds: {
-        highMinScore: 75,
-        mediumMinScore: 50,
-        lowMinScore: 25,
+        highMinScore: 65,
+        mediumMinScore: 40,
+        lowMinScore: 20,
     },
 };
 function loadDecisionPolicy() {

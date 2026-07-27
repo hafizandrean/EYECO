@@ -13,6 +13,7 @@ import { Detail } from '../pages/detail.js';
 import { Home } from '../pages/home.js';
 import { Profile } from '../pages/profile.js';
 import { BeritaAdmin } from '../pages/berita-admin.js';
+import { CctvMonitoring } from '../pages/cctv-monitoring.js';
 
 class AppInitializer {
   constructor() {
@@ -75,12 +76,25 @@ class AppInitializer {
       const isAdmin = user?.role === 'admin';
 
       if (path === '/dashboard') {
-        this.currentPageInstance = Dashboard;
-        try {
-          await Dashboard.render(this.viewport);
-        } catch (dashErr) {
-          console.error('[Dashboard Render Error]', dashErr);
+        // Non-admin users see the landing page (Beranda)
+        if (!isAdmin) {
+          this.currentPageInstance = Home;
+          try {
+            await Home.render(this.viewport);
+          } catch (homeErr) {
+            console.error('[Home Render Error]', homeErr);
+          }
+        } else {
+          this.currentPageInstance = Dashboard;
+          try {
+            await Dashboard.render(this.viewport);
+          } catch (dashErr) {
+            console.error('[Dashboard Render Error]', dashErr);
+          }
         }
+      } else if (path === '/dashboard/cctv-monitoring') {
+        this.currentPageInstance = CctvMonitoring;
+        await CctvMonitoring.render(this.viewport);
       } else if (path === '/dashboard/laporan') {
         this.currentPageInstance = Laporan;
         await Laporan.render(this.viewport);
@@ -97,6 +111,9 @@ class AppInitializer {
       } else if (path === '/dashboard/berita') {
         this.currentPageInstance = BeritaAdmin;
         await BeritaAdmin.render(this.viewport);
+      } else if (path === '/dashboard/cctv-monitoring') {
+        this.currentPageInstance = CctvMonitoring;
+        await CctvMonitoring.render(this.viewport);
       } else {
         Router.navigate('/dashboard');
       }

@@ -1308,6 +1308,43 @@ input:checked + .slider:before { transform: translateX(16px); }
 .filter-item { display: flex; flex-direction: column; gap: 6px; }
 .filter-label { font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
 
+/* Compact single-row filter layout */
+.filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+.filter-item-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.filter-item-compact .filter-control {
+  height: 34px;
+  font-size: 0.78rem;
+}
+.filter-item-compact select.filter-control {
+  min-width: 110px;
+}
+.filter-item-compact input[type="date"] {
+  min-width: 120px;
+}
+.search-item-compact { flex: 1; min-width: 100px; }
+.search-item-compact .filter-control { min-width: 80px; }
+.filter-my-reports-compact { flex-shrink: 0; }
+.reset-btn-compact { flex-shrink: 0; }
+.toggle-switch-inline { height: 34px; align-items: center !important; padding: 0 4px; }
+@media (max-width: 768px) {
+  .filters-row { gap: 6px; }
+  .filter-item-compact { min-width: calc(50% - 6px); }
+  .filter-item-compact select.filter-control { min-width: 0; width: 100%; }
+  .search-item-compact { flex: none; width: 100%; }
+  .reset-btn-compact { width: 100%; }
+  .reset-btn-compact button { width: 100%; justify-content: center; }
+}
+
 .filter-control {
   width: 100%; height: 38px;
   background: var(--surface);
@@ -3710,4 +3747,195 @@ body.dark-mode .news-mcard-body p {
   font-weight: 600;
 }
 
+/* ===== CCTV MONITORING PAGE ===== */
+.cctv-grid-section {
+  min-height: 300px;
+}
+
+.cctv-preview {
+  transition: filter 0.3s ease;
+}
+
+.cctv-card:hover .cctv-preview {
+  filter: brightness(1.1);
+}
+
+.detection-log-entry:first-child {
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.health-badge {
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* Scrollbar for detection sidebar */
+#detection-log-list::-webkit-scrollbar {
+  width: 4px;
+}
+#detection-log-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+/* ── macOS-Style Modal / Alert ─────────────────────────── */
+.macos-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.25);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: modalFadeIn 0.2s ease-out;
+}
+.macos-modal {
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(40px) saturate(1.4);
+  -webkit-backdrop-filter: blur(40px) saturate(1.4);
+  border-radius: 16px;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.15), 0 0 0 0.5px rgba(0,0,0,0.04);
+  padding: 28px 32px 24px;
+  width: 340px;
+  max-width: 90vw;
+  text-align: center;
+  animation: modalSlideUp 0.25s cubic-bezier(0.22,1,0.36,1);
+}
+.macos-modal-icon {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px;
+  font-size: 24px;
+}
+.macos-modal-icon.danger { background: rgba(239,68,68,0.12); color: var(--danger); }
+.macos-modal-icon.warning { background: rgba(245,158,11,0.12); color: var(--warning); }
+.macos-modal-icon.success { background: rgba(16,185,129,0.12); color: var(--success); }
+.macos-modal-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #1d1d1f;
+  margin: 0 0 6px;
+}
+.macos-modal-desc {
+  font-size: 0.82rem;
+  color: #6e6e73;
+  line-height: 1.5;
+  margin: 0 0 24px;
+}
+.macos-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.macos-modal-actions .btn {
+  flex: 1;
+  height: 38px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 0 16px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.macos-modal-actions .btn-primary-sheet {
+  background: var(--primary);
+  color: #fff;
+}
+.macos-modal-actions .btn-primary-sheet:hover { background: var(--primary-hover); }
+.macos-modal-actions .btn-danger-sheet {
+  background: var(--danger);
+  color: #fff;
+}
+.macos-modal-actions .btn-danger-sheet:hover { background: #dc2626; }
+.macos-modal-actions .btn-secondary-sheet {
+  background: rgba(0,0,0,0.05);
+  color: #1d1d1f;
+}
+.macos-modal-actions .btn-secondary-sheet:hover { background: rgba(0,0,0,0.1); }
+
+/* MacOS-style textarea inside modal */
+.macos-modal textarea {
+  width: 100%;
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  background: rgba(0,0,0,0.02);
+  resize: vertical;
+  min-height: 60px;
+  margin-bottom: 16px;
+  outline: none;
+  transition: border 0.15s;
+  box-sizing: border-box;
+}
+.macos-modal textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modalSlideUp {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Delete button in list — glass style */
+.btn-delete-report-list {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(239,68,68,0.08);
+  color: var(--danger);
+  border: 1px solid rgba(239,68,68,0.15);
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.btn-delete-report-list:hover {
+  background: rgba(239,68,68,0.15);
+  border-color: rgba(239,68,68,0.3);
+}
+.btn-delete-report-list:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Verify buttons in list */
+.btn-quick-verify {
+  font-size: 0.7rem !important;
+  padding: 4px 10px !important;
+  border-radius: 8px !important;
+}
+
+#detection-log-list::-webkit-scrollbar-track {
+  background: transparent;
+}
 

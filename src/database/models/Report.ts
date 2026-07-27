@@ -66,6 +66,7 @@ export interface IReport extends Document {
   sla: ISla;
   deletedAt: Date | null;
   scheduledDeletionAt: Date | null;
+  verifiedAt: Date | null;
   deletedById: mongoose.Types.ObjectId | null;
   deletedByName: string | null;
   deleteReason: string | null;
@@ -200,6 +201,7 @@ const ReportSchema = new Schema<IReport>({
   archiveReason: { type: String, default: null },
   workspaceId: { type: Number, index: true },
   sourceMetadata: { type: SourceMetadataSchema, default: {} },
+  verifiedAt: { type: Date, default: null },
   signals: {
     type: new Schema({
       active: { type: [Number], default: [] },

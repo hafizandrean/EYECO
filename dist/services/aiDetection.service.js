@@ -32,15 +32,6 @@ const PYTHON_CMD = process.platform === 'win32' ? 'python' : 'python3';
 let _warmupDone = false;
 let _warmupError = null;
 // ---------------------------------------------------------------------------
-// Thresholds untuk menentukan tingkat status AI
-// ---------------------------------------------------------------------------
-const STATUS_THRESHOLDS = {
-    LOW_MAX: 0.45,
-    MEDIUM_MIN: 0.45,
-    HIGH_MIN: 0.75,
-    HIGH_MIN_COUNT: 2,
-};
-// ---------------------------------------------------------------------------
 // Python Spawn
 // ---------------------------------------------------------------------------
 /**
@@ -203,35 +194,48 @@ function yoloBboxToReportBox(bbox, imageWidth, imageHeight, className, confidenc
     };
 }
 // ---------------------------------------------------------------------------
-// Penentuan Status AI — EYECO Smart Logic v2
-// Person-only → Tidak Terindikasi
-// Person + trash overlapping (di tangan) → RENDAH
-// Person + trash terpisah (di tanah) → TINGGI
-// Trash aja → confidence-based
+// Penentuan Status AI — EYECO Smart Logic v3 (Overhauled)
+// Person only (walking by, no trash) → "Tidak Terindikasi" with boxes shown
+// Person + trash overlapping (holding/carrying at wrist) → "SEDANG"
+// Person + trash no overlap (thrown/discarded on ground) → "TINGGI"
+// Trash only (no person) → "RENDAH"
+// Continuous confidence (1 decimal, NOT multiples of 5)
 // ---------------------------------------------------------------------------
-const PERSON_CLASSES = ['people', 'sitting', 'standing'];
-function determineAiStatus(detections, imageWidth, imageHeight) {
+const PERSON_CLASSES = ['person', 'cctv persons', 'cctv persons - v1 2024-09-16 8-18pm', 'people', 'sitting', 'standing', 'fall-detected'];
+const TRASH_TRANSPORT_CLASSES = new Set([
+    'handbag', 'backpack', 'suitcase', 'bag', 'plastic_bag', 'shopping bag',
+]);
+// Carrying/holding objects that could reasonably be in a person's hand/wrist area
+function determineAiStatus(detections, imageWidth, imageHeight, qualityStatus = 'UNKNOWN', blurScore = 0) {
+    // Helper untuk attach qualityStatus ke result
+    const withQuality = (result) => ({
+        ...result,
+        blurScore,
+        qualityStatus,
+    });
     if (detections.length === 0) {
-        return {
+        return withQuality({
             status: 'Tidak Terindikasi',
             confidence: null,
             boxes: [],
-        };
+        });
     }
     const maxConf = Math.max(...detections.map((d) => d.confidence));
     const boxes = detections.map((d) => yoloBboxToReportBox(d.bbox, imageWidth, imageHeight, d.class, d.confidence));
+    // ── Continuous confidence scoring (1 decimal, not multiples of 5) ──
+    const confMultiplier = Math.round(maxConf * 100 * 10) / 10; // 0-100, 1 desimal
     // Pisahkan person vs trash
     const personDets = detections.filter((d) => PERSON_CLASSES.includes(d.class.toLowerCase()));
     const trashDets = detections.filter((d) => !PERSON_CLASSES.includes(d.class.toLowerCase()));
-    // Rule 1: Person AJA (tanpa trash) → Tidak Terindikasi
+    // Rule 1: Person ONLY (no trash detected) → Tidak Terindikasi, show boxes
     if (personDets.length > 0 && trashDets.length === 0) {
-        return {
+        return withQuality({
             status: 'Tidak Terindikasi',
             confidence: null,
-            boxes: [],
-        };
+            boxes, // boxes tetap dikirim agar bounding box tampil di UI
+        });
     }
-    // Rule 2: Person + Trash → cek overlap (IoU based)
+    // Rule 2: Person + Trash → check overlap to determine holding vs thrown
     if (personDets.length > 0 && trashDets.length > 0) {
         let hasOverlap = false;
         for (const trash of trashDets) {
@@ -258,55 +262,34 @@ function determineAiStatus(detections, imageWidth, imageHeight) {
                 break;
         }
         if (hasOverlap) {
-            // Trash di tangan (overlap dengan person) → RENDAH
-            return {
-                status: 'RENDAH',
-                confidence: Math.round(maxConf * 100),
+            // Trash overlapping with person (holding/carrying) → SEDANG
+            // Continuous score: base 50 + up to 24 based on maxConf → 50-74
+            const confidence = Math.round((50 + 24 * maxConf) * 10) / 10;
+            return withQuality({
+                status: 'SEDANG',
+                confidence,
                 boxes,
-            };
+            });
         }
         else {
-            // Trash di tanah (tidak overlap person) → TINGGI
-            return {
+            // Trash not overlapping person (thrown/discarded on ground) → TINGGI
+            // Continuous score: base 65 + up to 25 based on maxConf → 65-90
+            const confidence = Math.round((65 + 25 * maxConf) * 10) / 10;
+            return withQuality({
                 status: 'TINGGI',
-                confidence: Math.round(maxConf * 100),
+                confidence,
                 boxes,
-            };
+            });
         }
     }
-    // Rule 3: Trash aja (tanpa person) → confidence-based (existing logic)
-    const highConfCount = detections.filter((d) => d.confidence >= STATUS_THRESHOLDS.HIGH_MIN).length;
-    let status;
-    let confidence;
-    if (maxConf >= STATUS_THRESHOLDS.HIGH_MIN &&
-        highConfCount >= STATUS_THRESHOLDS.HIGH_MIN_COUNT) {
-        status = 'TINGGI';
-        confidence = Math.round(maxConf * 100);
-    }
-    else if (maxConf >= STATUS_THRESHOLDS.HIGH_MIN) {
-        const highClasses = detections
-            .filter((d) => d.confidence >= STATUS_THRESHOLDS.HIGH_MIN)
-            .map((d) => d.class.toLowerCase());
-        const criticalKeywords = ['littering', 'buang sampah', 'limbah', 'illegal', 'mencurigakan'];
-        const hasCritical = highClasses.some((cls) => criticalKeywords.some((kw) => cls.includes(kw)));
-        if (hasCritical) {
-            status = 'TINGGI';
-            confidence = Math.round(maxConf * 100);
-        }
-        else {
-            status = 'SEDANG';
-            confidence = Math.round(maxConf * 100);
-        }
-    }
-    else if (maxConf >= STATUS_THRESHOLDS.MEDIUM_MIN) {
-        status = 'SEDANG';
-        confidence = Math.round(maxConf * 100);
-    }
-    else {
-        status = 'RENDAH';
-        confidence = Math.round(maxConf * 100);
-    }
-    return { status, confidence, boxes };
+    // Rule 3: Trash ONLY (no person) → RENDAH with continuous confidence
+    // Continuous score: base 25 + up to 15 based on maxConf → 25-40
+    const confidence = Math.round((25 + 15 * maxConf) * 10) / 10;
+    return withQuality({
+        status: 'RENDAH',
+        confidence,
+        boxes,
+    });
 }
 // ---------------------------------------------------------------------------
 // Public API
@@ -347,7 +330,9 @@ async function detectFile(filePath, options = {}) {
     // Konversi
     const imageWidth = result.imageWidth || 640;
     const imageHeight = result.imageHeight || 640;
-    return determineAiStatus(result.detections, imageWidth, imageHeight);
+    const qualityStatus = result.qualityStatus || 'UNKNOWN';
+    const blurScore = result.blurScore || 0;
+    return determineAiStatus(result.detections, imageWidth, imageHeight, qualityStatus, blurScore);
 }
 /**
  * Alias untuk backward compatibility.

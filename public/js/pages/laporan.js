@@ -1,19 +1,17 @@
 // laporan.js - Kontroler Halaman Daftar Laporan Lingkungan (Card Table)
 import { ReportService } from '../services/reportService.js';
-import { StatsService } from '../services/statsService.js';
 import { Router } from '../core/router.js';
 import { Formatter } from '../utils/formatter.js';
 import { CONFIG } from '../core/config.js';
 import { EventBus } from '../core/eventBus.js';
 import { AppState } from '../core/state.js';
-import { animateCounter, createScrollObserver } from '../utils/animations.js';
+import { MacModal } from '../utils/macModal.js';
 
 export class LaporanPage {
   constructor() {
     this.pollingTimer = null;
     this.currentPage = 1;
     this.limit = 5;
-    this.stats = { total: 0, mostVulnerable: '-', valid: 0, cancelled: 0, pending: 0 };
     this.reports = [];
     this.pagination = { totalPages: 1, hasPrev: false, hasNext: false };
     this.filters = {
@@ -21,7 +19,8 @@ export class LaporanPage {
       date: '',
       aiStatus: 'semua',
       adminStatus: 'semua',
-      location: ''
+      location: '',
+      myReports: false,
     };
   }
 
@@ -37,69 +36,10 @@ export class LaporanPage {
     }
 
     container.innerHTML = `
-      <!-- Stats summary cards & Validation chart -->
-      <section class="stats-chart-layout">
-        <!-- Stats cards -->
-        <div class="stats-vertical-grid">
-          <div class="glass-card stat-card glow-yellow">
-            <div class="stat-icon-wrapper yellow"><i data-lucide="folder-open"></i></div>
-            <div class="stat-info">
-              <div class="stat-label">Total Laporan</div>
-              <div class="stat-value" id="laporan-stat-total">0</div>
-            </div>
-          </div>
-          <div class="glass-card stat-card glow-blue">
-            <div class="stat-icon-wrapper blue"><i data-lucide="map"></i></div>
-            <div class="stat-info">
-              <div class="stat-label">Titik Paling Rawan</div>
-              <div class="stat-value" id="laporan-stat-rawan">-</div>
-            </div>
-          </div>
-          <div class="glass-card stat-card glow-green">
-            <div class="stat-icon-wrapper green"><i data-lucide="check-square"></i></div>
-            <div class="stat-info">
-              <div class="stat-label">Validasi Selesai</div>
-              <div class="stat-value" id="laporan-stat-valid">0</div>
-            </div>
-          </div>
-          <div class="glass-card stat-card glow-red">
-            <div class="stat-icon-wrapper red"><i data-lucide="x-circle"></i></div>
-            <div class="stat-info">
-              <div class="stat-label">Dibatalkan</div>
-              <div class="stat-value" id="laporan-stat-cancelled">0</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Chart card -->
-        <div class="glass-card validation-chart-card">
-          <div class="card-header-clean">
-            <div class="section-title"><i data-lucide="bar-chart-3"></i> Grafik Validasi Admin</div>
-          </div>
-          <div class="chart-container">
-            <div class="chart-bar-wrapper">
-              <span class="chart-value" id="laporan-val-pending-count">0</span>
-              <div class="chart-bar pending" id="laporan-bar-pending" style="height: 0%;"></div>
-              <span class="chart-label">Menunggu</span>
-            </div>
-            <div class="chart-bar-wrapper">
-              <span class="chart-value" id="laporan-val-valid-count">0</span>
-              <div class="chart-bar valid" id="laporan-bar-valid" style="height: 0%;"></div>
-              <span class="chart-label">Valid</span>
-            </div>
-            <div class="chart-bar-wrapper">
-              <span class="chart-value" id="laporan-val-ignored-count">0</span>
-              <div class="chart-bar ignored" id="laporan-bar-ignored" style="height: 0%;"></div>
-              <span class="chart-label">Dibatalkan</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Advanced Filter row -->
+      <!-- Advanced Filter row - single line -->
       <section class="glass-card filters-section">
-        <div class="filters-grid">
-          <div class="filter-item">
+        <div class="filters-row">
+          <div class="filter-item-compact">
             <label class="filter-label">Rentang Waktu</label>
             <select class="filter-control select-rounded" id="filter-time">
               <option value="semua" ${this.filters.timeRange === 'semua' ? 'selected' : ''}>Semua Waktu</option>
@@ -107,12 +47,12 @@ export class LaporanPage {
               <option value="minggu_ini" ${this.filters.timeRange === 'minggu_ini' ? 'selected' : ''}>Minggu Ini</option>
             </select>
           </div>
-          <div class="filter-item">
-            <label class="filter-label">Pilih Tanggal</label>
+          <div class="filter-item-compact">
+            <label class="filter-label">Tanggal</label>
             <input type="date" class="filter-control input-rounded" id="filter-date" value="${this.filters.date}">
           </div>
-          <div class="filter-item">
-            <label class="filter-label">Hasil Indikasi AI</label>
+          <div class="filter-item-compact">
+            <label class="filter-label">Indikasi AI</label>
             <select class="filter-control select-rounded" id="filter-ai">
               <option value="semua" ${this.filters.aiStatus === 'semua' ? 'selected' : ''}>Semua Indikasi</option>
               <option value="TINGGI" ${this.filters.aiStatus === 'TINGGI' ? 'selected' : ''}>Tinggi</option>
@@ -121,8 +61,8 @@ export class LaporanPage {
               <option value="Tidak Terindikasi" ${this.filters.aiStatus === 'Tidak Terindikasi' ? 'selected' : ''}>Tidak Terindikasi</option>
             </select>
           </div>
-          <div class="filter-item">
-            <label class="filter-label">Status Validasi</label>
+          <div class="filter-item-compact">
+            <label class="filter-label">Status</label>
             <select class="filter-control select-rounded" id="filter-admin">
               <option value="semua" ${this.filters.adminStatus === 'semua' ? 'selected' : ''}>Semua Status</option>
               <option value="MENUNGGU" ${this.filters.adminStatus === 'MENUNGGU' ? 'selected' : ''}>Menunggu</option>
@@ -130,17 +70,24 @@ export class LaporanPage {
               <option value="DIABAIKAN" ${this.filters.adminStatus === 'DIABAIKAN' ? 'selected' : ''}>Diabaikan</option>
             </select>
           </div>
-          <div class="filter-item search-item">
-            <label class="filter-label">Cari Lokasi</label>
+          <div class="filter-item-compact search-item-compact">
+            <label class="filter-label">Cari</label>
             <div class="search-input-wrapper-laporan" style="position: relative;">
-              <i data-lucide="search" class="search-input-icon-laporan" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted);"></i>
-              <input type="text" class="filter-control input-rounded" id="search-location" placeholder="Masukkan lokasi..." value="${this.filters.location}" style="padding-left: 36px; width: 100%;">
+              <i data-lucide="search" class="search-input-icon-laporan" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; color: var(--text-muted);"></i>
+              <input type="text" class="filter-control input-rounded" id="search-location" placeholder="Lokasi..." value="${this.filters.location}" style="padding-left: 30px; width: 100%; font-size:0.78rem;">
             </div>
           </div>
-          <div class="filter-item reset-filter-col">
-            <label class="filter-label" style="visibility: hidden; pointer-events: none;">&nbsp;</label>
-            <button class="btn btn-glass btn-rounded" id="btn-reset-filters" style="width: 100%; height: 40px;">
-              <i data-lucide="rotate-ccw"></i> Reset Filter
+          <div class="filter-item-compact filter-my-reports-compact">
+            <label class="filter-label">&nbsp;</label>
+            <label class="toggle-switch-inline" style="display:flex; align-items:center; gap:5px; cursor:pointer; white-space:nowrap;">
+              <input type="checkbox" id="filter-my-reports" ${this.filters.myReports ? 'checked' : ''} style="width:15px;height:15px;accent-color:var(--primary);cursor:pointer;margin:0;">
+              <span style="font-size:0.72rem;font-weight:700;color:var(--text-secondary);">Saya</span>
+            </label>
+          </div>
+          <div class="filter-item-compact reset-btn-compact">
+            <label class="filter-label">&nbsp;</label>
+            <button class="btn btn-glass btn-rounded" id="btn-reset-filters" style="height: 34px; padding: 0 12px; font-size:0.72rem; display:flex; align-items:center; gap:4px;">
+              <i data-lucide="rotate-ccw" style="width:13px;height:13px;"></i> Reset
             </button>
           </div>
         </div>
@@ -209,6 +156,7 @@ export class LaporanPage {
     const filterAdmin = document.getElementById('filter-admin');
     const searchLocation = document.getElementById('search-location');
     const btnReset = document.getElementById('btn-reset-filters');
+    const filterMyReports = document.getElementById('filter-my-reports');
 
     const btnPrev = document.getElementById('btn-prev');
     const btnNext = document.getElementById('btn-next');
@@ -245,14 +193,19 @@ export class LaporanPage {
       });
     }
 
+    if (filterMyReports) {
+      filterMyReports.addEventListener('change', () => this.applyFilters());
+    }
+
     if (btnReset) {
       btnReset.addEventListener('click', () => {
-        this.filters = { timeRange: 'semua', date: '', aiStatus: 'semua', adminStatus: 'semua', location: '' };
+        this.filters = { timeRange: 'semua', date: '', aiStatus: 'semua', adminStatus: 'semua', location: '', myReports: false };
         if (filterTime) filterTime.value = 'semua';
         if (filterDate) filterDate.value = '';
         if (filterAi) filterAi.value = 'semua';
         if (filterAdmin) filterAdmin.value = 'semua';
         if (searchLocation) searchLocation.value = '';
+        if (filterMyReports) filterMyReports.checked = false;
         this.currentPage = 1;
         this.loadData();
       });
@@ -276,24 +229,39 @@ export class LaporanPage {
       });
     }
 
-    // Clear all reports (admin only)
+    // Clear all reports (admin only) — macOS-style prompt
     const btnClearAll = document.getElementById('btn-clear-all-reports');
     if (btnClearAll) {
       btnClearAll.addEventListener('click', async () => {
-        const confirmMsg = `PERINGATAN: Semua ${this.pagination.totalPages > 1 ? 'data laporan' : 'data laporan'} di workspace ini akan DIHAPUS PERMANEN.\\n\\nTindakan ini tidak dapat dibatalkan.\\n\\nKetik "HAPUS" untuk konfirmasi:`;
-        const input = window.prompt(confirmMsg);
-        if (input !== 'HAPUS') {
+        const confirmed = await MacModal.confirm(
+          'Hapus Semua Data Laporan',
+          `Semua laporan dan foto di workspace ini akan <strong>dihapus permanen</strong>.<br><br>Tindakan ini tidak dapat dibatalkan.`,
+          { iconType: 'danger', confirmText: 'Lanjutkan', cancelText: 'Batal', confirmStyle: 'danger' }
+        );
+        if (!confirmed) return;
+
+        // Second step: type HAPUS to confirm
+        const input = await MacModal.prompt(
+          'Konfirmasi Penghapusan',
+          `Ketik <strong>HAPUS</strong> untuk mengonfirmasi penghapusan <strong>semua</strong> data laporan dan foto.`,
+          { placeholder: 'Ketik HAPUS di sini...', confirmText: 'Hapus Semua', iconType: 'danger' }
+        );
+        if (!input || input.trim().toUpperCase() !== 'HAPUS') {
           EventBus.emit('toast:show', { message: 'Penghapusan dibatalkan.', type: 'info' });
           return;
         }
+
         try {
           btnClearAll.disabled = true;
           btnClearAll.innerHTML = '<i data-lucide="loader"></i> Menghapus...';
           if (window.lucide) window.lucide.createIcons();
-          const res = await fetch('/api/reports/clear-all', { method: 'DELETE', credentials: 'include' });
+          const res = await fetch('/api/clear-all', { method: 'DELETE', credentials: 'include' });
           const data = await res.json();
           if (data.success) {
-            EventBus.emit('toast:show', { message: `${data.deleted} data laporan berhasil dihapus.`, type: 'success' });
+            let msg = `${data.deleted} data laporan berhasil dihapus.`;
+            if (data.filesDeleted > 0) msg += ` ${data.filesDeleted} file gambar juga dihapus.`;
+            if (data.filesFailed > 0) msg += ` ${data.filesFailed} file gagal dihapus.`;
+            EventBus.emit('toast:show', { message: msg, type: 'success' });
             this.currentPage = 1;
             await this.loadData();
           } else {
@@ -318,85 +286,23 @@ export class LaporanPage {
     this.filters.aiStatus = document.getElementById('filter-ai').value;
     this.filters.adminStatus = document.getElementById('filter-admin').value;
     this.filters.location = document.getElementById('search-location').value;
+    const myReportsCb = document.getElementById('filter-my-reports');
+    this.filters.myReports = myReportsCb ? myReportsCb.checked : false;
     this.currentPage = 1;
     this.loadData();
   }
 
   async loadData() {
     try {
-      // 1. Fetch Stats
-      const stats = await StatsService.getStats();
-      this.stats = stats;
-
-      // 2. Fetch Reports
       const response = await ReportService.getFilteredReports(this.filters, this.currentPage, this.limit);
       this.reports = response.reports || [];
       this.pagination = response.pagination || { totalPages: 1, hasPrev: false, hasNext: false };
 
-      // Render
-      this.renderStatsAndCharts();
       this.renderTable();
       this.updatePaginationControls();
     } catch (err) {
       this.renderError();
     }
-  }
-
-  renderStatsAndCharts() {
-    const totalEl = document.getElementById('laporan-stat-total');
-    const rawanEl = document.getElementById('laporan-stat-rawan');
-    const validEl = document.getElementById('laporan-stat-valid');
-    const cancelledEl = document.getElementById('laporan-stat-cancelled');
-
-    const pendingCount = document.getElementById('laporan-val-pending-count');
-    const validCount = document.getElementById('laporan-val-valid-count');
-    const ignoredCount = document.getElementById('laporan-val-ignored-count');
-
-    const barPending = document.getElementById('laporan-bar-pending');
-    const barValid = document.getElementById('laporan-bar-valid');
-    const barIgnored = document.getElementById('laporan-bar-ignored');
-
-    // Set initial = 0
-    if (totalEl) totalEl.innerText = '0';
-    if (rawanEl) rawanEl.innerText = '-';
-    if (validEl) validEl.innerText = '0';
-    if (cancelledEl) cancelledEl.innerText = '0';
-    if (pendingCount) pendingCount.innerText = '0';
-    if (validCount) validCount.innerText = '0';
-    if (ignoredCount) ignoredCount.innerText = '0';
-
-    // Set chart bars to 0 first
-    if (barPending) barPending.style.height = '0%';
-    if (barValid) barValid.style.height = '0%';
-    if (barIgnored) barIgnored.style.height = '0%';
-
-    // Scroll observer — animasi jalan saat masuk viewport
-    createScrollObserver('.stats-chart-layout', () => {
-      // Animate counters naik perlahan
-      if (totalEl) animateCounter(totalEl, this.stats.total, 1200);
-      if (rawanEl) rawanEl.innerText = this.stats.mostVulnerable;
-      if (validEl) animateCounter(validEl, this.stats.valid, 1200);
-      if (cancelledEl) animateCounter(cancelledEl, this.stats.cancelled, 1200);
-
-      if (pendingCount) animateCounter(pendingCount, this.stats.pending, 1000);
-      if (validCount) animateCounter(validCount, this.stats.valid, 1000);
-      if (ignoredCount) animateCounter(ignoredCount, this.stats.cancelled, 1000);
-
-      // Set chart bars heights with transition
-      const maxVal = Math.max(this.stats.pending, this.stats.valid, this.stats.cancelled, 1);
-      if (barPending) {
-        barPending.style.transition = 'height 1s cubic-bezier(0.34, 1.56, 0.64, 1)';
-        barPending.style.height = `${(this.stats.pending / maxVal) * 80}%`;
-      }
-      if (barValid) {
-        barValid.style.transition = 'height 1s cubic-bezier(0.34, 1.56, 0.64, 1)';
-        barValid.style.height = `${(this.stats.valid / maxVal) * 80}%`;
-      }
-      if (barIgnored) {
-        barIgnored.style.transition = 'height 1s cubic-bezier(0.34, 1.56, 0.64, 1)';
-        barIgnored.style.height = `${(this.stats.cancelled / maxVal) * 80}%`;
-      }
-    });
   }
 
   renderTable() {
@@ -445,6 +351,23 @@ export class LaporanPage {
         `;
       }
 
+      // Delete button (own report, within 10 min) — backend flag or client fallback
+      let deleteBtnHtml = '';
+      const canDelete = typeof report.canDelete === 'boolean'
+        ? report.canDelete
+        : (currentUser && report.userId &&
+           (currentUser._id || currentUser.id || '').toString() === report.userId.toString() &&
+           (report.createdAt || report.timestamp) &&
+           (Date.now() - new Date(report.createdAt || report.timestamp).getTime()) < 10 * 60 * 1000);
+
+      if (canDelete) {
+        deleteBtnHtml = `
+          <button class="btn-delete-report-list" data-id="${report.id}" title="Hapus laporan">
+            <i data-lucide="trash-2" style="width:13px;height:13px;"></i> Hapus
+          </button>
+        `;
+      }
+
       // Mini bounding boxes html for thumbnails
       let boxesHtml = '';
       if (report.boundingBoxes && report.boundingBoxes.length > 0) {
@@ -489,6 +412,7 @@ export class LaporanPage {
         <div class="col-actions">
           <div class="action-group">
             ${actionButtons}
+            ${deleteBtnHtml}
             <button class="btn btn-primary btn-sm btn-view-details" data-id="${report.id}">Detail Data</button>
           </div>
         </div>
@@ -506,12 +430,51 @@ export class LaporanPage {
           e.stopPropagation();
           const id = btn.getAttribute('data-id');
           const action = btn.getAttribute('data-action');
-          if (confirm(`Tandai laporan #${id} sebagai ${action}?`)) {
-            await ReportService.verifyReport(id, action, 'Verifikasi cepat dari Laporan logs.');
-            this.loadData();
-          }
+          const actionLabel = action === 'VALID' ? 'Valid' : 'Abaikan';
+          const confirmed = await MacModal.confirm(
+            `${actionLabel} Laporan #${id}?`,
+            `Laporan ini akan ditandai sebagai <strong>${actionLabel}</strong>. ${action === 'DIABAIKAN' ? 'Laporan akan diarsipkan.' : 'Status akan dikonfirmasi sebagai valid.'}`,
+            { iconType: action === 'VALID' ? 'success' : 'warning', confirmText: 'Ya, ' + actionLabel, cancelText: 'Batal', confirmStyle: 'primary' }
+          );
+          if (!confirmed) return;
+          await ReportService.verifyReport(id, action, 'Verifikasi cepat dari Laporan logs.');
+          this.loadData();
         });
       });
+
+      // Delete from list
+      const deleteBtn = row.querySelector('.btn-delete-report-list');
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const confirmed = await MacModal.confirm(
+            'Hapus Laporan',
+            `Apakah Anda yakin ingin menghapus laporan <strong>#${report.id}</strong>? Tindakan ini tidak dapat dibatalkan.`,
+            { iconType: 'danger', confirmText: 'Hapus', cancelText: 'Batal', confirmStyle: 'danger' }
+          );
+          if (!confirmed) return;
+          deleteBtn.disabled = true;
+          deleteBtn.innerHTML = '...';
+          try {
+            const res = await fetch(`/api/detections/${report.id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) {
+              EventBus.emit('toast:show', { message: 'Laporan berhasil dihapus', type: 'success' });
+              this.loadData();
+            } else {
+              EventBus.emit('toast:show', { message: data.error || 'Gagal menghapus laporan', type: 'danger' });
+              deleteBtn.disabled = false;
+              deleteBtn.innerHTML = '<i data-lucide="trash-2" style="width:13px;height:13px;"></i> Hapus';
+              if (window.lucide) window.lucide.createIcons();
+            }
+          } catch (err) {
+            EventBus.emit('toast:show', { message: 'Gagal menghapus laporan', type: 'danger' });
+            deleteBtn.disabled = false;
+            deleteBtn.innerHTML = '<i data-lucide="trash-2" style="width:13px;height:13px;"></i> Hapus';
+            if (window.lucide) window.lucide.createIcons();
+          }
+        });
+      }
 
       container.appendChild(row);
     });

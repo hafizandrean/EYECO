@@ -98,16 +98,16 @@ export class UploadPage {
             <!-- Processing State -->
             <div id="modal-processing">
               <div class="upload-spinner" style="width:56px; height:56px; border:4px solid var(--surface-soft); border-top-color:var(--primary); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 20px;"></div>
-              <h3 style="font-family:'Outfit',sans-serif; font-weight:700; font-size:1.2rem; margin:0 0 8px; color:var(--text-primary);">Memproses Laporan</h3>
-              <p style="font-size:0.85rem; color:var(--text-secondary); margin:0;">AI sedang memverifikasi dan menyimpan laporan Anda...</p>
+              <h3 style="font-family:'Outfit',sans-serif; font-weight:700; font-size:1.2rem; margin:0 0 8px; color:var(--text-primary); text-align:center;">Memproses Laporan</h3>
+              <p style="font-size:0.85rem; color:var(--text-secondary); margin:0; text-align:center;">AI sedang memverifikasi dan menyimpan laporan Anda...</p>
             </div>
             <!-- Success State -->
             <div id="modal-success" style="display:none;">
               <div style="width:56px; height:56px; border-radius:50%; background:rgba(16,185,129,0.12); display:flex; align-items:center; justify-content:center; margin:0 auto 20px;">
                 <i data-lucide="check-circle" style="width:32px; height:32px; color:#10B981;"></i>
               </div>
-              <h3 style="font-family:'Outfit',sans-serif; font-weight:700; font-size:1.2rem; margin:0 0 8px; color:var(--text-primary);">Laporan Terkirim!</h3>
-              <p style="font-size:0.85rem; color:var(--text-secondary); margin:0;">Laporan Anda berhasil disimpan dan akan segera diproses.</p>
+              <h3 style="font-family:'Outfit',sans-serif; font-weight:700; font-size:1.2rem; margin:0 0 8px; color:var(--text-primary); text-align:center;">Laporan Terkirim!</h3>
+              <p style="font-size:0.85rem; color:var(--text-secondary); margin:0; text-align:center;">Laporan Anda berhasil disimpan dan akan segera diproses.</p>
             </div>
           </div>
         </div>
@@ -394,10 +394,15 @@ export class UploadPage {
       this.isScanning = true;
       success = true;
       
-      // Force redirect to report list after a short pause
+      // Redirect ke detail laporan yang barusan diupload
+      const reportId = response?.id || response?._id;
       setTimeout(() => {
         if (modal) modal.style.display = 'none';
-        Router.navigate('/dashboard/laporan');
+        if (reportId) {
+          Router.navigate(`/dashboard/detections/${reportId}`);
+        } else {
+          Router.navigate('/dashboard/laporan');
+        }
       }, 800);
     } catch (err) {
       EventBus.emit('toast:show', { message: `Gagal mengirim laporan: ${err.message}`, type: 'danger' });

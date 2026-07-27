@@ -13,13 +13,14 @@ export class ReportRepository {
 
   public static async findByLegacyId(id: number, workspaceId?: number): Promise<IReport | null> {
     const query: Record<string, unknown> = { id, deletedAt: null };
+    if (workspaceId !== undefined) query.workspaceId = workspaceId;
     const report = await ReportModel.findOne(query).exec();
     return report;
   }
 
   public static async update(
-    id: mongoose.Types.ObjectId | string, 
-    updateData: Partial<IReport>, 
+    id: mongoose.Types.ObjectId | string,
+    updateData: Partial<IReport>,
     session?: mongoose.mongo.ClientSession
   ): Promise<IReport | null> {
     const options: any = { new: true, returnDocument: 'after', runValidators: true };
@@ -47,13 +48,13 @@ export class ReportRepository {
     }
     const report = (await ReportModel.findOneAndUpdate(
       { _id: id, deletedAt: null },
-      { 
-        $set: { 
-          deletedAt: new Date(), 
-          deletedById: actorId, 
-          deletedByName: actorName, 
-          deleteReason: reason 
-        } 
+      {
+        $set: {
+          deletedAt: new Date(),
+          deletedById: actorId,
+          deletedByName: actorName,
+          deleteReason: reason
+        }
       },
       options
     ).exec() as unknown) as IReport | null;
@@ -71,13 +72,13 @@ export class ReportRepository {
     }
     const report = (await ReportModel.findOneAndUpdate(
       { _id: id, deletedAt: { $ne: null } },
-      { 
-        $set: { 
-          deletedAt: null, 
-          deletedById: null, 
-          deletedByName: null, 
-          restoreReason: reason 
-        } 
+      {
+        $set: {
+          deletedAt: null,
+          deletedById: null,
+          deletedByName: null,
+          restoreReason: reason
+        }
       },
       options
     ).exec() as unknown) as IReport | null;
@@ -96,7 +97,7 @@ export class ReportRepository {
       sourceType: string;
       additionalNotes?: string;
       boundingBoxes?: IBoundingBox[];
-    }, 
+    },
     creatorId: number
   ): Promise<IReport> {
     try {
@@ -143,8 +144,8 @@ export class ReportRepository {
   }
 
   public static async updateVerification(
-    id: number, 
-    status: 'VALID' | 'DIABAIKAN' | 'MENUNGGU', 
+    id: number,
+    status: 'VALID' | 'DIABAIKAN' | 'MENUNGGU',
     notes: string,
     assignedOfficer?: string,
     progressStatus?: 'NEW' | 'UNDER_REVIEW' | 'VALIDATED' | 'ASSIGNED' | 'ON_SITE' | 'IN_PROGRESS' | 'RESOLVED' | 'WAITING_APPROVAL' | 'CLOSED' | 'REJECTED',
@@ -168,16 +169,19 @@ export class ReportRepository {
       // Auto-delete 40 days after validation: set scheduledDeletionAt when VALID or DIABAIKAN
       if (status === 'VALID' || status === 'DIABAIKAN') {
         updateFields.scheduledDeletionAt = new Date(Date.now() + 40 * 24 * 60 * 60 * 1000);
+        // Catat waktu verifikasi (untuk review duration)
+        updateFields.verifiedAt = new Date();
       } else {
         updateFields.scheduledDeletionAt = null;
+        updateFields.verifiedAt = null;
       }
 
       const query: Record<string, unknown> = { id };
       if (workspaceId !== undefined) query.workspaceId = workspaceId;
 
       const updated = await ReportModel.findOneAndUpdate(
-        query, 
-        updateFields, 
+        query,
+        updateFields,
         { new: true }
       ).exec();
       return updated;
@@ -194,6 +198,7 @@ export class ReportRepository {
       aiStatus?: string;
       adminStatus?: string;
       location?: string;
+      myReports?: boolean;
     },
     userContext: { id: number; role: string },
     page?: number,
@@ -204,10 +209,14 @@ export class ReportRepository {
 
       if (userContext.role === 'admin') {
         const user = await UserModel.findOne({ id: userContext.id }).lean().exec();
-        const wsId = (user as any)?.workspaceId || 1;
-        query.$or = [{ workspaceId: wsId }, { workspaceId: { $exists: false } }, { workspaceId: 1 }];
-      } else if (userContext.role === 'user') {
-        // User sees all non-deleted reports
+        const wsId = (user as any)?.workspaceId;
+        if (wsId) {
+          query.workspaceId = wsId;
+        } else {
+          query.workspaceId = -1; // No workspace assigned = no results
+        }
+      } else if (userContext.role === 'user' || userContext.role === 'operator') {
+        // User/Operator sees all non-deleted reports in their workspace
         const user = await UserModel.findOne({ id: userContext.id }).lean().exec();
         if (user && (user as any).workspaceId) {
           query.workspaceId = (user as any).workspaceId;
@@ -218,8 +227,11 @@ export class ReportRepository {
       } else if (userContext.role === 'superadmin') {
         const ownedWorkspaces = await WorkspaceModel.find({ superadminId: userContext.id }).lean().exec();
         const wsIds = ownedWorkspaces.map(w => w.id);
-        if (!wsIds.includes(1)) wsIds.push(1);
-        query.$or = [{ workspaceId: { $in: wsIds } }, { workspaceId: { $exists: false } }, { workspaceId: 1 }];
+        if (wsIds.length > 0) {
+          query.workspaceId = { $in: wsIds };
+        } else {
+          query.workspaceId = -1; // No owned workspaces = no results
+        }
       }
 
       if (filters.date) {
@@ -255,6 +267,14 @@ export class ReportRepository {
           { location: regex },
           { identity: regex }
         ];
+      }
+
+      // ── Filter: Laporan Saya ──
+      if (filters.myReports) {
+        const currentUser = await UserModel.findOne({ id: userContext.id }).lean().exec();
+        if (currentUser) {
+          query.userId = currentUser._id;
+        }
       }
 
       const q = ReportModel.find(query).sort({ timestamp: -1 });
@@ -298,7 +318,11 @@ export class ReportRepository {
 
     if (userContext.role === 'superadmin') {
       const ownedWorkspaces = await WorkspaceModel.find({ superadminId: userContext.id }).lean().exec();
-      return { workspaceId: { $in: ownedWorkspaces.map((workspace) => workspace.id) } };
+      const wsIds = ownedWorkspaces.map(w => w.id);
+      if (wsIds.length > 0) {
+        return { workspaceId: { $in: wsIds } };
+      }
+      return { workspaceId: -1 };
     }
 
     return { workspaceId: -1 };
@@ -487,15 +511,15 @@ export class ReportRepository {
     userId: number,
     isAdmin: boolean,
     workspaceId?: number
-  ): Promise<IComment> {
+  ): Promise<void> {
     try {
+      // Try without workspaceId first
       const query: Record<string, unknown> = { id: reportId, deletedAt: null };
-      let report = await ReportModel.findOne(query);
-      if (!report && workspaceId !== undefined) {
+      if (workspaceId !== undefined) {
         query.workspaceId = workspaceId;
-        console.log('[DELETECOMMENT] Fallback: coba dengan workspaceId');
-        report = await ReportModel.findOne(query);
       }
+
+      const report = await ReportModel.findOne(query).exec();
       if (!report) {
         throw new Error('Laporan tidak ditemukan.');
       }
@@ -505,14 +529,13 @@ export class ReportRepository {
         throw new Error('Komentar tidak ditemukan.');
       }
 
-      if (comment.userId !== userId && !isAdmin) {
-        throw new Error('Anda tidak memiliki akses untuk menghapus komentar ini.');
+      // Only allow deletion if user owns comment or is admin
+      if (!isAdmin && comment.userId !== userId) {
+        throw new Error('Tidak diizinkan menghapus komentar orang lain.');
       }
 
       comment.isDeleted = true;
       await report.save();
-
-      return comment;
     } catch (err) {
       console.error('[DATABASE ERROR] deleteComment failed:', err);
       throw err;
@@ -527,12 +550,11 @@ export class ReportRepository {
   ): Promise<IComment> {
     try {
       const query: Record<string, unknown> = { id: reportId, deletedAt: null };
-      let report = await ReportModel.findOne(query);
-      if (!report && workspaceId !== undefined) {
+      if (workspaceId !== undefined) {
         query.workspaceId = workspaceId;
-        console.log('[TOGGLELIKE] Fallback: coba dengan workspaceId');
-        report = await ReportModel.findOne(query);
       }
+
+      const report = await ReportModel.findOne(query).exec();
       if (!report) {
         throw new Error('Laporan tidak ditemukan.');
       }
@@ -542,15 +564,11 @@ export class ReportRepository {
         throw new Error('Komentar tidak ditemukan.');
       }
 
-      if (comment.isDeleted) {
-        throw new Error('Komentar telah dihapus.');
-      }
-
-      const index = comment.likedBy.indexOf(userId);
-      if (index > -1) {
-        comment.likedBy.splice(index, 1);
-      } else {
+      const likedIndex = comment.likedBy.indexOf(userId);
+      if (likedIndex === -1) {
         comment.likedBy.push(userId);
+      } else {
+        comment.likedBy.splice(likedIndex, 1);
       }
 
       await report.save();

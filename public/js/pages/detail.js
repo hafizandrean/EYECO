@@ -4,6 +4,7 @@ import { Router } from '../core/router.js';
 import { Formatter } from '../utils/formatter.js';
 import { EventBus } from '../core/eventBus.js';
 import { AppState } from '../core/state.js';
+import { MacModal } from '../utils/macModal.js';
 
 export class DetailPage {
   constructor() {
@@ -657,7 +658,12 @@ export class DetailPage {
       const deleteBtn = document.getElementById('btn-delete-report');
       if (deleteBtn) {
         deleteBtn.onclick = async () => {
-          if (!confirm('Yakin hapus laporan ini? Tindakan ini tidak dapat dibatalkan.')) return;
+          const confirmed = await MacModal.confirm(
+            'Hapus Laporan',
+            `Apakah Anda yakin ingin menghapus laporan <strong>#${this.reportId}</strong>? Tindakan ini tidak dapat dibatalkan.`,
+            { iconType: 'danger', confirmText: 'Hapus', cancelText: 'Batal', confirmStyle: 'danger' }
+          );
+          if (!confirmed) return;
           deleteBtn.disabled = true;
           deleteBtn.innerHTML = '<span class="status-pulse-dot" style="width:8px;height:8px;background:white;border-radius:50%;display:inline-block;margin-right:6px;"></span> Menghapus...';
           try {
@@ -747,11 +753,12 @@ export class DetailPage {
     statusPill.className = `badge ${badgeClass}`;
   }
 
-  // Running SLA Timer
+  // Running SLA Timer — berhenti kalo udah diverifikasi (verifiedAt ada)
   startSLATimer() {
     if (this.slaTimerInterval) clearInterval(this.slaTimerInterval);
 
     const timerEl = document.getElementById('detail-sla-timer');
+    const statusPill = document.getElementById('detail-workflow-status-pill');
     if (!timerEl) return;
 
     const rawTime = (this.report && (this.report.timestamp || this.report.createdAt || this.report.capturedAt)) || Date.now();
@@ -761,6 +768,43 @@ export class DetailPage {
       return;
     }
 
+    // Cek apakah udah diverifikasi oleh admin
+    if (this.report.verifiedAt) {
+      const verifiedAt = new Date(this.report.verifiedAt).getTime();
+      if (isNaN(verifiedAt)) {
+        this._runLiveTimer(timerEl, start);
+        return;
+      }
+      // Hitung review duration (verifiedAt - createdAt)
+      const reviewMs = verifiedAt - start;
+      const reviewHours = Math.floor(reviewMs / (1000 * 60 * 60));
+      const reviewMinutes = Math.floor((reviewMs % (1000 * 60 * 60)) / (1000 * 60));
+      const reviewSeconds = Math.floor((reviewMs % (1000 * 60)) / 1000);
+      
+      timerEl.innerText = `${reviewHours}h ${reviewMinutes}m ${reviewSeconds}s`;
+      timerEl.style.color = 'var(--success)';
+      timerEl.style.background = 'rgba(16,185,129,0.08)';
+      
+      if (statusPill) {
+        statusPill.innerText = 'Selesai Ditinjau';
+        statusPill.className = 'badge';
+        statusPill.style.background = 'var(--success)';
+        statusPill.style.color = '#fff';
+      }
+      return;
+    }
+
+    // Belum diverifikasi — timer live
+    if (statusPill) {
+      statusPill.innerText = 'Menunggu Review';
+      statusPill.className = 'badge';
+      statusPill.style.background = 'var(--warning)';
+      statusPill.style.color = '#fff';
+    }
+    this._runLiveTimer(timerEl, start);
+  }
+
+  _runLiveTimer(timerEl, start) {
     this.slaTimerInterval = setInterval(() => {
       const now = new Date().getTime();
       const diff = now - start;
@@ -1351,16 +1395,18 @@ export class DetailPage {
   }
 
   canDelete(report) {
-    // Only owner can delete, within 10 minutes
+    // Backend already computes this; use it if present
+    if (report && typeof report.canDelete === 'boolean') return report.canDelete;
+
+    // Fallback: client-side check (only if backend flag missing)
     const currentUser = AppState.get('user');
     if (!currentUser || !report) return false;
-    // Check ownership: compare user's ObjectId with report.userId
-    if (!report.userId || report.userId !== currentUser.id && report.userId !== currentUser._id) return false;
-    // Check 10-minute window
+    const uid = (currentUser._id || currentUser.id || '').toString();
+    const ruid = (report.userId || '').toString();
+    if (!ruid || ruid !== uid) return false;
     const createdAt = report.createdAt || report.timestamp;
     if (!createdAt) return false;
-    const elapsed = Date.now() - new Date(createdAt).getTime();
-    return elapsed < 10 * 60 * 1000;
+    return (Date.now() - new Date(createdAt).getTime()) < 10 * 60 * 1000;
   }
 
   destroy() {

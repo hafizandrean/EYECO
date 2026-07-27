@@ -15,7 +15,10 @@ class YoloObjectDetector {
         // Map raw boxes to YoloObject with Taxonomy Mapping
         const objects = (rawResult.boxes || []).map(b => {
             const rawCls = (b.label || '').toLowerCase();
-            const mappedClass = (0, trashTaxonomy_1.isTrashClass)(rawCls) ? (0, trashTaxonomy_1.mapToTrashTaxonomy)(rawCls).id : rawCls;
+            // Kenali semua varian person (PERSON_CLASSES dari aiDetection.service)
+            const personVariants = ['person', 'cctv persons', 'cctx persons', 'people', 'sitting', 'standing', 'fall-detected', 'orang'];
+            const isPerson = personVariants.some(v => rawCls.includes(v));
+            const mappedClass = isPerson ? 'person' : ((0, trashTaxonomy_1.isTrashClass)(rawCls) ? (0, trashTaxonomy_1.mapToTrashTaxonomy)(rawCls).id : rawCls);
             return {
                 class: mappedClass,
                 confidence: b.confidence,
@@ -33,7 +36,9 @@ class YoloObjectDetector {
             imageWidth: 100, // percentage normalized
             imageHeight: 100,
             rawDetectionCount: objects.length,
-            confidenceMax: Math.round(confidenceMax * 100)
+            confidenceMax: Math.round(confidenceMax * 100),
+            blurScore: rawResult.blurScore,
+            qualityStatus: rawResult.qualityStatus,
         };
     }
 }

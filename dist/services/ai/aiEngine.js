@@ -81,7 +81,14 @@ class AiEngine {
             ...regionData.evidence,
         ];
         // 5. Layer 2.5 — Feature Extraction (Schema: feature-v1)
-        const featureVector = featureExtractor_service_1.featureExtractorService.extractFeatures(objects, poseResult.poses, spatialData.relations, semanticData, analyzersAvailable);
+        const featureVector = featureExtractor_service_1.featureExtractorService.extractFeatures(objects, poseResult.poses, spatialData.relations, semanticData, analyzersAvailable, yoloResult.qualityStatus ? {
+            blurScore: yoloResult.blurScore ?? 0,
+            brightnessScore: 80,
+            resolutionAdequate: true,
+            qualityStatus: yoloResult.qualityStatus === 'BLURRY' ? 'POOR'
+                : yoloResult.qualityStatus === 'LOW' ? 'ACCEPTABLE'
+                    : 'GOOD',
+        } : undefined);
         // 6. Layer 3 — Decision Engine (Strategy Pattern + Policy Validation)
         const decision = decisionEngine_1.decisionEngine.evaluate(featureVector);
         // 7. Layer Explainable — Explainable AI Checklist & Limitations

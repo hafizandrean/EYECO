@@ -55,11 +55,13 @@ export interface EvidenceItem {
   limitations?: string[];
 }
 
+export type QualityLevel = 'GOOD' | 'ACCEPTABLE' | 'POOR' | 'LOW' | 'BLURRY';
+
 export interface ImageQualityMetrics {
   blurScore: number; // 0-100
   brightnessScore: number; // 0-100
   resolutionAdequate: boolean;
-  qualityStatus: 'GOOD' | 'ACCEPTABLE' | 'POOR';
+  qualityStatus: QualityLevel;
 }
 
 export interface FeatureVector {
@@ -77,6 +79,8 @@ export interface FeatureVector {
   imageQuality: ImageQualityMetrics;
   evidenceCoverage: number; // 0-1
   analyzersAvailable: string[];
+  vehicleCount?: number; // Jumlah kendaraan terdeteksi (mobil, motor, dll)
+  groundObjectCount?: number; // Jumlah objek di permukaan tanah (potensi sampah)
 }
 
 export type AiIndicationStatus = 'Indikasi Tinggi' | 'Indikasi Sedang' | 'Indikasi Rendah' | 'Tidak Terindikasi';

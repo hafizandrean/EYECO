@@ -405,7 +405,7 @@ app.get('/superadmin/workspaces/:id', authMiddleware_2.authMiddleware, (0, RoleM
     res.sendFile(path_1.default.join(__dirname, '../public/views/workspace-detail.html'));
 });
 // Dashboard — unified for admin AND user
-app.get(['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/profile', '/dashboard/berita', '/dashboard/users', '/dashboard/cctv', '/dashboard/join-requests'], authMiddleware_2.authMiddleware, (0, RoleMiddleware_1.roleGuard)(['admin', 'user', 'operator', 'supervisor', 'officer']), (req, res) => {
+app.get(['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/profile', '/dashboard/berita', '/dashboard/users', '/dashboard/cctv', '/dashboard/join-requests', '/dashboard/cctv-monitoring'], authMiddleware_2.authMiddleware, (0, RoleMiddleware_1.roleGuard)(['admin', 'user', 'operator', 'supervisor', 'officer']), (req, res) => {
     res.sendFile(path_1.default.join(__dirname, '../public/views/dashboard.html'));
 });
 // Single report detail page

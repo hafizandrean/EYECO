@@ -5,24 +5,29 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AiPipelineScheduler = void 0;
 const FrameCaptureService_1 = require("./FrameCaptureService");
+const CctvAutoReportService_1 = require("./CctvAutoReportService");
 const AiDetection_1 = require("../../database/models/AiDetection");
 const AiMetric_1 = require("../../database/models/AiMetric");
 const SystemSettings_1 = require("../../database/models/SystemSettings");
+const Cctv_1 = require("../../database/models/Cctv");
 const InferenceQueue_1 = require("./InferenceQueue");
 const crypto_1 = __importDefault(require("crypto"));
 class AiPipelineScheduler {
     static intervalId = null;
     static isRunning = false;
     static instanceId = crypto_1.default.randomUUID();
+    static workspaceId = null;
     /**
      * Starts the background AI pipeline scheduler.
+     * If workspaceId is provided, only processes cameras in that workspace.
      */
-    static start(intervalMs = 20000) {
+    static start(intervalMs = 20000, workspaceId) {
         if (this.intervalId)
             return;
         // Inisialisasi worker pool antrean AI
         InferenceQueue_1.InferenceQueue.startWorkers();
-        console.log(`[AiPipelineScheduler] AI Detection Pipeline Scheduler started (${intervalMs}ms intervals).`);
+        this.workspaceId = workspaceId ?? null;
+        console.log(`[AiPipelineScheduler] AI Detection Pipeline Scheduler started (${intervalMs}ms intervals)${workspaceId ? ` for workspace ${workspaceId}` : ''}.`);
         this.intervalId = setInterval(async () => {
             await this.runPipelineCycle();
         }, intervalMs);
@@ -82,7 +87,16 @@ class AiPipelineScheduler {
         let inferenceTimesSum = 0;
         try {
             // 1. Ambil kamera aktif yang online dan memiliki monitoringEnabled = true
-            const cameras = await FrameCaptureService_1.FrameCaptureService.getActiveCamerasForMonitoring();
+            // Filter by workspace if specified
+            const filter = {
+                isActive: true,
+                monitoringEnabled: true,
+                status: { $in: ['ONLINE', 'MONITORING'] }
+            };
+            if (this.workspaceId !== null) {
+                filter.workspaceId = this.workspaceId;
+            }
+            const cameras = await Cctv_1.CctvModel.find(filter).lean().exec();
             framesProcessed = cameras.length;
             for (const camera of cameras) {
                 const captureStartTime = Date.now();
@@ -97,10 +111,15 @@ class AiPipelineScheduler {
                     .then(async (detection) => {
                     const inferenceTime = Date.now() - captureStartTime - captureTime;
                     const promotionStartTime = Date.now();
-                    // 4. Jika terdeteksi objek potensial, jalankan Promotion
+                    // 4. Jika terdeteksi objek potensial, jalankan auto-report dan promotion
                     if (detection) {
-                        // PromotionService.evaluateDetection(detection); — disabled, no more CCTV reports
-                        console.log(`[AiPipelineTrace](disabled) Detection found but promotion cancelled.`);
+                        // Auto-create report if person detected
+                        const autoReportResult = await CctvAutoReportService_1.CctvAutoReportService.processDetection(frame, detection);
+                        if (autoReportResult) {
+                            console.log(`[AiPipelineTrace] Auto-report #${autoReportResult.reportId} created for camera #${camera.id}`);
+                        }
+                        // Legacy promotion check (disabled by default)
+                        console.log(`[AiPipelineTrace] Detection found.${autoReportResult ? ' Auto-report created.' : ' No person detected.'}`);
                     }
                     const promotionTime = Date.now() - promotionStartTime;
                     const totalTime = captureTime + inferenceTime + promotionTime;

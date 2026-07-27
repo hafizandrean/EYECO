@@ -126,5 +126,49 @@ export const CctvService = {
       console.error(`[CctvService] toggleCameraMonitoring failed for ID ${id}:`, err);
       throw err;
     }
+  },
+
+  // ── Auto-Report Monitoring ──
+  async getMonitoringStatus() {
+    try {
+      const response = await API.get('/api/cctv/monitoring/status');
+      return response;
+    } catch (err) {
+      console.error('[CctvService] getMonitoringStatus failed:', err);
+      throw err;
+    }
+  },
+
+  async startAutoMonitoring() {
+    try {
+      const response = await API.post('/api/cctv/monitoring/start');
+      return response;
+    } catch (err) {
+      console.error('[CctvService] startAutoMonitoring failed:', err);
+      throw err;
+    }
+  },
+
+  async stopAutoMonitoring() {
+    try {
+      const response = await API.post('/api/cctv/monitoring/stop');
+      return response;
+    } catch (err) {
+      console.error('[CctvService] stopAutoMonitoring failed:', err);
+      throw err;
+    }
+  },
+
+  async getMonitoringDetections(limit = 20) {
+    try {
+      const response = await API.get(`/api/cctv/monitoring/detections?limit=${limit}`);
+      if (response && response.success) {
+        return response.data;
+      }
+      return [];
+    } catch (err) {
+      console.error('[CctvService] getMonitoringDetections failed:', err);
+      return [];
+    }
   }
 };

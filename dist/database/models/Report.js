@@ -133,6 +133,7 @@ const ReportSchema = new mongoose_1.Schema({
     archiveReason: { type: String, default: null },
     workspaceId: { type: Number, index: true },
     sourceMetadata: { type: SourceMetadataSchema, default: {} },
+    verifiedAt: { type: Date, default: null },
     signals: {
         type: new mongoose_1.Schema({
             active: { type: [Number], default: [] },

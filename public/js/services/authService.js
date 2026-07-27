@@ -23,7 +23,7 @@ class AuthServiceClass {
       const user = await API.post('/api/auth/login', { username, password });
       AppState.set('user', user);
       EventBus.emit('toast:show', { message: `Selamat datang kembali, ${user.username}!`, type: 'success' });
-      Router.navigate(user.role === 'admin' ? '/dashboard' : '/dashboard/upload');
+      Router.navigate(user.redirect || (user.role === 'admin' ? '/dashboard' : '/select-workspace'));
       return user;
     } catch (err) {
       EventBus.emit('toast:show', { message: err.message, type: 'danger' });
