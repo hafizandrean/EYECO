@@ -11,6 +11,8 @@ import { getLoggedInUser } from '../auth/authMiddleware';
 import { detectFile, warmupAI, isAiReady, getWarmupError } from '../services/aiDetection.service';
 import { NotificationService } from '../services/NotificationService';
 import { NotificationModel } from '../database/models/Notification';
+import { SystemAuditLogModel } from '../database/models/SystemAuditLog';
+import { WorkspaceModel } from '../database/models/Workspace';
 
 const router = Router();
 
@@ -93,7 +95,7 @@ router.get('/detections', async (req, res) => {
 
     if (!result || !('reports' in result)) return res.status(500).json({ error: 'Gagal memproses data laporan' });
 
-    // Inject canDelete flag per report
+    // Inject canDelete flag per report + uploader info (admin/superadmin)
     const TEN_MINUTES = 10 * 60 * 1000;
     const userObjectId = user ? ((user as any)._id?.toString() || '') : '';
     const reportsWithFlags = (result.reports as any[]).map(r => {
@@ -104,6 +106,22 @@ router.get('/detections', async (req, res) => {
         && repCreatedAt && (Date.now() - new Date(repCreatedAt).getTime()) < TEN_MINUTES;
       return { ...plain, canDelete };
     });
+
+    // Batch fetch uploader info for admin/superadmin
+    if (user && (user.role === 'admin' || user.role === 'superadmin')) {
+      const userIds = [...new Set(reportsWithFlags.map((r: any) => r.userId?.toString()).filter(Boolean))] as string[];
+      if (userIds.length > 0) {
+        const uploaders = await UserModel.find({ _id: { $in: userIds } }).select('username name').lean().exec() as any[];
+        const uploaderMap = new Map<string, { username: string; name: string }>();
+        uploaders.forEach((u: any) => uploaderMap.set(u._id.toString(), { username: u.username, name: u.name || '' }));
+        reportsWithFlags.forEach((r: any) => {
+          const uid = r.userId?.toString();
+          if (uid && uploaderMap.has(uid)) {
+            r.uploaderInfo = uploaderMap.get(uid);
+          }
+        });
+      }
+    }
 
     const totalPages = Math.ceil(result.total / limit) || 1;
     res.json({
@@ -584,7 +602,10 @@ router.delete('/clear-all', async (req, res) => {
       return res.status(400).json({ error: 'Tidak ada workspace aktif' });
     }
 
-    // 1. Ambil semua laporan yang akan dihapus (dapatkan path gambar)
+    // 1. Dapatkan info workspace
+    const workspace = await WorkspaceModel.findOne({ id: user.workspaceId }).select('name').lean().exec();
+
+    // 2. Ambil semua laporan yang akan dihapus (dapatkan path gambar)
     const reports = await ReportModel.find({ workspaceId: user.workspaceId })
       .select('image')
       .lean()
@@ -593,7 +614,7 @@ router.delete('/clear-all', async (req, res) => {
       .map(r => r.image)
       .filter(img => img && img.startsWith('/uploads/'));
 
-    // 2. Hapus file gambar dari disk
+    // 3. Hapus file gambar dari disk
     const uploadDir = path.join(__dirname, '../../public');
     let deletedFiles = 0;
     let failedFiles = 0;
@@ -610,10 +631,35 @@ router.delete('/clear-all', async (req, res) => {
       }
     }
 
-    // 3. Hapus semua record dari database (hard delete permanent)
+    // 4. Hapus semua record dari database (hard delete permanent)
     const result = await ReportModel.deleteMany({ workspaceId: user.workspaceId });
 
-    console.log(`[ADMIN] Cleared ${result.deletedCount} reports + ${deletedFiles} files from workspace ${user.workspaceId}${failedFiles > 0 ? ` (${failedFiles} file gagal dihapus)` : ''}`);
+    // 5. Catat audit log untuk superadmin
+    const adminName = user.name || user.username || 'Admin';
+    const workspaceName = workspace?.name || `Workspace #${user.workspaceId}`;
+    try {
+      await SystemAuditLogModel.create({
+        tenantId: 'system',
+        actorId: user._id || null,
+        actorName: adminName,
+        action: 'CLEAR_ALL_REPORTS',
+        ipAddress: req.ip || req.socket.remoteAddress || '',
+        userAgent: req.headers['user-agent'] || '',
+        details: {
+          workspaceId: user.workspaceId,
+          workspaceName: workspaceName,
+          deletedCount: result.deletedCount,
+          filesDeleted: deletedFiles,
+          filesFailed: failedFiles,
+          performedBy: adminName,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } catch (auditErr) {
+      console.error('[ADMIN] Gagal mencatat audit log:', auditErr);
+    }
+
+    console.log(`[ADMIN] ${adminName} cleared ${result.deletedCount} reports + ${deletedFiles} files from workspace ${user.workspaceId} (${workspaceName})${failedFiles > 0 ? ` (${failedFiles} file gagal dihapus)` : ''}`);
     res.json({
       success: true,
       deleted: result.deletedCount,
@@ -722,5 +768,163 @@ router.delete('/detections/:id', async (req, res) => {
 });
 
 // ── TEMP endpoints removed after AI_CCTV cleanup ──
+
+// POST /api/detect-preview — Preview AI detection on an image without saving to DB
+router.post('/detect-preview', upload.single('file'), async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    if (!req.file) return res.status(400).json({ error: 'File gambar wajib diupload' });
+
+    const uploadedFilePath = path.join(__dirname, '../../public/uploads', req.file.filename);
+
+    // Jalankan AI detection via detectFile (kembaliin AiStatusResult)
+    const { detectFile } = require('../services/aiDetection.service');
+    const result = await detectFile(uploadedFilePath);
+
+    // Hapus file temp
+    try { fs.unlinkSync(uploadedFilePath); } catch (_) {}
+
+    const boxes = (result.boxes || []).map((b: any) => ({
+      label: b.label,
+      confidence: b.confidence,
+      x: b.x, y: b.y, w: b.w, h: b.h,
+    }));
+
+    const personBoxes = boxes.filter((b: any) =>
+      ['person', 'cctv persons', 'people'].includes(b.label.toLowerCase())
+    );
+    const trashBoxes = boxes.filter((b: any) =>
+      !['person', 'cctv persons', 'people'].includes(b.label.toLowerCase())
+    );
+
+    let aiStatus = 'Tidak Terindikasi';
+    if (personBoxes.length > 0 && trashBoxes.length === 0) aiStatus = 'Tidak Terindikasi';
+    else if (personBoxes.length > 0 && trashBoxes.length > 0) aiStatus = 'Indikasi Sedang';
+    else if (personBoxes.length === 0 && trashBoxes.length > 0) aiStatus = 'Indikasi Rendah';
+
+    res.json({
+      success: true,
+      boxes,
+      aiStatus,
+      totalDetections: boxes.length,
+    });
+  } catch (err) {
+    console.error('[SERVER ERROR] Detect preview failed:', err);
+    res.status(500).json({ error: 'Gagal memproses deteksi AI' });
+  }
+});
+
+// GET /api/detections/:id/pdf — Export laporan sebagai PDF
+router.get('/detections/:id/pdf', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: 'ID laporan tidak valid' });
+
+    const report = await ReportModel.findOne({ id, deletedAt: null }).lean().exec();
+    if (!report) return res.status(404).json({ error: 'Laporan tidak ditemukan' });
+
+    // Pastikan user punya akses ke workspace ini
+    if (user.role === 'admin' && user.workspaceId && report.workspaceId !== user.workspaceId) {
+      return res.status(403).json({ error: 'Akses ditolak' });
+    }
+
+    const PDFDocument = require('pdfkit');
+    const doc = new PDFDocument({
+      size: 'A4',
+      margins: { top: 50, bottom: 50, left: 50, right: 50 },
+      info: {
+        Title: `EYECO - Laporan #${report.id}`,
+        Author: 'EYECO Incident Command Center',
+        Subject: `Laporan Lingkungan #${report.id}`
+      }
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="EYECO_Laporan_${report.id}.pdf"`);
+    doc.pipe(res);
+
+    // ── Header Brand ──
+    doc.font('Helvetica-Bold').fontSize(20).fillColor('#1E3A8A')
+      .text('EYECO', 50, 50, { continued: true })
+      .font('Helvetica').fontSize(12).fillColor('#64748B')
+      .text('  Incident Command Center', { align: 'left' });
+
+    // Garis pemisah
+    doc.moveTo(50, 75).lineTo(545, 75).strokeColor('#E2E8F0').lineWidth(1).stroke();
+
+    // ── Title ──
+    doc.font('Helvetica-Bold').fontSize(16).fillColor('#1E293B')
+      .text(`LAPORAN LINGKUNGAN #${report.id}`, 50, 90);
+
+    const statusColor = report.aiStatus === 'Indikasi Tinggi' || report.aiStatus === 'TINGGI' ? '#EF4444'
+      : report.aiStatus === 'Indikasi Sedang' || report.aiStatus === 'SEDANG' ? '#F59E0B'
+      : report.aiStatus === 'Indikasi Rendah' || report.aiStatus === 'RENDAH' ? '#06B6D4'
+      : '#94A3B8';
+
+    doc.font('Helvetica-Bold').fontSize(14).fillColor(statusColor)
+      .text(`Status: ${report.aiStatus || 'Tidak Terindikasi'}`, 50, 115);
+
+    // Tanggal
+    const ts = report.timestamp || report.createdAt;
+    const dateStr = ts ? new Date(ts).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+    doc.font('Helvetica').fontSize(10).fillColor('#64748B').text(`Tanggal: ${dateStr}`, 50, 140);
+
+    // ── Informasi Laporan ──
+    let y = 175;
+    const section = (title: string) => {
+      doc.font('Helvetica-Bold').fontSize(11).fillColor('#1E293B').text(title, 50, y);
+      y += 20;
+    };
+    const field = (label: string, value: string | number | null | undefined) => {
+      doc.font('Helvetica-Bold').fontSize(9).fillColor('#64748B').text(label as string, 55, y);
+      doc.font('Helvetica').fontSize(10).fillColor('#1E293B').text(String(value || '-'), 155, y);
+      y += 18;
+    };
+
+    section('INFORMASI LAPORAN');
+    field('Lokasi', report.location);
+    field('Sumber', report.sourceType || '-');
+    field('Identitas', report.identity || '-');
+    field('Admin Status', report.adminStatus || 'MENUNGGU');
+    if (report.assignedOfficer) field('Petugas', report.assignedOfficer);
+
+    y += 10;
+    section('METRIK AI');
+    field('Object Confidence', `${report.objectConfidence ?? report.aiConfidence ?? '-'}%`);
+    field('Scene Confidence', `${report.sceneConfidence ?? '-'}%`);
+    field('Decision Confidence', `${report.decisionConfidence ?? '-'}%`);
+    field('Violation Score', `${report.violationScore ?? '-'}/100`);
+    field('Uncertainty Score', `${report.uncertaintyScore ?? '-'}%`);
+    if (report.priority) field('Prioritas', report.priority);
+    if (report.recommendedAction) field('Rekomendasi', report.recommendedAction);
+
+    y += 10;
+    section('CATATAN');
+    if (report.additionalNotes) {
+      doc.font('Helvetica').fontSize(9).fillColor('#1E293B').text(report.additionalNotes, 55, y, { width: 490 });
+      y += Math.ceil(report.additionalNotes.length / 80) * 14 + 5;
+    }
+    if (report.adminNotes) {
+      doc.font('Helvetica-Bold').fontSize(9).fillColor('#64748B').text('Catatan Admin:', 55, y);
+      doc.font('Helvetica').fontSize(9).fillColor('#1E293B').text(report.adminNotes, 55, y + 14, { width: 490 });
+    }
+
+    // ── Footer ──
+    y = Math.max(y + 50, 700);
+    doc.moveTo(50, y).lineTo(545, y).strokeColor('#E2E8F0').lineWidth(1).stroke();
+    doc.font('Helvetica').fontSize(8).fillColor('#94A3B8')
+      .text(`Dokumen ini diekspor dari EYECO Incident Command Center pada ${new Date().toLocaleString('id-ID')} oleh ${user.name || user.username}`, 50, y + 10, { align: 'center' });
+    doc.text(`Laporan #${report.id} · Workspace #${report.workspaceId}`, 50, y + 24, { align: 'center' });
+
+    doc.end();
+  } catch (err) {
+    console.error('[SERVER ERROR] PDF export failed:', err);
+    res.status(500).json({ error: 'Gagal mengekspor PDF' });
+  }
+});
 
 export default router;

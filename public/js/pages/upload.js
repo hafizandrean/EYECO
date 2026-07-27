@@ -38,6 +38,14 @@ export class UploadPage {
                   </div>
                   <p style="font-size: 0.9rem; color: var(--text-primary); font-weight: 700; margin: 0;">Seret & lepas gambar di sini, atau klik untuk memilih</p>
                   <p style="font-size: 0.72rem; color: var(--text-secondary); margin: 0;">Mendukung format JPG, PNG, MP4 hingga 10MB</p>
+                  <div style="display:flex; gap:8px; margin-top:8px;">
+                    <button type="button" class="btn btn-glass btn-rounded btn-sm" id="btn-camera-capture" style="font-size:0.82rem; padding:8px 18px; display:flex; align-items:center; gap:6px;">
+                      <i data-lucide="camera" style="width:16px;height:16px;"></i> Buka Kamera
+                    </button>
+                    <button type="button" class="btn btn-glass btn-rounded btn-sm" id="btn-browse-files" style="font-size:0.82rem; padding:8px 18px; display:flex; align-items:center; gap:6px;">
+                      <i data-lucide="folder-open" style="width:16px;height:16px;"></i> Pilih File
+                    </button>
+                  </div>
                 </div>
 
                 <!-- Preview Area -->
@@ -127,10 +135,24 @@ export class UploadPage {
     const autofillBtn = document.getElementById('btn-autofill-time');
     const form = document.getElementById('upload-form-element');
 
+    // Camera capture
+    const cameraBtn = document.getElementById('btn-camera-capture');
+    if (cameraBtn) {
+      cameraBtn.addEventListener('click', () => this.openCamera());
+    }
+
+    // Browse files
+    const browseBtn = document.getElementById('btn-browse-files');
+    if (browseBtn) {
+      browseBtn.addEventListener('click', () => fileInput?.click());
+    }
+
     if (dropZone && fileInput) {
-      // Click triggers file select
-      dropZone.addEventListener('click', () => {
-        if (!this.isScanning) fileInput.click();
+      // Click on drop zone itself opens file picker (only if not on buttons)
+      dropZone.addEventListener('click', (e) => {
+        if (e.target === dropZone || e.target.closest('.drag-drop-content')) {
+          if (!this.isScanning) fileInput.click();
+        }
       });
 
       // Drag and drop handlers
@@ -178,6 +200,138 @@ export class UploadPage {
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
     timeInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
+  async openCamera() {
+    // Camera modal overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'macos-modal-overlay';
+    overlay.id = 'camera-modal-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);backdrop-filter:blur(12px);z-index:10000;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+      <div style="background:var(--surface);border-radius:var(--radius-xl);padding:24px;max-width:720px;width:95%;text-align:center;box-shadow:var(--shadow-xl);">
+        <h3 style="font-family:'Outfit',sans-serif;font-weight:800;margin:0 0 12px;display:flex;align-items:center;gap:8px;justify-content:center;">
+          <i data-lucide="camera" style="width:20px;height:20px;color:var(--primary);"></i> Ambil Foto dengan Kamera
+        </h3>
+        <div style="position:relative;background:#000;border-radius:var(--radius-lg);overflow:hidden;min-height:340px;display:flex;align-items:center;justify-content:center;">
+          <video id="camera-feed" autoplay playsinline style="width:100%;max-height:440px;object-fit:contain;display:block;"></video>
+          <div id="camera-detection-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></div>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;">
+          <button type="button" class="btn btn-glass btn-rounded" id="btn-cam-capture" style="padding:10px 28px;font-weight:700;">
+            <i data-lucide="camera" style="width:18px;height:18px;"></i> Jepret & Deteksi
+          </button>
+          <button type="button" class="btn btn-secondary-sheet" id="btn-cam-close" style="padding:10px 28px;font-weight:700;">
+            <i data-lucide="x" style="width:18px;height:18px;"></i> Tutup
+          </button>
+        </div>
+        <div id="camera-detection-result" style="margin-top:12px;display:none;font-size:0.85rem;font-weight:700;"></div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    if (window.lucide) window.lucide.createIcons();
+
+    const video = document.getElementById('camera-feed') as HTMLVideoElement;
+    const captureBtn = document.getElementById('btn-cam-capture');
+    const closeBtn = document.getElementById('btn-cam-close');
+    const resultDiv = document.getElementById('camera-detection-result');
+    const overlayBoxes = document.getElementById('camera-detection-overlay');
+
+    let stream: MediaStream | null = null;
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } });
+      video.srcObject = stream;
+      await video.play();
+    } catch (err) {
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = '<span style="color:var(--danger);">❌ Gagal membuka kamera. Izinkan akses kamera di browser.</span>';
+    }
+
+    // Capture & detect
+    captureBtn?.addEventListener('click', async () => {
+      if (!stream || !video.videoWidth) return;
+      captureBtn.disabled = true;
+      captureBtn.innerHTML = '<span class="status-pulse-dot" style="width:8px;height:8px;background:white;border-radius:50%;display:inline-block;margin-right:6px;"></span> Mendeteksi...';
+
+      // Capture frame ke canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(video, 0, 0);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+
+      // Convert dataUrl ke Blob
+      const blob = await (await fetch(dataUrl)).blob();
+      const formData = new FormData();
+      formData.append('file', blob, 'camera_capture.jpg');
+
+      try {
+        const res = await fetch('/api/detect-preview', { method: 'POST', body: formData, credentials: 'include' });
+        const data = await res.json();
+
+        if (data.success && data.boxes?.length > 0) {
+          // Render bounding boxes
+          overlayBoxes!.innerHTML = data.boxes.map((b: any) => `
+            <div style="position:absolute;top:${b.y}%;left:${b.x}%;width:${b.w}%;height:${b.h}%;border:2px solid ${b.label === 'person' ? '#10B981' : '#EF4444'};background:${b.label === 'person' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)'};border-radius:4px;display:flex;align-items:flex-end;justify-content:flex-start;">
+              <span style="background:${b.label === 'person' ? '#10B981' : '#EF4444'};color:white;font-size:9px;font-weight:800;padding:1px 5px;border-radius:0 4px 0 0;">${b.label} ${b.confidence}%</span>
+            </div>
+          `).join('');
+
+          resultDiv.style.display = 'block';
+          resultDiv.innerHTML = `<span style="color:${data.aiStatus === 'Indikasi Sedang' || data.aiStatus === 'Indikasi Tinggi' ? 'var(--danger)' : 'var(--success)'};">✅ AI: ${data.aiStatus} — ${data.totalDetections} objek terdeteksi</span>`;
+
+          // Set file ke form untuk upload
+          this.selectedFile = new File([blob], 'camera_capture.jpg', { type: 'image/jpeg' });
+          this.handleFileSelected(this.selectedFile);
+
+          // Tambahin bounding boxes ke preview
+          setTimeout(() => this.injectDetectionBoxes(data.boxes, data.aiStatus, data.totalDetections), 300);
+        } else {
+          resultDiv.style.display = 'block';
+          resultDiv.innerHTML = '<span style="color:var(--text-secondary);">✅ Tidak ada objek terdeteksi. Foto tetap bisa diupload.</span>';
+          this.selectedFile = new File([blob], 'camera_capture.jpg', { type: 'image/jpeg' });
+          this.handleFileSelected(this.selectedFile);
+        }
+      } catch (err) {
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<span style="color:var(--danger);">❌ Gagal mendeteksi AI. Coba lagi.</span>';
+      }
+
+      captureBtn.disabled = false;
+      captureBtn.innerHTML = '<i data-lucide="camera" style="width:18px;height:18px;"></i> Jepret & Deteksi';
+      if (window.lucide) window.lucide.createIcons();
+    });
+
+    // Close
+    const doClose = () => {
+      if (stream) { stream.getTracks().forEach(t => t.stop()); }
+      overlay.remove();
+    };
+    closeBtn?.addEventListener('click', doClose);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) doClose(); });
+  }
+
+  injectDetectionBoxes(boxes: any[], aiStatus: string, total: number) {
+    const preview = document.getElementById('file-preview');
+    if (!preview || boxes.length === 0) return;
+    // Tambah overlay bounding box + status bar di preview
+    const statusBar = document.createElement('div');
+    statusBar.id = 'camera-ai-status-bar';
+    statusBar.style.cssText = 'position:absolute;bottom:0;left:0;right:0;padding:6px 12px;background:rgba(0,0,0,0.7);color:white;font-size:0.72rem;font-weight:700;display:flex;justify-content:space-between;z-index:10;';
+    statusBar.innerHTML = `
+      <span>🤖 AI: ${aiStatus}</span>
+      <span>${total} objek</span>
+    `;
+    preview.appendChild(statusBar);
+
+    boxes.forEach((b: any) => {
+      const box = document.createElement('div');
+      box.style.cssText = `position:absolute;top:${b.y}%;left:${b.x}%;width:${b.w}%;height:${b.h}%;border:2px solid ${b.label === 'person' ? '#10B981' : '#EF4444'};background:${b.label === 'person' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'};border-radius:3px;pointer-events:none;z-index:5;display:flex;align-items:flex-end;`;
+      box.innerHTML = `<span style="background:${b.label === 'person' ? '#10B981' : '#EF4444'};color:white;font-size:8px;font-weight:800;padding:1px 4px;border-radius:0 3px 0 0;">${b.label} ${b.confidence}%</span>`;
+      preview.appendChild(box);
+    });
   }
 
   handleFileSelected(file) {

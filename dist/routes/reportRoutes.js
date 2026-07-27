@@ -700,6 +700,49 @@ router.delete('/detections/:id', async (req, res) => {
     }
 });
 // ── TEMP endpoints removed after AI_CCTV cleanup ──
+// POST /api/detect-preview — Preview AI detection on an image without saving to DB
+router.post('/detect-preview', upload.single('file'), async (req, res) => {
+    try {
+        const user = await (0, authMiddleware_1.getLoggedInUser)(req);
+        if (!user)
+            return res.status(401).json({ error: 'Unauthorized' });
+        if (!req.file)
+            return res.status(400).json({ error: 'File gambar wajib diupload' });
+        const uploadedFilePath = path_1.default.join(__dirname, '../../public/uploads', req.file.filename);
+        // Jalankan AI detection via detectFile (kembaliin AiStatusResult)
+        const { detectFile } = require('../services/aiDetection.service');
+        const result = await detectFile(uploadedFilePath);
+        // Hapus file temp
+        try {
+            fs_1.default.unlinkSync(uploadedFilePath);
+        }
+        catch (_) { }
+        const boxes = (result.boxes || []).map((b) => ({
+            label: b.label,
+            confidence: b.confidence,
+            x: b.x, y: b.y, w: b.w, h: b.h,
+        }));
+        const personBoxes = boxes.filter((b) => ['person', 'cctv persons', 'people'].includes(b.label.toLowerCase()));
+        const trashBoxes = boxes.filter((b) => !['person', 'cctv persons', 'people'].includes(b.label.toLowerCase()));
+        let aiStatus = 'Tidak Terindikasi';
+        if (personBoxes.length > 0 && trashBoxes.length === 0)
+            aiStatus = 'Tidak Terindikasi';
+        else if (personBoxes.length > 0 && trashBoxes.length > 0)
+            aiStatus = 'Indikasi Sedang';
+        else if (personBoxes.length === 0 && trashBoxes.length > 0)
+            aiStatus = 'Indikasi Rendah';
+        res.json({
+            success: true,
+            boxes,
+            aiStatus,
+            totalDetections: boxes.length,
+        });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] Detect preview failed:', err);
+        res.status(500).json({ error: 'Gagal memproses deteksi AI' });
+    }
+});
 // GET /api/detections/:id/pdf — Export laporan sebagai PDF
 router.get('/detections/:id/pdf', async (req, res) => {
     try {
