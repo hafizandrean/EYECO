@@ -33,6 +33,7 @@ const DEFAULT_POLICY: DecisionPolicyConfig = {
     trashOnWaterZone: 15,
     trashOnRoadZone: 10,
     trashInsideBinZone: -35,
+    trashLargePile: 30,
     noPersonDetected: -15,
     noTrashDetected: -30,
   },

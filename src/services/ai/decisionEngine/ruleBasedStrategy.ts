@@ -50,6 +50,14 @@ export class RuleBasedStrategy implements IDecisionStrategy {
       score = 0;
     }
 
+    // Apply policy weights
+    if (fv.trashNearWrist) score += (w.trashNearWrist || 20);
+    if (fv.possibleReleasePose) score += (w.trashAppearsAirborne || 15);
+    if (fv.trashOnWaterZone) score += (w.trashOnWaterZone || 15);
+    if (fv.trashOnRoadZone) score += (w.trashOnRoadZone || 10);
+    if (fv.trashInsideBinZone) score += (w.trashInsideBinZone || -35);
+    if (fv.trashLargePile) score += (w.trashLargePile || 30);
+
     // Clamp to 0–100 with 1 decimal place
     let violationScore = Math.max(0, Math.min(100, Math.round(score * 10) / 10));
     if (!Number.isFinite(violationScore)) violationScore = 0;

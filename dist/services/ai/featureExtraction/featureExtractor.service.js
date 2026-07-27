@@ -45,6 +45,8 @@ class FeatureExtractorService {
         const trashOnWaterZone = trashCount > 0 && semanticData.riverDetected;
         const trashOnRoadZone = trashCount > 0 && semanticData.roadDetected;
         const trashInsideBinZone = semanticData.trashInsideBin;
+        // A trash object is a large pile if its bounding box area is >= 80 (in percentage space, e.g. w=10, h=8 -> area=80)
+        const trashLargePile = trashObjects.some(o => (o.w * o.h) >= 80);
         // Lightweight image quality estimation
         const imageQuality = qualityOverride || {
             blurScore: highestTrashConfidence > 0 || highestPersonConfidence > 0 ? 85 : 40,
@@ -68,6 +70,7 @@ class FeatureExtractorService {
             trashOnWaterZone,
             trashOnRoadZone,
             trashInsideBinZone,
+            trashLargePile,
             imageQuality,
             evidenceCoverage,
             analyzersAvailable,
