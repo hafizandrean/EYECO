@@ -44,30 +44,23 @@ class RuleBasedStrategy {
             // Nothing detected
             score = 0;
         }
-<<<<<<< HEAD
-        }
-        <<<<<<< HEAD
-            if (!Number.isFinite(violationScore))
-                violationScore = 0;
-            // ── Simplified Heuristic Decision Confidence ──
-        =======
-            if (fv.trashNearWrist)
-                score += (w.trashNearWrist || 20);
-            if (fv.possibleReleasePose)
-                score += (w.trashAppearsAirborne || 15);
-            if (fv.trashOnWaterZone)
-                score += (w.trashOnWaterZone || 15);
-            if (fv.trashOnRoadZone)
-                score += (w.trashOnRoadZone || 10);
-            if (fv.trashInsideBinZone)
-                score += (w.trashInsideBinZone || -35);
-            if (fv.trashLargePile)
-                score += (w.trashLargePile || 30);
-            // Clamp score to 0 - 100
-            const violationScore = Math.max(0, Math.min(100, Math.round(score)));
-            // Calculate Heuristic Decision Confidence
-        >>>>>>> d9edfbef1dfc3f9961aeddb1a6276fe34be472a1
-
+        // Apply policy weights
+        if (fv.trashNearWrist)
+            score += (w.trashNearWrist || 20);
+        if (fv.possibleReleasePose)
+            score += (w.trashAppearsAirborne || 15);
+        if (fv.trashOnWaterZone)
+            score += (w.trashOnWaterZone || 15);
+        if (fv.trashOnRoadZone)
+            score += (w.trashOnRoadZone || 10);
+        if (fv.trashInsideBinZone)
+            score += (w.trashInsideBinZone || -35);
+        if (fv.trashLargePile)
+            score += (w.trashLargePile || 30);
+        // Clamp to 0–100 with 1 decimal place
+        let violationScore = Math.max(0, Math.min(100, Math.round(score * 10) / 10));
+        if (!Number.isFinite(violationScore))
+            violationScore = 0;
         // ── Simplified Heuristic Decision Confidence ──
         const evidenceCoverageFactor = fv.evidenceCoverage * 25;
         const objectReliability = (fv.highestTrashConfidence > 0 ? fv.highestTrashConfidence / 100 : (fv.personCount > 0 ? 0.7 : 0.4)) * 35;
