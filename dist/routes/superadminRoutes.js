@@ -81,6 +81,8 @@ router.get('/stats', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.roleG
             .sort({ timestamp: -1 }).limit(5).lean().exec();
         const recentNews = await NewsModel.find({ workspaceId: { $in: workspaceIds }, status: 'published' })
             .sort({ createdAt: -1 }).limit(3).lean().exec();
+        const recentAuditLogs = await SystemAuditLog_1.SystemAuditLogModel.find({ action: 'CLEAR_ALL_REPORTS' })
+            .sort({ createdAt: -1 }).limit(5).lean().exec();
         // Enrich with usernames
         const allUserIds = [];
         const reportObjectIds = [];
@@ -123,6 +125,13 @@ router.get('/stats', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.roleG
             activity.push({
                 type: 'news', text: `Berita baru: "${n.title}" oleh ${author?.name || author?.username || n.author}`,
                 time: n.createdAt, wsId: n.workspaceId, color: '#8B5CF6'
+            });
+        });
+        recentAuditLogs.forEach((a) => {
+            const d = a.details || {};
+            activity.push({
+                type: 'clear_all', text: `Semua laporan dihapus oleh <strong>${a.actorName}</strong> dari ${d.workspaceName || 'Workspace #' + d.workspaceId} (${d.deletedCount} laporan)`,
+                time: a.createdAt, wsId: d.workspaceId, color: '#EF4444'
             });
         });
         activity.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
@@ -683,6 +692,19 @@ router.get('/workspaces/:id/detail', authMiddleware_1.authMiddleware, (0, RoleMi
                 text: `Warga baru bergabung: <strong>${m.name || m.username}</strong>`,
                 time: m.createdAt,
                 color: '#10B981'
+            });
+        });
+        // Audit logs for this workspace
+        const wsAuditLogs = await SystemAuditLog_1.SystemAuditLogModel.find({
+            action: 'CLEAR_ALL_REPORTS',
+            'details.workspaceId': workspaceId
+        }).sort({ createdAt: -1 }).limit(5).lean().exec();
+        wsAuditLogs.forEach((a) => {
+            const d = a.details || {};
+            activity.push({
+                text: `Semua laporan dihapus oleh <strong>${a.actorName}</strong> (${d.deletedCount} laporan)`,
+                time: a.createdAt,
+                color: '#EF4444'
             });
         });
         // Sort activity by time desc

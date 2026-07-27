@@ -11,7 +11,7 @@ export class LaporanPage {
   constructor() {
     this.pollingTimer = null;
     this.currentPage = 1;
-    this.limit = 5;
+    this.limit = 10;
     this.reports = [];
     this.pagination = { totalPages: 1, hasPrev: false, hasNext: false };
     this.filters = {
@@ -97,7 +97,7 @@ export class LaporanPage {
       <section class="glass-card card-table-section">
         <div class="card-header-clean">
           <div class="section-title"><i data-lucide="database"></i> Log Aktivitas Lingkungan</div>
-          ${AppState.get('user')?.role === 'admin' ? `
+          ${AppState.get('user')?.role === 'admin' || AppState.get('user')?.role === 'superadmin' ? `
             <button class="btn btn-glass btn-sm btn-rounded" id="btn-clear-all-reports" style="color: var(--error); border-color: rgba(239,68,68,0.3);">
               <i data-lucide="trash-2"></i> Hapus Semua Data
             </button>
@@ -240,13 +240,13 @@ export class LaporanPage {
         );
         if (!confirmed) return;
 
-        // Second step: type HAPUS to confirm
+        // Second step: type "hapus semua laporan" to confirm
         const input = await MacModal.prompt(
           'Konfirmasi Penghapusan',
-          `Ketik <strong>HAPUS</strong> untuk mengonfirmasi penghapusan <strong>semua</strong> data laporan dan foto.`,
-          { placeholder: 'Ketik HAPUS di sini...', confirmText: 'Hapus Semua', iconType: 'danger' }
+          `Ketik <strong>hapus semua laporan</strong> untuk mengonfirmasi penghapusan <strong>semua</strong> data laporan dan foto.`,
+          { placeholder: 'Ketik "hapus semua laporan" di sini...', confirmText: 'Hapus Semua', iconType: 'danger' }
         );
-        if (!input || input.trim().toUpperCase() !== 'HAPUS') {
+        if (!input || input.trim().toLowerCase() !== 'hapus semua laporan') {
           EventBus.emit('toast:show', { message: 'Penghapusan dibatalkan.', type: 'info' });
           return;
         }
@@ -396,6 +396,7 @@ export class LaporanPage {
         <div class="col-details">
           <div class="row-location-title"><i data-lucide="map-pin" style="color: var(--primary);"></i> ${report.location}</div>
           <div class="row-timestamp-subtitle">${Formatter.formatDate(report.timestamp)}</div>
+          ${report.uploaderInfo ? `<div class="row-reporter" style="font-size:0.72rem; color:var(--text-muted); margin-top:3px; display:flex; align-items:center; gap:4px;"><i data-lucide="user" style="width:10px;height:10px;"></i> ${report.uploaderInfo.name || report.uploaderInfo.username}</div>` : ''}
         </div>
         <div class="col-badge">
           <span class="badge ${aiBadgeClass}">
@@ -403,7 +404,7 @@ export class LaporanPage {
             AI: ${report.aiStatus}
           </span>
           ${typeof report.violationScore === 'number' 
-            ? `<span class="row-confidence-label" style="font-weight:800; font-size:0.75rem; color:${report.violationScore >= 75 ? 'var(--danger)' : (report.violationScore >= 50 ? 'var(--warning)' : 'var(--text-secondary)')}; display:block; margin-top:2px;">Skor: ${report.violationScore}/100</span>` 
+            ? `<span class="row-confidence-label" style="font-weight:800; font-size:0.75rem; color:var(--text-secondary); display:block; margin-top:2px;">Skor: ${report.violationScore}/100</span>` 
             : (report.aiConfidence ? `<span class="row-confidence-label" style="font-size:0.72rem; color:var(--text-secondary); display:block; margin-top:2px;">Deteksi: ${report.aiConfidence}%</span>` : '')}
         </div>
         <div class="col-badge">
