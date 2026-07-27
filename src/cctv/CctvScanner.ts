@@ -1,5 +1,6 @@
 import dns from 'dns';
 import net from 'net';
+import { TuyaCloudService } from './TuyaCloudService';
 
 export interface IScanResult {
   ping: boolean;
@@ -40,6 +41,37 @@ export class CctvScanner {
       cloud: false,
       details: {}
     };
+
+    // ── TUYA Cloud Mode ──
+    if (forcedMode === 'TUYA' || vendorHint === 'TUYA') {
+      result.cloud = true;
+      result.details.protocol = 'TUYA';
+      result.details.mediaType = 'Cloud';
+      result.details.vendor = 'TUYA';
+      result.ping = true;
+
+      // Try Tuya API validation first
+      try {
+        const regionMap: Record<number, string> = { 0: 'US', 1: 'CN', 2: 'EU', 3: 'IN' };
+        const region = regionMap[customPort ?? -1] || 'US';
+        const tuyaCheck = await TuyaCloudService.validateCredentials(
+          username || '',
+          password || '',
+          region
+        );
+        if (tuyaCheck.ok) {
+          result.details.streamUrl = `tuya://${username}/${password}`;
+          result.details.resolution = '1920x1080 (Cloud)';
+          result.details.errorMessage = tuyaCheck.msg;
+        } else {
+          result.details.errorMessage = tuyaCheck.msg;
+        }
+      } catch (err: any) {
+        result.details.errorMessage = err.message;
+      }
+
+      return result;
+    }
 
     // Clean IP/Host string from prefix
     let cleanHost = ipOrHost;

@@ -74,6 +74,30 @@ router.post('/scan', async (req, res) => {
   }
 });
 
+router.post('/tuya-devices', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.status(401).json({ error: 'Belum masuk' });
+    if (user.role !== 'admin') return res.status(403).json({ error: 'Khusus Admin' });
+
+    const { accessId, accessSecret, region } = req.body;
+    if (!accessId || !accessSecret) {
+      return res.status(400).json({ error: 'Access ID dan Secret wajib diisi' });
+    }
+
+    const { TuyaCloudService } = await import('../cctv/TuyaCloudService');
+    const result = await TuyaCloudService.validateCredentials(accessId, accessSecret, region || 'US');
+    if (result.ok) {
+      res.json({ success: true, data: result.devices || [] });
+    } else {
+      res.json({ success: false, error: result.msg });
+    }
+  } catch (err: any) {
+    console.error('[SERVER ERROR] POST /api/cctv/tuya-devices failed:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.post('/', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);

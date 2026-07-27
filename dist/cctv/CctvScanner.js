@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CctvScanner = void 0;
 const dns_1 = __importDefault(require("dns"));
 const net_1 = __importDefault(require("net"));
+const TuyaCloudService_1 = require("./TuyaCloudService");
 class CctvScanner {
     // Run step-by-step discovery scanner
     static async scan(ipOrHost, username, password, vendorHint, customPort, forcedMode) {
@@ -19,6 +20,32 @@ class CctvScanner {
             cloud: false,
             details: {}
         };
+        // ── TUYA Cloud Mode ──
+        if (forcedMode === 'TUYA' || vendorHint === 'TUYA') {
+            result.cloud = true;
+            result.details.protocol = 'TUYA';
+            result.details.mediaType = 'Cloud';
+            result.details.vendor = 'TUYA';
+            result.ping = true;
+            // Try Tuya API validation first
+            try {
+                const regionMap = { 0: 'US', 1: 'CN', 2: 'EU', 3: 'IN' };
+                const region = regionMap[customPort ?? -1] || 'US';
+                const tuyaCheck = await TuyaCloudService_1.TuyaCloudService.validateCredentials(username || '', password || '', region);
+                if (tuyaCheck.ok) {
+                    result.details.streamUrl = `tuya://${username}/${password}`;
+                    result.details.resolution = '1920x1080 (Cloud)';
+                    result.details.errorMessage = tuyaCheck.msg;
+                }
+                else {
+                    result.details.errorMessage = tuyaCheck.msg;
+                }
+            }
+            catch (err) {
+                result.details.errorMessage = err.message;
+            }
+            return result;
+        }
         // Clean IP/Host string from prefix
         let cleanHost = ipOrHost;
         if (ipOrHost.startsWith('http://')) {

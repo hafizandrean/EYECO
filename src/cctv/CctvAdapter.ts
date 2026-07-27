@@ -28,6 +28,13 @@ export class CctvAdapter {
       };
     }
 
+    if (cctv.protocol === 'TUYA') {
+      return {
+        playUrl: cctv.playUrl || cctv.streamUrl || `tuya://device/${cctv.id}`,
+        playType: 'Cloud'
+      };
+    }
+
     // Default return HLS, MP4, MJPEG, or HTTP Image URLs
     return {
       playUrl: cctv.streamUrl,

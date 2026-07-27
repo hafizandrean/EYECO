@@ -144,46 +144,86 @@ export class CctvMonitoringPage {
                   <label class="form-label">Vendor / Brand</label>
                   <select id="cctv-input-vendor" class="filter-control select-rounded">
                     <option value="GENERIC">Generic IP Cam</option>
-                    <option value="KRISBOW" selected>Krisbow Sync</option>
+                    <option value="KRISBOW">Krisbow Sync</option>
                     <option value="HIKVISION">Hikvision</option>
                     <option value="DAHUA">Dahua</option>
                     <option value="EZVIZ">Ezviz</option>
+                    <option value="TUYA" selected>Tuya Cloud (IoT)</option>
                     <option value="CUSTOM">Lainnya (Kustom)</option>
                   </select>
                 </div>
-                <div class="form-group">
-                  <label class="form-label">IP Address / Host</label>
-                  <input type="text" id="cctv-input-host" class="filter-control input-rounded" value="127.0.0.1" required>
+              </div>
+
+              <!-- ── Standard IP Camera Fields (hidden when TUYA) ── -->
+              <div id="standard-cctv-fields">
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label class="form-label">IP Address / Host</label>
+                    <input type="text" id="cctv-input-host" class="filter-control input-rounded" value="127.0.0.1">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Port</label>
+                    <input type="number" id="cctv-input-port" class="filter-control input-rounded" value="554" placeholder="554, 80, dll">
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label class="form-label">Protokol</label>
+                    <select id="cctv-input-mode" class="filter-control select-rounded">
+                      <option value="AUTO" selected>Auto Detect</option>
+                      <option value="RTSP">RTSP</option>
+                      <option value="HLS">HLS</option>
+                      <option value="MJPEG">MJPEG</option>
+                      <option value="SNAPSHOT">SNAPSHOT</option>
+                      <option value="CLOUD_VIEWER">CLOUD</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Username (opsional)</label>
+                    <input type="text" id="cctv-input-username" class="filter-control input-rounded" value="admin">
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label class="form-label">Password (opsional)</label>
+                    <input type="password" id="cctv-input-password" class="filter-control input-rounded" value="admin123">
+                  </div>
                 </div>
               </div>
 
-              <div class="form-grid">
-                <div class="form-group">
-                  <label class="form-label">Port Kamera</label>
-                  <input type="number" id="cctv-input-port" class="filter-control input-rounded" value="554" placeholder="Auto (e.g. 554, 80)">
+              <!-- ── TUYA Cloud Fields (hidden unless TUYA vendor) ── -->
+              <div id="tuya-cctv-fields" style="display:none;">
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label class="form-label">Access ID / Client ID</label>
+                    <input type="text" id="cctv-input-tuya-access-id" class="filter-control input-rounded" placeholder="Dari iot.tuya.com" value="ukgj9537vrcffgq5ukke">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Access Secret</label>
+                    <input type="password" id="cctv-input-tuya-access-secret" class="filter-control input-rounded" placeholder="Dari iot.tuya.com" value="ba53e5bfc4c748ff8895dac9338e7eea">
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label class="form-label">Mode Koneksi (Protokol)</label>
-                  <select id="cctv-input-mode" class="filter-control select-rounded">
-                    <option value="AUTO" selected>Auto Detect (Rekomendasi)</option>
-                    <option value="RTSP">RTSP (MediaMTX transcode)</option>
-                    <option value="HLS">HLS (Direct stream)</option>
-                    <option value="MJPEG">MJPEG Stream</option>
-                    <option value="SNAPSHOT">SNAPSHOT (1 FPS Refresh)</option>
-                    <option value="CLOUD_VIEWER">CLOUD (Krisbow App Fallback)</option>
-                  </select>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label class="form-label">Region / Data Center</label>
+                    <select id="cctv-input-tuya-region" class="filter-control select-rounded">
+                      <option value="US">US (Amerika)</option>
+                      <option value="CN">China</option>
+                      <option value="EU">Eropa</option>
+                      <option value="IN">India</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Device ID</label>
+                    <div style="display:flex;gap:8px;">
+                      <input type="text" id="cctv-input-tuya-device-id" class="filter-control input-rounded" style="flex:1;" placeholder="Pilih dari daftar device">
+                      <button type="button" id="btn-tuya-list-devices" class="btn btn-glass btn-rounded" style="white-space:nowrap;height:34px;padding:0 8px;font-size:0.65rem;">
+                        <i data-lucide="search" style="width:11px;height:11px;"></i> Cari
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              <div class="form-grid">
-                <div class="form-group">
-                  <label class="form-label">Username Kamera (Opsional)</label>
-                  <input type="text" id="cctv-input-username" class="filter-control input-rounded" value="admin">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Password Kamera (Opsional)</label>
-                  <input type="password" id="cctv-input-password" class="filter-control input-rounded" value="admin123">
-                </div>
+                <div id="tuya-device-list" style="max-height:120px;overflow-y:auto;display:none;"></div>
               </div>
 
               <!-- Discovery Scanner HUD -->
@@ -1010,6 +1050,7 @@ export class CctvMonitoringPage {
         form.reset();
         scannerBox.style.display = 'none';
         btnSave.disabled = true;
+        toggleTuyaFields();
 
         const modalTitle = modal.querySelector('.modal-header h3');
         if (modalTitle) {
@@ -1037,6 +1078,68 @@ export class CctvMonitoringPage {
       }
     });
 
+    // ── TUYA Vendor Toggle ──
+    const vendorSelect = document.getElementById('cctv-input-vendor');
+    const standardFields = document.getElementById('standard-cctv-fields');
+    const tuyaFields = document.getElementById('tuya-cctv-fields');
+    const hostField = document.getElementById('cctv-input-host');
+
+    function toggleTuyaFields() {
+      const isTuya = vendorSelect?.value === 'TUYA';
+      if (standardFields) standardFields.style.display = isTuya ? 'none' : 'block';
+      if (tuyaFields) tuyaFields.style.display = isTuya ? 'block' : 'none';
+      if (hostField) hostField.required = !isTuya;
+    }
+
+    if (vendorSelect) {
+      vendorSelect.addEventListener('change', toggleTuyaFields);
+    }
+
+    // ── Tuya "Cari Devices" button ──
+    const btnListDevices = document.getElementById('btn-tuya-list-devices');
+    const deviceListDiv = document.getElementById('tuya-device-list');
+
+    if (btnListDevices) {
+      btnListDevices.addEventListener('click', async () => {
+        const accessId = document.getElementById('cctv-input-tuya-access-id')?.value;
+        const accessSecret = document.getElementById('cctv-input-tuya-access-secret')?.value;
+        if (!accessId || !accessSecret) {
+          EventBus.emit('toast:show', { message: 'Isi Access ID dan Access Secret Tuya dulu.', type: 'warning' });
+          return;
+        }
+        btnListDevices.disabled = true;
+        btnListDevices.innerHTML = '<i data-lucide="loader"></i> Mencari...';
+        if (window.lucide) window.lucide.createIcons();
+        try {
+          const res = await API.post('/api/cctv/tuya-devices', { accessId, accessSecret });
+          if (!res.success || !res.data?.length) {
+            deviceListDiv.innerHTML = '<div style="padding:8px;color:var(--danger);font-size:0.72rem;">Tidak ada device ditemukan. Cek Access ID & Secret.</div>';
+            deviceListDiv.style.display = 'block';
+            return;
+          }
+          deviceListDiv.style.display = 'block';
+          deviceListDiv.innerHTML = res.data.map((d, i) => `
+            <div class="tuya-device-item" data-device-id="${d.id}" style="padding:8px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;cursor:pointer;font-size:0.72rem;background:var(--bg-secondary);transition:0.15s;display:flex;align-items:center;gap:10px;
+" onmouseenter="this.style.borderColor='var(--primary)'" onmouseleave="this.style.borderColor='var(--border)'" onclick="document.getElementById('cctv-input-tuya-device-id').value='${d.id}';document.getElementById('tuya-device-list').style.display='none';EventBus.emit('toast:show',{message:'Device ID dipilih: ${d.name}',type:'success'});">
+              <span style="width:28px;height:28px;border-radius:50%;background:${d.online ? 'var(--success)' : 'var(--text-muted)'};display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:#fff;flex-shrink:0;">${i+1}</span>
+              <div style="flex:1;">
+                <strong>${d.name}</strong>
+                <div style="color:var(--text-secondary);font-size:0.65rem;">${d.product_name || '-'} ${d.online ? '🟢 Online' : '🔴 Offline'}</div>
+                <div style="font-size:0.6rem;color:var(--text-muted);font-family:monospace;">${d.id}</div>
+              </div>
+            </div>
+          `).join('');
+          EventBus.emit('toast:show', { message: `${res.data.length} device Tuya ditemukan. Klik salah satu.`, type: 'success' });
+        } catch (err) {
+          EventBus.emit('toast:show', { message: 'Gagal memuat device: ' + err.message, type: 'danger' });
+        } finally {
+          btnListDevices.disabled = false;
+          btnListDevices.innerHTML = '<i data-lucide="search"></i> Cari';
+          if (window.lucide) window.lucide.createIcons();
+        }
+      });
+    }
+
     let detectedConfig = null;
 
     if (btnScan) {
@@ -1047,6 +1150,81 @@ export class CctvMonitoringPage {
         const username = document.getElementById('cctv-input-username').value;
         const password = document.getElementById('cctv-input-password').value;
         const vendor = document.getElementById('cctv-input-vendor').value;
+        const tuyaAccessId = document.getElementById('cctv-input-tuya-access-id')?.value || '';
+        const tuyaAccessSecret = document.getElementById('cctv-input-tuya-access-secret')?.value || '';
+        const tuyaDeviceId = document.getElementById('cctv-input-tuya-device-id')?.value || '';
+
+        const isTuya = vendor === 'TUYA' || mode === 'TUYA';
+
+        // ── TUYA Cloud Scan ──
+        if (isTuya) {
+          if (!tuyaAccessId || !tuyaAccessSecret) {
+            EventBus.emit('toast:show', { message: 'Isi Access ID dan Access Secret Tuya dulu.', type: 'warning' });
+            return;
+          }
+          scannerBox.style.display = 'block';
+          capabilitiesHud.style.display = 'none';
+          stepsList.innerHTML = `<li><span class="step-icon spinner"></span> Menghubungi Tuya Cloud API...</li>`;
+          btnScan.disabled = true;
+          const tuyaRegion = document.getElementById('cctv-input-tuya-region')?.value || 'US';
+          try {
+            const result = await CctvService.scanCamera({
+              ipOrHost: 'tuya',
+              connectionMode: 'TUYA',
+              username: tuyaAccessId,
+              password: tuyaAccessSecret,
+              vendorHint: 'TUYA',
+              port: tuyaRegion === 'CN' ? 1 : tuyaRegion === 'EU' ? 2 : tuyaRegion === 'IN' ? 3 : 0
+            });
+            stepsList.innerHTML = '';
+            const appendStep = (text, success) => {
+              const li = document.createElement('li');
+              li.innerHTML = `<span class="step-icon ${success ? 'success' : 'failed'}">${success ? '<i data-lucide="check" style="width:12px;height:12px;"></i>' : '<i data-lucide="x" style="width:12px;height:12px;"></i>'}</span><span>${text}</span>`;
+              stepsList.appendChild(li);
+            };
+            appendStep(`Cloud API: Terhubung ke Tuya`, true);
+            appendStep(`Info: ${result.details.errorMessage || 'OK'}`, true);
+            if (result.cloud) appendStep(`Mode Cloud: Aktif`, true);
+            capabilitiesHud.style.display = 'flex';
+            capabilitiesHud.innerHTML = '';
+            const addCapPill = (name, ok) => {
+              const pill = document.createElement('span');
+              pill.className = `cap-pill ${ok ? 'enabled' : 'disabled'}`;
+              pill.innerHTML = `<span class="cap-dot"></span> ${name}`;
+              capabilitiesHud.appendChild(pill);
+            };
+            addCapPill('Cloud', result.cloud);
+            addCapPill('Snapshot', result.snapshot);
+
+            detectedConfig = {
+              name: document.getElementById('cctv-input-name').value || 'Tuya Camera',
+              location: document.getElementById('cctv-input-location').value || 'Lokasi Cloud',
+              description: document.getElementById('cctv-input-description').value || 'Tuya Cloud Camera via IoT API',
+              vendor: 'TUYA',
+              model: 'Tuya IoT Camera',
+              protocol: 'TUYA',
+              mediaType: 'Cloud',
+              streamUrl: `tuya://${tuyaAccessId}/${tuyaDeviceId}`,
+              playUrl: '',
+              username: tuyaAccessId,
+              password: tuyaAccessSecret,
+              capabilities: { rtsp: false, hls: true, snapshot: true, mjpeg: false, onvif: false, cloud: true },
+              tuyaDeviceId: tuyaDeviceId,
+              tuyaRegion: tuyaRegion
+            };
+            EventBus.emit('toast:show', { message: 'Koneksi Tuya berhasil!', type: 'success' });
+            btnSave.disabled = false;
+          } catch (err) {
+            stepsList.innerHTML += `<li class="error-step"><span class="step-icon failed"><i data-lucide="x" style="width:12px;height:12px;"></i></span> Gagal: ${err.message}</li>`;
+            EventBus.emit('toast:show', { message: 'Gagal konek Tuya: ' + err.message, type: 'danger' });
+          } finally {
+            btnScan.disabled = false;
+            if (window.lucide) window.lucide.createIcons();
+          }
+          return;
+        }
+
+        // ── Standard IP/RTSP Scan ──
 
         if (!host) {
           EventBus.emit('toast:show', { message: 'Silakan masukkan IP Address / Host kamera.', type: 'warning' });
@@ -1160,6 +1338,10 @@ export class CctvMonitoringPage {
         const protocol = document.getElementById('cctv-input-mode').value;
         const username = document.getElementById('cctv-input-username').value;
         const password = document.getElementById('cctv-input-password').value;
+        const tuyaRegion = document.getElementById('cctv-input-tuya-region')?.value || 'US';
+        const tuyaDeviceId = document.getElementById('cctv-input-tuya-device-id')?.value || '';
+
+        const isTuya = vendor === 'TUYA';
 
         btnSave.disabled = true;
 
@@ -1173,15 +1355,37 @@ export class CctvMonitoringPage {
               protocol,
               username,
               password,
-              streamUrl: host + (port ? `:${port}` : '')
+              streamUrl: host + (port ? `:${port}` : ''),
+              tuyaRegion,
+              tuyaDeviceId
             };
+            if (isTuya) payload.protocol = 'TUYA';
             await CctvService.updateCctv(this.editingCctvId, payload);
             EventBus.emit('toast:show', { message: 'Konfigurasi CCTV berhasil diperbarui!', type: 'success' });
           } else {
-            if (!detectedConfig) return;
-            detectedConfig.name = name;
-            detectedConfig.location = location;
-            detectedConfig.description = description;
+            if (!detectedConfig && !isTuya) return;
+            if (isTuya) {
+              detectedConfig = {
+                name,
+                location,
+                description,
+                vendor: 'TUYA',
+                model: 'Tuya IoT Camera',
+                protocol: 'TUYA',
+                mediaType: 'Cloud',
+                streamUrl: `tuya://${username}/${tuyaDeviceId}`,
+                playUrl: '',
+                username,
+                password,
+                capabilities: { rtsp: false, hls: true, snapshot: true, mjpeg: false, onvif: false, cloud: true },
+                tuyaDeviceId,
+                tuyaRegion
+              };
+            } else {
+              detectedConfig.name = name;
+              detectedConfig.location = location;
+              detectedConfig.description = description;
+            }
             await CctvService.connectCctv(detectedConfig);
             EventBus.emit('toast:show', { message: 'CCTV Baru berhasil dihubungkan ke sistem!', type: 'success' });
           }
