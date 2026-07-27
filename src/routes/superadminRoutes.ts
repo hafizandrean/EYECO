@@ -49,6 +49,8 @@ router.get('/stats', authMiddleware, roleGuard(['superadmin']), async (req, res)
       .sort({ timestamp: -1 }).limit(5).lean().exec() as any[];
     const recentNews = await NewsModel.find({ workspaceId: { $in: workspaceIds }, status: 'published' })
       .sort({ createdAt: -1 }).limit(3).lean().exec() as any[];
+    const recentAuditLogs = await SystemAuditLogModel.find({ action: 'CLEAR_ALL_REPORTS' })
+      .sort({ createdAt: -1 }).limit(5).lean().exec() as any[];
 
     // Enrich with usernames
     const allUserIds: string[] = [];
@@ -93,7 +95,14 @@ router.get('/stats', authMiddleware, roleGuard(['superadmin']), async (req, res)
         time: n.createdAt, wsId: n.workspaceId, color: '#8B5CF6'
       });
     });
-    activity.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+    recentAuditLogs.forEach((a: any) => {
+      const d = a.details || {};
+      activity.push({
+        type: 'clear_all', text: `Semua laporan dihapus oleh <strong>${a.actorName}</strong> dari ${d.workspaceName || 'Workspace #'+d.workspaceId} (${d.deletedCount} laporan)`,
+        time: a.createdAt, wsId: d.workspaceId, color: '#EF4444'
+      });
+    });
+    activity.sort((a: any, b: any) => new Date(b.time).getTime() - new Date(a.time).getTime());
 
     // Per-workspace activity summary
     const wsAdminCounts = await Promise.all(workspaceIds.map(async id => ({
@@ -708,6 +717,20 @@ router.get('/workspaces/:id/detail', authMiddleware, roleGuard(['superadmin']), 
         text: `Warga baru bergabung: <strong>${m.name || m.username}</strong>`,
         time: m.createdAt,
         color: '#10B981'
+      });
+    });
+
+    // Audit logs for this workspace
+    const wsAuditLogs = await SystemAuditLogModel.find({
+      action: 'CLEAR_ALL_REPORTS',
+      'details.workspaceId': workspaceId
+    }).sort({ createdAt: -1 }).limit(5).lean().exec() as any[];
+    wsAuditLogs.forEach((a: any) => {
+      const d = a.details || {};
+      activity.push({
+        text: `Semua laporan dihapus oleh <strong>${a.actorName}</strong> (${d.deletedCount} laporan)`,
+        time: a.createdAt,
+        color: '#EF4444'
       });
     });
 

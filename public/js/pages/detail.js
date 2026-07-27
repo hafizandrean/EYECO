@@ -231,7 +231,7 @@ export class DetailPage {
               <a href="${report.image}" download="EYECO_Evidence_${report.id}.jpg" class="btn btn-sm btn-glass btn-rounded" style="font-size:0.75rem; font-weight:700; display:flex; align-items:center; gap:4px; padding: 6px 12px; text-decoration:none; color: var(--text-primary);">
                 <i data-lucide="download" style="width:14px; height:14px;"></i> Download
               </a>
-              <button class="btn btn-sm btn-glass btn-rounded" id="btn-detail-print" style="font-size:0.75rem; font-weight:700; display:flex; align-items:center; gap:4px; padding: 6px 12px;">
+              <button class="btn btn-sm btn-glass btn-rounded" id="btn-detail-export-pdf" style="font-size:0.75rem; font-weight:700; display:flex; align-items:center; gap:4px; padding: 6px 12px;">
                 <i data-lucide="file-text" style="width:14px; height:14px;"></i> Export PDF
               </button>
               ${this.canDelete(report) ? `
@@ -606,10 +606,59 @@ export class DetailPage {
         };
       }
 
-      const printBtn = document.getElementById('btn-detail-print');
-      if (printBtn) {
-        printBtn.onclick = () => {
-          window.print();
+      // Calibrate bounding boxes for exact pixel alignment on image
+      const calibrateBoxes = () => {
+        const imgEl = document.getElementById('detail-evidence-image');
+        const overlayEl = document.getElementById('yolo-boxes-overlay');
+        if (!imgEl || !overlayEl) return;
+
+        const nw = imgEl.naturalWidth;
+        const nh = imgEl.naturalHeight;
+        const cw = imgEl.clientWidth;
+        const ch = imgEl.clientHeight;
+        if (!nw || !nh || !cw || !ch) return;
+
+        const scale = Math.min(cw / nw, ch / nh);
+        const rw = nw * scale;
+        const rh = nh * scale;
+        const offsetX = (cw - rw) / 2;
+        const offsetY = (ch - rh) / 2;
+
+        let calibratedHtml = '';
+        boxes.forEach(box => {
+          let boxColorClass = 'yolo-trash';
+          const lbl = (box.label || '').toLowerCase();
+          if (lbl.includes('person') || lbl.includes('orang')) boxColorClass = 'yolo-person';
+          if (lbl.includes('trash') || lbl.includes('sampah')) boxColorClass = 'yolo-trash';
+          if (lbl.includes('boat') || lbl.includes('perahu')) boxColorClass = 'yolo-boat';
+
+          const confVal = typeof box.confidence === 'number' ? (box.confidence > 1 ? (box.confidence / 100).toFixed(2) : box.confidence.toFixed(2)) : '0.92';
+
+          const leftPx = offsetX + (box.x / 100) * rw;
+          const topPx = offsetY + (box.y / 100) * rh;
+          const widthPx = (box.w / 100) * rw;
+          const heightPx = (box.h / 100) * rh;
+
+          calibratedHtml += `
+            <div class="yolo-preview-box ${boxColorClass}" style="position: absolute; top: ${topPx}px; left: ${leftPx}px; width: ${widthPx}px; height: ${heightPx}px;">
+              <span class="yolo-preview-label">${box.label.toUpperCase()} ${confVal}</span>
+            </div>
+          `;
+        });
+
+        overlayEl.innerHTML = calibratedHtml;
+      };
+
+      if (img) {
+        if (img.complete) calibrateBoxes();
+        else img.addEventListener('load', calibrateBoxes);
+        window.addEventListener('resize', calibrateBoxes);
+      };
+
+      const exportPdfBtn = document.getElementById('btn-detail-export-pdf');
+      if (exportPdfBtn) {
+        exportPdfBtn.onclick = () => {
+          window.open(`/api/detections/${this.reportId}/pdf`, '_blank');
         };
       }
 
