@@ -110,13 +110,6 @@ app.use('/css', express.static(path.join(__dirname, '../public/css')));
 app.use('/js', express.static(path.join(__dirname, '../public/js')));
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
-app.post('/api/log-error', (req, res) => {
-  console.log('--- LOG FROM BROWSER ---');
-  console.log(JSON.stringify(req.body, null, 2));
-  console.log('-------------------------');
-  res.json({ success: true });
-});
-
 // --- MODULAR ROUTES ---
 app.use('/api/auth', authRouter);
 app.use('/api/superadmin', superadminRouter);

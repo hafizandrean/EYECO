@@ -1121,7 +1121,7 @@ export class CctvMonitoringPage {
       btnClearAll.addEventListener('click', async () => {
         const confirmed = await MacModal.confirm({
           title: 'Hapus Semua CCTV',
-          message: `Apakah Anda yakin ingin menghapus <strong>SELURUH</strong> saluran CCTV dummy saat ini?`,
+          message: `Apakah Anda yakin ingin menghapus <strong>SELURUH</strong> saluran CCTV saat ini?`,
           confirmText: 'Hapus Semua',
           cancelText: 'Batal',
           type: 'danger'
@@ -1129,7 +1129,7 @@ export class CctvMonitoringPage {
         if (!confirmed) return;
         try {
           await API.delete('/api/cctv/clear-all');
-            EventBus.emit('toast:show', { message: 'Seluruh CCTV dummy berhasil dihapus.', type: 'success' });
+            EventBus.emit('toast:show', { message: 'Seluruh CCTV berhasil dihapus.', type: 'success' });
             await this.loadCctvList();
           } catch (err) {
             EventBus.emit('toast:show', { message: 'Gagal menghapus CCTV: ' + err.message, type: 'danger' });
@@ -1198,6 +1198,7 @@ export class CctvMonitoringPage {
       btnListDevices.addEventListener('click', async () => {
         const accessId = document.getElementById('cctv-input-tuya-access-id')?.value;
         const accessSecret = document.getElementById('cctv-input-tuya-access-secret')?.value;
+        const region = document.getElementById('cctv-input-tuya-region')?.value;
         if (!accessId || !accessSecret) {
           EventBus.emit('toast:show', { message: 'Isi Access ID dan Access Secret Tuya dulu.', type: 'warning' });
           return;
@@ -1206,7 +1207,7 @@ export class CctvMonitoringPage {
         btnListDevices.innerHTML = '<i data-lucide="loader"></i> Mencari...';
         if (window.lucide) window.lucide.createIcons();
         try {
-          const res = await API.post('/api/cctv/tuya-devices', { accessId, accessSecret });
+          const res = await API.post('/api/cctv/tuya-devices', { accessId, accessSecret, region });
           if (!res.success || !res.data?.length) {
             deviceListDiv.innerHTML = '<div style="padding:8px;color:var(--danger);font-size:0.72rem;">Tidak ada device ditemukan. Cek Access ID & Secret.</div>';
             deviceListDiv.style.display = 'block';
