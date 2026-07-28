@@ -7,7 +7,7 @@ import { EventBus } from '../core/eventBus.js';
 import { CONFIG } from '../core/config.js';
 import { Formatter } from '../utils/formatter.js';
 import { API } from '../services/api.js';
-import { MacModal } from '../utils/macModal.js';
+import { MacModal } from '../utils/macModal.js?v=1.1.0';
 
 export class CctvMonitoringPage {
   constructor() {
@@ -252,6 +252,7 @@ export class CctvMonitoringPage {
               </div>
             </form>
           </div>
+        </div>
       </div>
 
       <!-- Edit CCTV Modal Overlay -->
@@ -1143,12 +1144,8 @@ export class CctvMonitoringPage {
         this.editingCctvId = null;
         form.reset();
         scannerBox.style.display = 'none';
-<<<<<<< HEAD
-        btnSave.disabled = false;
-=======
         btnSave.disabled = true;
         toggleTuyaFields();
->>>>>>> 3caaa39519871020e7eadcd8759cf50bb85b2e95
 
         const modalTitle = modal.querySelector('.modal-header h3');
         if (modalTitle) {
@@ -1461,36 +1458,6 @@ export class CctvMonitoringPage {
             await CctvService.updateCctv(this.editingCctvId, payload);
             EventBus.emit('toast:show', { message: 'Konfigurasi CCTV berhasil diperbarui!', type: 'success' });
           } else {
-<<<<<<< HEAD
-            if (!detectedConfig) {
-              const streamTarget = (host && host.includes('://')) ? host : (host === '127.0.0.1' || host === 'localhost' ? '/uploads/upload_1785148213754-215512110.mp4' : `rtsp://${username}:${password}@${host}:${port || 554}/live`);
-              detectedConfig = {
-                name: name || `CCTV ${host}`,
-                location: location || 'Lokasi Pemantauan',
-                description: description || '',
-                vendor: vendor || 'GENERIC',
-                model: 'IP Camera',
-                protocol: protocol === 'AUTO' ? (streamTarget.endsWith('.mp4') ? 'HLS' : 'RTSP') : protocol,
-                mediaType: streamTarget.endsWith('.mp4') ? 'Video' : 'HLS',
-                streamUrl: streamTarget,
-                playUrl: streamTarget,
-                username,
-                password,
-                capabilities: {
-                  rtsp: protocol === 'RTSP' || protocol === 'AUTO',
-                  hls: protocol === 'HLS',
-                  snapshot: protocol === 'SNAPSHOT',
-                  mjpeg: protocol === 'MJPEG',
-                  onvif: false,
-                  cloud: protocol === 'CLOUD_VIEWER'
-                }
-              };
-            }
-            detectedConfig.name = name;
-            detectedConfig.location = location;
-            detectedConfig.description = description;
-=======
-            if (!detectedConfig && !isTuya) return;
             if (isTuya) {
               detectedConfig = {
                 name,
@@ -1509,11 +1476,34 @@ export class CctvMonitoringPage {
                 tuyaRegion
               };
             } else {
+              if (!detectedConfig) {
+                const streamTarget = (host && host.includes('://')) ? host : (host === '127.0.0.1' || host === 'localhost' ? '/uploads/upload_1785148213754-215512110.mp4' : `rtsp://${username}:${password}@${host}:${port || 554}/live`);
+                detectedConfig = {
+                  name: name || `CCTV ${host}`,
+                  location: location || 'Lokasi Pemantauan',
+                  description: description || '',
+                  vendor: vendor || 'GENERIC',
+                  model: 'IP Camera',
+                  protocol: protocol === 'AUTO' ? (streamTarget.endsWith('.mp4') ? 'HLS' : 'RTSP') : protocol,
+                  mediaType: streamTarget.endsWith('.mp4') ? 'Video' : 'HLS',
+                  streamUrl: streamTarget,
+                  playUrl: streamTarget,
+                  username,
+                  password,
+                  capabilities: {
+                    rtsp: protocol === 'RTSP' || protocol === 'AUTO',
+                    hls: protocol === 'HLS',
+                    snapshot: protocol === 'SNAPSHOT',
+                    mjpeg: protocol === 'MJPEG',
+                    onvif: false,
+                    cloud: protocol === 'CLOUD_VIEWER'
+                  }
+                };
+              }
               detectedConfig.name = name;
               detectedConfig.location = location;
               detectedConfig.description = description;
             }
->>>>>>> 3caaa39519871020e7eadcd8759cf50bb85b2e95
             await CctvService.connectCctv(detectedConfig);
             EventBus.emit('toast:show', { message: 'CCTV Baru berhasil dihubungkan ke sistem!', type: 'success' });
           }

@@ -13,7 +13,7 @@ import { Detail } from '../pages/detail.js';
 import { Home } from '../pages/home.js';
 import { Profile } from '../pages/profile.js';
 import { BeritaAdmin } from '../pages/berita-admin.js';
-import { CctvMonitoring } from '../pages/cctv-monitoring.js';
+import { CctvMonitoring } from '../pages/cctv-monitoring.js?v=1.1.0';
 
 class AppInitializer {
   constructor() {

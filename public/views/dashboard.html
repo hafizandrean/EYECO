@@ -4,7 +4,73 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>EYECO - AI CCTV Incident Command Center</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <script>
+    window.onerror = function(message, source, lineno, colno, error) {
+      fetch('/api/log-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'window.onerror',
+          message: message,
+          source: source,
+          lineno: lineno,
+          colno: colno,
+          stack: error ? error.stack : null
+        })
+      }).catch(err => console.error(err));
+      return false;
+    };
+    window.addEventListener('unhandledrejection', function(event) {
+      fetch('/api/log-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'unhandledrejection',
+          message: event.reason ? (event.reason.message || event.reason.toString()) : 'Unhandled rejection',
+          stack: event.reason ? event.reason.stack : null
+        })
+      }).catch(err => console.error(err));
+    });
+    document.addEventListener('click', function(e) {
+      const path = e.composedPath().map(el => {
+        if (!el) return '';
+        let str = el.tagName || 'document/window';
+        if (el.id) str += '#' + el.id;
+        if (el.className && typeof el.className === 'string') str += '.' + String(el.className).split(' ').join('.');
+        return str;
+      }).filter(Boolean);
+
+      const fsPage = document.getElementById('vms-fullscreen-page');
+      const editModal = document.getElementById('edit-cctv-modal');
+      const viewport = document.getElementById('app-viewport');
+      
+      const viewportChildren = viewport ? Array.from(viewport.children).map(c => {
+        let str = c.tagName;
+        if (c.id) str += '#' + c.id;
+        if (c.className) str += '.' + String(c.className).split(' ').join('.');
+        return str;
+      }) : [];
+
+      fetch('/api/log-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'click',
+          targetTagName: e.target.tagName,
+          targetId: e.target.id,
+          targetClass: typeof e.target.className === 'string' ? e.target.className : '',
+          targetText: e.target.textContent ? e.target.textContent.trim().substring(0, 50) : '',
+          path: path,
+          fsPageExists: !!fsPage,
+          fsPageDisplay: fsPage ? fsPage.style.display : 'n/a',
+          fsPageIsConnected: fsPage ? fsPage.isConnected : false,
+          fsPageParent: fsPage && fsPage.parentElement ? fsPage.parentElement.tagName + '#' + fsPage.parentElement.id : 'none',
+          viewportChildren: viewportChildren
+        })
+      }).catch(err => console.error(err));
+    }, true);
+  </script>
+  <link rel="stylesheet" href="/css/style.css?v=1.1.0">
   <!-- Load Lucide Icons CDN (Fork of Feather Icons) -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- HLS.js for live stream playback (Tuya HLS / m3u8 streams) -->
@@ -122,6 +188,6 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- Shared Bootstrapper script module -->
-  <script type="module" src="/js/core/app.js"></script>
+  <script type="module" src="/js/core/app.js?v=1.1.0"></script>
 </body>
 </html>
