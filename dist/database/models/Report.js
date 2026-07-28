@@ -140,7 +140,18 @@ const ReportSchema = new mongoose_1.Schema({
             resolved: { type: [Number], default: [] }
         }, { _id: false }),
         default: { active: [], resolved: [] }
-    }
+    },
+    incidentKey: { type: String, sparse: true, index: true },
+    sourceVideoId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Report', sparse: true, index: true },
+    validationStatus: {
+        type: String,
+        enum: ['PENDING', 'IN_REVIEW', 'CONFIRMED', 'REJECTED'],
+        default: 'PENDING',
+        index: true
+    },
+    needsHumanValidation: { type: Boolean, default: false },
+    createdFrom: { type: String, default: null },
+    videoPath: { type: String, default: null }
 }, {
     timestamps: true,
     id: false // Prevent Mongoose virtual 'id' from overriding our numeric 'id' field
@@ -150,4 +161,6 @@ ReportSchema.index({ timestamp: -1, adminStatus: 1 });
 ReportSchema.index({ status: 1, timestamp: -1 });
 // TTL index: auto-delete validated reports 40 days after scheduledDeletionAt is set
 ReportSchema.index({ scheduledDeletionAt: 1 }, { expireAfterSeconds: 0 });
+// Compound index for video analysis incident idempotency
+ReportSchema.index({ sourceVideoId: 1, incidentKey: 1 }, { unique: true, sparse: true });
 exports.ReportModel = mongoose_1.default.model('Report', ReportSchema);

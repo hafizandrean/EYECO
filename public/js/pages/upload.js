@@ -239,16 +239,23 @@ export class UploadPage {
     if (window.lucide) window.lucide.createIcons();
 
     const video = document.getElementById('camera-feed');
+<<<<<<< HEAD
+    const captureBtn = document.getElementById('btn-cam-capture');
+=======
+>>>>>>> 3caaa39519871020e7eadcd8759cf50bb85b2e95
     const closeBtn = document.getElementById('btn-cam-close');
     const overlayBoxes = document.getElementById('camera-detection-overlay');
     const detectCount = document.getElementById('cam-detect-count');
     const liveDot = document.getElementById('cam-live-dot');
 
     let stream = null;
+<<<<<<< HEAD
+=======
     let detecting = false;
     let frameTimer = null;
     let totalDetected = 0;
     let lastAutoUpload = 0;
+>>>>>>> 3caaa39519871020e7eadcd8759cf50bb85b2e95
 
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } });
@@ -282,6 +289,15 @@ export class UploadPage {
         const res = await fetch('/api/detect-preview', { method: 'POST', body: formData, credentials: 'include' });
         const data = await res.json();
 
+<<<<<<< HEAD
+        if (data.success && data.boxes?.length > 0) {
+          // Render bounding boxes
+          overlayBoxes.innerHTML = data.boxes.map((b) => `
+            <div style="position:absolute;top:${b.y}%;left:${b.x}%;width:${b.w}%;height:${b.h}%;border:2px solid ${b.label === 'person' ? '#10B981' : '#EF4444'};background:${b.label === 'person' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)'};border-radius:4px;display:flex;align-items:flex-end;justify-content:flex-start;">
+              <span style="background:${b.label === 'person' ? '#10B981' : '#EF4444'};color:white;font-size:9px;font-weight:800;padding:1px 5px;border-radius:0 4px 0 0;">${b.label} ${b.confidence}%</span>
+            </div>
+          `).join('');
+=======
         if (data.success) {
           if (data.boxes?.length > 0) {
             // Render bounding boxes langsung di video
@@ -289,6 +305,7 @@ export class UploadPage {
               <div style="position:absolute;top:${b.y}%;left:${b.x}%;width:${b.w}%;height:${b.h}%;border:2px solid ${b.label === 'person' ? '#10B981' : '#EF4444'};background:${b.label === 'person' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)'};border-radius:4px;display:flex;align-items:flex-end;justify-content:flex-start;">
                 <span style="background:${b.label === 'person' ? '#10B981' : '#EF4444'};color:white;font-size:9px;font-weight:800;padding:1px 5px;border-radius:0 4px 0 0;">${b.label} ${b.confidence}%</span>
               </div>`).join('');
+>>>>>>> 3caaa39519871020e7eadcd8759cf50bb85b2e95
 
             const hasPerson = data.boxes.some(b => b.label === 'person');
             if (hasPerson) {
@@ -637,16 +654,18 @@ export class UploadPage {
         if (report.aiStatus === 'RENDAH') levelClass = 'low';
 
         // Replaced spreadsheet with timeline card
+        const isVideoImage = report.image && report.image.endsWith('.mp4');
+        const thumbnailHtml = isVideoImage
+          ? `<div style="display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; background: var(--surface-soft); color: var(--text-muted);"><i data-lucide="video" style="width: 20px; height: 20px;"></i></div>`
+          : `<img src="${report.image}" alt="" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"><div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; background: var(--surface-soft); color: var(--text-muted);"><i data-lucide="image" style="width: 20px; height: 20px;"></i></div>`;
+
         const card = document.createElement('div');
         card.className = 'glass-card hover-lift';
         card.style.cssText = 'padding: 16px; display: flex; gap: 16px; align-items: center; cursor: pointer; border: 1px solid var(--border);';
         
         card.innerHTML = `
           <div class="history-thumbnail" style="width: 60px; height: 60px; border-radius: 8px; overflow: hidden; background: var(--surface-soft); flex-shrink: 0; position: relative; display: flex; align-items: center; justify-content: center;">
-            <img src="${report.image}" alt="" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
-            <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; background: var(--surface-soft); color: var(--text-muted);">
-              <i data-lucide="image" style="width: 20px; height: 20px;"></i>
-            </div>
+            ${thumbnailHtml}
           </div>
           <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
             <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-dark); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${report.location}</div>

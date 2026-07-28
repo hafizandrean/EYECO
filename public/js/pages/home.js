@@ -458,12 +458,17 @@ class HomePage {
       }
 
       this.latestReports.forEach((report, i) => {
+        const isVideoImage = report.image && report.image.endsWith('.mp4');
+        const imgHtml = isVideoImage
+          ? `<div style="display:flex; width:100%; height:100%; align-items:center; justify-content:center; background:var(--surface-soft); color:var(--text-muted);"><i data-lucide="video" style="width:28px; height:28px;"></i></div>`
+          : `<img src="${report.image}" alt="Bukti" loading="lazy" onerror="this.style.display='none'">`;
+
         const card = document.createElement('div');
         card.className = 'report-card';
         card.style.animationDelay = `${i * 0.1}s`;
         card.innerHTML = `
           <div class="report-card-img">
-            <img src="${report.image}" alt="Bukti" loading="lazy" onerror="this.style.display='none'">
+            ${imgHtml}
             <span class="report-card-badge ${report.adminStatus === 'VALID' ? 'badge-green' : 'badge-orange'}">
               ${report.adminStatus === 'VALID' ? 'Terverifikasi' : 'Ditinjau'}
             </span>

@@ -57,13 +57,58 @@ const AiSnapshotSchema = new mongoose_1.Schema({
     limitations: [{ type: String }],
     pipelineTrace: { type: mongoose_1.Schema.Types.Mixed, default: null },
     parentSnapshotId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'AiSnapshot', default: null },
+    snapshotKey: { type: String, unique: true, sparse: true, index: true },
 }, { timestamps: true });
 // Idempotency compound index (Guardrail #7)
 AiSnapshotSchema.index({ reportId: 1, inputImageHash: 1, pipelineVersion: 1 });
-// Enforce Immutability
+// Enforce Immutability at database level
+function rejectSnapshotMutation() {
+    throw new Error('AI_SNAPSHOT_IMMUTABLE');
+}
+const FORBIDDEN_QUERY_OPERATIONS = [
+    'findOneAndUpdate',
+    'findOneAndReplace',
+    'findOneAndDelete',
+    'replaceOne',
+    'updateMany',
+    'deleteOne',
+    'deleteMany',
+];
+for (const operation of FORBIDDEN_QUERY_OPERATIONS) {
+    AiSnapshotSchema.pre(operation, function () {
+        rejectSnapshotMutation();
+    });
+}
 AiSnapshotSchema.pre('save', function () {
     if (!this.isNew) {
-        throw new Error('[IMMUTABLE_ERROR] AiSnapshot is immutable and cannot be modified after creation.');
+        rejectSnapshotMutation();
+    }
+});
+AiSnapshotSchema.pre('bulkWrite', function () {
+    rejectSnapshotMutation();
+});
+AiSnapshotSchema.pre('deleteOne', { document: true, query: false }, function () {
+    rejectSnapshotMutation();
+});
+AiSnapshotSchema.pre('updateOne', function () {
+    const options = this.getOptions();
+    const update = this.getUpdate();
+    const onlySetOnInsert = options &&
+        options.upsert === true &&
+        update &&
+        '$setOnInsert' in update &&
+        Object.keys(update).every(key => {
+            if (key === '$setOnInsert')
+                return true;
+            if (key === '$set') {
+                const setVal = update['$set'];
+                const keys = Object.keys(setVal);
+                return keys.length === 1 && keys[0] === 'updatedAt';
+            }
+            return false;
+        });
+    if (!onlySetOnInsert) {
+        rejectSnapshotMutation();
     }
 });
 exports.AiSnapshotModel = mongoose_1.default.model('AiSnapshot', AiSnapshotSchema);

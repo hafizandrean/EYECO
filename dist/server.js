@@ -4,6 +4,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
+const dns_1 = __importDefault(require("dns"));
+dns_1.default.setDefaultResultOrder('ipv4first');
 const path_1 = __importDefault(require("path"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const mongoose_1 = __importDefault(require("mongoose"));
@@ -23,6 +25,7 @@ const adminRoutes_1 = __importDefault(require("./routes/adminRoutes"));
 const reportRoutes_1 = __importDefault(require("./routes/reportRoutes"));
 const cctvRoutes_1 = __importDefault(require("./routes/cctvRoutes"));
 const newsRoutes_1 = __importDefault(require("./routes/newsRoutes"));
+const videoAnalysisRoutes_1 = __importDefault(require("./routes/videoAnalysisRoutes"));
 const CctvHealthEngine_1 = require("./cctv/CctvHealthEngine");
 const CctvScanner_1 = require("./cctv/CctvScanner");
 const CctvAdapter_1 = require("./cctv/CctvAdapter");
@@ -75,6 +78,7 @@ app.use((req, res, next) => {
 app.use('/css', express_1.default.static(path_1.default.join(__dirname, '../public/css')));
 app.use('/js', express_1.default.static(path_1.default.join(__dirname, '../public/js')));
 app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../public/uploads')));
+app.use('/hls', express_1.default.static(path_1.default.join(__dirname, '../public/hls')));
 // Global middleware to populate req.userContext from cookie/header
 app.use((req, res, next) => {
     const { verifyToken } = require('./auth/auth.service');
@@ -106,6 +110,7 @@ app.use('/admin', adminRoutes_1.default);
 app.use('/api/cctv', cctvRoutes_1.default);
 app.use('/api/news', newsRoutes_1.default);
 app.use('/api', reportRoutes_1.default);
+app.use('/api/video-analysis', videoAnalysisRoutes_1.default);
 // --- HEALTH CHECK ENDPOINTS ---
 app.get('/health/live', (req, res) => {
     res.json({ status: 'UP' });
@@ -229,6 +234,13 @@ app.get('/api/detections/:id', async (req, res) => {
             }
             responseReport.image = img;
         }
+        if (responseReport.videoPath && typeof responseReport.videoPath === 'string') {
+            let vPath = responseReport.videoPath;
+            if (!vPath.startsWith('/') && !vPath.startsWith('http')) {
+                vPath = '/' + vPath;
+            }
+            responseReport.videoPath = vPath;
+        }
         if (user && (user.role === 'admin' || user.role === 'superadmin')) {
             const uploader = await User_1.UserModel.findOne({ _id: report.userId }).select('username name avatar email phone').lean().exec();
             if (uploader) {
@@ -259,6 +271,21 @@ app.get('/api/detections/:id', async (req, res) => {
         }
         catch (sErr) {
             console.warn('[SERVER] Could not load AiSnapshot for report #' + id + ':', sErr.message);
+        }
+        // Attach video analysis job info if available
+        try {
+            if (report.sourceVideoId && report.incidentKey) {
+                const { VideoAnalysisJobModel } = require('./database/models/VideoAnalysisJob');
+                const job = await VideoAnalysisJobModel.findOne({ sourceVideoId: report.sourceVideoId }).lean().exec();
+                if (job) {
+                    responseReport.videoAnalysisJobId = job._id.toString();
+                    const parts = report.incidentKey.split(':');
+                    responseReport.shortIncidentKey = parts[parts.length - 1];
+                }
+            }
+        }
+        catch (vErr) {
+            console.warn('[SERVER] Could not load VideoAnalysisJob for report #' + id + ':', vErr.message);
         }
         res.json(responseReport);
     }
@@ -891,6 +918,21 @@ let serverInstance;
     // CCTV Health Engine is started inside listenWithFallback
     // AiPipelineScheduler.start(); — disabled, no more CCTV reports
     OutboxWorker_1.OutboxWorker.start();
+    // Start background video analysis worker as a separate process
+    try {
+        const { spawn } = require('child_process');
+        const workerScript = path_1.default.resolve(__dirname, './services/ai/videoWorker.js');
+        console.log(`[SERVER INFO] Spawning background video worker process: ${process.execPath} ${workerScript}...`);
+        const worker = spawn(process.execPath, [workerScript], {
+            detached: true,
+            stdio: 'ignore',
+            cwd: path_1.default.resolve(__dirname, '../')
+        });
+        worker.unref();
+    }
+    catch (wErr) {
+        console.error('[SERVER ERROR] Failed to spawn video worker:', wErr.message);
+    }
     const activePort = await listenWithFallback(PORT);
     console.log(`[SERVER] EYECO berjalan di http://localhost:${activePort}`);
 }).catch((err) => {

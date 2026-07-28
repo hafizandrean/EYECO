@@ -75,6 +75,9 @@ export class CctvMonitoringPage {
             <button id="btn-connect-cctv" class="btn btn-glass btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;border-color: rgba(47, 107, 255, 0.3); color: var(--primary);">
               <i data-lucide="plus-circle" style="width:13px;height:13px;"></i> CCTV Baru
             </button>
+            <button id="btn-sync-tuya" class="btn btn-glass btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;border-color: rgba(16, 185, 129, 0.3); color: #10b981;">
+              <i data-lucide="refresh-cw" style="width:13px;height:13px;"></i> Sync Tuya
+            </button>
             <button id="btn-clear-all-cctv" class="btn btn-glass btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;border-color: rgba(220, 38, 38, 0.3); color: var(--danger);">
               <i data-lucide="trash-2" style="width:13px;height:13px;"></i> Hapus Semua
             </button>
@@ -334,6 +337,51 @@ export class CctvMonitoringPage {
         </div>
       </div>
 
+      <!-- Tuya Sync Modal Overlay -->
+      <div id="tuya-sync-modal" class="modal-overlay" style="display: none; z-index: 1200;">
+        <div class="glass-card modal-container" style="max-width: 500px; width: 90%;">
+          <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+            <h3 style="margin:0; font-family:'Outfit',sans-serif; display:flex; align-items:center; gap:8px; font-size:1.15rem; font-weight:800; color: #10b981;">
+              <i data-lucide="refresh-cw"></i> Sinkronisasi Tuya CCTV
+            </h3>
+            <button class="btn-close-modal" id="btn-close-tuya-modal" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted);">&times;</button>
+          </div>
+          <div class="modal-body" style="margin-top: 16px;">
+            <form id="tuya-sync-form">
+              <div class="form-group" style="margin-bottom: 14px;">
+                <label class="form-label" style="font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">Access ID / Client ID</label>
+                <input type="text" id="tuya-input-client-id" class="filter-control input-rounded" required value="r5vap3snnr339dyeua5j" style="width: 100%;">
+              </div>
+              <div class="form-group" style="margin-bottom: 14px;">
+                <label class="form-label" style="font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">Access Secret / Client Secret</label>
+                <input type="password" id="tuya-input-client-secret" class="filter-control input-rounded" required value="5a93707b474b41b9b888b1e2a12ed1c9" style="width: 100%;">
+              </div>
+              <div class="form-group" style="margin-bottom: 14px;">
+                <label class="form-label" style="font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">Data Center (Region URL)</label>
+                <select id="tuya-input-region" class="filter-control select-rounded" style="width: 100%;">
+                  <option value="https://openapi-sg.iotbing.com" selected>Singapore Data Center (Asia-Pacific)</option>
+                  <option value="https://openapi.tuyaus.com">Oregon Data Center (America)</option>
+                  <option value="https://openapi.tuyaeu.com">Frankfurt Data Center (Europe)</option>
+                  <option value="https://openapi.tuyacn.com">Beijing Data Center (China)</option>
+                </select>
+              </div>
+
+              <!-- Sync progress loader -->
+              <div class="tuya-sync-loader" style="display: none; padding: 16px; text-align: center; color: var(--text-secondary); font-size: 0.82rem;">
+                <span class="status-pulse-dot" style="width:8px; height:8px; background:#10b981; border-radius:50%; display:inline-block; margin-right:6px;"></span>
+                Menghubungkan ke Tuya Cloud & Sinkronisasi...
+              </div>
+
+              <div class="modal-actions-row" style="margin-top: 20px; display: flex; justify-content: flex-end;">
+                <button type="submit" class="btn btn-primary btn-rounded" id="btn-submit-tuya-sync" style="background: #10b981; border-color: #10b981; font-weight: 700; width: 100%;">
+                  <i data-lucide="refresh-cw"></i> Mulai Sinkronisasi
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
       <!-- CCTV Fullscreen VMS View -->
       <div id="vms-fullscreen-page" class="vms-fullscreen-view" style="display: none;">
         <!-- Header -->
@@ -565,6 +613,7 @@ export class CctvMonitoringPage {
     // Initialize Connection Modal Form & Edit Modal Form
     this.initCctvModal();
     this.initEditCctvModal();
+    this.initTuyaSyncModal();
   }
 
   async checkMonitoringStatus() {
@@ -701,9 +750,22 @@ export class CctvMonitoringPage {
       }
 
       let mediaHtml = '';
+      const hlsVideoId = `hls-video-${ch.id}`;
       if (isChActive) {
         if (ch.status === 'OFFLINE' || ch.status === 'ERROR' || ch.status === 'DISCONNECTED') {
           mediaHtml = `<div class="cctv-static-screen"><div class="static-noise"></div><div class="static-label text-danger">${ch.status}</div></div>`;
+        } else if (ch.mediaType === 'HLS' || ch.mediaType === 'RTSP_TUYA' || (ch.playUrl && ch.playUrl.includes('.m3u8'))) {
+          // HLS stream (Tuya Cloud) — use HLS.js player
+          mediaHtml = `
+            <video id="${hlsVideoId}" class="cctv-feed-img" autoplay muted playsinline
+              style="width:100%;height:100%;object-fit:cover;background:#000;display:block;"
+              onerror="this.onerror=null;"></video>
+            <div class="cctv-overlay-gradient"></div>
+            ${boundingBoxesHtml}
+            <div style="position:absolute;top:10px;right:12px;display:flex;align-items:center;gap:5px;z-index:5;">
+              <span style="width:7px;height:7px;border-radius:50%;background:#22c55e;animation:pulse-cloud 1.2s infinite;box-shadow:0 0 6px rgba(34,197,94,0.7);"></span>
+              <span style="font-size:0.62rem;font-weight:800;color:#fff;letter-spacing:0.05em;text-shadow:0 1px 3px rgba(0,0,0,0.8);">LIVE</span>
+            </div>`;
         } else if (ch.mediaType === 'Cloud') {
           mediaHtml = `<div class="cctv-cloud-overlay">
             <i data-lucide="cloud" class="cloud-icon" style="color:var(--primary);"></i>
@@ -924,6 +986,38 @@ export class CctvMonitoringPage {
       }
 
       container.appendChild(card);
+
+      // Initialize HLS.js player after card is in DOM
+      const needsHls = isChActive && (ch.mediaType === 'HLS' || ch.mediaType === 'RTSP_TUYA' || (ch.playUrl && ch.playUrl.includes('.m3u8')));
+      if (needsHls) {
+        const videoEl = container.querySelector(`#${hlsVideoId}`);
+        const hlsUrl = ch.playUrl || ch.streamUrl;
+        if (videoEl && hlsUrl && hlsUrl.includes('.m3u8')) {
+          if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+            const hls = new Hls({
+              enableWorker: true,
+              lowLatencyMode: true,
+              backBufferLength: 90,
+              maxBufferLength: 10,
+              maxMaxBufferLength: 20,
+            });
+            hls.loadSource(hlsUrl);
+            hls.attachMedia(videoEl);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => { videoEl.play().catch(() => {}); });
+            hls.on(Hls.Events.ERROR, (event, data) => {
+              if (data.fatal) {
+                console.warn(`[HLS] Fatal error for ${ch.name}:`, data.type, data.details);
+                hls.destroy();
+              }
+            });
+            videoEl._hlsInstance = hls;
+          } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+            // Safari native HLS
+            videoEl.src = hlsUrl;
+            videoEl.play().catch(() => {});
+          }
+        }
+      }
     });
 
     if (window.lucide) window.lucide.createIcons();
@@ -1049,8 +1143,12 @@ export class CctvMonitoringPage {
         this.editingCctvId = null;
         form.reset();
         scannerBox.style.display = 'none';
+<<<<<<< HEAD
+        btnSave.disabled = false;
+=======
         btnSave.disabled = true;
         toggleTuyaFields();
+>>>>>>> 3caaa39519871020e7eadcd8759cf50bb85b2e95
 
         const modalTitle = modal.querySelector('.modal-header h3');
         if (modalTitle) {
@@ -1363,6 +1461,35 @@ export class CctvMonitoringPage {
             await CctvService.updateCctv(this.editingCctvId, payload);
             EventBus.emit('toast:show', { message: 'Konfigurasi CCTV berhasil diperbarui!', type: 'success' });
           } else {
+<<<<<<< HEAD
+            if (!detectedConfig) {
+              const streamTarget = (host && host.includes('://')) ? host : (host === '127.0.0.1' || host === 'localhost' ? '/uploads/upload_1785148213754-215512110.mp4' : `rtsp://${username}:${password}@${host}:${port || 554}/live`);
+              detectedConfig = {
+                name: name || `CCTV ${host}`,
+                location: location || 'Lokasi Pemantauan',
+                description: description || '',
+                vendor: vendor || 'GENERIC',
+                model: 'IP Camera',
+                protocol: protocol === 'AUTO' ? (streamTarget.endsWith('.mp4') ? 'HLS' : 'RTSP') : protocol,
+                mediaType: streamTarget.endsWith('.mp4') ? 'Video' : 'HLS',
+                streamUrl: streamTarget,
+                playUrl: streamTarget,
+                username,
+                password,
+                capabilities: {
+                  rtsp: protocol === 'RTSP' || protocol === 'AUTO',
+                  hls: protocol === 'HLS',
+                  snapshot: protocol === 'SNAPSHOT',
+                  mjpeg: protocol === 'MJPEG',
+                  onvif: false,
+                  cloud: protocol === 'CLOUD_VIEWER'
+                }
+              };
+            }
+            detectedConfig.name = name;
+            detectedConfig.location = location;
+            detectedConfig.description = description;
+=======
             if (!detectedConfig && !isTuya) return;
             if (isTuya) {
               detectedConfig = {
@@ -1386,6 +1513,7 @@ export class CctvMonitoringPage {
               detectedConfig.location = location;
               detectedConfig.description = description;
             }
+>>>>>>> 3caaa39519871020e7eadcd8759cf50bb85b2e95
             await CctvService.connectCctv(detectedConfig);
             EventBus.emit('toast:show', { message: 'CCTV Baru berhasil dihubungkan ke sistem!', type: 'success' });
           }
@@ -1821,6 +1949,69 @@ export class CctvMonitoringPage {
     page.style.display = 'flex';
     if (window.lucide) window.lucide.createIcons();
   }
+  initTuyaSyncModal() {
+    const btnSync = document.getElementById('btn-sync-tuya');
+    const modal = document.getElementById('tuya-sync-modal');
+    const btnClose = document.getElementById('btn-close-tuya-modal');
+    const form = document.getElementById('tuya-sync-form');
+    const loader = modal ? modal.querySelector('.tuya-sync-loader') : null;
+    const btnSubmit = document.getElementById('btn-submit-tuya-sync');
+
+    if (!modal) return;
+
+    if (btnSync) {
+      btnSync.addEventListener('click', () => {
+        form.reset();
+        if (loader) loader.style.display = 'none';
+        if (btnSubmit) btnSubmit.style.display = 'block';
+        modal.style.display = 'flex';
+        if (window.lucide) window.lucide.createIcons();
+      });
+    }
+
+    if (btnClose) {
+      btnClose.addEventListener('click', () => {
+        modal.style.display = 'none';
+      });
+    }
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.style.display = 'none';
+      }
+    });
+
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const clientId = document.getElementById('tuya-input-client-id').value.trim();
+        const clientSecret = document.getElementById('tuya-input-client-secret').value.trim();
+        const region = document.getElementById('tuya-input-region').value;
+
+        if (loader) loader.style.display = 'block';
+        if (btnSubmit) btnSubmit.style.display = 'none';
+
+        try {
+          const response = await API.post('/api/cctv/tuya-sync', {
+            clientId,
+            clientSecret,
+            region
+          });
+
+          EventBus.emit('toast:show', { message: response.message || 'Sinkronisasi Tuya berhasil!', type: 'success' });
+          modal.style.display = 'none';
+          await this.loadCctvList();
+        } catch (err) {
+          EventBus.emit('toast:show', { message: 'Gagal sinkronisasi: ' + err.message, type: 'danger' });
+        } finally {
+          if (loader) loader.style.display = 'none';
+          if (btnSubmit) btnSubmit.style.display = 'block';
+        }
+      });
+    }
+  }
+
   startPolling() {
     this.pollingTimer = setInterval(() => {
       this.loadCctvList();

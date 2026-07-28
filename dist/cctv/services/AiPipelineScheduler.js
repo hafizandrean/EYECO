@@ -17,6 +17,9 @@ class AiPipelineScheduler {
     static isRunning = false;
     static instanceId = crypto_1.default.randomUUID();
     static workspaceId = null;
+    static getStatus() {
+        return this.intervalId !== null;
+    }
     /**
      * Starts the background AI pipeline scheduler.
      * If workspaceId is provided, only processes cameras in that workspace.

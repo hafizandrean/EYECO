@@ -7,3 +7,8 @@ ai/output/*
 ai/__pycache__/
 ai/**/__pycache__/
 *.pyc
+
+node_modules/
+.env
+.env.*
+!.env.example

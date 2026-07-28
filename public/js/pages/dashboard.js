@@ -438,7 +438,7 @@ export class DashboardPage {
     }
 
     if (this.filterId) {
-      queue = queue.filter(r => r.id.toString().includes(this.filterId.replace(/^0+/, '')));
+      queue = queue.filter(r => r.id && r.id.toString().includes(this.filterId.replace(/^0+/, '')));
     }
 
     if (this.filterCamera && this.filterCamera !== 'all') {
@@ -502,7 +502,7 @@ export class DashboardPage {
           <span>${dot}</span>
           <div style="flex:1; min-width:0;">
             <strong style="color: var(--text-primary);">${r.assignedOfficer}</strong>
-            <div style="color: var(--text-secondary); font-size: 0.68rem;">DLH · ${state} · #${r.id.toString().padStart(4, '0')}</div>
+            <div style="color: var(--text-secondary); font-size: 0.68rem;">DLH · ${state} · #${String(r.id ?? '').padStart(4, '0')}</div>
           </div>
           <span style="font-size: 0.65rem; color: var(--text-muted); font-weight: 700;">${time}</span>
         </div>
@@ -643,9 +643,14 @@ export class DashboardPage {
             }
           }
 
+          const isVideoImage = r.image && r.image.endsWith('.mp4');
+          const thumbnailHtml = isVideoImage
+            ? `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: var(--surface-soft); color: var(--text-muted);"><i data-lucide="video" style="width: 20px; height: 20px;"></i></div>`
+            : `<img src="${r.image}" style="width:100%; height:100%; object-fit:cover;" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" /><div style="display:none; width: 100%; height: 100%; align-items: center; justify-content: center; background: var(--surface-soft); color: var(--text-muted);"><i data-lucide="image" style="width: 20px; height: 20px;"></i></div>`;
+
           item.innerHTML = `
-            <div style="width: 52px; height: 52px; border-radius: 10px; overflow:hidden; flex-shrink:0; background:var(--surface-variant); border: 1.5px solid var(--border); display:flex; align-items:center; justify-content:center;">
-              <img src="${r.image}" style="width:100%; height:100%; object-fit:cover;" alt="" />
+            <div style="width: 52px; height: 52px; border-radius: 10px; overflow:hidden; flex-shrink:0; background:var(--surface-variant); border: 1.5px solid var(--border); display:flex; align-items:center; justify-content:center; position:relative;">
+              ${thumbnailHtml}
             </div>
             <div style="min-width: 0; flex: 1;">
               <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
@@ -660,7 +665,7 @@ export class DashboardPage {
                 <span style="color:var(--text-muted);">·</span>
                 <span>${Formatter.formatTime(r.timestamp)}</span>
                 <span style="color:var(--text-muted);">·</span>
-                <span style="font-weight:600; color:var(--text-secondary);">#${r.id.toString().padStart(4, '0')}</span>
+                <span style="font-weight:600; color:var(--text-secondary);">#${String(r.id ?? '').padStart(4, '0')}</span>
               </div>
               ${officerHtml}
             </div>
@@ -716,7 +721,7 @@ export class DashboardPage {
           icon: '<i data-lucide="bell-alert" style="width:14px;height:14px;color:var(--warning);"></i>',
           color: 'var(--warning)',
           title: 'New Incident',
-          desc: `#${r.id.toString().padStart(4, '0')} · ${r.location} · AI ${r.aiConfidence}%`,
+          desc: `#${String(r.id ?? '').padStart(4, '0')} · ${r.location} · AI ${r.aiConfidence}%`,
           id: r.id,
           type: 'incident'
         });
@@ -727,7 +732,7 @@ export class DashboardPage {
           icon: '<i data-lucide="check-circle" style="width:14px;height:14px;color:var(--success);"></i>',
           color: 'var(--success)',
           title: 'Officer Finished',
-          desc: `Kasus #${r.id.toString().padStart(4, '0')} selesai ditangani${r.assignedOfficer ? ` · ${r.assignedOfficer}` : ''}.`,
+          desc: `Kasus #${String(r.id ?? '').padStart(4, '0')} selesai ditangani${r.assignedOfficer ? ` · ${r.assignedOfficer}` : ''}.`,
           id: r.id,
           type: 'incident'
         });

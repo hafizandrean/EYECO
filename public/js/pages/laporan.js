@@ -386,10 +386,17 @@ export class LaporanPage {
       row.innerHTML = `
         <div class="col-thumbnail">
           <div class="mini-thumbnail" style="display: flex; align-items: center; justify-content: center; background: var(--surface-soft);">
-            <img src="${report.image}" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
-            <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; background: var(--surface-soft); color: var(--text-muted);">
-              <i data-lucide="image" style="width: 18px; height: 18px;"></i>
-            </div>
+            ${(() => {
+              const isVideoImage = report.image && report.image.endsWith('.mp4');
+              return isVideoImage
+                ? `<div style="display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; background: var(--surface-soft); color: var(--text-muted);">
+                    <i data-lucide="video" style="width: 18px; height: 18px;"></i>
+                   </div>`
+                : `<img src="${report.image}" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+                   <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; background: var(--surface-soft); color: var(--text-muted);">
+                    <i data-lucide="image" style="width: 18px; height: 18px;"></i>
+                   </div>`;
+            })()}
             ${boxesHtml}
           </div>
         </div>

@@ -61,6 +61,7 @@ export interface AiStatusResult {
   }>;
   blurScore?: number;
   qualityStatus?: string;
+  extractedFramePath?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -419,6 +420,45 @@ function determineAiStatus(
  * @param options Opsi tambahan (model, conf threshold, dll)
  * @returns AiStatusResult siap untuk disimpan ke database
  */
+function extractFrame(
+  inputPath: string,
+  outputPath: string,
+  timestampSec: number
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const tempOutput = `${outputPath}.tmp.jpg`;
+    const args = [
+      '-hide_banner',
+      '-loglevel', 'error',
+      '-nostdin',
+      '-y',
+      '-ss', String(timestampSec),
+      '-i', inputPath,
+      '-vframes', '1',
+      '-f', 'image2',
+      tempOutput
+    ];
+    const ffmpegPath = require('ffmpeg-static') as string;
+    const child = spawn(ffmpegPath || 'ffmpeg', args, { shell: false, windowsHide: true });
+    child.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`FFmpeg frame extraction failed with code ${code}`));
+        return;
+      }
+      try {
+        if (!fs.existsSync(tempOutput)) {
+          reject(new Error('Frame extraction output missing.'));
+          return;
+        }
+        fs.renameSync(tempOutput, outputPath);
+        resolve();
+      } catch (err) {
+        reject(err);
+      }
+    });
+  });
+}
+
 export async function detectFile(
   filePath: string,
   options: {
@@ -463,6 +503,75 @@ export async function detectFile(
   const imageHeight = result.imageHeight || 640;
   const qualityStatus = result.qualityStatus || 'UNKNOWN';
   const blurScore = result.blurScore || 0;
+
+  const isVideo = filePath.toLowerCase().endsWith('.mp4') ||
+                  filePath.toLowerCase().endsWith('.avi') ||
+                  filePath.toLowerCase().endsWith('.mov') ||
+                  filePath.toLowerCase().endsWith('.mkv') ||
+                  filePath.toLowerCase().endsWith('.wmv');
+
+  if (isVideo) {
+    let bestFrameNum = 0;
+    let bestStatus: 'TINGGI' | 'SEDANG' | 'RENDAH' | 'Tidak Terindikasi' = 'Tidak Terindikasi';
+    let bestConfidence = 0;
+    let bestBoxes: any[] = [];
+    let bestTimestampSec = 0;
+
+    // Group detections by frame
+    const frameDetections: { [key: number]: any[] } = {};
+    for (const d of result.detections) {
+      const fNum = d.frame ?? 0;
+      if (!frameDetections[fNum]) {
+        frameDetections[fNum] = [];
+      }
+      frameDetections[fNum].push(d);
+    }
+
+    const severityOrder = { 'TINGGI': 3, 'SEDANG': 2, 'RENDAH': 1, 'Tidak Terindikasi': 0 };
+
+    for (const frameStr of Object.keys(frameDetections)) {
+      const frameNum = parseInt(frameStr);
+      const dets = frameDetections[frameNum];
+      
+      const evalResult = determineAiStatus(dets, imageWidth, imageHeight, qualityStatus, blurScore);
+      const currentSeverity = severityOrder[evalResult.status] || 0;
+      const bestSeverity = severityOrder[bestStatus] || 0;
+
+      if (currentSeverity > bestSeverity || (currentSeverity === bestSeverity && (evalResult.confidence || 0) > bestConfidence)) {
+        bestFrameNum = frameNum;
+        bestStatus = evalResult.status;
+        bestConfidence = evalResult.confidence || 0;
+        bestBoxes = evalResult.boxes;
+        bestTimestampSec = dets[0].timestamp_sec || 0;
+      }
+    }
+
+    // Extract the representative frame image
+    const uploadDir = path.dirname(filePath);
+    const baseName = path.basename(filePath, path.extname(filePath));
+    const extractedImageName = `capture_${Date.now()}_${baseName}.jpg`;
+    const extractedImagePath = path.join(uploadDir, extractedImageName);
+    
+    try {
+      await extractFrame(filePath, extractedImagePath, bestTimestampSec);
+      console.log(`[AI] Representative frame extracted at ${bestTimestampSec}s to ${extractedImagePath}`);
+    } catch (err: any) {
+      console.error('[AI] Failed to extract representative frame:', err.message);
+      // Fallback: extract at 0s if fails
+      try {
+        await extractFrame(filePath, extractedImagePath, 0);
+      } catch (fErr: any) {
+        console.error('[AI] Fallback frame extraction failed:', fErr.message);
+      }
+    }
+
+    return {
+      status: bestStatus,
+      confidence: bestConfidence || null,
+      boxes: bestBoxes,
+      extractedFramePath: `/uploads/${extractedImageName}`
+    };
+  }
 
   return determineAiStatus(result.detections, imageWidth, imageHeight, qualityStatus, blurScore);
 }

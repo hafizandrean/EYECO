@@ -20,6 +20,7 @@ export interface IPipelineTrace {
 export interface IAiSnapshot extends Document {
   analysisId: string;
   reportId?: number;
+  snapshotKey?: string;
   inputImageHash: string;
   imagePath: string;
   pipelineVersion: string;
@@ -58,6 +59,7 @@ const AiSnapshotSchema = new Schema<IAiSnapshot>(
     limitations: [{ type: String }],
     pipelineTrace: { type: Schema.Types.Mixed, default: null },
     parentSnapshotId: { type: Schema.Types.ObjectId, ref: 'AiSnapshot', default: null },
+    snapshotKey: { type: String, unique: true, sparse: true, index: true },
   },
   { timestamps: true }
 );
@@ -65,10 +67,62 @@ const AiSnapshotSchema = new Schema<IAiSnapshot>(
 // Idempotency compound index (Guardrail #7)
 AiSnapshotSchema.index({ reportId: 1, inputImageHash: 1, pipelineVersion: 1 });
 
-// Enforce Immutability
+// Enforce Immutability at database level
+function rejectSnapshotMutation(): never {
+  throw new Error('AI_SNAPSHOT_IMMUTABLE');
+}
+
+const FORBIDDEN_QUERY_OPERATIONS = [
+  'findOneAndUpdate',
+  'findOneAndReplace',
+  'findOneAndDelete',
+  'replaceOne',
+  'updateMany',
+  'deleteOne',
+  'deleteMany',
+] as const;
+
+for (const operation of FORBIDDEN_QUERY_OPERATIONS) {
+  AiSnapshotSchema.pre(operation as any, function () {
+    rejectSnapshotMutation();
+  });
+}
+
 AiSnapshotSchema.pre('save', function (this: IAiSnapshot) {
   if (!this.isNew) {
-    throw new Error('[IMMUTABLE_ERROR] AiSnapshot is immutable and cannot be modified after creation.');
+    rejectSnapshotMutation();
+  }
+});
+
+AiSnapshotSchema.pre('bulkWrite', function () {
+  rejectSnapshotMutation();
+});
+
+AiSnapshotSchema.pre('deleteOne', { document: true, query: false }, function () {
+  rejectSnapshotMutation();
+});
+
+AiSnapshotSchema.pre('updateOne', function (this: any) {
+  const options = this.getOptions();
+  const update = this.getUpdate() as Record<string, any>;
+
+  const onlySetOnInsert =
+    options &&
+    options.upsert === true &&
+    update &&
+    '$setOnInsert' in update &&
+    Object.keys(update).every(key => {
+      if (key === '$setOnInsert') return true;
+      if (key === '$set') {
+        const setVal = update['$set'] as Record<string, any>;
+        const keys = Object.keys(setVal);
+        return keys.length === 1 && keys[0] === 'updatedAt';
+      }
+      return false;
+    });
+
+  if (!onlySetOnInsert) {
+    rejectSnapshotMutation();
   }
 });
 

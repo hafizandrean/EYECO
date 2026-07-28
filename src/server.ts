@@ -1,4 +1,7 @@
 import express from 'express';
+import dns from 'dns';
+dns.setDefaultResultOrder('ipv4first');
+
 import path from 'path';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
@@ -18,6 +21,7 @@ import adminRouter from './routes/adminRoutes';
 import reportRouter from './routes/reportRoutes';
 import cctvRouter from './routes/cctvRoutes';
 import newsRouter from './routes/newsRoutes';
+import videoAnalysisRouter from './routes/videoAnalysisRoutes';
 import { CctvHealthEngine } from './cctv/CctvHealthEngine';
 import { CctvScanner } from './cctv/CctvScanner';
 import { CctvAdapter } from './cctv/CctvAdapter';
@@ -78,6 +82,7 @@ app.use((req, res, next) => {
 app.use('/css', express.static(path.join(__dirname, '../public/css')));
 app.use('/js', express.static(path.join(__dirname, '../public/js')));
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+app.use('/hls', express.static(path.join(__dirname, '../public/hls')));
 // Global middleware to populate req.userContext from cookie/header
 app.use((req, res, next) => {
   const { verifyToken } = require('./auth/auth.service');
@@ -113,6 +118,7 @@ app.use('/admin', adminRouter);
 app.use('/api/cctv', cctvRouter);
 app.use('/api/news', newsRouter);
 app.use('/api', reportRouter);
+app.use('/api/video-analysis', videoAnalysisRouter);
 
 // --- HEALTH CHECK ENDPOINTS ---
 app.get('/health/live', (req, res) => {
@@ -242,6 +248,14 @@ app.get('/api/detections/:id', async (req, res) => {
       responseReport.image = img;
     }
 
+    if (responseReport.videoPath && typeof responseReport.videoPath === 'string') {
+      let vPath = responseReport.videoPath as string;
+      if (!vPath.startsWith('/') && !vPath.startsWith('http')) {
+        vPath = '/' + vPath;
+      }
+      responseReport.videoPath = vPath;
+    }
+
     if (user && (user.role === 'admin' || user.role === 'superadmin')) {
       const uploader = await UserModel.findOne({ _id: report.userId as any }).select('username name avatar email phone').lean().exec();
       if (uploader) {
@@ -271,6 +285,21 @@ app.get('/api/detections/:id', async (req, res) => {
       }
     } catch (sErr: any) {
       console.warn('[SERVER] Could not load AiSnapshot for report #' + id + ':', sErr.message);
+    }
+
+    // Attach video analysis job info if available
+    try {
+      if (report.sourceVideoId && report.incidentKey) {
+        const { VideoAnalysisJobModel } = require('./database/models/VideoAnalysisJob');
+        const job = await VideoAnalysisJobModel.findOne({ sourceVideoId: report.sourceVideoId }).lean().exec();
+        if (job) {
+          responseReport.videoAnalysisJobId = job._id.toString();
+          const parts = report.incidentKey.split(':');
+          responseReport.shortIncidentKey = parts[parts.length - 1];
+        }
+      }
+    } catch (vErr: any) {
+      console.warn('[SERVER] Could not load VideoAnalysisJob for report #' + id + ':', vErr.message);
     }
 
     res.json(responseReport);
@@ -1006,6 +1035,21 @@ connectDB().then(async () => {
   // CCTV Health Engine is started inside listenWithFallback
   // AiPipelineScheduler.start(); — disabled, no more CCTV reports
   OutboxWorker.start();
+  
+  // Start background video analysis worker as a separate process
+  try {
+    const { spawn } = require('child_process');
+    const workerScript = path.resolve(__dirname, './services/ai/videoWorker.js');
+    console.log(`[SERVER INFO] Spawning background video worker process: ${process.execPath} ${workerScript}...`);
+    const worker = spawn(process.execPath, [workerScript], {
+      detached: true,
+      stdio: 'ignore',
+      cwd: path.resolve(__dirname, '../')
+    });
+    worker.unref();
+  } catch (wErr: any) {
+    console.error('[SERVER ERROR] Failed to spawn video worker:', wErr.message);
+  }
   
   const activePort = await listenWithFallback(PORT);
   console.log(`[SERVER] EYECO berjalan di http://localhost:${activePort}`);

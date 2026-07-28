@@ -119,18 +119,6 @@ class ReportServiceClass {
 
   // Hapus komentar (soft delete)
   async deleteComment(id, commentId) {
-    const response = await API.post(`/api/detections/${id}/comments/${commentId}?_method=DELETE`, {}, {
-      // API is standard DELETE, but our fetch wrapper POST has method overrides if needed.
-      // Wait, our API.request method supports GET/POST but we can write custom methods.
-      // Let's see: API.request takes option.method. Let's write standard DELETE request!
-    });
-    // Wait, let's check API class:
-    // API has a request(url, options) which takes method in options.
-    // So we can do: API.request(`/api/detections/${id}/comments/${commentId}`, { method: 'DELETE' })
-  }
-
-  // Let's implement deleteComment correctly:
-  async deleteComment(id, commentId) {
     const response = await API.request(`/api/detections/${id}/comments/${commentId}`, { method: 'DELETE' });
     return response.data;
   }

@@ -18,6 +18,7 @@ export class YoloObjectDetector {
     confidenceMax: number;
     blurScore?: number;
     qualityStatus?: string;
+    extractedFramePath?: string;
   }> {
     const rawResult = await detectFile(imagePath);
     
@@ -50,6 +51,7 @@ export class YoloObjectDetector {
       confidenceMax: Math.round(confidenceMax * 100),
       blurScore: rawResult.blurScore,
       qualityStatus: rawResult.qualityStatus,
+      extractedFramePath: rawResult.extractedFramePath,
     };
   }
 }

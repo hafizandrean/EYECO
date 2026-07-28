@@ -253,6 +253,8 @@ def validate_source(source_path: str) -> tuple[str | None, str | None]:
         return None, f"File tidak ditemukan: {source_path}"
     if not path.is_file():
         return None, f"Path bukan file: {source_path}"
+    if path.stat().st_size == 0:
+        return None, f"File kosong: {source_path}"
 
     image_exts = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".webp"}
     video_exts = {".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".m4v"}
@@ -374,26 +376,28 @@ def infer_image(
         return any(v in cls_lower for v in person_variants)
 
     try:
-        # ── Blur score dari gambar asli (sebelum preprocessing) ──
+        # ── Validasi bahwa file benar-benar dapat dibaca OpenCV ──
         raw_img = cv2.imread(source_path)
-        img_h, img_w = raw_img.shape[:2] if raw_img is not None else (640, 640)
-        img_quality = 'GOOD'
-        if raw_img is not None:
-            gray = cv2.cvtColor(raw_img, cv2.COLOR_BGR2GRAY)
-            blur_score = int(round(cv2.Laplacian(gray, cv2.CV_64F).var()))
-            if blur_score < 80:
-                img_quality = 'BLURRY'
-            elif blur_score < 150:
-                img_quality = 'LOW'
-            else:
-                img_quality = 'GOOD'
+        if raw_img is None:
+            return make_result(
+                success=False,
+                error=f"Tidak dapat membaca file gambar: {os.path.basename(source_path)}. "
+                      f"File mungkin corrupt, kosong, atau bukan format gambar yang valid.",
+            )
+        img_h, img_w = raw_img.shape[:2]
+        gray = cv2.cvtColor(raw_img, cv2.COLOR_BGR2GRAY)
+        blur_score = int(round(cv2.Laplacian(gray, cv2.CV_64F).var()))
+        if blur_score < 80:
+            img_quality = 'BLURRY'
+        elif blur_score < 150:
+            img_quality = 'LOW'
         else:
-            blur_score = 0
+            img_quality = 'GOOD'
 
         # ── Preprocess: sekali, dipake kedua model ──
         processed_img = preprocess_image(source_path, img_quality)
         if processed_img is None:
-            processed_img = source_path  # fallback ke raw path
+            processed_img = raw_img  # fallback ke array yg sudah terbaca
 
         # Catat dimensi processed (buat scale balik bbox ke ukuran asli)
         if isinstance(processed_img, np.ndarray):
@@ -452,7 +456,7 @@ def infer_image(
                 final.append(d)
 
         # ── Hand Region Re-Detection ──
-        processed_np = processed_img if isinstance(processed_img, np.ndarray) else cv2.imread(source_path)
+        processed_np = processed_img if isinstance(processed_img, np.ndarray) else raw_img
         hand_boxes = [d["bbox"] for d in final if is_person(d["class"])]
         # Get COCO model for hand region
         coco_model, coco_names = get_coco_model()
@@ -465,42 +469,28 @@ def infer_image(
             if not is_dup:
                 final.append(hdet)
 
-        # ── STEP 1: Person Aggressive NMS ──
-        # Merge all overlapping person boxes (COCO person + custom person variants)
-        # Person class bbox sering ganda dari dual model, merge agresif
+        # ── STEP 1: Person NMS ──
+        # Standard IoU NMS untuk menghindari penggabungan orang yang berdiri berdekatan.
+        # Hanya gabungkan jika IoU > 0.45 (mendeteksi orang yang sama)
         person_dets = [d for d in final if is_person(d["class"])]
         non_person_dets = [d for d in final if not is_person(d["class"])]
+        
+        # Urutkan berdasarkan tingkat keyakinan tertinggi
+        person_dets = sorted(person_dets, key=lambda x: x['confidence'], reverse=True)
         persons_merged = []
         for d in person_dets:
             is_dup = False
             dx1, dy1, dx2, dy2 = d['bbox']
-            dcx = (dx1 + dx2) / 2
-            dcy = (dy1 + dy2) / 2
             darea = (dx2 - dx1) * (dy2 - dy1)
             for m in persons_merged:
                 mx1, my1, mx2, my2 = m['bbox']
-                # Hitung IOU
                 ix1, iy1 = max(dx1, mx1), max(dy1, my1)
                 ix2, iy2 = min(dx2, mx2), min(dy2, my2)
                 if ix1 < ix2 and iy1 < iy2:
                     inter = (ix2 - ix1) * (iy2 - iy1)
                     marea = (mx2 - mx1) * (my2 - my1)
                     iou = inter / (darea + marea - inter + 1e-6)
-                    
-                    # Tambahan: Hitung rasio overlap terhadap luas kotak terkecil (handle containment)
-                    min_area = min(darea, marea)
-                    overlap_ratio = inter / (min_area + 1e-6)
-                    
-                    # Merge jika IOU > 0.15 ATAU salah satu kotak berada di dalam kotak lain (>50% overlap) ATAU center distance < 35%
-                    mcx = (mx1 + mx2) / 2
-                    mcy = (my1 + my2) / 2
-                    mh = max(my2 - my1, dy2 - dy1)
-                    center_dist = ((dcx - mcx)**2 + (dcy - mcy)**2)**0.5
-                    if iou > 0.15 or overlap_ratio > 0.50 or center_dist < mh * 0.35:
-                        if d['confidence'] > m['confidence']:
-                            m['bbox'] = d['bbox']
-                            m['confidence'] = d['confidence']
-                            m['class'] = 'person'
+                    if iou > 0.45:
                         is_dup = True
                         break
             if not is_dup:
@@ -685,18 +675,34 @@ def infer_image(
         )
 
 
+def is_trash_class(cls_name):
+    cls_lower = cls_name.lower()
+    trash_keywords = ['trash', 'sampah', 'plastic', 'bottle', 'bag', 'wrapper', 'pack', 'cup', 'can', 'paper', 'waste', 'litter', 'garbage']
+    return any(k in cls_lower for k in trash_keywords)
+
 def infer_video(
     source_path: str,
     model_path: str = "ai/models/best.pt",
     conf_threshold: float = 0.25,
     iou_threshold: float = 0.45,
     max_frames: int = 0,
+    output_manifest: str = None,
+    analysis_run_id: str = None,
 ) -> str:
-    """Jalankan inferensi YOLOv8 pada video."""
+    """Jalankan inferensi YOLOv8 pada video dengan ByteTrack + Adaptive Cadence + Manifest Output."""
     import cv2
+    import json
+    import os
+    import numpy as np
 
     model, class_names = get_model(model_path)
     start = time.time()
+
+    if not analysis_run_id:
+        analysis_run_id = f"analysis_{int(time.time())}"
+
+    # Reset tracker pada awal video
+    model.predictor = None # ini mereset tracker state internal Ultralytics
 
     try:
         cap = cv2.VideoCapture(source_path)
@@ -713,6 +719,7 @@ def infer_video(
         frame_idx = 0
         all_detections = []
         frames_with_detections = 0
+        prev_gray = None
 
         while True:
             ret, frame = cap.read()
@@ -721,36 +728,295 @@ def infer_video(
             if max_frames > 0 and frame_idx >= max_frames:
                 break
 
-            raw_results = model(
-                frame, conf=conf_threshold, iou=iou_threshold, verbose=False
-            )
+            # ── Adaptive Inference Cadence ──
+            # Motion analysis murah berbasis absdiff
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gray = cv2.resize(gray, (160, 120))
+            if prev_gray is not None:
+                diff = cv2.absdiff(gray, prev_gray)
+                motion_score = np.mean(diff)
+            else:
+                motion_score = 0.0
+            prev_gray = gray
 
-            dets = raw_results[0].boxes
-            boxes_np = dets.xyxy.cpu().numpy() if dets is not None else []
-            confs_np = dets.conf.cpu().numpy() if dets is not None else []
-            cls_np = dets.cls.cpu().numpy().astype(int) if dets is not None else []
+            # Inference interval: 2 (10 FPS), 5 (5 FPS), atau 12 (2 FPS)
+            HIGH_MOTION_THRESHOLD = 5.0
+            NORMAL_MOTION_THRESHOLD = 1.5
+            if motion_score >= HIGH_MOTION_THRESHOLD:
+                inference_interval = 2
+            elif motion_score >= NORMAL_MOTION_THRESHOLD:
+                inference_interval = 5
+            else:
+                inference_interval = 12
 
-            for i in range(len(boxes_np)):
-                x1, y1, x2, y2 = boxes_np[i].tolist()
-                confidence = float(confs_np[i])
-                cls_id = int(cls_np[i])
-                all_detections.append(
-                    {
-                        "class": class_names.get(cls_id, f"class_{cls_id}"),
-                        "confidence": round(confidence, 4),
-                        "bbox": [round(x1, 2), round(y1, 2), round(x2, 2), round(y2, 2)],
-                        "frame": frame_idx,
-                        "timestamp_sec": round(frame_idx / fps, 2) if fps > 0 else 0,
-                    }
+            if frame_idx % inference_interval == 0:
+                # Dapatkan timestamp PTS presisi tinggi dari decoder
+                timestamp_ms = int(cap.get(cv2.CAP_PROP_POS_MSEC))
+                timestamp_sec = round(timestamp_ms / 1000.0, 3)
+
+                # Jalankan model dengan pelacakan (persist=True)
+                raw_results = model.track(
+                    frame, persist=True, conf=conf_threshold, iou=iou_threshold, verbose=False
                 )
-                if len(all_detections) == 1:
-                    frames_with_detections += 1
+
+                dets = raw_results[0].boxes
+                if dets is not None and len(dets) > 0:
+                    boxes_np = dets.xyxy.cpu().numpy()
+                    confs_np = dets.conf.cpu().numpy()
+                    cls_np = dets.cls.cpu().numpy().astype(int)
+                    track_ids = dets.id.cpu().numpy().astype(int) if dets.id is not None else [None] * len(boxes_np)
+
+                    has_any_detection = False
+                    for i in range(len(boxes_np)):
+                        x1, y1, x2, y2 = boxes_np[i].tolist()
+                        confidence = float(confs_np[i])
+                        cls_id = int(cls_np[i])
+                        t_id = int(track_ids[i]) if track_ids[i] is not None else None
+
+                        all_detections.append(
+                            {
+                                "class": class_names.get(cls_id, f"class_{cls_id}"),
+                                "confidence": round(confidence, 4),
+                                "bbox": [round(x1, 2), round(y1, 2), round(x2, 2), round(y2, 2)],
+                                "frame": frame_idx,
+                                "timestamp_sec": timestamp_sec,
+                                "timestamp_ms": timestamp_ms,
+                                "track_id": t_id
+                            }
+                        )
+                        has_any_detection = True
+                    
+                    if has_any_detection:
+                        frames_with_detections += 1
 
             frame_idx += 1
 
         cap.release()
-        elapsed = round((time.time() - start) * 1000, 2)
 
+        # ── Temporal Grouping & Incident Segmentation ──
+        # Parameter temporal sesuai instruksi
+        TEMPORAL_CONFIG = {
+            "minimumPositiveFrames": 3,
+            "maximumGapSec": 1.5,
+            "mergeGapSec": 2.0,
+            "minimumIncidentDurationSec": 0.5,
+            "maximumIncidentDurationSec": 20.0
+        }
+
+        # Urutkan semua deteksi berdasarkan timestamp_ms
+        all_detections = sorted(all_detections, key=lambda x: x["timestamp_ms"])
+
+        # Identifikasi frame positif (mengandung sampah dengan confidence >= 0.40)
+        positive_frames = {}
+        for d in all_detections:
+            if is_trash_class(d["class"]) and d["confidence"] >= conf_threshold:
+                f_idx = d["frame"]
+                if f_idx not in positive_frames:
+                    positive_frames[f_idx] = {
+                        "timestamp_ms": d["timestamp_ms"],
+                        "timestamp_sec": d["timestamp_sec"],
+                        "detections": []
+                    }
+                positive_frames[f_idx]["detections"].append(d)
+
+        # Kelompokkan frame positif menjadi segmen kejadian
+        sorted_frames = sorted(positive_frames.keys())
+        raw_incidents = []
+        current_incident = []
+
+        for f in sorted_frames:
+            f_data = positive_frames[f]
+            if not current_incident:
+                current_incident.append((f, f_data))
+            else:
+                last_f, last_f_data = current_incident[-1]
+                gap_sec = (f_data["timestamp_ms"] - last_f_data["timestamp_ms"]) / 1000.0
+                if gap_sec <= TEMPORAL_CONFIG["mergeGapSec"]:
+                    current_incident.append((f, f_data))
+                else:
+                    raw_incidents.append(current_incident)
+                    current_incident = [(f, f_data)]
+        if current_incident:
+            raw_incidents.append(current_incident)
+
+        # Validasi, filter, dan pilih representative frame per kejadian
+        valid_incidents = []
+        for idx, inc in enumerate(raw_incidents):
+            # Cek minimum positive frames
+            if len(inc) < TEMPORAL_CONFIG["minimumPositiveFrames"]:
+                continue
+            
+            start_f, start_data = inc[0]
+            end_f, end_data = inc[-1]
+            duration_sec = (end_data["timestamp_ms"] - start_data["timestamp_ms"]) / 1000.0
+
+            if duration_sec < TEMPORAL_CONFIG["minimumIncidentDurationSec"]:
+                continue
+
+            # Cari representative frame menggunakan Composite Evidence Score
+            best_frame_idx = start_f
+            best_score = -1.0
+            best_detections = []
+            best_timestamp_sec = start_data["timestamp_sec"]
+
+            for f, f_data in inc:
+                # Cari max trash confidence
+                max_trash_conf = max([d["confidence"] for d in f_data["detections"]])
+                
+                # Cek apakah ada manusia terdeteksi di frame yang sama
+                frame_all_dets = [d for d in all_detections if d["frame"] == f]
+                has_person = any([d for d in frame_all_dets if d["class"].lower() in ('person', 'people', 'sitting', 'standing', 'orang')])
+                
+                # Hitung score komposit
+                score = max_trash_conf * 0.45 + (0.30 if has_person else 0.0) + 0.25 # assume good quality
+                if score > best_score:
+                    best_score = score
+                    best_frame_idx = f
+                    best_timestamp_sec = f_data["timestamp_sec"]
+                    best_detections = frame_all_dets
+
+            # Kumpulkan actorTrackIds dan objectTrackIds
+            actor_track_ids = list(set([d["track_id"] for d in best_detections if d["class"].lower() in ('person', 'people', 'sitting', 'standing', 'orang') and d["track_id"] is not None]))
+            object_track_ids = list(set([d["track_id"] for d in best_detections if is_trash_class(d["class"]) and d["track_id"] is not None]))
+
+            valid_incidents.append({
+                "startFrame": start_f,
+                "endFrame": end_f,
+                "startSec": round(start_data["timestamp_sec"], 3),
+                "endSec": round(end_data["timestamp_sec"], 3),
+                "representativeFrame": best_frame_idx,
+                "representativeTimestampSec": round(best_timestamp_sec, 3),
+                "actorTrackIds": actor_track_ids,
+                "objectTrackIds": object_track_ids,
+                "boundingBoxes": best_detections,
+                "violationScore": int(round(best_score * 100)),
+                "decisionConfidence": round(min(1.0, best_score), 2),
+                "uncertaintyScore": round(max(0.0, 1.0 - best_score), 2)
+            })
+
+        # Tangani insiden durasi panjang (> 20 detik)
+        final_incidents = []
+        incident_seq = 1
+
+        for idx, inc in enumerate(valid_incidents):
+            duration = inc["endSec"] - inc["startSec"]
+            group_id = f"group_{analysis_run_id}_{idx+1}"
+
+            if duration <= TEMPORAL_CONFIG["maximumIncidentDurationSec"]:
+                # Insiden normal
+                inc_key = f"{analysis_run_id}:{str(incident_seq).zfill(4)}"
+                final_incidents.append({
+                    "incidentKey": inc_key,
+                    "incidentGroupId": group_id,
+                    "segmentSequence": 1,
+                    "isContinuation": False,
+                    "startFrame": inc["startFrame"],
+                    "endFrame": inc["endFrame"],
+                    "startSec": inc["startSec"],
+                    "endSec": inc["endSec"],
+                    "representativeFrame": inc["representativeFrame"],
+                    "representativeTimestampSec": inc["representativeTimestampSec"],
+                    "actorTrackIds": inc["actorTrackIds"],
+                    "objectTrackIds": inc["objectTrackIds"],
+                    "snapshotStorageKey": f"storage/video-analysis/{analysis_run_id}/incidents/{str(incident_seq).zfill(4)}/raw.jpg",
+                    "clipStorageKey": f"storage/video-analysis/{analysis_run_id}/incidents/{str(incident_seq).zfill(4)}/evidence.mp4",
+                    "aiStatus": "INDIKASI_TINGGI" if inc["violationScore"] >= 50 else "TIDAK_TERINDIKASI",
+                    "violationScore": min(100, inc["violationScore"]),
+                    "decisionConfidence": inc["decisionConfidence"],
+                    "uncertaintyScore": inc["uncertaintyScore"],
+                    "priority": "HIGH" if inc["violationScore"] >= 75 else ("MEDIUM" if inc["violationScore"] >= 50 else "NONE"),
+                    "needsHumanValidation": True,
+                    "recommendedAction": "REVIEW_IMMEDIATELY" if inc["violationScore"] >= 50 else "NONE",
+                    "boundingBoxes": [
+                        {
+                            "class": d["class"],
+                            "confidence": d["confidence"],
+                            "x": d["bbox"][0],
+                            "y": d["bbox"][1],
+                            "w": d["bbox"][2] - d["bbox"][0],
+                            "h": d["bbox"][3] - d["bbox"][1]
+                        }
+                        for d in inc["boundingBoxes"]
+                    ],
+                    "featureVector": {},
+                    "evidenceItems": []
+                })
+                incident_seq += 1
+            else:
+                # Bagi menjadi segmen-segmen
+                segment_duration = TEMPORAL_CONFIG["maximumIncidentDurationSec"]
+                start_sec = inc["startSec"]
+                segment_idx = 1
+                prev_inc_key = None
+
+                while start_sec < inc["endSec"]:
+                    end_sec = min(inc["endSec"], start_sec + segment_duration)
+                    inc_key = f"{analysis_run_id}:{str(incident_seq).zfill(4)}"
+                    
+                    final_incidents.append({
+                        "incidentKey": inc_key,
+                        "incidentGroupId": group_id,
+                        "segmentSequence": segment_idx,
+                        "isContinuation": segment_idx > 1,
+                        "continuationOfIncidentKey": prev_inc_key,
+                        "splitReason": "MAX_DURATION_REACHED",
+                        "startFrame": inc["startFrame"], # approximate
+                        "endFrame": inc["endFrame"],
+                        "startSec": round(start_sec, 3),
+                        "endSec": round(end_sec, 3),
+                        "representativeFrame": inc["representativeFrame"],
+                        "representativeTimestampSec": inc["representativeTimestampSec"],
+                        "actorTrackIds": inc["actorTrackIds"],
+                        "objectTrackIds": inc["objectTrackIds"],
+                        "snapshotStorageKey": f"storage/video-analysis/{analysis_run_id}/incidents/{str(incident_seq).zfill(4)}/raw.jpg",
+                        "clipStorageKey": f"storage/video-analysis/{analysis_run_id}/incidents/{str(incident_seq).zfill(4)}/evidence.mp4",
+                        "aiStatus": "INDIKASI_TINGGI" if inc["violationScore"] >= 50 else "TIDAK_TERINDIKASI",
+                        "violationScore": min(100, inc["violationScore"]),
+                        "decisionConfidence": inc["decisionConfidence"],
+                        "uncertaintyScore": inc["uncertaintyScore"],
+                        "priority": "HIGH" if inc["violationScore"] >= 75 else ("MEDIUM" if inc["violationScore"] >= 50 else "NONE"),
+                        "needsHumanValidation": True,
+                        "recommendedAction": "REVIEW_IMMEDIATELY" if inc["violationScore"] >= 50 else "NONE",
+                        "boundingBoxes": [
+                            {
+                                "class": d["class"],
+                                "confidence": d["confidence"],
+                                "x": d["bbox"][0],
+                                "y": d["bbox"][1],
+                                "w": d["bbox"][2] - d["bbox"][0],
+                                "h": d["bbox"][3] - d["bbox"][1]
+                            }
+                            for d in inc["boundingBoxes"]
+                        ],
+                        "featureVector": {},
+                        "evidenceItems": []
+                    })
+                    prev_inc_key = inc_key
+                    start_sec = end_sec
+                    segment_idx += 1
+                    incident_seq += 1
+
+        # Bangun Manifest JSON
+        manifest = {
+            "schemaVersion": "3.0",
+            "sourceVideo": {
+                "videoId": analysis_run_id,
+                "durationSec": round(total_frames / fps, 2) if fps > 0 else 0,
+                "fps": round(fps, 2),
+                "processedFrameCount": frame_idx,
+                "samplingFps": round(fps / inference_interval, 2) if inference_interval > 0 else 0
+            },
+            "incidents": final_incidents,
+            "warnings": []
+        }
+
+        # Tulis manifest ke persistent storage
+        if output_manifest:
+            os.makedirs(os.path.dirname(output_manifest), exist_ok=True)
+            with open(output_manifest, "w") as f:
+                json.dump(manifest, f, indent=2)
+
+        elapsed = round((time.time() - start) * 1000, 2)
         return make_result(
             success=True,
             detections=all_detections,
@@ -767,6 +1033,8 @@ def infer_video(
         )
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return make_result(
             success=False,
             error=f"Error saat inferensi video: {type(e).__name__}: {e}",
@@ -811,6 +1079,18 @@ def main() -> None:
         action="store_true",
         help="Jalankan warmup: load model + 1 prediksi dummy",
     )
+    parser.add_argument(
+        "--output-manifest",
+        type=str,
+        default=None,
+        help="Path ke file manifest JSON untuk output video",
+    )
+    parser.add_argument(
+        "--analysis-run-id",
+        type=str,
+        default=None,
+        help="ID unik untuk pemrosesan video ini",
+    )
 
     args = parser.parse_args()
 
@@ -840,7 +1120,7 @@ def main() -> None:
     if source_type == "image":
         output = infer_image(**kwargs)
     elif source_type == "video":
-        output = infer_video(**kwargs, max_frames=args.max_frames)
+        output = infer_video(**kwargs, max_frames=args.max_frames, output_manifest=args.output_manifest, analysis_run_id=args.analysis_run_id)
     else:
         output = make_result(success=False, error=f"Tipe file tidak dikenal")
 

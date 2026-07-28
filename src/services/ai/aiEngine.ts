@@ -36,6 +36,7 @@ export class AiEngine {
     featureVector: FeatureVector;
     evidenceItems: EvidenceItem[];
     limitations: string[];
+    extractedFramePath?: string;
   }> {
     // 1. Calculate image MD5 hash for Idempotency Check (Guardrail #6)
     let inputImageHash = 'hash-fallback';
@@ -160,6 +161,7 @@ export class AiEngine {
       featureVector,
       evidenceItems: explainableReport.evidenceChecklist,
       limitations: explainableReport.limitations,
+      extractedFramePath: yoloResult.extractedFramePath,
     };
   }
 }

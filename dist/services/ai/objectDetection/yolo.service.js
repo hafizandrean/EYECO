@@ -39,6 +39,7 @@ class YoloObjectDetector {
             confidenceMax: Math.round(confidenceMax * 100),
             blurScore: rawResult.blurScore,
             qualityStatus: rawResult.qualityStatus,
+            extractedFramePath: rawResult.extractedFramePath,
         };
     }
 }

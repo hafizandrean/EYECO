@@ -208,6 +208,30 @@ export class DetailPage {
         `;
       });
 
+      // Render media component depending on video or image source
+      const isVideo = report.sourceType === 'Video' || report.createdFrom === 'VIDEO_AI';
+      let mediaHtml = '';
+      let downloadUrl = report.image;
+      let downloadExt = 'jpg';
+
+      if (isVideo) {
+        if (report.videoPath) {
+          mediaHtml = `<video id="detail-evidence-video" src="${report.videoPath}" poster="${report.image}" controls style="display: block; max-width: 100%; max-height: 520px; width: auto; height: auto; border-radius: 8px;"></video>`;
+          downloadUrl = report.videoPath;
+          downloadExt = 'mp4';
+        } else if (report.videoAnalysisJobId && report.shortIncidentKey) {
+          const videoSrc = `/api/video-analysis/${report.videoAnalysisJobId}/incidents/${report.shortIncidentKey}/evidence?type=clip`;
+          const posterSrc = `/api/video-analysis/${report.videoAnalysisJobId}/incidents/${report.shortIncidentKey}/evidence?type=raw`;
+          mediaHtml = `<video id="detail-evidence-video" src="${videoSrc}" poster="${posterSrc}" controls style="display: block; max-width: 100%; max-height: 520px; width: auto; height: auto; border-radius: 8px;"></video>`;
+          downloadUrl = videoSrc;
+          downloadExt = 'mp4';
+        } else {
+          mediaHtml = `<img id="detail-evidence-image" src="${report.image}" alt="Laporan Foto" style="display: block; max-width: 100%; max-height: 520px; width: auto; height: auto; transition: transform 0.25s ease;">`;
+        }
+      } else {
+        mediaHtml = `<img id="detail-evidence-image" src="${report.image}" alt="Laporan Foto" style="display: block; max-width: 100%; max-height: 520px; width: auto; height: auto; transition: transform 0.25s ease;">`;
+      }
+
       // Setup dynamic panels
       grid.innerHTML = `
         <!-- Left Side: Interactive Bounding Box Canvas & Metadata Info -->
@@ -217,7 +241,7 @@ export class DetailPage {
           <div class="glass-card" style="padding: var(--space-16); border-radius: var(--radius-card); position: relative; display:flex; flex-direction:column; align-items:center;">
             <div class="image-canvas-container" style="position: relative; width: 100%; min-height: 350px; max-height: 540px; overflow: hidden; border-radius: 12px; background: rgba(15, 23, 42, 0.95); display:flex; align-items:center; justify-content:center;">
               <div id="image-box-wrapper" style="position: relative; display: inline-block; max-width: 100%; max-height: 100%;">
-                <img id="detail-evidence-image" src="${report.image}" alt="Laporan Foto" style="display: block; max-width: 100%; max-height: 520px; width: auto; height: auto; transition: transform 0.25s ease;">
+                ${mediaHtml}
                 <div id="yolo-boxes-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
                   ${initialBoxesHtml}
                 </div>
@@ -228,7 +252,7 @@ export class DetailPage {
               <button class="btn btn-sm btn-glass btn-rounded" id="btn-detail-zoom" style="font-size:0.75rem; font-weight:700; display:flex; align-items:center; gap:4px; padding: 6px 12px;">
                 <i data-lucide="zoom-in" style="width:14px; height:14px;"></i> Zoom
               </button>
-              <a href="${report.image}" download="EYECO_Evidence_${report.id}.jpg" class="btn btn-sm btn-glass btn-rounded" style="font-size:0.75rem; font-weight:700; display:flex; align-items:center; gap:4px; padding: 6px 12px; text-decoration:none; color: var(--text-primary);">
+              <a href="${downloadUrl}" download="EYECO_Evidence_${report.id}.${downloadExt}" class="btn btn-sm btn-glass btn-rounded" style="font-size:0.75rem; font-weight:700; display:flex; align-items:center; gap:4px; padding: 6px 12px; text-decoration:none; color: var(--text-primary);">
                 <i data-lucide="download" style="width:14px; height:14px;"></i> Download
               </a>
               <button class="btn btn-sm btn-glass btn-rounded" id="btn-detail-export-pdf" style="font-size:0.75rem; font-weight:700; display:flex; align-items:center; gap:4px; padding: 6px 12px;">
@@ -606,16 +630,17 @@ export class DetailPage {
         };
       }
 
-      // Calibrate bounding boxes for exact pixel alignment on image
+      // Calibrate bounding boxes for exact pixel alignment on image or video
       const calibrateBoxes = () => {
-        const imgEl = document.getElementById('detail-evidence-image');
+        const mediaEl = document.getElementById('detail-evidence-image') || document.getElementById('detail-evidence-video');
         const overlayEl = document.getElementById('yolo-boxes-overlay');
-        if (!imgEl || !overlayEl) return;
+        if (!mediaEl || !overlayEl) return;
 
-        const nw = imgEl.naturalWidth;
-        const nh = imgEl.naturalHeight;
-        const cw = imgEl.clientWidth;
-        const ch = imgEl.clientHeight;
+        const isVideoEl = mediaEl.tagName === 'VIDEO';
+        const nw = isVideoEl ? mediaEl.videoWidth : mediaEl.naturalWidth;
+        const nh = isVideoEl ? mediaEl.videoHeight : mediaEl.naturalHeight;
+        const cw = mediaEl.clientWidth;
+        const ch = mediaEl.clientHeight;
         if (!nw || !nh || !cw || !ch) return;
 
         const scale = Math.min(cw / nw, ch / nh);
@@ -649,10 +674,24 @@ export class DetailPage {
         overlayEl.innerHTML = calibratedHtml;
       };
 
+<<<<<<< HEAD
+      const media = document.getElementById('detail-evidence-image') || document.getElementById('detail-evidence-video');
+      if (media) {
+        if (media.tagName === 'VIDEO') {
+          const video = media;
+          if (video.readyState >= 1) calibrateBoxes();
+          else video.addEventListener('loadedmetadata', calibrateBoxes);
+        } else {
+          const img = media;
+          if (img.complete) calibrateBoxes();
+          else img.addEventListener('load', calibrateBoxes);
+        }
+=======
       const imgEl = document.getElementById('detail-evidence-image');
       if (imgEl) {
         if (imgEl.complete) calibrateBoxes();
         else imgEl.addEventListener('load', calibrateBoxes);
+>>>>>>> 3caaa39519871020e7eadcd8759cf50bb85b2e95
         window.addEventListener('resize', calibrateBoxes);
       }
 

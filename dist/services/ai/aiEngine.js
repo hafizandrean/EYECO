@@ -127,6 +127,7 @@ class AiEngine {
             featureVector,
             evidenceItems: explainableReport.evidenceChecklist,
             limitations: explainableReport.limitations,
+            extractedFramePath: yoloResult.extractedFramePath,
         };
     }
 }

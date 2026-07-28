@@ -14,7 +14,22 @@ export const MacModal = {
    * @param {'danger' | 'primary'} confirmStyle — Button style
    * @returns {Promise<boolean>} — true if confirmed, false if cancelled
    */
-  confirm(title, desc, { iconType = 'warning', confirmText = 'Hapus', cancelText = 'Batal', confirmStyle = 'danger' } = {}) {
+  confirm(titleOrObj, desc, options = {}) {
+    let title = titleOrObj;
+    let message = desc;
+    let opt = options;
+
+    if (typeof titleOrObj === 'object' && titleOrObj !== null) {
+      title = titleOrObj.title || 'Konfirmasi';
+      message = titleOrObj.message || titleOrObj.desc || '';
+      opt = titleOrObj;
+    }
+
+    const iconType = opt.iconType || opt.type || 'warning';
+    const confirmText = opt.confirmText || 'Confirm';
+    const cancelText = opt.cancelText || 'Cancel';
+    const confirmStyle = opt.confirmStyle || (iconType === 'danger' ? 'danger' : 'primary');
+
     return new Promise((resolve) => {
       const overlay = document.createElement('div');
       overlay.className = 'macos-modal-overlay';
@@ -24,7 +39,7 @@ export const MacModal = {
             <i data-lucide="${iconType === 'danger' ? 'alert-triangle' : iconType === 'warning' ? 'alert-circle' : 'check-circle'}" style="width:28px;height:28px;"></i>
           </div>
           <div class="macos-modal-title">${title}</div>
-          <div class="macos-modal-desc">${desc}</div>
+          <div class="macos-modal-desc">${message}</div>
           <div class="macos-modal-actions">
             <button class="btn btn-secondary-sheet" id="mac-modal-cancel">${cancelText}</button>
             <button class="btn btn-${confirmStyle === 'danger' ? 'danger' : 'primary'}-sheet" id="mac-modal-confirm">${confirmText}</button>
@@ -66,13 +81,26 @@ export const MacModal = {
 
   /**
    * Show a prompt with textarea input (for verification notes).
-   * @param {string} title
+   * @param {string|object} titleOrObj
    * @param {string} desc
-   * @param {string} placeholder
-   * @param {string} confirmText
+   * @param {object} options
    * @returns {Promise<string|null>} — notes string, or null if cancelled
    */
-  prompt(title, desc, { placeholder = 'Catatan (opsional)...', confirmText = 'Simpan', iconType = 'warning' } = {}) {
+  prompt(titleOrObj, desc, options = {}) {
+    let title = titleOrObj;
+    let message = desc;
+    let opt = options;
+
+    if (typeof titleOrObj === 'object' && titleOrObj !== null) {
+      title = titleOrObj.title || 'Input';
+      message = titleOrObj.message || titleOrObj.desc || '';
+      opt = titleOrObj;
+    }
+
+    const placeholder = opt.placeholder || 'Catatan (opsional)...';
+    const confirmText = opt.confirmText || 'Simpan';
+    const iconType = opt.iconType || opt.type || 'warning';
+
     return new Promise((resolve) => {
       const overlay = document.createElement('div');
       overlay.className = 'macos-modal-overlay';
@@ -82,7 +110,7 @@ export const MacModal = {
             <i data-lucide="${iconType === 'danger' ? 'alert-triangle' : 'edit-3'}" style="width:28px;height:28px;"></i>
           </div>
           <div class="macos-modal-title">${title}</div>
-          <div class="macos-modal-desc">${desc}</div>
+          <div class="macos-modal-desc">${message}</div>
           <textarea id="mac-modal-textarea" placeholder="${placeholder}"></textarea>
           <div class="macos-modal-actions">
             <button class="btn btn-secondary-sheet" id="mac-modal-cancel">Batal</button>

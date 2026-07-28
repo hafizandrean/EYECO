@@ -15,6 +15,10 @@ export class AiPipelineScheduler {
   private static instanceId = crypto.randomUUID();
   private static workspaceId: number | null = null;
 
+  public static getStatus(): boolean {
+    return this.intervalId !== null;
+  }
+
   /**
    * Starts the background AI pipeline scheduler.
    * If workspaceId is provided, only processes cameras in that workspace.

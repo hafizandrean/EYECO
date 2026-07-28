@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "3.0",
+  "sourceVideo": {
+    "videoId": "test_analysis",
+    "durationSec": 14.97,
+    "fps": 30.0,
+    "processedFrameCount": 449,
+    "samplingFps": 6.0
+  },
+  "incidents": [
+    {
+      "incidentKey": "test_analysis:0001",
+      "incidentGroupId": "group_test_analysis_1",
+      "segmentSequence": 1,
+      "isContinuation": false,
+      "startFrame": 10,
+      "endFrame": 30,
+      "startSec": 0.333,
+      "endSec": 1.0,
+      "representativeFrame": 26,
+      "representativeTimestampSec": 0.866,
+      "actorTrackIds": [],
+      "objectTrackIds": [],
+      "snapshotStorageKey": "storage/video-analysis/test_analysis/incidents/0001/raw.jpg",
+      "clipStorageKey": "storage/video-analysis/test_analysis/incidents/0001/evidence.mp4",
+      "aiStatus": "TIDAK_TERINDIKASI",
+      "violationScore": 41,
+      "decisionConfidence": 0.41,
+      "uncertaintyScore": 0.59,
+      "priority": "NONE",
+      "needsHumanValidation": true,
+      "recommendedAction": "NONE",
+      "boundingBoxes": [
+        {
+          "class": "garbage",
+          "confidence": 0.3604,
+          "x": 278.76,
+          "y": 579.6,
+          "w": 246.95000000000005,
+          "h": 189.22000000000003
+        }
+      ],
+      "featureVector": {},
+      "evidenceItems": []
+    }
+  ],
+  "warnings": []
+}

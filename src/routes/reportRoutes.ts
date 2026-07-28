@@ -443,29 +443,39 @@ router.post('/detections', (req, res, next) => {
     // ==============================
     console.log('[AI] Mengupdate report #' + newReport.id + ' dengan hasil AI Engine v3.0...');
 
+    const isVideo = req.file.mimetype.startsWith('video/') || sourceType === 'Video';
+    const updateFields: any = {
+      aiStatus: aiAnalysis.decision.status,
+      aiConfidence: aiAnalysis.decision.decisionConfidence,
+      violationScore: aiAnalysis.decision.violationScore,
+      objectConfidence: aiAnalysis.decision.objectConfidence,
+      sceneConfidence: aiAnalysis.decision.sceneConfidence,
+      decisionConfidence: aiAnalysis.decision.decisionConfidence,
+      uncertaintyScore: aiAnalysis.decision.uncertaintyScore,
+      priority: aiAnalysis.decision.priority,
+      recommendedAction: aiAnalysis.decision.recommendedAction,
+      activeSnapshotId: aiAnalysis.snapshot._id,
+      boundingBoxes: aiAnalysis.objects.map((o: any) => ({
+        label: o.class,
+        confidence: o.confidence,
+        x: o.x,
+        y: o.y,
+        w: o.w,
+        h: o.h
+      })),
+    };
+
+    if (isVideo) {
+      updateFields.videoPath = `/uploads/${req.file.filename}`;
+      if (aiAnalysis.extractedFramePath) {
+        updateFields.image = aiAnalysis.extractedFramePath;
+      }
+    }
+
     const updateResult = await ReportModel.updateOne(
       { _id: newReport._id },
       {
-        $set: {
-          aiStatus: aiAnalysis.decision.status,
-          aiConfidence: aiAnalysis.decision.decisionConfidence,
-          violationScore: aiAnalysis.decision.violationScore,
-          objectConfidence: aiAnalysis.decision.objectConfidence,
-          sceneConfidence: aiAnalysis.decision.sceneConfidence,
-          decisionConfidence: aiAnalysis.decision.decisionConfidence,
-          uncertaintyScore: aiAnalysis.decision.uncertaintyScore,
-          priority: aiAnalysis.decision.priority,
-          recommendedAction: aiAnalysis.decision.recommendedAction,
-          activeSnapshotId: aiAnalysis.snapshot._id,
-          boundingBoxes: aiAnalysis.objects.map((o: any) => ({
-            label: o.class,
-            confidence: o.confidence,
-            x: o.x,
-            y: o.y,
-            w: o.w,
-            h: o.h
-          })),
-        },
+        $set: updateFields,
         $push: {
           snapshotHistory: aiAnalysis.snapshot._id
         }

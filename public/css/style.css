@@ -3268,12 +3268,14 @@ body.dark-mode .news-mcard-body p {
   justify-content: center;
   gap: 10px;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 20;
 }
 
 .cctv-media-container:hover .cctv-hover-overlay {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .hover-circle-btn {

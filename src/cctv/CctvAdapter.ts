@@ -12,6 +12,22 @@ export class CctvAdapter {
       };
     }
 
+    // Tuya cloud RTSP stream — direct rtsps:// URL, browser cannot play natively
+    // Return as RTSP_TUYA so frontend can show Tuya-specific viewer UI
+    if (cctv.protocol === 'RTSP_TUYA' || (cctv.vendor === 'TUYA' && (cctv.streamUrl || '').startsWith('rtsps'))) {
+      return {
+        playUrl: cctv.streamUrl || cctv.playUrl,
+        playType: 'RTSP_TUYA'
+      };
+    }
+
+    if (cctv.protocol === 'HLS' && (cctv.streamUrl || '').includes('m3u8')) {
+      return {
+        playUrl: cctv.streamUrl || cctv.playUrl,
+        playType: 'HLS'
+      };
+    }
+
     if (cctv.protocol === 'RTSP' || cctv.protocol === 'RTMP') {
       // Map to local MediaMTX streaming gateway path
       const streamName = `${cctv.vendor.toLowerCase()}_camera_${cctv.id}`;
@@ -41,6 +57,7 @@ export class CctvAdapter {
       playType: cctv.mediaType
     };
   }
+
 
   // Parse and decrypt credentials for backend processing
   public static getCredentials(cctv: ICctv): { username?: string; password?: string } {
