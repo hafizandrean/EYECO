@@ -674,7 +674,6 @@ export class DetailPage {
         overlayEl.innerHTML = calibratedHtml;
       };
 
-<<<<<<< HEAD
       const media = document.getElementById('detail-evidence-image') || document.getElementById('detail-evidence-video');
       if (media) {
         if (media.tagName === 'VIDEO') {
@@ -686,12 +685,6 @@ export class DetailPage {
           if (img.complete) calibrateBoxes();
           else img.addEventListener('load', calibrateBoxes);
         }
-=======
-      const imgEl = document.getElementById('detail-evidence-image');
-      if (imgEl) {
-        if (imgEl.complete) calibrateBoxes();
-        else imgEl.addEventListener('load', calibrateBoxes);
->>>>>>> 3caaa39519871020e7eadcd8759cf50bb85b2e95
         window.addEventListener('resize', calibrateBoxes);
       }
 

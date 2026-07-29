@@ -10,6 +10,7 @@ import { VideoAnalysisJobModel } from '../database/models/VideoAnalysisJob';
 import { VideoAnalysisJobRepository } from '../database/repositories/VideoAnalysisJobRepository';
 import { AiSnapshotModel } from '../database/models/AiSnapshot';
 import { ReportModel } from '../database/models/Report';
+import { R2StorageService } from '../services/R2StorageService';
 
 const router = Router();
 
@@ -105,6 +106,19 @@ router.post(
         sourceVideoHash,
         sourceStorageKey
       );
+
+      // Upload video ke R2 di background
+      const r2Key = `video-analysis/${job._id}/${file.filename}`;
+      try {
+        if (fs.existsSync(sourceStorageKey)) {
+          await R2StorageService.uploadFile(sourceStorageKey, r2Key, file.mimetype, true);
+          console.log(`[R2] Video uploaded: ${r2Key}`);
+          // Hapus lokal setelah upload sukses
+          try { fs.unlinkSync(sourceStorageKey); } catch { /* ignore */ }
+        }
+      } catch (r2Err) {
+        console.warn('[R2] Video upload skipped (local fallback):', (r2Err as Error).message);
+      }
 
       sendSuccess(res, {
         jobId: job._id,

@@ -3383,11 +3383,12 @@ body.dark-mode .news-mcard-body p {
   inset: 0;
   background: #080c14;
   z-index: 99999;
-  display: flex;
+  display: none;
   flex-direction: column;
   color: #ffffff;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
+.vms-fullscreen-view.vms-visible { display: flex; }
 
 /* VMS Header Bar */
 .vms-fs-header {

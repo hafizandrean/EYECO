@@ -201,6 +201,32 @@ router.post('/tuya-devices', async (req, res) => {
         res.status(500).json({ success: false, error: err.message });
     }
 });
+router.get('/:id/tuya-stream', async (req, res) => {
+    try {
+        const user = await (0, authMiddleware_1.getLoggedInUser)(req);
+        if (!user)
+            return res.status(401).json({ error: 'Belum masuk' });
+        const workspaceId = user.workspaceId || -1;
+        const id = parseInt(req.params.id);
+        const camera = await CctvRepository_1.CctvRepository.getById(id, workspaceId);
+        if (!camera || camera.vendor !== 'TUYA') {
+            return res.status(404).json({ error: 'CCTV Tuya tidak ditemukan' });
+        }
+        // streamUrl was saved as tuya://accessId/accessSecret/deviceId
+        const match = camera.streamUrl.match(/tuya:\/\/([^\/]+)\/([^\/]+)\/([^\/]+)/);
+        if (!match) {
+            return res.status(400).json({ error: 'Format Tuya streamUrl tidak valid' });
+        }
+        const [, accessId, accessSecret, deviceId] = match;
+        const { TuyaCloudService } = await Promise.resolve().then(() => __importStar(require('../cctv/TuyaCloudService')));
+        const result = await TuyaCloudService.getStreamUrl(accessId, accessSecret, deviceId, 'US');
+        res.json({ success: true, data: result.url });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] GET /api/cctv/:id/tuya-stream failed:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
 router.post('/', async (req, res) => {
     try {
         const user = await (0, authMiddleware_1.getLoggedInUser)(req);

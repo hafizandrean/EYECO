@@ -239,23 +239,17 @@ export class UploadPage {
     if (window.lucide) window.lucide.createIcons();
 
     const video = document.getElementById('camera-feed');
-<<<<<<< HEAD
     const captureBtn = document.getElementById('btn-cam-capture');
-=======
->>>>>>> 3caaa39519871020e7eadcd8759cf50bb85b2e95
     const closeBtn = document.getElementById('btn-cam-close');
     const overlayBoxes = document.getElementById('camera-detection-overlay');
     const detectCount = document.getElementById('cam-detect-count');
     const liveDot = document.getElementById('cam-live-dot');
 
     let stream = null;
-<<<<<<< HEAD
-=======
     let detecting = false;
     let frameTimer = null;
     let totalDetected = 0;
     let lastAutoUpload = 0;
->>>>>>> 3caaa39519871020e7eadcd8759cf50bb85b2e95
 
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } });
@@ -289,15 +283,6 @@ export class UploadPage {
         const res = await fetch('/api/detect-preview', { method: 'POST', body: formData, credentials: 'include' });
         const data = await res.json();
 
-<<<<<<< HEAD
-        if (data.success && data.boxes?.length > 0) {
-          // Render bounding boxes
-          overlayBoxes.innerHTML = data.boxes.map((b) => `
-            <div style="position:absolute;top:${b.y}%;left:${b.x}%;width:${b.w}%;height:${b.h}%;border:2px solid ${b.label === 'person' ? '#10B981' : '#EF4444'};background:${b.label === 'person' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)'};border-radius:4px;display:flex;align-items:flex-end;justify-content:flex-start;">
-              <span style="background:${b.label === 'person' ? '#10B981' : '#EF4444'};color:white;font-size:9px;font-weight:800;padding:1px 5px;border-radius:0 4px 0 0;">${b.label} ${b.confidence}%</span>
-            </div>
-          `).join('');
-=======
         if (data.success) {
           if (data.boxes?.length > 0) {
             // Render bounding boxes langsung di video
@@ -305,7 +290,6 @@ export class UploadPage {
               <div style="position:absolute;top:${b.y}%;left:${b.x}%;width:${b.w}%;height:${b.h}%;border:2px solid ${b.label === 'person' ? '#10B981' : '#EF4444'};background:${b.label === 'person' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)'};border-radius:4px;display:flex;align-items:flex-end;justify-content:flex-start;">
                 <span style="background:${b.label === 'person' ? '#10B981' : '#EF4444'};color:white;font-size:9px;font-weight:800;padding:1px 5px;border-radius:0 4px 0 0;">${b.label} ${b.confidence}%</span>
               </div>`).join('');
->>>>>>> 3caaa39519871020e7eadcd8759cf50bb85b2e95
 
             const hasPerson = data.boxes.some(b => b.label === 'person');
             if (hasPerson) {

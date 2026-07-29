@@ -199,18 +199,19 @@ export class CctvMonitoringPage {
                 <div class="form-grid">
                   <div class="form-group">
                     <label class="form-label">Access ID / Client ID</label>
-                    <input type="text" id="cctv-input-tuya-access-id" class="filter-control input-rounded" placeholder="Dari iot.tuya.com" value="ukgj9537vrcffgq5ukke">
+                    <input type="text" id="cctv-input-tuya-access-id" class="filter-control input-rounded" placeholder="Dari iot.tuya.com" value="vhxcdfe5q7d5vr4wsgs3">
                   </div>
                   <div class="form-group">
                     <label class="form-label">Access Secret</label>
-                    <input type="password" id="cctv-input-tuya-access-secret" class="filter-control input-rounded" placeholder="Dari iot.tuya.com" value="ba53e5bfc4c748ff8895dac9338e7eea">
+                    <input type="password" id="cctv-input-tuya-access-secret" class="filter-control input-rounded" placeholder="Dari iot.tuya.com" value="0757b40d43884b83952b3b306814fba9">
                   </div>
                 </div>
                 <div class="form-grid">
                   <div class="form-group">
                     <label class="form-label">Region / Data Center</label>
                     <select id="cctv-input-tuya-region" class="filter-control select-rounded">
-                      <option value="US">US (Amerika)</option>
+                      <option value="SG" selected>Singapore</option>
+                      <option value="US">US / Americas</option>
                       <option value="CN">China</option>
                       <option value="EU">Eropa</option>
                       <option value="IN">India</option>
@@ -219,7 +220,7 @@ export class CctvMonitoringPage {
                   <div class="form-group">
                     <label class="form-label">Device ID</label>
                     <div style="display:flex;gap:8px;">
-                      <input type="text" id="cctv-input-tuya-device-id" class="filter-control input-rounded" style="flex:1;" placeholder="Pilih dari daftar device">
+                      <input type="text" id="cctv-input-tuya-device-id" class="filter-control input-rounded" style="flex:1;" placeholder="Pilih dari daftar device" value="a38ba18bd97cf81f7brasa">
                       <button type="button" id="btn-tuya-list-devices" class="btn btn-glass btn-rounded" style="white-space:nowrap;height:34px;padding:0 8px;font-size:0.65rem;">
                         <i data-lucide="search" style="width:11px;height:11px;"></i> Cari
                       </button>
@@ -383,7 +384,7 @@ export class CctvMonitoringPage {
       </div>
 
       <!-- CCTV Fullscreen VMS View -->
-      <div id="vms-fullscreen-page" class="vms-fullscreen-view" style="display: none;">
+      <div id="vms-fullscreen-page" class="vms-fullscreen-view vms-hidden">
         <!-- Header -->
         <div class="vms-fs-header">
           <div class="vms-fs-header-left">
@@ -767,11 +768,13 @@ export class CctvMonitoringPage {
               <span style="font-size:0.62rem;font-weight:800;color:#fff;letter-spacing:0.05em;text-shadow:0 1px 3px rgba(0,0,0,0.8);">LIVE</span>
             </div>`;
         } else if (ch.mediaType === 'Cloud') {
+          const isCloudTuya = ch.vendor === 'TUYA' || (ch.streamUrl && ch.streamUrl.startsWith('tuya://'));
+          const cloudLink = isCloudTuya ? 'https://app.tuyaus.com' : (ch.streamUrl && !ch.streamUrl.startsWith('tuya://') ? ch.streamUrl : '#');
           mediaHtml = `<div class="cctv-cloud-overlay">
             <i data-lucide="cloud" class="cloud-icon" style="color:var(--primary);"></i>
             <span class="cloud-title">Mode Cloud Vendor</span>
-            <a href="${ch.streamUrl}" target="_blank" class="btn btn-primary btn-sm btn-rounded btn-cloud-action" onclick="event.stopPropagation();" style="margin-bottom:20px;">
-              <i data-lucide="external-link"></i> Buka Cloud App
+            <a href="${cloudLink}" target="_blank" class="btn btn-primary btn-sm btn-rounded btn-cloud-action" onclick="event.stopPropagation();" style="margin-bottom:20px;">
+              <i data-lucide="${isCloudTuya ? 'globe' : 'external-link'}"></i> ${isCloudTuya ? 'Buka Tuya Console' : 'Buka Cloud App'}
             </a>
           </div>`;
         } else if (ch.mediaType === 'Video' && ch.playUrl && ch.playUrl.endsWith('.mp4')) {
@@ -887,9 +890,9 @@ export class CctvMonitoringPage {
         </div>
       `;
 
-      // Card click opens right side VMS Detail Drawer
+      // Card click opens Fullscreen VMS (not drawer)
       card.addEventListener('click', () => {
-        this.openCCTVDetailDrawer(ch.id);
+        this.openVmsController(ch.id);
       });
 
       // Bind hover overlay quick actions
@@ -1143,12 +1146,8 @@ export class CctvMonitoringPage {
         this.editingCctvId = null;
         form.reset();
         scannerBox.style.display = 'none';
-<<<<<<< HEAD
-        btnSave.disabled = false;
-=======
         btnSave.disabled = true;
         toggleTuyaFields();
->>>>>>> 3caaa39519871020e7eadcd8759cf50bb85b2e95
 
         const modalTitle = modal.querySelector('.modal-header h3');
         if (modalTitle) {
@@ -1209,7 +1208,8 @@ export class CctvMonitoringPage {
         btnListDevices.innerHTML = '<i data-lucide="loader"></i> Mencari...';
         if (window.lucide) window.lucide.createIcons();
         try {
-          const res = await API.post('/api/cctv/tuya-devices', { accessId, accessSecret });
+          const tuyaRegion = document.getElementById('cctv-input-tuya-region')?.value || 'US';
+          const res = await API.post('/api/cctv/tuya-devices', { accessId, accessSecret, region: tuyaRegion });
           if (!res.success || !res.data?.length) {
             deviceListDiv.innerHTML = '<div style="padding:8px;color:var(--danger);font-size:0.72rem;">Tidak ada device ditemukan. Cek Access ID & Secret.</div>';
             deviceListDiv.style.display = 'block';
@@ -1302,7 +1302,7 @@ export class CctvMonitoringPage {
               model: 'Tuya IoT Camera',
               protocol: 'TUYA',
               mediaType: 'Cloud',
-              streamUrl: `tuya://${tuyaAccessId}/${tuyaDeviceId}`,
+              streamUrl: '',
               playUrl: '',
               username: tuyaAccessId,
               password: tuyaAccessSecret,
@@ -1461,35 +1461,6 @@ export class CctvMonitoringPage {
             await CctvService.updateCctv(this.editingCctvId, payload);
             EventBus.emit('toast:show', { message: 'Konfigurasi CCTV berhasil diperbarui!', type: 'success' });
           } else {
-<<<<<<< HEAD
-            if (!detectedConfig) {
-              const streamTarget = (host && host.includes('://')) ? host : (host === '127.0.0.1' || host === 'localhost' ? '/uploads/upload_1785148213754-215512110.mp4' : `rtsp://${username}:${password}@${host}:${port || 554}/live`);
-              detectedConfig = {
-                name: name || `CCTV ${host}`,
-                location: location || 'Lokasi Pemantauan',
-                description: description || '',
-                vendor: vendor || 'GENERIC',
-                model: 'IP Camera',
-                protocol: protocol === 'AUTO' ? (streamTarget.endsWith('.mp4') ? 'HLS' : 'RTSP') : protocol,
-                mediaType: streamTarget.endsWith('.mp4') ? 'Video' : 'HLS',
-                streamUrl: streamTarget,
-                playUrl: streamTarget,
-                username,
-                password,
-                capabilities: {
-                  rtsp: protocol === 'RTSP' || protocol === 'AUTO',
-                  hls: protocol === 'HLS',
-                  snapshot: protocol === 'SNAPSHOT',
-                  mjpeg: protocol === 'MJPEG',
-                  onvif: false,
-                  cloud: protocol === 'CLOUD_VIEWER'
-                }
-              };
-            }
-            detectedConfig.name = name;
-            detectedConfig.location = location;
-            detectedConfig.description = description;
-=======
             if (!detectedConfig && !isTuya) return;
             if (isTuya) {
               detectedConfig = {
@@ -1500,7 +1471,7 @@ export class CctvMonitoringPage {
                 model: 'Tuya IoT Camera',
                 protocol: 'TUYA',
                 mediaType: 'Cloud',
-                streamUrl: `tuya://${username}/${tuyaDeviceId}`,
+                streamUrl: '',
                 playUrl: '',
                 username,
                 password,
@@ -1513,7 +1484,6 @@ export class CctvMonitoringPage {
               detectedConfig.location = location;
               detectedConfig.description = description;
             }
->>>>>>> 3caaa39519871020e7eadcd8759cf50bb85b2e95
             await CctvService.connectCctv(detectedConfig);
             EventBus.emit('toast:show', { message: 'CCTV Baru berhasil dihubungkan ke sistem!', type: 'success' });
           }
@@ -1839,15 +1809,22 @@ export class CctvMonitoringPage {
   // --- VMS Fullscreen Controller ---
 
   openVmsController(channelId) {
-    const ch = this.cctvList.find(c => c.id === channelId);
-    if (!ch) return;
-
+    const ch = this.cctvList.find(c => String(c.id) === String(channelId));
     const page = document.getElementById('vms-fullscreen-page');
     const titleEl = document.getElementById('vms-fs-cam-title');
     const playerContainer = document.getElementById('vms-fs-player-container');
     const btnBack = document.getElementById('btn-close-vms-fs');
-    
+
     if (!page) return;
+
+    // Fallback: show VMS even if channel not found
+    if (!ch) {
+      titleEl.innerText = 'KAMERA #' + channelId;
+      playerContainer.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(255,255,255,0.5);font-size:0.85rem;">Memuat data kamera...</div>`;
+      page.classList.remove('vms-hidden');
+      page.classList.add('vms-visible');
+      return;
+    }
 
     // Set Header
     titleEl.innerText = ch.name.toUpperCase();
@@ -1869,16 +1846,64 @@ export class CctvMonitoringPage {
     const renderActivePlayer = () => {
       let playerHtml = '';
       if (ch.mediaType === 'Cloud') {
-        playerHtml = `
-          <div class="cctv-cloud-overlay" style="background: rgba(9, 13, 22, 0.95); height: 100%; width: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px;">
-            <i data-lucide="cloud" class="cloud-icon" style="color: var(--primary); width: 48px; height: 48px;"></i>
-            <span class="cloud-title" style="font-size: 1.15rem; font-weight: 700; color: white;">Mode Cloud Vendor</span>
-            <span class="cloud-desc" style="color: rgba(255,255,255,0.6); max-width: 320px; font-size: 0.75rem; text-align: center; margin-bottom: 12px;">Kamera terhubung ke Server Cloud Vendor.</span>
-            <a href="${ch.streamUrl || '#'}" target="_blank" class="btn btn-primary btn-rounded btn-cloud-action" onclick="event.stopPropagation();">
-              <i data-lucide="external-link"></i> Buka Cloud App
-            </a>
-          </div>
-        `;
+        const isTuya = (ch.vendor === 'TUYA' || (ch.streamUrl && ch.streamUrl.startsWith('tuya://')));
+        
+        if (isTuya) {
+          playerHtml = `
+            <div id="vms-tuya-container-${ch.id}" style="width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; background: #000;">
+              <i data-lucide="loader" class="spinner" style="color:var(--primary); width:32px; height:32px; animation: spin 2s linear infinite; margin-bottom: 12px;"></i>
+              <span style="color: white; font-size: 0.85rem;">Memuat Stream Tuya...</span>
+            </div>
+            <div style="position: absolute; top: 12px; left: 16px; display: flex; align-items: center; gap: 8px; font-size: 0.72rem; color: white; background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 4px;">
+              <span style="width: 6px; height: 6px; background: #22c55e; border-radius: 50%;"></span>
+              <span>Live Cloud</span>
+            </div>
+            <div class="vms-rec-badge" id="vms-fs-rec-badge" style="display:none; position:absolute; top:12px; right:16px; background:rgba(239,68,68,0.85); color:white; font-size:0.7rem; font-weight:800; padding:3px 8px; border-radius:4px; align-items:center; gap:5px; z-index: 10;">
+              <span class="rec-dot" style="width:6px; height:6px; background:white; border-radius:50%; display:inline-block; animation: pulse-cloud 1s infinite;"></span>
+              REC <span id="vms-fs-rec-timer">00:00</span>
+            </div>
+          `;
+          
+          // Async fetch Tuya stream and init player
+          setTimeout(async () => {
+            try {
+              const res = await API.get(`/api/cctv/${ch.id}/tuya-stream`);
+              const container = document.getElementById(`vms-tuya-container-${ch.id}`);
+              if (container && res.data) {
+                container.innerHTML = `<video id="vms-tuya-video-${ch.id}" autoplay controls playsinline style="width:100%; height:100%; object-fit:contain;"></video>`;
+                const video = document.getElementById(`vms-tuya-video-${ch.id}`);
+                // Use HLS.js if available, else native HLS
+                if (window.Hls && window.Hls.isSupported()) {
+                  const hls = new window.Hls();
+                  hls.loadSource(res.data);
+                  hls.attachMedia(video);
+                  hls.on(window.Hls.Events.MANIFEST_PARSED, () => video.play().catch(e => console.log('Autoplay prevented:', e)));
+                } else {
+                  video.src = res.data;
+                  video.play().catch(e => console.log('Autoplay prevented:', e));
+                }
+              } else if (container) {
+                container.innerHTML = `<div style="color:var(--danger); padding:20px; text-align:center;">Gagal memuat stream Tuya.</div>`;
+              }
+            } catch (err) {
+              console.error('Failed to load Tuya stream:', err);
+              const container = document.getElementById(`vms-tuya-container-${ch.id}`);
+              if (container) container.innerHTML = `<div style="color:var(--danger); padding:20px; text-align:center;">Koneksi Tuya Error: ${err.message}</div>`;
+            }
+          }, 100);
+        } else {
+          // Non-tuya cloud placeholder
+          playerHtml = `
+            <div class="cctv-cloud-overlay" style="background: rgba(9, 13, 22, 0.95); height: 100%; width: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px;">
+              <i data-lucide="cloud" class="cloud-icon" style="color: var(--primary); width: 48px; height: 48px;"></i>
+              <span class="cloud-title" style="font-size: 1.15rem; font-weight: 700; color: white;">Mode Cloud Vendor</span>
+              <span class="cloud-desc" id="vms-cloud-desc" style="color: rgba(255,255,255,0.6); max-width: 340px; font-size: 0.75rem; text-align: center; margin-bottom: 12px;">Kamera terhubung ke Server Cloud Vendor.</span>
+              <a href="${ch.streamUrl || '#'}" target="_blank" class="btn btn-primary btn-rounded btn-cloud-action" onclick="event.stopPropagation();">
+                <i data-lucide="external-link"></i> Buka Cloud App
+              </a>
+            </div>
+          `;
+        }
       } else if (ch.mediaType === 'Video') {
         playerHtml = `
           <video src="${ch.playUrl}" id="vms-fs-media-element" autoplay loop ${isMuted ? 'muted' : ''} playsinline style="width:100%; height:100%; object-fit:contain;"></video>
@@ -1940,13 +1965,20 @@ export class CctvMonitoringPage {
 
     // 2. Back/Close button
     btnBack.onclick = () => {
-      page.style.display = 'none';
+      page.classList.remove('vms-visible');
+      page.classList.add('vms-hidden');
       if (recordInterval) clearInterval(recordInterval);
     };
 
     // 3. Boot Fullscreen view
-    renderActivePlayer();
-    page.style.display = 'flex';
+    try {
+      renderActivePlayer();
+    } catch (err) {
+      console.error('[VMS] renderActivePlayer crashed:', err);
+      playerContainer.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(255,255,255,0.5);font-size:0.85rem;">Gagal render player: ${err.message || 'unknown'}</div>`;
+    }
+    page.classList.remove('vms-hidden');
+    page.classList.add('vms-visible');
     if (window.lucide) window.lucide.createIcons();
   }
   initTuyaSyncModal() {

@@ -2,6 +2,7 @@ import crypto from 'crypto';
 
 const TUYA_ENDPOINTS: Record<string, string> = {
   US: 'https://openapi.tuyaus.com',
+  SG: 'https://openapi.tuyaus.com',
   CN: 'https://openapi.tuyacn.com',
   EU: 'https://openapi.tuyaeu.com',
   IN: 'https://openapi.tuyain.com',
@@ -35,15 +36,16 @@ interface TuyaStreamResult {
 export class TuyaCloudService {
   private static tokenCache = new Map<string, { token: string; expiresAt: number }>();
 
-  private static sign(method: string, path: string, body: string, t: string, accessId: string, accessSecret: string): string {
+  private static sign(method: string, path: string, body: string, t: string, accessId: string, accessSecret: string, token: string = ''): string {
     const contentHash = crypto.createHash('sha256').update(body).digest('hex').toLowerCase();
-    const signStr = `${accessId}${t}\n${method}\n${contentHash}\n\n${path}`;
+    const stringToSign = `${method}\n${contentHash}\n\n${path}`;
+    const signStr = `${accessId}${token}${t}${stringToSign}`;
     return crypto.createHmac('sha256', accessSecret).update(signStr).digest('hex').toUpperCase();
   }
 
   private static async request(method: string, path: string, body: string, accessId: string, accessSecret: string, token?: string): Promise<any> {
     const t = String(Date.now());
-    const sig = this.sign(method, path, body, t, accessId, accessSecret);
+    const sig = this.sign(method, path, body, t, accessId, accessSecret, token || '');
 
     const baseUrl = process.env.TUYA_API_ENDPOINT || TUYA_ENDPOINTS.US;
     const headers: Record<string, string> = {
@@ -110,7 +112,7 @@ export class TuyaCloudService {
   static async getStreamUrl(accessId: string, accessSecret: string, deviceId: string, region = 'US'): Promise<TuyaStreamResult> {
     const token = await this.getToken(accessId, accessSecret, region);
     const path = `/v1.0/devices/${deviceId}/stream/actions/allocate`;
-    const body = JSON.stringify({ type: 'flv' });
+    const body = JSON.stringify({ type: 'hls' });
     const data = await this.request('POST', path, body, accessId, accessSecret, token);
     if (!data.success) throw new Error(`Tuya getStreamUrl failed: ${data.msg}`);
     return data.result;

@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { AiEvidenceModel } from '../../database/models/AiEvidence';
 import { getNextSequence } from '../../database/models/Counter';
+import { R2StorageService } from '../../services/R2StorageService';
 
 export class EvidenceService {
   /**
@@ -44,10 +45,38 @@ export class EvidenceService {
         width: 1920,
         height: 1080,
         size: sizeBytes,
-        storage: 'LOCAL',
+        storage: 'R2' as const,
         thumbnail: imagePath,
         virusScanStatus: 'CLEAN'
       });
+
+      // Upload file evidence ke R2 (jika file lokal exist)
+      try {
+        const absolutePath = path.join(process.cwd(), 'public', imagePath);
+        if (fs.existsSync(absolutePath)) {
+          const r2Key = `cctv-evidence/${nextEvidenceId}/${path.basename(imagePath)}`;
+          await R2StorageService.uploadFile(absolutePath, r2Key, 'image/jpeg', true);
+          const r2Url = R2StorageService.getPublicUrl(r2Key);
+
+          // Update MongoDB dengan R2 key & URL
+          await AiEvidenceModel.updateOne(
+            { id: nextEvidenceId },
+            { $set: { r2Key, r2Url } }
+          ).exec();
+
+          // Hapus file lokal
+          try { fs.unlinkSync(absolutePath); } catch { /* ignore */ }
+
+          console.log(`[EvidenceService] Evidence #${nextEvidenceId} uploaded to R2: ${r2Url}`);
+        }
+      } catch (r2Err) {
+        // Non-fatal — fallback ke LOCAL
+        await AiEvidenceModel.updateOne(
+          { id: nextEvidenceId },
+          { $set: { storage: 'LOCAL' } }
+        ).exec();
+        console.warn(`[EvidenceService] R2 upload for evidence #${nextEvidenceId} failed, fallback to LOCAL:`, (r2Err as Error).message);
+      }
 
       console.log(`[EvidenceService] Evidence #${nextEvidenceId} processed and saved successfully.`);
       return evidence;

@@ -14,6 +14,7 @@ const RoleMiddleware_1 = require("../auth/RoleMiddleware");
 const VideoAnalysisJob_1 = require("../database/models/VideoAnalysisJob");
 const VideoAnalysisJobRepository_1 = require("../database/repositories/VideoAnalysisJobRepository");
 const Report_1 = require("../database/models/Report");
+const R2StorageService_1 = require("../services/R2StorageService");
 const router = (0, express_1.Router)();
 const ALLOWED_MIMES = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'];
 const MAX_FILE_SIZE = 500 * 1024 * 1024;
@@ -89,6 +90,22 @@ router.post('/upload', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.rol
             status: 'UNDER_REVIEW',
         });
         const job = await VideoAnalysisJobRepository_1.VideoAnalysisJobRepository.createFromUpload(dummyReport._id, sourceVideoHash, sourceStorageKey);
+        // Upload video ke R2 di background
+        const r2Key = `video-analysis/${job._id}/${file.filename}`;
+        try {
+            if (fs_1.default.existsSync(sourceStorageKey)) {
+                await R2StorageService_1.R2StorageService.uploadFile(sourceStorageKey, r2Key, file.mimetype, true);
+                console.log(`[R2] Video uploaded: ${r2Key}`);
+                // Hapus lokal setelah upload sukses
+                try {
+                    fs_1.default.unlinkSync(sourceStorageKey);
+                }
+                catch { /* ignore */ }
+            }
+        }
+        catch (r2Err) {
+            console.warn('[R2] Video upload skipped (local fallback):', r2Err.message);
+        }
         sendSuccess(res, {
             jobId: job._id,
             analysisRunId: job.analysisRunId,
