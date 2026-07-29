@@ -35,6 +35,7 @@ const OutboxWorker_1 = require("./notifications/OutboxWorker");
 const Notification_1 = require("./database/models/Notification");
 const TelegramNotificationChannel_1 = require("./notifications/TelegramNotificationChannel");
 const aiDetection_service_1 = require("./services/aiDetection.service");
+const R2StorageService_1 = require("./services/R2StorageService");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = Number(process.env.PORT || 8000);
@@ -109,7 +110,25 @@ app.use((req, res, next) => {
 // --- STATIC FILES ---
 app.use('/css', express_1.default.static(path_1.default.join(__dirname, '../public/css'), staticNoCacheOptions));
 app.use('/js', express_1.default.static(path_1.default.join(__dirname, '../public/js'), staticNoCacheOptions));
-app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../public/uploads')));
+app.use('/hls', express_1.default.static(path_1.default.join(__dirname, '../public/hls')));
+// Uploads: local dulu, fallback ke R2
+const uploadsDir = path_1.default.join(__dirname, '../public/uploads');
+app.use('/uploads', (req, res, next) => {
+    const localPath = path_1.default.join(uploadsDir, req.path);
+    if (fs_1.default.existsSync(localPath)) {
+        express_1.default.static(uploadsDir)(req, res, next);
+    }
+    else {
+        // File gak ada di lokal — redirect ke signed URL R2
+        const r2Key = req.path.startsWith('/') ? req.path.slice(1) : req.path;
+        R2StorageService_1.R2StorageService.getSignedUrl(r2Key)
+            .then(url => res.redirect(url))
+            .catch(r2Err => {
+            console.warn('[R2 Proxy] Fallback for', r2Key, r2Err.message);
+            express_1.default.static(uploadsDir)(req, res, next);
+        });
+    }
+});
 // --- MODULAR ROUTES ---
 app.use('/api/auth', authRoutes_1.default);
 app.use('/api/superadmin', superadminRoutes_1.default);

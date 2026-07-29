@@ -31,6 +31,7 @@ import { OutboxWorker } from './notifications/OutboxWorker';
 import { NotificationModel } from './database/models/Notification';
 import { TelegramNotificationChannel } from './notifications/TelegramNotificationChannel';
 import { warmupAI } from './services/aiDetection.service';
+import { R2StorageService } from './services/R2StorageService';
 
 dotenv.config();
 
@@ -117,7 +118,25 @@ app.use((req, res, next) => {
 // --- STATIC FILES ---
 app.use('/css', express.static(path.join(__dirname, '../public/css'), staticNoCacheOptions));
 app.use('/js', express.static(path.join(__dirname, '../public/js'), staticNoCacheOptions));
-app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+app.use('/hls', express.static(path.join(__dirname, '../public/hls')));
+
+// Uploads: local dulu, fallback ke R2
+const uploadsDir = path.join(__dirname, '../public/uploads');
+app.use('/uploads', (req, res, next) => {
+  const localPath = path.join(uploadsDir, req.path);
+  if (fs.existsSync(localPath)) {
+    express.static(uploadsDir)(req, res, next);
+  } else {
+    // File gak ada di lokal — redirect ke signed URL R2
+    const r2Key = req.path.startsWith('/') ? req.path.slice(1) : req.path;
+    R2StorageService.getSignedUrl(r2Key)
+      .then(url => res.redirect(url))
+      .catch(r2Err => {
+        console.warn('[R2 Proxy] Fallback for', r2Key, (r2Err as Error).message);
+        express.static(uploadsDir)(req, res, next);
+      });
+  }
+});
 
 // --- MODULAR ROUTES ---
 app.use('/api/auth', authRouter);

@@ -9,6 +9,7 @@ const TuyaClient_1 = require("./services/TuyaClient");
 const TUYA_ENDPOINTS = {
     US: 'https://openapi.tuyaus.com',
     US_EAST: 'https://openapi-ueaz.tuyaus.com',
+    SG: 'https://openapi.tuyaus.com',
     CN: 'https://openapi.tuyacn.com',
     EU: 'https://openapi.tuyaeu.com',
     EU_WEST: 'https://openapi-weaz.tuyaeu.com',
@@ -17,14 +18,15 @@ const TUYA_ENDPOINTS = {
 };
 class TuyaCloudService {
     static tokenCache = new Map();
-    static sign(method, path, body, t, accessId, accessSecret) {
+    static sign(method, path, body, t, accessId, accessSecret, token = '') {
         const contentHash = crypto_1.default.createHash('sha256').update(body).digest('hex').toLowerCase();
-        const signStr = `${accessId}${t}\n${method}\n${contentHash}\n\n${path}`;
+        const stringToSign = `${method}\n${contentHash}\n\n${path}`;
+        const signStr = `${accessId}${token}${t}${stringToSign}`;
         return crypto_1.default.createHmac('sha256', accessSecret).update(signStr).digest('hex').toUpperCase();
     }
     static async request(method, path, body, accessId, accessSecret, token) {
         const t = String(Date.now());
-        const sig = this.sign(method, path, body, t, accessId, accessSecret);
+        const sig = this.sign(method, path, body, t, accessId, accessSecret, token || '');
         const baseUrl = process.env.TUYA_API_ENDPOINT || TUYA_ENDPOINTS.US;
         const headers = {
             client_id: accessId,
@@ -86,7 +88,7 @@ class TuyaCloudService {
     static async getStreamUrl(accessId, accessSecret, deviceId, region = 'US') {
         const token = await this.getToken(accessId, accessSecret, region);
         const path = `/v1.0/devices/${deviceId}/stream/actions/allocate`;
-        const body = JSON.stringify({ type: 'flv' });
+        const body = JSON.stringify({ type: 'hls' });
         const data = await this.request('POST', path, body, accessId, accessSecret, token);
         if (!data.success)
             throw new Error(`Tuya getStreamUrl failed: ${data.msg}`);

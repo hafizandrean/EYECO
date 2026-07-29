@@ -9,6 +9,7 @@ import { UserModel } from '../database/models/User';
 import { authMiddleware } from '../auth/authMiddleware';
 import { roleGuard } from '../auth/RoleMiddleware';
 import { NotificationService } from '../services/NotificationService';
+import { R2StorageService } from '../services/R2StorageService';
 
 const execFileAsync = promisify(execFile);
 
@@ -232,6 +233,21 @@ router.post('/upload-images', authMiddleware, roleGuard(['admin', 'superadmin'])
       }
     } else {
       urls.push('/uploads/berita/' + f.filename);
+    }
+  }
+
+  // Upload semua gambar ke R2 di background (jangan blok response)
+  for (const localUrl of urls) {
+    const localPath = path.join(__dirname, '../../public', localUrl);
+    const r2Key = `news/${path.basename(localUrl)}`;
+    try {
+      if (fs.existsSync(localPath)) {
+        await R2StorageService.uploadFile(localPath, r2Key, 'image/jpeg', true);
+        // Jangan hapus lokal — proxy fallback masih dipake
+        console.log(`[R2] News image uploaded: ${r2Key}`);
+      }
+    } catch (r2Err) {
+      console.warn('[R2] News image upload skipped:', (r2Err as Error).message);
     }
   }
 

@@ -16,6 +16,7 @@ const NotificationService_1 = require("../services/NotificationService");
 const Notification_1 = require("../database/models/Notification");
 const SystemAuditLog_1 = require("../database/models/SystemAuditLog");
 const Workspace_1 = require("../database/models/Workspace");
+const R2StorageService_1 = require("../services/R2StorageService");
 const router = (0, express_1.Router)();
 // Allowed MIME types for upload
 const ALLOWED_MIMES = ['image/jpeg', 'image/jpg', 'image/png', 'video/mp4'];
@@ -457,6 +458,64 @@ router.post('/detections', (req, res, next) => {
                 snapshotHistory: aiAnalysis.snapshot._id
             }
         }).exec();
+        // ==============================
+        // STEP 3.5: Upload file ke R2 + update URL di MongoDB
+        // ==============================
+        const r2Key = `reports/${newReport.id}/${req.file.filename}`;
+        const contentType = req.file.mimetype || 'application/octet-stream';
+        try {
+            await R2StorageService_1.R2StorageService.uploadFile(uploadedFilePath, r2Key, contentType, true);
+            const r2Url = await R2StorageService_1.R2StorageService.getPublicUrl(r2Key);
+            // Update image & videoPath di MongoDB — pake path yg match R2 key
+            const imagePath = `/uploads/reports/${newReport.id}/${req.file.filename}`;
+            const r2Updates = { r2Key };
+            if (!isVideo) {
+                r2Updates.image = imagePath;
+            }
+            if (isVideo) {
+                r2Updates.videoPath = imagePath;
+                if (aiAnalysis.extractedFramePath) {
+                    // Upload extracted frame juga
+                    const frameKey = `reports/${newReport.id}/frame.jpg`;
+                    try {
+                        const absFramePath = path_1.default.isAbsolute(aiAnalysis.extractedFramePath)
+                            ? aiAnalysis.extractedFramePath
+                            : path_1.default.join(__dirname, '../../', aiAnalysis.extractedFramePath);
+                        if (fs_1.default.existsSync(absFramePath)) {
+                            await R2StorageService_1.R2StorageService.uploadFile(absFramePath, frameKey, 'image/jpeg', true);
+                            // extracted frame path sementara sama aja
+                            try {
+                                fs_1.default.unlinkSync(absFramePath);
+                            }
+                            catch { /* ignore */ }
+                        }
+                    }
+                    catch (frameErr) {
+                        console.warn('[R2] Frame upload skipped:', frameErr.message);
+                    }
+                }
+            }
+            // Update MongoDB dengan R2 URL
+            await Report_1.ReportModel.updateOne({ _id: newReport._id }, { $set: r2Updates }).exec();
+            // Copy last_capture.jpg SEBELUM hapus file lokal
+            try {
+                const destPath = path_1.default.join(uploadDir, 'last_capture.jpg');
+                fs_1.default.copyFileSync(uploadedFilePath, destPath);
+            }
+            catch (lastErr) {
+                console.warn('[UPLOAD] last_capture copy skipped:', lastErr.message);
+            }
+            // Hapus file lokal setelah berhasil upload ke R2
+            try {
+                fs_1.default.unlinkSync(uploadedFilePath);
+            }
+            catch { /* ignore */ }
+            console.log(`[R2] File uploaded: ${r2Key} → ${r2Url}`);
+        }
+        catch (r2Err) {
+            // Non-fatal: kalo R2 gagal, file tetap di lokal
+            console.warn('[R2] Upload skipped (local fallback):', r2Err.message);
+        }
         // ==============================
         // STEP 4: Ambil data terbaru dari DB untuk response
         // ==============================

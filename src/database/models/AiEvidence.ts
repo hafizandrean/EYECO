@@ -12,7 +12,7 @@ export interface IAiEvidence extends Document {
   width: number;
   height: number;
   size: number; // bytes
-  storage: 'LOCAL' | 'S3' | 'GCS' | 'AZURE';
+  storage: 'LOCAL' | 'S3' | 'GCS' | 'AZURE' | 'R2';
   thumbnail: string;
   virusScanStatus: 'CLEAN' | 'INFECTED' | 'UNSCANNED';
   createdAt: Date;
@@ -31,7 +31,7 @@ const AiEvidenceSchema = new Schema<IAiEvidence>({
   width: { type: Number, default: 1920 },
   height: { type: Number, default: 1080 },
   size: { type: Number, default: 0 },
-  storage: { type: String, enum: ['LOCAL', 'S3', 'GCS', 'AZURE'], default: 'LOCAL' },
+  storage: { type: String, enum: ['LOCAL', 'S3', 'GCS', 'AZURE', 'R2'], default: 'LOCAL' },
   thumbnail: { type: String, default: '' },
   virusScanStatus: { type: String, enum: ['CLEAN', 'INFECTED', 'UNSCANNED'], default: 'CLEAN' }
 }, {

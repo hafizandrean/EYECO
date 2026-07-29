@@ -29,6 +29,7 @@ class CctvScanner {
             try {
                 const regionMap = { 0: 'US', 1: 'CN', 2: 'EU', 3: 'IN', 4: 'SG', 5: 'US_EAST', 6: 'EU_WEST' };
                 const region = regionMap[customPort ?? -1] || 'US';
+                // Singapore uses US endpoint, so SG is same as US
                 const tuyaCheck = await TuyaCloudService_1.TuyaCloudService.validateCredentials(username || '', password || '', region);
                 if (tuyaCheck.ok) {
                     result.ping = true;

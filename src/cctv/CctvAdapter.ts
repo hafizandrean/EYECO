@@ -45,8 +45,9 @@ export class CctvAdapter {
     }
 
     if (cctv.protocol === 'TUYA') {
+      // For Tuya cloud cameras, show a placeholder that frontend can interpret
       return {
-        playUrl: cctv.playUrl || cctv.streamUrl || `tuya://device/${cctv.id}`,
+        playUrl: cctv.playUrl || cctv.streamUrl || '',
         playType: 'Cloud'
       };
     }

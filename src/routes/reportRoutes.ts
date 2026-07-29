@@ -13,6 +13,7 @@ import { NotificationService } from '../services/NotificationService';
 import { NotificationModel } from '../database/models/Notification';
 import { SystemAuditLogModel } from '../database/models/SystemAuditLog';
 import { WorkspaceModel } from '../database/models/Workspace';
+import { R2StorageService } from '../services/R2StorageService';
 
 const router = Router();
 
@@ -507,6 +508,66 @@ router.post('/detections', (req, res, next) => {
     ).exec();
 
     // ==============================
+    // STEP 3.5: Upload file ke R2 + update URL di MongoDB
+    // ==============================
+    const r2Key = `reports/${newReport.id}/${req.file.filename}`;
+    const contentType = req.file.mimetype || 'application/octet-stream';
+
+    try {
+      await R2StorageService.uploadFile(uploadedFilePath, r2Key, contentType, true);
+
+      const r2Url = await R2StorageService.getPublicUrl(r2Key);
+
+      // Update image & videoPath di MongoDB — pake path yg match R2 key
+      const imagePath = `/uploads/reports/${newReport.id}/${req.file.filename}`;
+      const r2Updates: Record<string, string> = { r2Key };
+      if (!isVideo) {
+        r2Updates.image = imagePath;
+      }
+      if (isVideo) {
+        r2Updates.videoPath = imagePath;
+        if (aiAnalysis.extractedFramePath) {
+          // Upload extracted frame juga
+          const frameKey = `reports/${newReport.id}/frame.jpg`;
+          try {
+            const absFramePath = path.isAbsolute(aiAnalysis.extractedFramePath)
+              ? aiAnalysis.extractedFramePath
+              : path.join(__dirname, '../../', aiAnalysis.extractedFramePath);
+            if (fs.existsSync(absFramePath)) {
+              await R2StorageService.uploadFile(absFramePath, frameKey, 'image/jpeg', true);
+              // extracted frame path sementara sama aja
+              try { fs.unlinkSync(absFramePath); } catch { /* ignore */ }
+            }
+          } catch (frameErr) {
+            console.warn('[R2] Frame upload skipped:', (frameErr as Error).message);
+          }
+        }
+      }
+
+      // Update MongoDB dengan R2 URL
+      await ReportModel.updateOne(
+        { _id: newReport._id },
+        { $set: r2Updates }
+      ).exec();
+
+      // Copy last_capture.jpg SEBELUM hapus file lokal
+      try {
+        const destPath = path.join(uploadDir, 'last_capture.jpg');
+        fs.copyFileSync(uploadedFilePath, destPath);
+      } catch (lastErr) {
+        console.warn('[UPLOAD] last_capture copy skipped:', (lastErr as Error).message);
+      }
+
+      // Hapus file lokal setelah berhasil upload ke R2
+      try { fs.unlinkSync(uploadedFilePath); } catch { /* ignore */ }
+
+      console.log(`[R2] File uploaded: ${r2Key} → ${r2Url}`);
+    } catch (r2Err) {
+      // Non-fatal: kalo R2 gagal, file tetap di lokal
+      console.warn('[R2] Upload skipped (local fallback):', (r2Err as Error).message);
+    }
+
+    // ==============================
     // STEP 4: Ambil data terbaru dari DB untuk response
     // ==============================
     const updatedReport = await ReportModel.findById(newReport._id).lean().exec();
@@ -516,8 +577,6 @@ router.post('/detections', (req, res, next) => {
     }
 
     console.log('[UPLOAD] Final report v3.0 — id=' + updatedReport.id + ', aiStatus=' + updatedReport.aiStatus + ', violationScore=' + updatedReport.violationScore + ', priority=' + updatedReport.priority);
-
-
 
     // ==============================
     // STEP 5: Notifikasi cross-user — kirim notifikasi NEW_REPORT ke semua user dalam workspace kecuali uploader

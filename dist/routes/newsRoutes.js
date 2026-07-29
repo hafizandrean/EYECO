@@ -14,6 +14,7 @@ const User_1 = require("../database/models/User");
 const authMiddleware_1 = require("../auth/authMiddleware");
 const RoleMiddleware_1 = require("../auth/RoleMiddleware");
 const NotificationService_1 = require("../services/NotificationService");
+const R2StorageService_1 = require("../services/R2StorageService");
 const execFileAsync = (0, util_1.promisify)(child_process_1.execFile);
 const router = (0, express_1.Router)();
 // Multer config untuk upload gambar berita (max 3)
@@ -241,6 +242,21 @@ router.post('/upload-images', authMiddleware_1.authMiddleware, (0, RoleMiddlewar
         }
         else {
             urls.push('/uploads/berita/' + f.filename);
+        }
+    }
+    // Upload semua gambar ke R2 di background (jangan blok response)
+    for (const localUrl of urls) {
+        const localPath = path_1.default.join(__dirname, '../../public', localUrl);
+        const r2Key = `news/${path_1.default.basename(localUrl)}`;
+        try {
+            if (fs_1.default.existsSync(localPath)) {
+                await R2StorageService_1.R2StorageService.uploadFile(localPath, r2Key, 'image/jpeg', true);
+                // Jangan hapus lokal — proxy fallback masih dipake
+                console.log(`[R2] News image uploaded: ${r2Key}`);
+            }
+        }
+        catch (r2Err) {
+            console.warn('[R2] News image upload skipped:', r2Err.message);
         }
     }
     res.json({ success: true, urls, thumbnail: urls[0] });
