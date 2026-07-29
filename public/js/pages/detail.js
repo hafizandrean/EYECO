@@ -148,7 +148,7 @@ export class DetailPage {
       }
       this.report = report;
 
-      console.log('[DETAIL_FRONTEND] ✅ Report berhasil dimuat:', `id=${report.id}, location=${report.location}, image=${report.image}`);
+      console.log('[DETAIL_FRONTEND] Report berhasil dimuat:', `id=${report.id}, location=${report.location}, image=${report.image}`);
 
       // Check current user role
       const currentUser = AppState.get('user');
@@ -732,7 +732,7 @@ export class DetailPage {
       await this.loadComments(true);
 
     } catch (err) {
-      console.error('[DETAIL_FRONTEND] ❌ loadData() ERROR:', err.message || err);
+      console.error('[DETAIL_FRONTEND] loadData() ERROR:', err.message || err);
       console.error('[DETAIL_FRONTEND] reportId:', this.reportId);
       console.error('[DETAIL_FRONTEND] error stack:', err.stack);
 

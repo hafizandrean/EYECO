@@ -133,8 +133,8 @@ router.post('/register-superadmin', async (req, res) => {
         const tokenHash = crypto_1.default.createHash('sha256').update(token).digest('hex');
         const deviceInfo = req.headers['user-agent'] || 'Unknown Device';
         const ipAddress = req.ip || req.socket.remoteAddress || 'Unknown IP';
-        // Hapus session lama dari device yang sama
-        await Session_1.SessionModel.deleteMany({ userId: superadmin.id, deviceInfo });
+        // Hapus semua session lama user ini
+        await Session_1.SessionModel.deleteMany({ userId: superadmin.id });
         await Session_1.SessionModel.create({
             userId: superadmin.id,
             tokenHash,
@@ -201,8 +201,8 @@ router.post('/login', async (req, res) => {
         const tokenHash = crypto_1.default.createHash('sha256').update(token).digest('hex');
         const deviceInfo = req.headers['user-agent'] || 'Unknown Device';
         const ipAddress = req.ip || req.socket.remoteAddress || 'Unknown IP';
-        // Hapus session lama dari device yang sama biar gak duplikat
-        await Session_1.SessionModel.deleteMany({ userId: user.id, deviceInfo });
+        // Hapus SEMUA session lama user ini — cuma 1 session aktif per akun
+        await Session_1.SessionModel.deleteMany({ userId: user.id });
         await Session_1.SessionModel.create({
             userId: user.id,
             tokenHash,
