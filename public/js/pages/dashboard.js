@@ -30,49 +30,49 @@ export class DashboardPage {
 
     container.innerHTML = `
       <!-- 1. Command Center HUD -->
-      <div class="cc-hud glass-card" id="command-center-hud">
-        <div class="cc-hud-status">
+      <div class="cc-hud glass-card" id="command-center-hud" style="padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+        <div class="cc-hud-status" style="display: flex; align-items: center; gap: 8px;">
           <span class="status-pulse-dot green" id="cc-hud-pulse"></span>
-          <span id="brief-system-status"><i data-lucide="monitor" style="width:14px;height:14px;color:var(--success);"></i> PEMANTAUAN AKTIF</span>
+          <span id="brief-system-status" style="font-size: 0.78rem; font-weight: 700;"><i data-lucide="monitor" style="width:13px;height:13px;color:var(--success);"></i> PEMANTAUAN AKTIF</span>
         </div>
-        <div class="cc-hud-metrics">
-          <div class="cc-hud-metric"><i data-lucide="video" style="width:14px;height:14px;"></i> <strong id="brief-online-count">0</strong> Kamera Online</div>
-          <div class="cc-hud-metric"><i data-lucide="alert-circle" style="width:14px;height:14px;"></i> <strong id="brief-active-alerts">0</strong> Kejadian Aktif</div>
-          <div class="cc-hud-metric"><i data-lucide="clock" style="width:14px;height:14px;"></i> Deteksi Terakhir: <strong id="brief-last-incident">—</strong></div>
+        <div class="cc-hud-metrics" style="display: flex; gap: 16px; flex-wrap: wrap;">
+          <div class="cc-hud-metric" style="font-size: 0.75rem; gap: 4px;"><i data-lucide="video" style="width:12px;height:12px;"></i> <strong id="brief-online-count">0</strong> Kamera</div>
+          <div class="cc-hud-metric" style="font-size: 0.75rem; gap: 4px;"><i data-lucide="alert-circle" style="width:12px;height:12px;"></i> <strong id="brief-active-alerts">0</strong> Kejadian</div>
+          <div class="cc-hud-metric" style="font-size: 0.75rem; gap: 4px;"><i data-lucide="clock" style="width:12px;height:12px;"></i> <span id="brief-last-incident" style="font-weight:600;">—</span></div>
         </div>
-        <span class="cc-hud-date" id="brief-current-date">—</span>
+        <span class="cc-hud-date" id="brief-current-date" style="font-size: 0.7rem; color: var(--text-secondary); font-weight: 600;">—</span>
       </div>
 
       <!-- 2. Stats summary cards & Validation chart (from laporan) -->
       <section class="stats-chart-layout">
         <!-- Stats cards -->
         <div class="stats-vertical-grid">
-          <div class="glass-card stat-card glow-yellow">
-            <div class="stat-icon-wrapper yellow"><i data-lucide="folder-open"></i></div>
+          <div class="glass-card stat-card glow-yellow" style="padding: 12px 16px;">
+            <div class="stat-icon-wrapper yellow" style="width: 36px; height: 36px; font-size: 0.9rem;"><i data-lucide="folder-open" style="width:16px;height:16px;"></i></div>
             <div class="stat-info">
-              <div class="stat-label">Total Laporan</div>
-              <div class="stat-value" id="dashboard-stat-total">0</div>
+              <div class="stat-label" style="font-size: 0.72rem;">Total Laporan</div>
+              <div class="stat-value" id="dashboard-stat-total" style="font-size: 1.6rem;">0</div>
             </div>
           </div>
-          <div class="glass-card stat-card glow-blue">
-            <div class="stat-icon-wrapper blue"><i data-lucide="map"></i></div>
+          <div class="glass-card stat-card glow-blue" style="padding: 12px 16px;">
+            <div class="stat-icon-wrapper blue" style="width: 36px; height: 36px; font-size: 0.9rem;"><i data-lucide="map" style="width:16px;height:16px;"></i></div>
             <div class="stat-info">
-              <div class="stat-label">Titik Paling Rawan</div>
-              <div class="stat-value" id="dashboard-stat-rawan">-</div>
+              <div class="stat-label" style="font-size: 0.72rem;">Titik Paling Rawan</div>
+              <div class="stat-value" id="dashboard-stat-rawan" style="font-size: 1.6rem;">-</div>
             </div>
           </div>
-          <div class="glass-card stat-card glow-green">
-            <div class="stat-icon-wrapper green"><i data-lucide="check-square"></i></div>
+          <div class="glass-card stat-card glow-green" style="padding: 12px 16px;">
+            <div class="stat-icon-wrapper green" style="width: 36px; height: 36px; font-size: 0.9rem;"><i data-lucide="check-square" style="width:16px;height:16px;"></i></div>
             <div class="stat-info">
-              <div class="stat-label">Validasi Selesai</div>
-              <div class="stat-value" id="dashboard-stat-valid">0</div>
+              <div class="stat-label" style="font-size: 0.72rem;">Validasi Selesai</div>
+              <div class="stat-value" id="dashboard-stat-valid" style="font-size: 1.6rem;">0</div>
             </div>
           </div>
-          <div class="glass-card stat-card glow-red">
-            <div class="stat-icon-wrapper red"><i data-lucide="x-circle"></i></div>
+          <div class="glass-card stat-card glow-red" style="padding: 12px 16px;">
+            <div class="stat-icon-wrapper red" style="width: 36px; height: 36px; font-size: 0.9rem;"><i data-lucide="x-circle" style="width:16px;height:16px;"></i></div>
             <div class="stat-info">
-              <div class="stat-label">Dibatalkan</div>
-              <div class="stat-value" id="dashboard-stat-cancelled">0</div>
+              <div class="stat-label" style="font-size: 0.72rem;">Dibatalkan</div>
+              <div class="stat-value" id="dashboard-stat-cancelled" style="font-size: 1.6rem;">0</div>
             </div>
           </div>
         </div>
@@ -619,8 +619,8 @@ export class DashboardPage {
           const indonesianCategory = labelMap[rawCategory.toLowerCase()] || rawCategory;
           const labelText = rawCategory === 'person' ? 'Pelaku membuang sampah' : `Pembuangan Liar · ${indonesianCategory}`;
           
-          const severityText = isHigh ? '<i data-lucide="flame" style="width:10px;height:10px;color:var(--danger);"></i> TINGGI' : (isMed ? '<span style="display:inline-flex;align-items:center;gap:2px;"><i data-lucide="circle" style="width:8px;height:8px;color:var(--warning);fill:var(--warning);"></i> SEDANG</span>' : '<span style="display:inline-flex;align-items:center;gap:2px;"><i data-lucide="circle" style="width:8px;height:8px;color:var(--info);fill:var(--info);"></i> RENDAH</span>');
-          const severityColor = isHigh ? 'var(--danger)' : (isMed ? 'var(--warning)' : 'var(--info)');
+          const severityText = isHigh ? 'TINGGI' : (isMed ? 'SEDANG' : 'RENDAH');
+          const severityColor = isHigh ? 'var(--danger)' : (isMed ? 'var(--warning)' : 'var(--color-yellow, #eab308)');
 
           let workflowState = 'MENUNGGU';
           let workflowColor = 'var(--warning)';
@@ -661,22 +661,22 @@ export class DashboardPage {
             : `<img src="${r.image}" style="width:100%; height:100%; object-fit:cover;" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" /><div style="display:none; width: 100%; height: 100%; align-items: center; justify-content: center; background: var(--surface-soft); color: var(--text-muted);"><i data-lucide="image" style="width: 20px; height: 20px;"></i></div>`;
 
           item.innerHTML = `
-            <div style="width: 52px; height: 52px; border-radius: 10px; overflow:hidden; flex-shrink:0; background:var(--surface-variant); border: 1.5px solid var(--border); display:flex; align-items:center; justify-content:center; position:relative;">
+            <div style="width: 44px; height: 44px; border-radius: 8px; overflow:hidden; flex-shrink:0; background:var(--surface-variant); border: 1.5px solid var(--border); display:flex; align-items:center; justify-content:center; position:relative;">
               ${thumbnailHtml}
             </div>
-            <div style="min-width: 0; flex: 1;">
-              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                <span style="font-size: 0.6rem; font-weight: 900; color: ${severityColor};">${severityText}</span>
-                <span style="font-size: 0.55rem; font-weight: 900; background: ${workflowColor}12; color: ${workflowColor}; border: 1px solid ${workflowColor}22; padding: 1px 6px; border-radius: 4px;">${workflowState}</span>
-                <strong style="font-size:0.88rem; color:var(--text-primary);">${labelText}</strong>
-                <span style="font-size: 0.68rem; font-weight: 700; color: var(--primary);">AI ${r.aiConfidence}%</span>
-                ${waitingLabel ? `<span class="waiting-time-chip">${waitingLabel}</span>` : ''}
+            <div style="min-width: 0; flex: 1; display:flex; flex-direction:column; gap:2px;">
+              <div style="display:flex; align-items:center; gap: 8px; flex-wrap:wrap;">
+                <span style="font-size: 0.6rem; font-weight: 800; color: white; background: ${severityColor}; padding: 1px 7px; border-radius: 4px;">${severityText}</span>
+                <span style="font-size: 0.6rem; font-weight: 700; color: ${workflowColor}; background: ${workflowColor}15; padding: 1px 6px; border-radius: 4px;">${workflowState}</span>
+                <strong style="font-size:0.85rem; color:var(--text-primary); font-weight: 700;">${labelText}</strong>
+                ${waitingLabel ? `<span style="font-size:0.65rem; color:var(--text-muted);">${waitingLabel}</span>` : ''}
               </div>
-              <div style="font-size:0.74rem; color:var(--text-secondary); margin-top:4px; display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
-                <span><i data-lucide="map-pin" style="width:11px;height:11px;display:inline-block;vertical-align:middle;"></i> ${r.location}</span>
+              <div style="font-size:0.73rem; color:var(--text-secondary); display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                <span>📍 ${r.location}</span>
                 <span style="color:var(--text-muted);">·</span>
                 <span>${Formatter.formatTime(r.timestamp)}</span>
                 <span style="color:var(--text-muted);">·</span>
+                <span style="color:var(--primary); font-weight: 600;">${r.aiConfidence || '-'}% AI</span>
                 <span style="font-weight:600; color:var(--text-secondary);">#${String(r.id ?? '').padStart(4, '0')}</span>
               </div>
               ${officerHtml}

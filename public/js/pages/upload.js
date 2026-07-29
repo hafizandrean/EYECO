@@ -631,10 +631,14 @@ export class UploadPage {
       }
 
       this.historyReports.slice(0, 6).forEach(report => {
+        const aiStatus = report.aiStatus || 'Tidak Terindikasi';
         let levelClass = 'none';
-        if (report.aiStatus === 'TINGGI') levelClass = 'high';
-        if (report.aiStatus === 'SEDANG') levelClass = 'medium';
-        if (report.aiStatus === 'RENDAH') levelClass = 'low';
+        let aiBadgeColor = 'var(--text-muted)';
+        let aiBadgeBg = 'var(--surface-soft)';
+        if (aiStatus === 'TINGGI') { levelClass = 'high'; aiBadgeColor = 'var(--danger)'; aiBadgeBg = '#fef2f2'; }
+        else if (aiStatus === 'SEDANG') { levelClass = 'medium'; aiBadgeColor = 'var(--warning)'; aiBadgeBg = '#fffbeb'; }
+        else if (aiStatus === 'RENDAH') { levelClass = 'low'; aiBadgeColor = '#ca8a04'; aiBadgeBg = '#fefce8'; }
+        else { levelClass = 'none'; aiBadgeColor = 'var(--text-muted)'; aiBadgeBg = 'var(--surface-soft)'; }
 
         // Replaced spreadsheet with timeline card
         const isVideoImage = report.image && report.image.endsWith('.mp4');
@@ -644,21 +648,21 @@ export class UploadPage {
 
         const card = document.createElement('div');
         card.className = 'glass-card hover-lift';
-        card.style.cssText = 'padding: 16px; display: flex; gap: 16px; align-items: center; cursor: pointer; border: 1px solid var(--border);';
+        card.style.cssText = 'padding: 12px 14px; display: flex; gap: 12px; align-items: center; cursor: pointer; border: 1px solid var(--border);';
         
         card.innerHTML = `
-          <div class="history-thumbnail" style="width: 60px; height: 60px; border-radius: 8px; overflow: hidden; background: var(--surface-soft); flex-shrink: 0; position: relative; display: flex; align-items: center; justify-content: center;">
+          <div class="history-thumbnail" style="width: 48px; height: 48px; border-radius: 8px; overflow: hidden; background: var(--surface-soft); flex-shrink: 0; position: relative; display: flex; align-items: center; justify-content: center;">
             ${thumbnailHtml}
           </div>
-          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
-            <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-dark); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${report.location}</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">${Formatter.formatDate(report.timestamp)}</div>
-            <div style="display: flex; gap: 6px; align-items: center; margin-top: 2px;">
-              <span class="badge ${levelClass === 'high' ? 'badge-high' : (levelClass === 'medium' ? 'badge-medium' : 'badge-low')}" style="font-size: 0.72rem; padding: 2px 8px;">AI: ${report.aiStatus}</span>
-              <span class="status-badge ${report.adminStatus === 'VALID' ? 'status-valid' : (report.adminStatus === 'DIABAIKAN' ? 'status-ignored' : 'status-pending')}" style="font-size: 0.72rem; padding: 2px 8px;">${report.adminStatus}</span>
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+            <div style="font-weight: 700; font-size: 0.82rem; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${report.location}</div>
+            <div style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 500;">${Formatter.formatDate(report.timestamp)}</div>
+            <div style="display: flex; gap: 6px; align-items: center; margin-top: 1px;">
+              <span class="badge ${levelClass}" style="font-size: 0.68rem; padding: 1px 7px; background: ${aiBadgeBg}; color: ${aiBadgeColor};">${aiStatus}</span>
+              <span class="status-badge ${report.adminStatus === 'VALID' ? 'status-valid' : (report.adminStatus === 'DIABAIKAN' ? 'status-ignored' : 'status-pending')}" style="font-size: 0.68rem; padding: 1px 7px;">${report.adminStatus}</span>
             </div>
           </div>
-          <i data-lucide="chevron-right" style="width: 16px; height: 16px; color: var(--text-muted); flex-shrink: 0;"></i>
+          <i data-lucide="chevron-right" style="width: 14px; height: 14px; color: var(--text-muted); flex-shrink: 0;"></i>
         `;
 
         card.addEventListener('click', () => {

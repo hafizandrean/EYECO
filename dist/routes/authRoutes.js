@@ -131,11 +131,15 @@ router.post('/register-superadmin', async (req, res) => {
         await User_1.UserModel.updateOne({ id: superadmin.id }, { workspaceId: newWorkspace.id, workspaceIds: [newWorkspace.id] });
         const token = (0, auth_service_1.generateToken)({ id: superadmin.id, username: superadmin.username, role: superadmin.role });
         const tokenHash = crypto_1.default.createHash('sha256').update(token).digest('hex');
+        const deviceInfo = req.headers['user-agent'] || 'Unknown Device';
+        const ipAddress = req.ip || req.socket.remoteAddress || 'Unknown IP';
+        // Hapus session lama dari device yang sama
+        await Session_1.SessionModel.deleteMany({ userId: superadmin.id, deviceInfo });
         await Session_1.SessionModel.create({
             userId: superadmin.id,
             tokenHash,
-            deviceInfo: req.headers['user-agent'] || 'Unknown Device',
-            ipAddress: req.ip || req.socket.remoteAddress || 'Unknown IP'
+            deviceInfo,
+            ipAddress
         });
         await SystemAuditLog_1.SystemAuditLogModel.create({
             tenantId: String(newWorkspace.id),
@@ -195,11 +199,15 @@ router.post('/login', async (req, res) => {
         // Removed status check, all users can login to be directed to select workspace.
         const token = (0, auth_service_1.generateToken)({ id: user.id, username: user.username, role: user.role });
         const tokenHash = crypto_1.default.createHash('sha256').update(token).digest('hex');
+        const deviceInfo = req.headers['user-agent'] || 'Unknown Device';
+        const ipAddress = req.ip || req.socket.remoteAddress || 'Unknown IP';
+        // Hapus session lama dari device yang sama biar gak duplikat
+        await Session_1.SessionModel.deleteMany({ userId: user.id, deviceInfo });
         await Session_1.SessionModel.create({
             userId: user.id,
             tokenHash,
-            deviceInfo: req.headers['user-agent'] || 'Unknown Device',
-            ipAddress: req.ip || req.socket.remoteAddress || 'Unknown IP'
+            deviceInfo,
+            ipAddress
         });
         await SystemAuditLog_1.SystemAuditLogModel.create({
             tenantId: 'system',

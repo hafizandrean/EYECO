@@ -272,7 +272,7 @@ export class DetailPage {
               <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin: 0; display:flex; align-items:center; gap:8px;">
                 <i data-lucide="brain-circuit" style="color: var(--primary);"></i> Status Indikasi AI v3.0
               </h3>
-              <span class="badge" style="font-size:0.8rem; font-weight:800; padding:6px 12px; background: ${report.aiStatus === 'Indikasi Tinggi' ? 'var(--danger)' : (report.aiStatus === 'Indikasi Sedang' ? 'var(--warning)' : 'var(--success)')}; color: #fff;">
+              <span class="badge" style="font-size:0.8rem; font-weight:800; padding:6px 12px; background: ${report.aiStatus === 'TINGGI' ? 'var(--danger)' : (report.aiStatus === 'SEDANG' ? 'var(--warning)' : (report.aiStatus === 'RENDAH' ? '#ca8a04' : 'var(--text-muted)'))}; color: #fff;">
                 ${report.aiStatus || 'Tidak Terindikasi'}
               </span>
             </div>

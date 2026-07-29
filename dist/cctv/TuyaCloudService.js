@@ -9,7 +9,6 @@ const TuyaClient_1 = require("./services/TuyaClient");
 const TUYA_ENDPOINTS = {
     US: 'https://openapi.tuyaus.com',
     US_EAST: 'https://openapi-ueaz.tuyaus.com',
-    SG: 'https://openapi.tuyaus.com',
     CN: 'https://openapi.tuyacn.com',
     EU: 'https://openapi.tuyaeu.com',
     EU_WEST: 'https://openapi-weaz.tuyaeu.com',

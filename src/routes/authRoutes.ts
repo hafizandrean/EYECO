@@ -130,11 +130,17 @@ router.post('/register-superadmin', async (req, res) => {
 
     const token = generateToken({ id: superadmin.id, username: superadmin.username, role: superadmin.role });
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const deviceInfo = req.headers['user-agent'] || 'Unknown Device';
+    const ipAddress = req.ip || req.socket.remoteAddress || 'Unknown IP';
+    
+    // Hapus session lama dari device yang sama
+    await SessionModel.deleteMany({ userId: superadmin.id, deviceInfo });
+    
     await SessionModel.create({
       userId: superadmin.id,
       tokenHash,
-      deviceInfo: req.headers['user-agent'] || 'Unknown Device',
-      ipAddress: req.ip || req.socket.remoteAddress || 'Unknown IP'
+      deviceInfo,
+      ipAddress
     });
 
     await SystemAuditLogModel.create({
@@ -198,12 +204,17 @@ router.post('/login', async (req, res) => {
     // Removed status check, all users can login to be directed to select workspace.
     const token = generateToken({ id: user.id, username: user.username, role: user.role });
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const deviceInfo = req.headers['user-agent'] || 'Unknown Device';
+    const ipAddress = req.ip || req.socket.remoteAddress || 'Unknown IP';
+    
+    // Hapus session lama dari device yang sama biar gak duplikat
+    await SessionModel.deleteMany({ userId: user.id, deviceInfo });
     
     await SessionModel.create({
       userId: user.id,
       tokenHash,
-      deviceInfo: req.headers['user-agent'] || 'Unknown Device',
-      ipAddress: req.ip || req.socket.remoteAddress || 'Unknown IP'
+      deviceInfo,
+      ipAddress
     });
 
     await SystemAuditLogModel.create({

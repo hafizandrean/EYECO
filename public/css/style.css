@@ -1005,9 +1005,9 @@ body.dark-mode .dropdown-item { color: var(--text-main); }
   padding: 3px 10px;
   border-radius: var(--radius-pill);
 }
-.badge-high      { background: var(--danger-bg); color: var(--danger); }
+.badge-high      { background: #fef2f2; color: var(--danger); }
 .badge-medium    { background: var(--warning-bg); color: var(--warning); }
-.badge-low       { background: var(--info-bg); color: var(--info); }
+.badge-low       { background: #fefce8; color: #ca8a04; }
 .badge-none      { background: var(--surface-soft); color: var(--text-muted); }
 .badge-blue      { background: #DBEAFE; color: #1D4ED8; }
 .badge-green     { background: #D1FAE5; color: #065F46; }
