@@ -5,11 +5,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TuyaCloudService = void 0;
 const crypto_1 = __importDefault(require("crypto"));
+const TuyaClient_1 = require("./services/TuyaClient");
 const TUYA_ENDPOINTS = {
     US: 'https://openapi.tuyaus.com',
+    US_EAST: 'https://openapi-ueaz.tuyaus.com',
     CN: 'https://openapi.tuyacn.com',
     EU: 'https://openapi.tuyaeu.com',
+    EU_WEST: 'https://openapi-weaz.tuyaeu.com',
     IN: 'https://openapi.tuyain.com',
+    SG: 'https://openapi-sg.iotbing.com',
 };
 class TuyaCloudService {
     static tokenCache = new Map();
@@ -67,16 +71,10 @@ class TuyaCloudService {
         return data.result.access_token;
     }
     static async listDevices(accessId, accessSecret, region = 'US') {
-        const token = await this.getToken(accessId, accessSecret, region);
-        let data = await this.request('GET', '/v1.0/iot-01/associated-users/devices?page_no=1&page_size=100', '', accessId, accessSecret, token);
-        let list = data.result?.list || data.result?.devices || (Array.isArray(data.result) ? data.result : []);
-        if (!data.success || !Array.isArray(list) || list.length === 0) {
-            data = await this.request('GET', '/v1.0/devices?page_no=1&page_size=100', '', accessId, accessSecret, token);
-            list = data.result?.list || data.result?.devices || (Array.isArray(data.result) ? data.result : []);
-        }
-        if (!data.success)
-            throw new Error(`Tuya listDevices failed: ${data.msg}`);
-        return Array.isArray(list) ? list : [];
+        const baseUrl = TUYA_ENDPOINTS[region] || TUYA_ENDPOINTS.US;
+        const client = new TuyaClient_1.TuyaClient(accessId, accessSecret, baseUrl);
+        await client.getAccessToken();
+        return await client.listDevices();
     }
     static async getDeviceInfo(accessId, accessSecret, deviceId, region = 'US') {
         const token = await this.getToken(accessId, accessSecret, region);

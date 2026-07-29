@@ -180,21 +180,24 @@ export class CctvMonitoringPage {
                 <div class="form-grid">
                   <div class="form-group">
                     <label class="form-label">Access ID / Client ID</label>
-                    <input type="text" id="cctv-input-tuya-access-id" class="filter-control input-rounded" placeholder="Dari iot.tuya.com" value="ukgj9537vrcffgq5ukke">
+                    <input type="text" id="cctv-input-tuya-access-id" class="filter-control input-rounded" placeholder="Dari iot.tuya.com" value="">
                   </div>
                   <div class="form-group">
                     <label class="form-label">Access Secret</label>
-                    <input type="password" id="cctv-input-tuya-access-secret" class="filter-control input-rounded" placeholder="Dari iot.tuya.com" value="ba53e5bfc4c748ff8895dac9338e7eea">
+                    <input type="password" id="cctv-input-tuya-access-secret" class="filter-control input-rounded" placeholder="Dari iot.tuya.com" value="">
                   </div>
                 </div>
                 <div class="form-grid">
                   <div class="form-group">
                     <label class="form-label">Region / Data Center</label>
                     <select id="cctv-input-tuya-region" class="filter-control select-rounded">
-                      <option value="US">US (Amerika)</option>
-                      <option value="CN">China</option>
-                      <option value="EU">Eropa</option>
-                      <option value="IN">India</option>
+                      <option value="SG" selected>Singapore Data Center</option>
+                      <option value="US">America Data Center (Western - Oregon)</option>
+                      <option value="US_EAST">America Data Center (Eastern - Virginia)</option>
+                      <option value="EU">Europe Data Center (Central - Frankfurt)</option>
+                      <option value="EU_WEST">Europe Data Center (Western - Netherlands)</option>
+                      <option value="CN">China Data Center (Shanghai)</option>
+                      <option value="IN">India Data Center (Mumbai)</option>
                     </select>
                   </div>
                   <div class="form-group">
@@ -384,7 +387,7 @@ export class CctvMonitoringPage {
                 <span id="vms-fs-time-label" style="display:none; font-size: 0.7rem; color: rgba(255,255,255,0.6); margin-right: 10px; font-family: monospace;">00:00 / 00:00</span>
                 <span style="display: inline-flex; align-items: center; gap: 6px; color: #22c55e;">
                   <span style="width: 6px; height: 6px; background: #22c55e; border-radius: 50%; display: inline-block;" id="vms-fs-status-dot"></span>
-                  <span id="vms-fs-status-label">LIVE</span> <span style="color: rgba(255,255,255,0.4);">|</span> <span style="color: rgba(255,255,255,0.85);" id="vms-fs-bitrate-label">1.75 KB/s</span>
+                  <span id="vms-fs-status-label">LANGSUNG</span> <span style="color: rgba(255,255,255,0.4);">|</span> <span style="color: rgba(255,255,255,0.85);" id="vms-fs-bitrate-label">1.75 KB/s</span>
                 </span>
               </div>
               <div class="vms-fs-bar-right">
@@ -398,29 +401,29 @@ export class CctvMonitoringPage {
           <aside class="vms-fs-sidebar">
             <!-- Operator Actions Section -->
             <div class="vms-fs-sidebar-section">
-              <h4 class="vms-fs-sidebar-title">OPERATOR ACTIONS</h4>
+              <h4 class="vms-fs-sidebar-title">AKSI OPERATOR</h4>
               <div class="vms-fs-actions-grid">
                 <button class="vms-action-tile" id="vms-fs-action-snapshot">
-                  <i data-lucide="camera"></i> Snapshot
+                  <i data-lucide="camera"></i> Ambil Foto
                 </button>
                 <button class="vms-action-tile" id="vms-fs-action-record">
-                  <i data-lucide="video"></i> Record
+                  <i data-lucide="video"></i> Rekam
                 </button>
                 <button class="vms-action-tile" id="vms-fs-action-mic">
-                  <i data-lucide="mic"></i> Intercom
+                  <i data-lucide="mic"></i> Interkom
                 </button>
                 <button class="vms-action-tile active" id="vms-fs-action-ai">
-                  <i data-lucide="scan-eye"></i> AI Overlay
+                  <i data-lucide="scan-eye"></i> Hamparan AI
                 </button>
               </div>
             </div>
 
             <!-- Camera Status Section -->
             <div class="vms-fs-sidebar-section">
-              <h4 class="vms-fs-sidebar-title">CAMERA STATUS</h4>
+              <h4 class="vms-fs-sidebar-title">STATUS KAMERA</h4>
               <div class="vms-status-list">
                 <div class="vms-status-row">
-                  <span class="vms-status-label">Stream Protocol</span>
+                  <span class="vms-status-label">Protokol Stream</span>
                   <span class="vms-status-value accent-cyan" id="vms-stat-protocol">Multi-Stream</span>
                 </div>
                 <div class="vms-status-row">
@@ -681,14 +684,26 @@ export class CctvMonitoringPage {
       let boundingBoxesHtml = '';
       const isRecentReport = matchReport && (Date.now() - new Date(matchReport.createdAt).getTime() < 15000);
       if (isChActive && isRecentReport && matchReport && matchReport.boundingBoxes) {
+        const labelMap = {
+          'person': 'Orang',
+          'trash': 'Sampah',
+          'boat': 'Perahu',
+          'plastic': 'Plastik',
+          'bottle': 'Botol',
+          'bag': 'Kantong',
+          'waste': 'Sampah',
+          'cardboard': 'Kardus',
+          'object': 'Objek'
+        };
         matchReport.boundingBoxes.forEach(box => {
           let boxColorClass = 'yolo-default';
           if (box.label === 'person') boxColorClass = 'yolo-person';
           if (box.label === 'trash') boxColorClass = 'yolo-trash';
           if (box.label === 'boat') boxColorClass = 'yolo-boat';
+          const indonesianLabel = labelMap[box.label.toLowerCase()] || box.label;
           boundingBoxesHtml += `
             <div class="yolo-preview-box ${boxColorClass}" style="top:${box.y}%;left:${box.x}%;width:${box.w}%;height:${box.h}%;">
-              <span class="yolo-preview-label">${box.label}</span>
+              <span class="yolo-preview-label">${indonesianLabel}</span>
             </div>
           `;
         });
@@ -1174,7 +1189,7 @@ export class CctvMonitoringPage {
           deviceListDiv.style.display = 'block';
           deviceListDiv.innerHTML = res.data.map((d, i) => `
             <div class="tuya-device-item" data-device-id="${d.id}" style="padding:8px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;cursor:pointer;font-size:0.72rem;background:var(--bg-secondary);transition:0.15s;display:flex;align-items:center;gap:10px;
-" onmouseenter="this.style.borderColor='var(--primary)'" onmouseleave="this.style.borderColor='var(--border)'" onclick="document.getElementById('cctv-input-tuya-device-id').value='${d.id}';document.getElementById('tuya-device-list').style.display='none';EventBus.emit('toast:show',{message:'Device ID dipilih: ${d.name}',type:'success'});">
+" onmouseenter="this.style.borderColor='var(--primary)'" onmouseleave="this.style.borderColor='var(--border)'" onclick="document.getElementById('cctv-input-tuya-device-id').value='${d.id}';document.getElementById('cctv-input-name').value='${d.name}';document.getElementById('tuya-device-list').style.display='none';EventBus.emit('toast:show',{message:'Device ID dipilih: ${d.name}',type:'success'});">
               <span style="width:28px;height:28px;border-radius:50%;background:${d.online ? 'var(--success)' : 'var(--text-muted)'};display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:#fff;flex-shrink:0;">${i+1}</span>
               <div style="flex:1;">
                 <strong>${d.name}</strong>
@@ -1218,7 +1233,7 @@ export class CctvMonitoringPage {
           }
           scannerBox.style.display = 'block';
           capabilitiesHud.style.display = 'none';
-          stepsList.innerHTML = `<li><span class="step-icon spinner"></span> Menghubungi Tuya Cloud API...</li>`;
+          stepsList.innerHTML = `<li><span class="scanner-step-icon spinner"></span> Menghubungi Tuya Cloud API...</li>`;
           btnScan.disabled = true;
           const tuyaRegion = document.getElementById('cctv-input-tuya-region')?.value || 'US';
           try {
@@ -1228,16 +1243,23 @@ export class CctvMonitoringPage {
               username: tuyaAccessId,
               password: tuyaAccessSecret,
               vendorHint: 'TUYA',
-              port: tuyaRegion === 'CN' ? 1 : tuyaRegion === 'EU' ? 2 : tuyaRegion === 'IN' ? 3 : 0
+              port: tuyaRegion === 'CN' ? 1 : tuyaRegion === 'EU' ? 2 : tuyaRegion === 'IN' ? 3 : tuyaRegion === 'SG' ? 4 : tuyaRegion === 'US_EAST' ? 5 : tuyaRegion === 'EU_WEST' ? 6 : 0
             });
             stepsList.innerHTML = '';
             const appendStep = (text, success) => {
               const li = document.createElement('li');
-              li.innerHTML = `<span class="step-icon ${success ? 'success' : 'failed'}">${success ? '<i data-lucide="check" style="width:12px;height:12px;"></i>' : '<i data-lucide="x" style="width:12px;height:12px;"></i>'}</span><span>${text}</span>`;
+              li.innerHTML = `<span class="scanner-step-icon ${success ? 'success' : 'failed'}">${success ? '<i data-lucide="check" style="width:12px;height:12px;"></i>' : '<i data-lucide="x" style="width:12px;height:12px;"></i>'}</span><span>${text}</span>`;
               stepsList.appendChild(li);
             };
-            appendStep(`Cloud API: Terhubung ke Tuya`, true);
-            appendStep(`Info: ${result.details.errorMessage || 'OK'}`, true);
+
+            const isScanSuccess = result.ping && result.cloud;
+            appendStep(`Cloud API: Terhubung ke Tuya`, isScanSuccess);
+            appendStep(`Info: ${result.details.errorMessage || 'OK'}`, isScanSuccess);
+            
+            if (!isScanSuccess) {
+              throw new Error(result.details.errorMessage || 'Koneksi ke Tuya Cloud gagal.');
+            }
+
             if (result.cloud) appendStep(`Mode Cloud: Aktif`, true);
             capabilitiesHud.style.display = 'flex';
             capabilitiesHud.innerHTML = '';
@@ -1269,7 +1291,7 @@ export class CctvMonitoringPage {
             EventBus.emit('toast:show', { message: 'Koneksi Tuya berhasil!', type: 'success' });
             btnSave.disabled = false;
           } catch (err) {
-            stepsList.innerHTML += `<li class="error-step"><span class="step-icon failed"><i data-lucide="x" style="width:12px;height:12px;"></i></span> Gagal: ${err.message}</li>`;
+            stepsList.innerHTML += `<li class="error-step"><span class="scanner-step-icon failed"><i data-lucide="x" style="width:12px;height:12px;"></i></span> Gagal: ${err.message}</li>`;
             EventBus.emit('toast:show', { message: 'Gagal konek Tuya: ' + err.message, type: 'danger' });
           } finally {
             btnScan.disabled = false;
@@ -1288,7 +1310,7 @@ export class CctvMonitoringPage {
         scannerBox.style.display = 'block';
         capabilitiesHud.style.display = 'none';
         stepsList.innerHTML = `
-          <li><span class="step-icon spinner"></span> Menghubungi host ${host}...</li>
+          <li><span class="scanner-step-icon spinner"></span> Menghubungi host ${host}...</li>
         `;
         btnScan.disabled = true;
 
@@ -1307,7 +1329,7 @@ export class CctvMonitoringPage {
           const appendStep = (text, success) => {
             const li = document.createElement('li');
             li.innerHTML = `
-              <span class="step-icon ${success ? 'success' : 'failed'}">${success ? '<i data-lucide="check" style="width:12px;height:12px;"></i>' : '<i data-lucide="x" style="width:12px;height:12px;"></i>'}</span>
+              <span class="scanner-step-icon ${success ? 'success' : 'failed'}">${success ? '<i data-lucide="check" style="width:12px;height:12px;"></i>' : '<i data-lucide="x" style="width:12px;height:12px;"></i>'}</span>
               <span>${text}</span>
             `;
             stepsList.appendChild(li);
@@ -1369,7 +1391,7 @@ export class CctvMonitoringPage {
 
         } catch (err) {
           stepsList.innerHTML += `
-            <li class="error-step"><span class="step-icon failed"><i data-lucide="x" style="width:12px;height:12px;"></i></span> Gagal memindai: ${err.message}</li>
+            <li class="error-step"><span class="scanner-step-icon failed"><i data-lucide="x" style="width:12px;height:12px;"></i></span> Gagal memindai: ${err.message}</li>
           `;
           EventBus.emit('toast:show', { message: 'Pemindaian kamera gagal.', type: 'danger' });
         } finally {
@@ -1396,6 +1418,19 @@ export class CctvMonitoringPage {
         const tuyaDeviceId = document.getElementById('cctv-input-tuya-device-id')?.value || '';
 
         const isTuya = vendor === 'TUYA';
+
+        if (isTuya) {
+          const tuyaAccessId = document.getElementById('cctv-input-tuya-access-id')?.value.trim() || '';
+          const tuyaAccessSecret = document.getElementById('cctv-input-tuya-access-secret')?.value.trim() || '';
+          if (!tuyaAccessId || !tuyaAccessSecret) {
+            EventBus.emit('toast:show', { message: 'Access ID dan Access Secret Tuya wajib diisi.', type: 'warning' });
+            return;
+          }
+          if (!tuyaDeviceId.trim() || tuyaDeviceId.trim() === 'Pilih dari daftar device') {
+            EventBus.emit('toast:show', { message: 'Silakan cari dan pilih Device ID Tuya yang valid.', type: 'warning' });
+            return;
+          }
+        }
 
         btnSave.disabled = true;
 
@@ -1944,6 +1979,19 @@ export class CctvMonitoringPage {
 
         console.log(`[renderYoloBoxes] Drawing box: label=${label}, x=${x}%, y=${y}%, w=${w}%, h=${h}%`);
 
+        const labelMap = {
+          'person': 'Orang',
+          'trash': 'Sampah',
+          'boat': 'Perahu',
+          'plastic': 'Plastik',
+          'bottle': 'Botol',
+          'bag': 'Kantong',
+          'waste': 'Sampah',
+          'cardboard': 'Kardus',
+          'object': 'Objek'
+        };
+        const indonesianLabel = labelMap[label.toLowerCase()] || label;
+
         let boxColorClass = 'yolo-default';
         if (label === 'person') boxColorClass = 'yolo-person';
         if (label === 'trash') boxColorClass = 'yolo-trash';
@@ -1952,7 +2000,7 @@ export class CctvMonitoringPage {
         const el = document.createElement('div');
         el.className = `yolo-preview-box ${boxColorClass}`;
         el.style.cssText = `position:absolute; top:${y}%; left:${x}%; width:${w}%; height:${h}%; border:2px solid var(--primary);`;
-        el.innerHTML = `<span class="yolo-preview-label" style="background:var(--primary); color:white; font-size:0.6rem; font-weight:800; padding:1px 4px; border-radius:2px; position:absolute; top:-16px; left:-2px; white-space:nowrap;">${label} (${Math.round((box.confidence || 0.8) * 100)}%)</span>`;
+        el.innerHTML = `<span class="yolo-preview-label" style="background:var(--primary); color:white; font-size:0.6rem; font-weight:800; padding:1px 4px; border-radius:2px; position:absolute; top:-16px; left:-2px; white-space:nowrap;">${indonesianLabel} (${Math.round((box.confidence || 0.8) * 100)}%)</span>`;
         yoloOverlay.appendChild(el);
       });
     };

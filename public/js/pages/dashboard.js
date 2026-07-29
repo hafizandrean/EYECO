@@ -151,29 +151,29 @@ export class DashboardPage {
 
         <!-- Operational Summary Sidebar -->
         <aside class="operational-summary-panel glass-card">
-          <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.78rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin: 0; letter-spacing: 0.5px;">Operational Summary</h4>
+          <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.78rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin: 0; letter-spacing: 0.5px;">Ringkasan Operasional</h4>
 
           <div class="ops-metric-grid">
             <div class="ops-metric-card">
               <div class="ops-metric-value" id="stat-waiting-review" style="color: var(--warning);">0</div>
-              <div class="ops-metric-label">Waiting Review</div>
+              <div class="ops-metric-label">Menunggu Tinjauan</div>
             </div>
             <div class="ops-metric-card">
               <div class="ops-metric-value" id="stat-assigned" style="color: var(--primary);">0</div>
-              <div class="ops-metric-label">Assigned</div>
+              <div class="ops-metric-label">Ditugaskan</div>
             </div>
             <div class="ops-metric-card">
               <div class="ops-metric-value" id="stat-in-progress" style="color: var(--info);">0</div>
-              <div class="ops-metric-label">Officer On Site</div>
+              <div class="ops-metric-label">Petugas di Lapangan</div>
             </div>
             <div class="ops-metric-card">
               <div class="ops-metric-value" id="stat-resolved-today" style="color: var(--success);">0</div>
-              <div class="ops-metric-label">Resolved Today</div>
+              <div class="ops-metric-label">Selesai Hari Ini</div>
             </div>
           </div>
 
           <div class="officer-live-panel">
-            <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.78rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin: 0 0 8px 0; letter-spacing: 0.4px;">Officer Status</h4>
+            <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.78rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin: 0 0 8px 0; letter-spacing: 0.4px;">Status Petugas</h4>
             <div id="officer-live-list">
               <div style="font-size: 0.78rem; color: var(--text-muted); padding: 6px 0;">Tidak ada petugas aktif.</div>
             </div>
@@ -181,13 +181,13 @@ export class DashboardPage {
 
           <div style="border-top: 1px solid var(--border); padding-top: var(--space-12);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <span style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">System Status</span>
-              <span id="stat-system-health-val" style="font-size: 0.82rem; font-weight: 800; color: var(--success);">Active</span>
+              <span style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Status Sistem</span>
+              <span id="stat-system-health-val" style="font-size: 0.82rem; font-weight: 800; color: var(--success);">Aktif</span>
             </div>
             <div class="progress-bar-flat" style="width: 100%; height: 5px; background: rgba(0,0,0,0.05); border-radius: 3px; overflow: hidden;">
               <div id="stat-system-health-bar" style="width: 100%; height: 100%; background: var(--success); transition: width 0.3s ease;"></div>
             </div>
-            <span id="stat-system-health-desc" style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; margin-top: 4px; display: block;">System Online</span>
+            <span id="stat-system-health-desc" style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; margin-top: 4px; display: block;">Sistem Online</span>
           </div>
         </aside>
       </div>
@@ -423,8 +423,8 @@ export class DashboardPage {
   getWaitingLabel(timestamp) {
     const mins = Math.floor((Date.now() - new Date(timestamp).getTime()) / 60000);
     if (mins < 1) return 'Baru saja';
-    if (mins < 60) return `Waiting ${mins} min`;
-    return `Waiting ${Math.floor(mins / 60)} jam`;
+    if (mins < 60) return `Menunggu ${mins} mnt`;
+    return `Menunggu ${Math.floor(mins / 60)} jam`;
   }
 
   filterQueueReports(reports) {
@@ -535,7 +535,7 @@ export class DashboardPage {
     if (briefOnline) briefOnline.innerText = `${isMon ? this.latestReports.length : 0}`;
     if (briefAlerts) briefAlerts.innerText = `${activeAlerts}`;
     if (briefSystem) {
-      briefSystem.innerHTML = isMon ? '<i data-lucide="monitor" style="width:14px;height:14px;color:var(--success);"></i> MONITORING ACTIVE' : '<i data-lucide="monitor-off" style="width:14px;height:14px;color:var(--danger);"></i> MONITORING INACTIVE';
+      briefSystem.innerHTML = isMon ? '<i data-lucide="monitor" style="width:14px;height:14px;color:var(--success);"></i> PEMANTAUAN AKTIF' : '<i data-lucide="monitor-off" style="width:14px;height:14px;color:var(--danger);"></i> PEMANTAUAN NONAKTIF';
     }
     if (hudPulse) {
       hudPulse.className = isMon ? 'status-pulse-dot green' : 'status-pulse-dot grey';
@@ -545,13 +545,13 @@ export class DashboardPage {
     }
 
     // Last Incident time
-    let lastIncidentText = 'None';
+    let lastIncidentText = 'Tidak Ada';
     if (isMon && this.latestReports.length > 0) {
       const diffMs = new Date().getTime() - new Date(this.latestReports[0].timestamp).getTime();
       const diffMins = Math.floor(diffMs / 60000);
       if (diffMins < 1) lastIncidentText = 'Baru saja';
-      else if (diffMins < 60) lastIncidentText = `${diffMins} min ago`;
-      else lastIncidentText = `${Math.floor(diffMins / 60)} hours ago`;
+      else if (diffMins < 60) lastIncidentText = `${diffMins} menit lalu`;
+      else lastIncidentText = `${Math.floor(diffMins / 60)} jam lalu`;
     }
     if (briefLast) briefLast.innerText = lastIncidentText;
 
@@ -604,30 +604,42 @@ export class DashboardPage {
           const priorityClass = isHigh ? 'incident-priority-high' : (isMed ? 'incident-priority-medium' : 'incident-priority-low');
           item.className = `incident-queue-item hover-lift ${priorityClass}`;
           
-          const category = r.boundingBoxes && r.boundingBoxes[0] ? r.boundingBoxes[0].label : 'Sampah';
-          const labelText = category === 'person' ? 'Pelaku membuang sampah' : `Illegal Dumping · ${category}`;
+          const rawCategory = r.boundingBoxes && r.boundingBoxes[0] ? r.boundingBoxes[0].label : 'Sampah';
+          const labelMap = {
+            'person': 'Orang',
+            'trash': 'Sampah',
+            'boat': 'Perahu',
+            'plastic': 'Plastik',
+            'bottle': 'Botol',
+            'bag': 'Kantong',
+            'waste': 'Sampah',
+            'cardboard': 'Kardus',
+            'object': 'Objek'
+          };
+          const indonesianCategory = labelMap[rawCategory.toLowerCase()] || rawCategory;
+          const labelText = rawCategory === 'person' ? 'Pelaku membuang sampah' : `Pembuangan Liar · ${indonesianCategory}`;
           
-          const severityText = isHigh ? '<i data-lucide="flame" style="width:10px;height:10px;color:var(--danger);"></i> HIGH' : (isMed ? '<span style="display:inline-flex;align-items:center;gap:2px;"><i data-lucide="circle" style="width:8px;height:8px;color:var(--warning);fill:var(--warning);"></i> MEDIUM</span>' : '<span style="display:inline-flex;align-items:center;gap:2px;"><i data-lucide="circle" style="width:8px;height:8px;color:var(--info);fill:var(--info);"></i> LOW</span>');
+          const severityText = isHigh ? '<i data-lucide="flame" style="width:10px;height:10px;color:var(--danger);"></i> TINGGI' : (isMed ? '<span style="display:inline-flex;align-items:center;gap:2px;"><i data-lucide="circle" style="width:8px;height:8px;color:var(--warning);fill:var(--warning);"></i> SEDANG</span>' : '<span style="display:inline-flex;align-items:center;gap:2px;"><i data-lucide="circle" style="width:8px;height:8px;color:var(--info);fill:var(--info);"></i> RENDAH</span>');
           const severityColor = isHigh ? 'var(--danger)' : (isMed ? 'var(--warning)' : 'var(--info)');
 
-          let workflowState = 'WAITING';
+          let workflowState = 'MENUNGGU';
           let workflowColor = 'var(--warning)';
           if (r.adminStatus === 'VALID') {
             if (r.status === 'SELESAI') {
-              workflowState = 'RESOLVED';
+              workflowState = 'SELESAI';
               workflowColor = 'var(--success)';
             } else if (r.status === 'PROSES') {
-              workflowState = 'IN PROGRESS';
+              workflowState = 'SEDANG DIPROSES';
               workflowColor = 'var(--info)';
             } else if (r.assignedOfficer) {
-              workflowState = 'ASSIGNED';
+              workflowState = 'DITUGASKAN';
               workflowColor = 'var(--primary)';
             } else {
-              workflowState = 'VALIDATED';
+              workflowState = 'TERVALIDASI';
               workflowColor = 'var(--primary)';
             }
           } else if (r.adminStatus === 'DIABAIKAN') {
-            workflowState = 'FALSE POSITIVE';
+            workflowState = 'DIABAIKAN';
             workflowColor = 'var(--text-muted)';
           }
 

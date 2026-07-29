@@ -87,7 +87,7 @@ export class LaporanPage {
           <div class="filter-item-compact reset-btn-compact">
             <label class="filter-label">&nbsp;</label>
             <button class="btn btn-glass btn-rounded" id="btn-reset-filters" style="height: 34px; padding: 0 12px; font-size:0.72rem; display:flex; align-items:center; gap:4px;">
-              <i data-lucide="rotate-ccw" style="width:13px;height:13px;"></i> Reset
+              <i data-lucide="rotate-ccw" style="width:13px;height:13px;"></i> Atur Ulang
             </button>
           </div>
         </div>

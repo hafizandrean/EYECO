@@ -1,10 +1,14 @@
 import crypto from 'crypto';
+import { TuyaClient } from './services/TuyaClient';
 
 const TUYA_ENDPOINTS: Record<string, string> = {
   US: 'https://openapi.tuyaus.com',
+  US_EAST: 'https://openapi-ueaz.tuyaus.com',
   CN: 'https://openapi.tuyacn.com',
   EU: 'https://openapi.tuyaeu.com',
+  EU_WEST: 'https://openapi-weaz.tuyaeu.com',
   IN: 'https://openapi.tuyain.com',
+  SG: 'https://openapi-sg.iotbing.com',
 };
 
 interface TuyaTokenResponse {
@@ -93,18 +97,11 @@ export class TuyaCloudService {
     return data.result.access_token;
   }
 
-  static async listDevices(accessId: string, accessSecret: string, region = 'US'): Promise<TuyaDevice[]> {
-    const token = await this.getToken(accessId, accessSecret, region);
-    let data = await this.request('GET', '/v1.0/iot-01/associated-users/devices?page_no=1&page_size=100', '', accessId, accessSecret, token);
-    let list = data.result?.list || data.result?.devices || (Array.isArray(data.result) ? data.result : []);
-    
-    if (!data.success || !Array.isArray(list) || list.length === 0) {
-      data = await this.request('GET', '/v1.0/devices?page_no=1&page_size=100', '', accessId, accessSecret, token);
-      list = data.result?.list || data.result?.devices || (Array.isArray(data.result) ? data.result : []);
-    }
-    
-    if (!data.success) throw new Error(`Tuya listDevices failed: ${data.msg}`);
-    return Array.isArray(list) ? list : [];
+  static async listDevices(accessId: string, accessSecret: string, region = 'US'): Promise<any[]> {
+    const baseUrl = TUYA_ENDPOINTS[region] || TUYA_ENDPOINTS.US;
+    const client = new TuyaClient(accessId, accessSecret, baseUrl);
+    await client.getAccessToken();
+    return await client.listDevices();
   }
 
   static async getDeviceInfo(accessId: string, accessSecret: string, deviceId: string, region = 'US'): Promise<TuyaDevice> {
@@ -130,7 +127,7 @@ export class TuyaCloudService {
     return data.result?.url || '';
   }
 
-  static async validateCredentials(accessId: string, accessSecret: string, region = 'US'): Promise<{ ok: boolean; msg: string; devices?: TuyaDevice[] }> {
+  static async validateCredentials(accessId: string, accessSecret: string, region = 'US'): Promise<{ ok: boolean; msg: string; devices?: any[] }> {
     try {
       const devices = await this.listDevices(accessId, accessSecret, region);
       return { ok: true, msg: `Found ${devices.length} device(s)`, devices };

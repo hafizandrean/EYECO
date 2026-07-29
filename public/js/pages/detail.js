@@ -376,8 +376,8 @@ export class DetailPage {
           <div class="glass-card" style="padding: var(--space-24); border-radius: var(--radius-card); display: flex; flex-direction: column; gap: var(--space-12);">
             <span style="font-size: 0.72rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Status & Respons SLA</span>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
-              <span id="detail-workflow-status-pill" class="badge" style="font-size: 0.85rem; padding: 6px 12px; font-weight:800;">Waiting Review</span>
-              <span id="detail-sla-timer" style="font-family: monospace; font-size: 0.95rem; font-weight: 800; color: var(--danger); background: rgba(239, 68, 68, 0.05); padding: 4px 10px; border-radius: 6px;">0h 0m 0s</span>
+              <span id="detail-workflow-status-pill" class="badge" style="font-size: 0.85rem; padding: 6px 12px; font-weight:800;">Menunggu Tinjauan</span>
+              <span id="detail-sla-timer" style="font-family: monospace; font-size: 0.95rem; font-weight: 800; color: var(--danger); background: rgba(239, 68, 68, 0.05); padding: 4px 10px; border-radius: 6px;">0j 0m 0d</span>
             </div>
           </div>
 
@@ -759,34 +759,34 @@ export class DetailPage {
     const statusPill = document.getElementById('detail-workflow-status-pill');
     if (!statusPill) return;
 
-    let statusText = 'MENUNGGU REVIEW';
+    let statusText = 'MENUNGGU TINJAUAN';
     let badgeClass = 'bg-warning text-white';
 
     if (this.report.adminStatus === 'MENUNGGU') {
-      statusText = 'UNDER REVIEW';
+      statusText = 'SEDANG DITINJAU';
       badgeClass = 'bg-warning text-white';
     } else if (this.report.adminStatus === 'VALID') {
-      statusText = 'VALIDATED';
+      statusText = 'TERVALIDASI';
       badgeClass = 'bg-success text-white';
       
       if (this.report.assignedOfficer) {
-        statusText = 'ASSIGNED';
+        statusText = 'DITUGASKAN';
         badgeClass = 'bg-info text-white';
       }
       if (this.report.status === 'PROSES') {
-        statusText = 'IN PROGRESS';
+        statusText = 'SEDANG DIPROSES';
         badgeClass = 'bg-info text-white';
       }
       if (this.report.status === 'SELESAI') {
-        statusText = 'RESOLVED';
+        statusText = 'SELESAI';
         badgeClass = 'bg-success text-white';
       }
       if (this.report.status === 'CLOSED') {
-        statusText = 'CLOSED';
+        statusText = 'DITUTUP';
         badgeClass = 'bg-secondary text-white';
       }
     } else if (this.report.adminStatus === 'DIABAIKAN') {
-      statusText = 'REJECTED';
+      statusText = 'DIABAIKAN';
       badgeClass = 'bg-danger text-white';
     }
 

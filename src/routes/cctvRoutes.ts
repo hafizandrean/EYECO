@@ -191,6 +191,46 @@ router.post('/', async (req, res) => {
     if (user.role !== 'admin') return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
     if (!user.workspaceId) return res.status(403).json({ error: 'Admin belum diassign ke workspace' });
 
+    if (req.body.vendor === 'TUYA') {
+      const { username: accessId, password: accessSecret, description } = req.body;
+      const match = description?.match(/Tuya Device ID:\s*([a-zA-Z0-9_-]+)/);
+      const deviceId = match ? match[1] : '';
+
+      if (!accessId || !accessSecret) {
+        return res.status(400).json({ error: 'Access ID dan Access Secret Tuya wajib diisi.' });
+      }
+      if (!deviceId || deviceId === 'Pilih dari daftar device') {
+        return res.status(400).json({ error: 'Device ID Tuya tidak valid.' });
+      }
+
+      const { TuyaCloudService } = await import('../cctv/TuyaCloudService');
+      let validation: any = { ok: false, msg: '', devices: [] };
+      let allDevices: any[] = [];
+      let anyRegionOk = false;
+      for (const reg of ['SG', 'US', 'US_EAST', 'EU', 'EU_WEST', 'CN', 'IN']) {
+        const valResult = await TuyaCloudService.validateCredentials(accessId, accessSecret, reg);
+        if (valResult.ok) {
+          anyRegionOk = true;
+          if (Array.isArray(valResult.devices)) {
+            allDevices.push(...valResult.devices);
+          }
+        } else {
+          validation.msg = valResult.msg;
+        }
+      }
+      validation.ok = anyRegionOk;
+      validation.devices = allDevices;
+
+      if (!validation.ok) {
+        return res.status(400).json({ error: `Kredensial Tuya tidak valid: ${validation.msg}` });
+      }
+
+      const deviceExists = allDevices.some((d: any) => d.id === deviceId);
+      if (!deviceExists) {
+        return res.status(400).json({ error: `Device ID "${deviceId}" tidak ditemukan pada akun Tuya Anda.` });
+      }
+    }
+
     const newCctv = await CctvRepository.add({ ...req.body, workspaceId: user.workspaceId }, user.id);
     CctvHealthEngine.checkCameraHealth(newCctv.id);
     res.json({ success: true, data: newCctv });
@@ -207,6 +247,52 @@ router.put('/:id', async (req, res) => {
 
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: 'ID tidak valid' });
+
+    const camera = await CctvRepository.getById(id, workspaceId);
+    if (!camera) return res.status(404).json({ error: 'CCTV tidak ditemukan' });
+
+    const vendor = req.body.vendor !== undefined ? req.body.vendor : camera.vendor;
+    if (vendor === 'TUYA') {
+      const accessId = req.body.username !== undefined ? req.body.username : camera.username;
+      const accessSecret = req.body.password !== undefined ? req.body.password : (camera.password ? CctvRepository.decryptCctvPassword(camera.password) : '');
+      const description = req.body.description !== undefined ? req.body.description : camera.description;
+      const match = description?.match(/Tuya Device ID:\s*([a-zA-Z0-9_-]+)/);
+      const deviceId = match ? match[1] : '';
+
+      if (!accessId || !accessSecret) {
+        return res.status(400).json({ error: 'Access ID dan Access Secret Tuya wajib diisi.' });
+      }
+      if (!deviceId || deviceId === 'Pilih dari daftar device') {
+        return res.status(400).json({ error: 'Device ID Tuya tidak valid.' });
+      }
+
+      const { TuyaCloudService } = await import('../cctv/TuyaCloudService');
+      let validation: any = { ok: false, msg: '', devices: [] };
+      let allDevices: any[] = [];
+      let anyRegionOk = false;
+      for (const reg of ['SG', 'US', 'US_EAST', 'EU', 'EU_WEST', 'CN', 'IN']) {
+        const valResult = await TuyaCloudService.validateCredentials(accessId, accessSecret, reg);
+        if (valResult.ok) {
+          anyRegionOk = true;
+          if (Array.isArray(valResult.devices)) {
+            allDevices.push(...valResult.devices);
+          }
+        } else {
+          validation.msg = valResult.msg;
+        }
+      }
+      validation.ok = anyRegionOk;
+      validation.devices = allDevices;
+
+      if (!validation.ok) {
+        return res.status(400).json({ error: `Kredensial Tuya tidak valid: ${validation.msg}` });
+      }
+
+      const deviceExists = allDevices.some((d: any) => d.id === deviceId);
+      if (!deviceExists) {
+        return res.status(400).json({ error: `Device ID "${deviceId}" tidak ditemukan pada akun Tuya Anda.` });
+      }
+    }
 
     const updated = await CctvRepository.update(id, req.body, workspaceId);
     CctvHealthEngine.checkCameraHealth(id);

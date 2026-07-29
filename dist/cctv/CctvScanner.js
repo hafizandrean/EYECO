@@ -22,26 +22,30 @@ class CctvScanner {
         };
         // ── TUYA Cloud Mode ──
         if (forcedMode === 'TUYA' || vendorHint === 'TUYA') {
-            result.cloud = true;
             result.details.protocol = 'TUYA';
             result.details.mediaType = 'Cloud';
             result.details.vendor = 'TUYA';
-            result.ping = true;
             // Try Tuya API validation first
             try {
-                const regionMap = { 0: 'US', 1: 'CN', 2: 'EU', 3: 'IN' };
+                const regionMap = { 0: 'US', 1: 'CN', 2: 'EU', 3: 'IN', 4: 'SG', 5: 'US_EAST', 6: 'EU_WEST' };
                 const region = regionMap[customPort ?? -1] || 'US';
                 const tuyaCheck = await TuyaCloudService_1.TuyaCloudService.validateCredentials(username || '', password || '', region);
                 if (tuyaCheck.ok) {
+                    result.ping = true;
+                    result.cloud = true;
                     result.details.streamUrl = `tuya://${username}/${password}`;
                     result.details.resolution = '1920x1080 (Cloud)';
                     result.details.errorMessage = tuyaCheck.msg;
                 }
                 else {
+                    result.ping = false;
+                    result.cloud = false;
                     result.details.errorMessage = tuyaCheck.msg;
                 }
             }
             catch (err) {
+                result.ping = false;
+                result.cloud = false;
                 result.details.errorMessage = err.message;
             }
             return result;
