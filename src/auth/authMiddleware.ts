@@ -67,16 +67,9 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     // Check DB session
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     let session = await SessionModel.findOne({ tokenHash });
-    if (!session && payload) {
-      // Auto-restore session record for valid signed JWT token to prevent invalidating active sessions
-      session = await SessionModel.create({
-        userId: payload.id,
-        tokenHash,
-        deviceInfo: req.headers['user-agent'] || 'Unknown Device',
-        ipAddress: req.ip || req.socket.remoteAddress || 'Unknown IP'
-      }).catch(() => null);
-    }
-
+    // IMPORTANT: Do NOT auto-restore deleted sessions.
+    // SessionModel.deleteMany on login enforces 1-session-per-user.
+    // Auto-restore would recreate a new record, defeating the purpose.
     if (!session) {
       res.clearCookie('session_token');
       if (req.path.startsWith('/api/')) {
@@ -142,14 +135,7 @@ export async function getLoggedInUser(req: Request): Promise<IUser | null> {
 
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     let session = await SessionModel.findOne({ tokenHash });
-    if (!session) {
-      session = await SessionModel.create({
-        userId: payload.id,
-        tokenHash,
-        deviceInfo: req.headers['user-agent'] || 'Unknown Device',
-        ipAddress: req.ip || req.socket.remoteAddress || 'Unknown IP'
-      }).catch(() => null);
-    }
+    // No auto-restore — login's deleteMany enforces 1-session-per-user.
     if (!session) return null;
 
     return await UserRepository.findByLegacyId(payload.id as number);

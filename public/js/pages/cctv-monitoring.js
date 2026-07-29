@@ -23,6 +23,7 @@ export class CctvMonitoringPage {
     this.searchQuery = '';
     this.filterCamera = 'all';
     this.latestReports = [];
+    this.lastConnectedCctvId = null;
   }
 
   async render(container) {
@@ -680,7 +681,7 @@ export class CctvMonitoringPage {
       const imageSrc = (matchReport && matchReport.image) ? matchReport.image : defaultSnapshot;
 
       const card = document.createElement('div');
-      card.className = `cctv-card glass-card ${isAlert ? 'cctv-card-alert' : ''}`;
+      card.className = `cctv-card glass-card ${isAlert ? 'cctv-card-alert' : ''}${ch.id === this.lastConnectedCctvId ? ' cctv-card-new' : ''}`;
       card.setAttribute('data-channel-id', ch.id);
 
       let boundingBoxesHtml = '';
@@ -1194,11 +1195,11 @@ export class CctvMonitoringPage {
           deviceListDiv.style.display = 'block';
           deviceListDiv.innerHTML = res.data.map((d, i) => `
             <div class="tuya-device-item" data-device-id="${d.id}" style="padding:8px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;cursor:pointer;font-size:0.72rem;background:var(--bg-secondary);transition:0.15s;display:flex;align-items:center;gap:10px;
-" onmouseenter="this.style.borderColor='var(--primary)'" onmouseleave="this.style.borderColor='var(--border)'" onclick="document.getElementById('cctv-input-tuya-device-id').value='${d.id}';document.getElementById('cctv-input-name').value='${d.name}';document.getElementById('tuya-device-list').style.display='none';EventBus.emit('toast:show',{message:'Device ID dipilih: ${d.name}',type:'success'});">
+" onmouseenter="this.style.borderColor='var(--primary)'" onmouseleave="this.style.borderColor='var(--border)'" onclick="document.getElementById('cctv-input-tuya-device-id').value='${d.id}';document.getElementById('cctv-input-name').value='${d.name}';document.getElementById('tuya-device-list').style.display='none';document.getElementById('btn-save-cctv').disabled=false;EventBus.emit('toast:show',{message:'Device ID dipilih: ${d.name}',type:'success'});">
               <span style="width:28px;height:28px;border-radius:50%;background:${d.online ? 'var(--success)' : 'var(--text-muted)'};display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:#fff;flex-shrink:0;">${i+1}</span>
               <div style="flex:1;">
                 <strong>${d.name}</strong>
-                <div style="color:var(--text-secondary);font-size:0.65rem;">${d.product_name || '-'} ${d.online ? '🟢 Online' : '🔴 Offline'}</div>
+                <div style="color:var(--text-secondary);font-size:0.65rem;">${d.product_name || '-'} ${d.online ? '<span style="color:var(--success);">Online</span>' : '<span style="color:var(--danger);">Offline</span>'}</div>
                 <div style="font-size:0.6rem;color:var(--text-muted);font-family:monospace;">${d.id}</div>
               </div>
             </div>
@@ -1407,8 +1408,11 @@ export class CctvMonitoringPage {
     }
 
     if (form) {
+      let submitting = false;
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (submitting) return;
+        submitting = true;
 
         const name = document.getElementById('cctv-input-name').value;
         const location = document.getElementById('cctv-input-location').value;
@@ -1429,15 +1433,18 @@ export class CctvMonitoringPage {
           const tuyaAccessSecret = document.getElementById('cctv-input-tuya-access-secret')?.value.trim() || '';
           if (!tuyaAccessId || !tuyaAccessSecret) {
             EventBus.emit('toast:show', { message: 'Access ID dan Access Secret Tuya wajib diisi.', type: 'warning' });
+            submitting = false;
             return;
           }
           if (!tuyaDeviceId.trim() || tuyaDeviceId.trim() === 'Pilih dari daftar device') {
             EventBus.emit('toast:show', { message: 'Silakan cari dan pilih Device ID Tuya yang valid.', type: 'warning' });
+            submitting = false;
             return;
           }
         }
 
         btnSave.disabled = true;
+        const progress = MacModal.progress('Mengoneksikan CCTV', 'Menghubungi server...');
 
         try {
           if (this.editingCctvId) {
@@ -1456,6 +1463,7 @@ export class CctvMonitoringPage {
               streamUrl: isTuya ? proxyUrl : (host + (port ? `:${port}` : '')),
               playUrl: isTuya ? proxyUrl : (host + (port ? `:${port}` : ''))
             };
+            progress.setMessage('Menyimpan perubahan...');
             await CctvService.updateCctv(this.editingCctvId, payload);
             EventBus.emit('toast:show', { message: 'Konfigurasi CCTV berhasil diperbarui!', type: 'success' });
           } else {
@@ -1473,8 +1481,8 @@ export class CctvMonitoringPage {
                 model: 'Tuya IoT Camera',
                 protocol: 'TUYA',
                 mediaType: 'Cloud',
-                streamUrl: '',
-                playUrl: '',
+                streamUrl: proxyUrl,
+                playUrl: proxyUrl,
                 username: tuyaAccessId,
                 password: tuyaAccessSecret,
                 capabilities: { rtsp: false, hls: true, snapshot: true, mjpeg: false, onvif: false, cloud: true },
@@ -1510,15 +1518,22 @@ export class CctvMonitoringPage {
               detectedConfig.location = location;
               detectedConfig.description = description;
             }
-            await CctvService.connectCctv(detectedConfig);
+            progress.setMessage('Menyimpan konfigurasi ke server...');
+            const newCctv = await CctvService.connectCctv(detectedConfig);
+            progress.setMessage('Konfigurasi tersimpan!');
+            if (newCctv && newCctv.id) this.lastConnectedCctvId = newCctv.id;
             EventBus.emit('toast:show', { message: 'CCTV Baru berhasil dihubungkan ke sistem!', type: 'success' });
           }
 
           modal.style.display = 'none';
+          progress.close();
           await this.loadCctvList();
+          setTimeout(() => { this.lastConnectedCctvId = null; }, 2200);
         } catch (err) {
+          progress.close();
           EventBus.emit('toast:show', { message: `Gagal menyimpan CCTV: ${err.message}`, type: 'danger' });
           btnSave.disabled = false;
+          submitting = false;
         }
       });
     }

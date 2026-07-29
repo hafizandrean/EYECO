@@ -256,7 +256,7 @@ export class UploadPage {
       await video.play();
     } catch (err) {
       const resultDiv = document.getElementById('camera-detection-result');
-      if (resultDiv) { resultDiv.style.display = 'block'; resultDiv.innerHTML = '<span style="color:var(--danger);">❌ Gagal membuka kamera. Izinkan akses kamera di browser.</span>'; }
+      if (resultDiv) { resultDiv.style.display = 'block'; resultDiv.innerHTML = '<span style="color:var(--danger);">Gagal membuka kamera. Izinkan akses kamera di browser.</span>'; }
       return;
     }
 
@@ -358,7 +358,7 @@ export class UploadPage {
     statusBar.id = 'camera-ai-status-bar';
     statusBar.style.cssText = 'position:absolute;bottom:0;left:0;right:0;padding:6px 12px;background:rgba(0,0,0,0.7);color:white;font-size:0.72rem;font-weight:700;display:flex;justify-content:space-between;z-index:10;';
     statusBar.innerHTML = `
-      <span>🤖 AI: ${aiStatus}</span>
+      <span>AI: ${aiStatus}</span>
       <span>${total} objek</span>
     `;
     preview.appendChild(statusBar);
@@ -635,9 +635,10 @@ export class UploadPage {
         let levelClass = 'none';
         let aiBadgeColor = 'var(--text-muted)';
         let aiBadgeBg = 'var(--surface-soft)';
-        if (aiStatus === 'TINGGI') { levelClass = 'high'; aiBadgeColor = 'var(--danger)'; aiBadgeBg = '#fef2f2'; }
-        else if (aiStatus === 'SEDANG') { levelClass = 'medium'; aiBadgeColor = 'var(--warning)'; aiBadgeBg = '#fffbeb'; }
-        else if (aiStatus === 'RENDAH') { levelClass = 'low'; aiBadgeColor = '#ca8a04'; aiBadgeBg = '#fefce8'; }
+        const as = (aiStatus || '').toUpperCase().replace('INDIKASI ', '');
+        if (as === 'TINGGI') { levelClass = 'high'; aiBadgeColor = 'var(--danger)'; aiBadgeBg = '#fef2f2'; }
+        else if (as === 'SEDANG') { levelClass = 'medium'; aiBadgeColor = 'var(--warning)'; aiBadgeBg = '#fffbeb'; }
+        else if (as === 'RENDAH') { levelClass = 'low'; aiBadgeColor = '#ca8a04'; aiBadgeBg = '#fefce8'; }
         else { levelClass = 'none'; aiBadgeColor = 'var(--text-muted)'; aiBadgeBg = 'var(--surface-soft)'; }
 
         // Replaced spreadsheet with timeline card
@@ -658,8 +659,8 @@ export class UploadPage {
             <div style="font-weight: 700; font-size: 0.82rem; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${report.location}</div>
             <div style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 500;">${Formatter.formatDate(report.timestamp)}</div>
             <div style="display: flex; gap: 6px; align-items: center; margin-top: 1px;">
-              <span class="badge ${levelClass}" style="font-size: 0.68rem; padding: 1px 7px; background: ${aiBadgeBg}; color: ${aiBadgeColor};">${aiStatus}</span>
-              <span class="status-badge ${report.adminStatus === 'VALID' ? 'status-valid' : (report.adminStatus === 'DIABAIKAN' ? 'status-ignored' : 'status-pending')}" style="font-size: 0.68rem; padding: 1px 7px;">${report.adminStatus}</span>
+              <span class="badge badge-${levelClass}">${as === 'TINGGI' ? 'Tinggi' : as === 'SEDANG' ? 'Sedang' : as === 'RENDAH' ? 'Rendah' : 'Tidak Terindikasi'}</span>
+              <span class="badge badge-${report.adminStatus === 'VALID' ? 'green' : (report.adminStatus === 'DIABAIKAN' ? 'red' : 'orange')}">${report.adminStatus === 'VALID' ? 'Tervalidasi' : report.adminStatus === 'DIABAIKAN' ? 'Diabaikan' : 'Menunggu'}</span>
             </div>
           </div>
           <i data-lucide="chevron-right" style="width: 14px; height: 14px; color: var(--text-muted); flex-shrink: 0;"></i>

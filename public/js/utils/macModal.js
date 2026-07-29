@@ -152,5 +152,45 @@ export const MacModal = {
       // Auto-focus textarea
       setTimeout(() => overlay.querySelector('#mac-modal-textarea').focus(), 100);
     });
+  },
+
+  /**
+   * Show a non-dismissible macOS-style progress overlay with spinner + message.
+   * @param {string} title — Bold title
+   * @param {string} message — Status description
+   * @returns {{ close: () => void, setMessage: (msg: string) => void }}
+   */
+  progress(title, message = '') {
+    const overlay = document.createElement('div');
+    overlay.className = 'macos-modal-overlay';
+    overlay.style.backdropFilter = 'blur(6px)';
+    overlay.innerHTML = `
+      <div class="macos-modal" style="text-align:center;gap:12px;cursor:default;">
+        <div class="macos-spinner" style="width:36px;height:36px;border:3px solid rgba(37,99,235,0.15);border-top:3px solid #2563eb;border-radius:50%;animation:macSpin 0.8s linear infinite;margin:8px auto;"></div>
+        <div class="macos-modal-title">${title}</div>
+        <div class="macos-modal-desc" id="mac-progress-msg">${message}</div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    if (window.lucide) window.lucide.createIcons();
+
+    // Prevent dismiss on backdrop click / escape
+    overlay.onclick = (e) => { if (e.target === overlay) return; };
+    document.addEventListener('keydown', _ignoreEsc);
+
+    function _ignoreEsc(e) {
+      if (e.key === 'Escape') e.stopImmediatePropagation();
+    }
+
+    return {
+      close() {
+        document.removeEventListener('keydown', _ignoreEsc);
+        overlay.remove();
+      },
+      setMessage(msg) {
+        const el = overlay.querySelector('#mac-progress-msg');
+        if (el) el.textContent = msg;
+      }
+    };
   }
 };

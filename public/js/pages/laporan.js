@@ -331,9 +331,11 @@ export class LaporanPage {
 
       // Threat Badge
       let aiBadgeClass = 'badge-none';
-      if (report.aiStatus === 'TINGGI') aiBadgeClass = 'badge-high';
-      else if (report.aiStatus === 'SEDANG') aiBadgeClass = 'badge-medium';
-      else if (report.aiStatus === 'RENDAH') aiBadgeClass = 'badge-low';
+      const s = (report.aiStatus || '').toUpperCase().replace('INDIKASI ', '');
+      let aiLabel = 'Tidak Terindikasi';
+      if (s === 'TINGGI') { aiBadgeClass = 'badge-high'; aiLabel = 'Tinggi'; }
+      else if (s === 'SEDANG') { aiBadgeClass = 'badge-medium'; aiLabel = 'Sedang'; }
+      else if (s === 'RENDAH') { aiBadgeClass = 'badge-low'; aiLabel = 'Rendah'; }
 
       // Admin Status Badge
       let adminBadgeClass = 'status-pending';
@@ -408,7 +410,7 @@ export class LaporanPage {
         <div class="col-badge">
           <span class="badge ${aiBadgeClass}">
             <span class="pill-dot" style="background-color: currentColor;"></span>
-            AI: ${report.aiStatus}
+            AI: ${aiLabel}
           </span>
           ${typeof report.violationScore === 'number' 
             ? `<span class="row-confidence-label" style="font-weight:800; font-size:0.75rem; color:var(--text-secondary); display:block; margin-top:2px;">Skor: ${report.violationScore}/100</span>` 

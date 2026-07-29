@@ -272,8 +272,8 @@ export class DetailPage {
               <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin: 0; display:flex; align-items:center; gap:8px;">
                 <i data-lucide="brain-circuit" style="color: var(--primary);"></i> Status Indikasi AI v3.0
               </h3>
-              <span class="badge" style="font-size:0.8rem; font-weight:800; padding:6px 12px; background: ${report.aiStatus === 'TINGGI' ? 'var(--danger)' : (report.aiStatus === 'SEDANG' ? 'var(--warning)' : (report.aiStatus === 'RENDAH' ? '#ca8a04' : 'var(--text-muted)'))}; color: #fff;">
-                ${report.aiStatus || 'Tidak Terindikasi'}
+              <span class="badge badge-${(report.aiStatus || '').toUpperCase().replace('INDIKASI ','') === 'TINGGI' ? 'high' : ((report.aiStatus || '').toUpperCase().replace('INDIKASI ','') === 'SEDANG' ? 'medium' : ((report.aiStatus || '').toUpperCase().replace('INDIKASI ','') === 'RENDAH' ? 'low' : 'none'))}" style="font-size:0.85rem; font-weight:800; padding:6px 14px;">
+                ${report.aiStatus === 'TINGGI' || report.aiStatus === 'Indikasi Tinggi' ? 'Tinggi' : report.aiStatus === 'SEDANG' || report.aiStatus === 'Indikasi Sedang' ? 'Sedang' : report.aiStatus === 'RENDAH' || report.aiStatus === 'Indikasi Rendah' ? 'Rendah' : 'Tidak Terindikasi'}
               </span>
             </div>
             
@@ -356,7 +356,7 @@ export class DetailPage {
               `).join('')}
             </div>
             <div style="background: rgba(239, 68, 68, 0.04); border-left: 3px solid var(--warning); padding: 10px 14px; border-radius: 6px; margin-top: 6px;">
-              <span style="font-size: 0.7rem; font-weight: 800; color: var(--text-primary); display:block;">⚠️ Catatan Limitasi Analisis:</span>
+              <span style="font-size: 0.7rem; font-weight: 800; color: var(--text-primary); display:block;">Catatan Limitasi Analisis:</span>
               <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 2px 0 0 0;">
                 Satu foto belum cukup untuk memastikan aktivitas membuang atau melempar sampah. Verifikasi operator tetap diperlukan.
               </p>
