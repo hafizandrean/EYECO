@@ -68,7 +68,7 @@ export class PromotionService {
 
       // Cari berkas snapshot bukti
       const evidence = await AiEvidenceModel.findOne({ linkedDetectionId: detection._id });
-      const imagePath = evidence ? evidence.storageKey : '/uploads/detection_1.jpg';
+      const imagePath = evidence ? evidence.storageKey : `/uploads/cctv_capture_${detection.cameraId}.jpg`;
 
       // Cari admin utama untuk relasi pelapor default
       const adminUser = await UserModel.findOne({ id: 1 });

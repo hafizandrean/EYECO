@@ -104,9 +104,10 @@ class TuyaClient {
         // 1. Try associated-users devices (Smart Home Basic Service API)
         try {
             const data = await this.request('GET', '/v1.0/iot-01/associated-users/devices?page_no=1&page_size=100');
-            if (data.success && data.result?.list) {
-                console.log(`[TUYA] Found ${data.result.list.length} devices via associated-users API`);
-                for (const item of data.result.list) {
+            const list = data.result?.list || data.result?.devices || (Array.isArray(data.result) ? data.result : []);
+            if (data.success && Array.isArray(list)) {
+                console.log(`[TUYA] Found ${list.length} devices via associated-users API`);
+                for (const item of list) {
                     if (!seenIds.has(item.id)) {
                         seenIds.add(item.id);
                         devices.push(item);
@@ -124,8 +125,9 @@ class TuyaClient {
         if (devices.length === 0) {
             try {
                 const data = await this.request('GET', '/v1.0/devices?page_no=1&page_size=100');
-                if (data.success && data.result?.list) {
-                    for (const item of data.result.list) {
+                const list = data.result?.list || data.result?.devices || (Array.isArray(data.result) ? data.result : []);
+                if (data.success && Array.isArray(list)) {
+                    for (const item of list) {
                         if (!seenIds.has(item.id)) {
                             seenIds.add(item.id);
                             devices.push(item);

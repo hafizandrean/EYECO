@@ -70,10 +70,15 @@ class TuyaCloudService {
     }
     static async listDevices(accessId, accessSecret, region = 'US') {
         const token = await this.getToken(accessId, accessSecret, region);
-        const data = await this.request('GET', '/v1.0/devices', '', accessId, accessSecret, token);
+        let data = await this.request('GET', '/v1.0/iot-01/associated-users/devices?page_no=1&page_size=100', '', accessId, accessSecret, token);
+        let list = data.result?.list || data.result?.devices || (Array.isArray(data.result) ? data.result : []);
+        if (!data.success || !Array.isArray(list) || list.length === 0) {
+            data = await this.request('GET', '/v1.0/devices?page_no=1&page_size=100', '', accessId, accessSecret, token);
+            list = data.result?.list || data.result?.devices || (Array.isArray(data.result) ? data.result : []);
+        }
         if (!data.success)
             throw new Error(`Tuya listDevices failed: ${data.msg}`);
-        return data.result || [];
+        return Array.isArray(list) ? list : [];
     }
     static async getDeviceInfo(accessId, accessSecret, deviceId, region = 'US') {
         const token = await this.getToken(accessId, accessSecret, region);

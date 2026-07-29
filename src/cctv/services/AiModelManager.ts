@@ -22,7 +22,7 @@ export class AiModelManager {
       console.log(`[AiModelManager] Loading active model registry: ${modelId}`);
       
       this.activeModelId = modelId;
-      this.activeEngine = AIEngineFactory.createEngine('MOCK');
+      this.activeEngine = AIEngineFactory.createEngine('LOCAL_PYTHON');
       await this.activeEngine.initialize(`/weights/${modelId}.pt`);
 
       // 2. Load Canary Routing configurations if enabled
@@ -30,13 +30,13 @@ export class AiModelManager {
       if (canarySetting && canarySetting.value && canarySetting.value.enabled) {
         const { canaryModelId, engineType } = canarySetting.value;
         this.canaryModelId = canaryModelId;
-        this.canaryEngine = AIEngineFactory.createEngine(engineType || 'MOCK');
+        this.canaryEngine = AIEngineFactory.createEngine(engineType || 'LOCAL_PYTHON');
         await this.canaryEngine.initialize(`/weights/${canaryModelId}.pt`);
         console.log(`[AiModelManager] Canary model ${canaryModelId} loaded and warmed up.`);
       }
     } catch (err: any) {
       console.error('[AiModelManager] Failed to initialize model registry:', err.message);
-      this.activeEngine = AIEngineFactory.createEngine('MOCK');
+      this.activeEngine = AIEngineFactory.createEngine('LOCAL_PYTHON');
       await this.activeEngine.initialize('/weights/yolov8-river-v1.0.pt');
     }
   }
@@ -53,7 +53,7 @@ export class AiModelManager {
       
       if (this.activeEngine && currentActiveId !== this.activeModelId) {
         console.log(`[AiModelManager] DB active model changed from ${this.activeModelId} to ${currentActiveId}. Triggering auto-rollback/hot-swap.`);
-        await this.swapActiveModel(currentActiveId, 'MOCK');
+        await this.swapActiveModel(currentActiveId, 'LOCAL_PYTHON');
       }
     } catch (err: any) {
       console.warn('[AiModelManager] Failed to check/sync active model from database:', err.message);

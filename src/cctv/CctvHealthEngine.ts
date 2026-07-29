@@ -79,12 +79,13 @@ export class CctvHealthEngine {
         fps = camera.protocol === 'HTTP Image' ? 0 : 24;
       } else if (camera.protocol === 'RTSP' || camera.protocol === 'RTMP') {
         // Port response check for RTSP
-        const cleanHost = camera.streamUrl.includes('@')
-          ? camera.streamUrl.split('@').pop()!.split(':')[0]
-          : camera.streamUrl.replace('rtsp://', '').split('/')[0].split(':')[0];
+        const streamUrl = camera.streamUrl || '';
+        const cleanHost = streamUrl && streamUrl.includes('@')
+          ? streamUrl.split('@').pop()!.split(':')[0]
+          : (streamUrl ? streamUrl.replace('rtsp://', '').split('/')[0].split(':')[0] : 'localhost');
         
         // Probes RTSP port 554
-        const scan = await CctvScanner.scan(cleanHost, camera.username, '', camera.vendor);
+        const scan = await CctvScanner.scan(cleanHost, camera.username || '', '', camera.vendor);
         isOnline = scan.rtsp;
         latency = Date.now() - startTime + Math.floor(Math.random() * 30) + 10;
         fps = isOnline ? 24 : 0;
@@ -143,9 +144,10 @@ export class CctvHealthEngine {
 
           let isOnline = false;
           // Run scanner check to see if target came online
-          const cleanHost = camera.streamUrl.includes('@')
-            ? camera.streamUrl.split('@').pop()!.split(':')[0]
-            : camera.streamUrl.replace('rtsp://', '').replace('http://', '').replace('https://', '').split('/')[0].split(':')[0];
+          const streamUrl = camera.streamUrl || '';
+          const cleanHost = streamUrl && streamUrl.includes('@')
+            ? streamUrl.split('@').pop()!.split(':')[0]
+            : (streamUrl ? streamUrl.replace('rtsp://', '').replace('http://', '').replace('https://', '').split('/')[0].split(':')[0] : 'localhost');
 
           if (camera.protocol === 'RTSP') {
             const scan = await CctvScanner.scan(cleanHost, camera.username, '', camera.vendor);

@@ -110,7 +110,7 @@ export class HeaderComponent {
     // Role Guard Tab: Rename first tab dynamically based on role (Dashboard vs Beranda)
     if (this.tabs.dashboard) {
       if (isAdmin) {
-        this.tabs.dashboard.innerHTML = '<i data-lucide="layout-dashboard"></i> <span class="nav-text">Dashboard</span>';
+        this.tabs.dashboard.innerHTML = '<i data-lucide="layout-dashboard"></i> <span class="nav-text">Dasbor</span>';
       } else {
         this.tabs.dashboard.innerHTML = '<i data-lucide="home"></i> <span class="nav-text">Beranda</span>';
       }

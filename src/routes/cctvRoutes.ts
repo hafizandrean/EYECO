@@ -321,7 +321,7 @@ router.post('/monitoring/start', async (req, res) => {
     if (user.role !== 'admin') return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
     if (!user.workspaceId) return res.status(403).json({ error: 'Admin belum diassign ke workspace' });
 
-    AiPipelineScheduler.start(20000, user.workspaceId);
+    AiPipelineScheduler.start(5000, user.workspaceId);
     res.json({ success: true, message: 'AI monitoring pipeline started' });
   } catch (err) {
     console.error('[SERVER ERROR] POST /monitoring/start failed:', err);
@@ -361,7 +361,7 @@ router.get('/monitoring/detections', async (req, res) => {
     }
 
     const detections = await AiDetectionModel.find({ 
-      status: { $in: ['INFERENCED', 'PROMOTED'] },
+      status: { $in: ['INFERENCED', 'PROMOTED', 'DUPLICATE', 'LOW_CONFIDENCE'] },
       cameraId: { $in: cameraIds }
     })
       .sort({ createdAt: -1 })
@@ -378,6 +378,7 @@ router.get('/monitoring/detections', async (req, res) => {
       confidence: d.confidence,
       severity: d.severity,
       status: d.status,
+      detections: d.detections || [], // Add detections field!
       autoReported: d.status === 'PROMOTED' && !!d.promotedReportId,
       promotedReportId: d.promotedReportId || null,
       createdAt: d.createdAt
@@ -402,7 +403,14 @@ router.get('/:id/snapshot', async (req, res) => {
     if (camera.isDefault || camera.protocol === 'HTTP Image') {
       res.redirect(camera.streamUrl);
     } else {
-      res.redirect('/uploads/detection_1.jpg');
+      const fs = require('fs');
+      const path = require('path');
+      const capturePath = path.join(process.cwd(), 'public/uploads', `cctv_capture_${camera.id}.jpg`);
+      if (fs.existsSync(capturePath)) {
+        res.sendFile(capturePath);
+      } else {
+        res.status(404).send('Belum ada snapshot yang tersimpan untuk kamera ini.');
+      }
     }
   } catch (err) {
     res.status(500).send('Internal Server Error');

@@ -279,7 +279,7 @@ async function runWorker() {
                     DETECT_SCRIPT,
                     videoPath,
                     '--model', 'ai/models/best.pt',
-                    '--conf', '0.15',
+                    '--conf', '0.45',
                     '--iou', '0.45',
                     '--output-manifest', manifestPath,
                     '--analysis-run-id', job.analysisRunId

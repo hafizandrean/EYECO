@@ -24,9 +24,9 @@ class InferenceService {
             console.log(`[InferenceService] Running inference on Camera #${frame.cameraId} via ${engine.name}`);
             // 2. Jalankan inferensi deteksi objek
             const rawResults = await engine.detect(frame);
-            // Pre-Filtering: Lewati penyimpanan jika tidak ada deteksi atau confidence rendah
+            // Pre-Filtering: Lewati penyimpanan jika tidak ada deteksi atau confidence sangat rendah
             const maxConfidence = rawResults.length > 0 ? Math.max(...rawResults.map(r => r.confidence)) : 0;
-            if (rawResults.length === 0 || maxConfidence < 0.5) {
+            if (rawResults.length === 0 || maxConfidence < 0.45) {
                 return null;
             }
             // 3. Asosiasikan ID pelacakan lintas-frame menggunakan Tracking Engine

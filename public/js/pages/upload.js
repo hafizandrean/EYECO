@@ -239,7 +239,6 @@ export class UploadPage {
     if (window.lucide) window.lucide.createIcons();
 
     const video = document.getElementById('camera-feed');
-    const captureBtn = document.getElementById('btn-cam-capture');
     const closeBtn = document.getElementById('btn-cam-close');
     const overlayBoxes = document.getElementById('camera-detection-overlay');
     const detectCount = document.getElementById('cam-detect-count');

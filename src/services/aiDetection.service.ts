@@ -98,7 +98,7 @@ function runPythonDetection(
 ): Promise<AiDetectionResult> {
   const {
     model = DEFAULT_MODEL,
-    conf = 0.15,
+    conf = 0.45,
     iou = 0.45,
     maxFrames = 0,
     timeout = 30_000,

@@ -7,7 +7,7 @@ import { EventBus } from '../core/eventBus.js';
 import { CONFIG } from '../core/config.js';
 import { Formatter } from '../utils/formatter.js';
 import { API } from '../services/api.js';
-import { MacModal } from '../utils/macModal.js';
+import { MacModal } from '../utils/macModal.js?v=1.2.0';
 
 export class CctvMonitoringPage {
   constructor() {
@@ -45,9 +45,9 @@ export class CctvMonitoringPage {
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
           <div style="display:flex;align-items:center;gap:12px;">
             <h2 style="font-family:'Outfit',sans-serif;font-size:1.15rem;font-weight:800;margin:0;display:flex;align-items:center;gap:8px;">
-              <i data-lucide="monitor" style="color:var(--primary);"></i> CCTV Real-Time Monitoring
+              <i data-lucide="monitor" style="color:var(--primary);"></i> Pemantauan CCTV Real-Time
             </h2>
-            <span id="cctv-mon-status" class="badge" style="font-size:0.65rem;padding:4px 10px;background:var(--text-muted);color:#fff;">INACTIVE</span>
+            <span id="cctv-mon-status" class="badge" style="font-size:0.65rem;padding:4px 10px;background:var(--text-muted);color:#fff;">NONAKTIF</span>
           </div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
             <div class="form-group-inline" style="display:flex;align-items:center;gap:6px;margin:0;">
@@ -75,9 +75,6 @@ export class CctvMonitoringPage {
             <button id="btn-connect-cctv" class="btn btn-glass btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;border-color: rgba(47, 107, 255, 0.3); color: var(--primary);">
               <i data-lucide="plus-circle" style="width:13px;height:13px;"></i> CCTV Baru
             </button>
-            <button id="btn-sync-tuya" class="btn btn-glass btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;border-color: rgba(16, 185, 129, 0.3); color: #10b981;">
-              <i data-lucide="refresh-cw" style="width:13px;height:13px;"></i> Sync Tuya
-            </button>
             <button id="btn-clear-all-cctv" class="btn btn-glass btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;border-color: rgba(220, 38, 38, 0.3); color: var(--danger);">
               <i data-lucide="trash-2" style="width:13px;height:13px;"></i> Hapus Semua
             </button>
@@ -85,34 +82,18 @@ export class CctvMonitoringPage {
         </div>
       </section>
 
-      <!-- Main Layout: CCTV Grid + Detection Log -->
-      <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:var(--space-20);align-items:start;">
+      <!-- Main Layout: CCTV Grid -->
+      <div style="width:100%;">
         <!-- CCTV Grid -->
-        <div class="glass-card" style="padding:var(--space-20);">
+        <div class="glass-card" style="padding:var(--space-20); width:100%;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-16);">
             <h3 style="font-family:'Outfit',sans-serif;font-size:0.95rem;font-weight:800;margin:0;display:flex;align-items:center;gap:6px;">
-              <i data-lucide="layout-grid" style="color:var(--primary);"></i> Live Camera Feeds
+              <i data-lucide="layout-grid" style="color:var(--primary);"></i> Feed Kamera Langsung
             </h3>
             <span id="camera-count-badge" style="font-size:0.72rem;font-weight:700;color:var(--text-secondary);background:var(--surface);padding:4px 10px;border-radius:var(--radius-pill);">0 kamera</span>
           </div>
-          <div id="cctv-live-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;">
+          <div id="cctv-live-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
             <!-- Populated by JS -->
-          </div>
-        </div>
-
-        <!-- Detection Log -->
-        <div class="glass-card" style="padding:var(--space-20);">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-16);">
-            <h3 style="font-family:'Outfit',sans-serif;font-size:0.95rem;font-weight:800;margin:0;display:flex;align-items:center;gap:6px;">
-              <i data-lucide="activity" style="color:var(--danger);"></i> Deteksi Terkini
-            </h3>
-            <span id="detection-count-badge" style="font-size:0.72rem;font-weight:700;color:var(--danger);background:rgba(239,68,68,0.08);padding:4px 10px;border-radius:var(--radius-pill);">0</span>
-          </div>
-          <div id="detection-log-list" style="display:flex;flex-direction:column;gap:6px;max-height:500px;overflow-y:auto;">
-            <div style="padding:24px;text-align:center;color:var(--text-muted);font-size:0.82rem;">
-              <i data-lucide="radio" style="width:24px;height:24px;margin-bottom:8px;"></i><br>
-              Belum ada deteksi. Mulai monitoring untuk melihat data.
-            </div>
           </div>
         </div>
       </div>
@@ -253,6 +234,7 @@ export class CctvMonitoringPage {
               </div>
             </form>
           </div>
+        </div>
       </div>
 
       <!-- Edit CCTV Modal Overlay -->
@@ -301,7 +283,7 @@ export class CctvMonitoringPage {
 
               <div class="form-group" style="margin-bottom: 14px;">
                 <label class="form-label" style="font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">URL Stream / Path Media</label>
-                <input type="text" id="edit-cctv-stream-url" class="filter-control input-rounded" placeholder="rtsp://192.168.1.100:554/live atau /uploads/detection_1.jpg" style="width: 100%;">
+                <input type="text" id="edit-cctv-stream-url" class="filter-control input-rounded" placeholder="rtsp://192.168.1.100:554/live atau /public/video.mp4" style="width: 100%;">
               </div>
 
               <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px;">
@@ -338,50 +320,7 @@ export class CctvMonitoringPage {
         </div>
       </div>
 
-      <!-- Tuya Sync Modal Overlay -->
-      <div id="tuya-sync-modal" class="modal-overlay" style="display: none; z-index: 1200;">
-        <div class="glass-card modal-container" style="max-width: 500px; width: 90%;">
-          <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
-            <h3 style="margin:0; font-family:'Outfit',sans-serif; display:flex; align-items:center; gap:8px; font-size:1.15rem; font-weight:800; color: #10b981;">
-              <i data-lucide="refresh-cw"></i> Sinkronisasi Tuya CCTV
-            </h3>
-            <button class="btn-close-modal" id="btn-close-tuya-modal" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted);">&times;</button>
-          </div>
-          <div class="modal-body" style="margin-top: 16px;">
-            <form id="tuya-sync-form">
-              <div class="form-group" style="margin-bottom: 14px;">
-                <label class="form-label" style="font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">Access ID / Client ID</label>
-                <input type="text" id="tuya-input-client-id" class="filter-control input-rounded" required value="r5vap3snnr339dyeua5j" style="width: 100%;">
-              </div>
-              <div class="form-group" style="margin-bottom: 14px;">
-                <label class="form-label" style="font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">Access Secret / Client Secret</label>
-                <input type="password" id="tuya-input-client-secret" class="filter-control input-rounded" required value="5a93707b474b41b9b888b1e2a12ed1c9" style="width: 100%;">
-              </div>
-              <div class="form-group" style="margin-bottom: 14px;">
-                <label class="form-label" style="font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">Data Center (Region URL)</label>
-                <select id="tuya-input-region" class="filter-control select-rounded" style="width: 100%;">
-                  <option value="https://openapi-sg.iotbing.com" selected>Singapore Data Center (Asia-Pacific)</option>
-                  <option value="https://openapi.tuyaus.com">Oregon Data Center (America)</option>
-                  <option value="https://openapi.tuyaeu.com">Frankfurt Data Center (Europe)</option>
-                  <option value="https://openapi.tuyacn.com">Beijing Data Center (China)</option>
-                </select>
-              </div>
 
-              <!-- Sync progress loader -->
-              <div class="tuya-sync-loader" style="display: none; padding: 16px; text-align: center; color: var(--text-secondary); font-size: 0.82rem;">
-                <span class="status-pulse-dot" style="width:8px; height:8px; background:#10b981; border-radius:50%; display:inline-block; margin-right:6px;"></span>
-                Menghubungkan ke Tuya Cloud & Sinkronisasi...
-              </div>
-
-              <div class="modal-actions-row" style="margin-top: 20px; display: flex; justify-content: flex-end;">
-                <button type="submit" class="btn btn-primary btn-rounded" id="btn-submit-tuya-sync" style="background: #10b981; border-color: #10b981; font-weight: 700; width: 100%;">
-                  <i data-lucide="refresh-cw"></i> Mulai Sinkronisasi
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
 
       <!-- CCTV Fullscreen VMS View -->
       <div id="vms-fullscreen-page" class="vms-fullscreen-view vms-hidden">
@@ -442,6 +381,8 @@ export class CctvMonitoringPage {
                   <i data-lucide="rotate-ccw"></i>
                 </button>
                 <button class="vms-bar-btn" id="vms-fs-btn-mute" title="Toggle Mute"><i data-lucide="volume-x"></i></button>
+                <input type="range" id="vms-fs-seek-slider" min="0" max="100" value="0" style="display:none; width: 140px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.2); accent-color: var(--primary); cursor: pointer; margin: 0 10px; vertical-align: middle;">
+                <span id="vms-fs-time-label" style="display:none; font-size: 0.7rem; color: rgba(255,255,255,0.6); margin-right: 10px; font-family: monospace;">00:00 / 00:00</span>
                 <span style="display: inline-flex; align-items: center; gap: 6px; color: #22c55e;">
                   <span style="width: 6px; height: 6px; background: #22c55e; border-radius: 50%; display: inline-block;" id="vms-fs-status-dot"></span>
                   <span id="vms-fs-status-label">LIVE</span> <span style="color: rgba(255,255,255,0.4);">|</span> <span style="color: rgba(255,255,255,0.85);" id="vms-fs-bitrate-label">1.75 KB/s</span>
@@ -484,16 +425,16 @@ export class CctvMonitoringPage {
                   <span class="vms-status-value accent-cyan" id="vms-stat-protocol">Multi-Stream</span>
                 </div>
                 <div class="vms-status-row">
-                  <span class="vms-status-label">Resolution</span>
+                  <span class="vms-status-label">Resolusi</span>
                   <span class="vms-status-value" id="vms-stat-resolution">4x 720p</span>
                 </div>
                 <div class="vms-status-row">
-                  <span class="vms-status-label">Latency</span>
-                  <span class="vms-status-value accent-green" id="vms-stat-latency">Mixed</span>
+                  <span class="vms-status-label">Latensi</span>
+                  <span class="vms-status-value accent-green" id="vms-stat-latency">Beragam</span>
                 </div>
                 <div class="vms-status-row">
                   <span class="vms-status-label">AI Tracking</span>
-                  <span class="vms-status-value accent-red" id="vms-stat-aitracking">Active (4x)</span>
+                  <span class="vms-status-value accent-red" id="vms-stat-aitracking">Aktif (4x)</span>
                 </div>
               </div>
             </div>
@@ -501,8 +442,8 @@ export class CctvMonitoringPage {
             <!-- Event Logs Section -->
             <div class="vms-fs-sidebar-section">
               <div class="vms-fs-sidebar-title">
-                <span>EVENT LOGS</span>
-                <span style="background: rgba(239,68,68,0.2); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 800;">LIVE FEED</span>
+                <span>LOG KEJADIAN</span>
+                <span style="background: rgba(239,68,68,0.2); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 800;">FEED LANGSUNG</span>
               </div>
               <div class="vms-event-logs-list" id="vms-fs-event-logs">
                 <!-- Rendered dynamically -->
@@ -576,7 +517,6 @@ export class CctvMonitoringPage {
       btnRefresh.addEventListener('click', () => {
         this.loadCctvList();
         this.loadLatestReports();
-        this.loadDetections();
       });
     }
 
@@ -611,10 +551,8 @@ export class CctvMonitoringPage {
       });
     }
 
-    // Initialize Connection Modal Form & Edit Modal Form
     this.initCctvModal();
     this.initEditCctvModal();
-    this.initTuyaSyncModal();
   }
 
   async checkMonitoringStatus() {
@@ -632,6 +570,9 @@ export class CctvMonitoringPage {
     const btnStart = document.getElementById('btn-mon-start');
     const btnStop = document.getElementById('btn-mon-stop');
 
+    // Update AppState to match current autoMonitoring state so players load/unload correctly
+    AppState.set('isMonitoring', this.autoMonitoring);
+
     if (this.autoMonitoring) {
       if (statusBadge) {
         statusBadge.textContent = 'LIVE';
@@ -641,12 +582,15 @@ export class CctvMonitoringPage {
       if (btnStop) btnStop.style.display = 'inline-flex';
     } else {
       if (statusBadge) {
-        statusBadge.textContent = 'INACTIVE';
+        statusBadge.textContent = 'NONAKTIF';
         statusBadge.style.background = 'var(--text-muted)';
       }
       if (btnStart) btnStart.style.display = 'inline-flex';
       if (btnStop) btnStop.style.display = 'none';
     }
+
+    // Refresh the CCTV list/grid to start or stop streams
+    this.renderCctvGrid();
   }
 
   async loadCctvList() {
@@ -728,7 +672,7 @@ export class CctvMonitoringPage {
       const isChActive = isMon && ch.isActive;
       const matchReport = this.latestReports.find(r => r.location && (r.location.toLowerCase().includes(ch.name.toLowerCase()) || ch.name.toLowerCase().includes(r.location.toLowerCase())));
       const isAlert = matchReport ? (matchReport.aiStatus === 'TINGGI' || matchReport.aiStatus === 'SEDANG') : false;
-      const defaultSnapshot = ch.snapshotUrl || ch.playUrl || ch.streamUrl || `/uploads/detection_${((ch.id - 1) % 10) + 1}.jpg`;
+      const defaultSnapshot = ch.snapshotUrl || ch.playUrl || ch.streamUrl || '';
       const imageSrc = (matchReport && matchReport.image) ? matchReport.image : defaultSnapshot;
 
       const card = document.createElement('div');
@@ -736,7 +680,8 @@ export class CctvMonitoringPage {
       card.setAttribute('data-channel-id', ch.id);
 
       let boundingBoxesHtml = '';
-      if (isChActive && matchReport && matchReport.boundingBoxes) {
+      const isRecentReport = matchReport && (Date.now() - new Date(matchReport.createdAt).getTime() < 15000);
+      if (isChActive && isRecentReport && matchReport && matchReport.boundingBoxes) {
         matchReport.boundingBoxes.forEach(box => {
           let boxColorClass = 'yolo-default';
           if (box.label === 'person') boxColorClass = 'yolo-person';
@@ -765,7 +710,7 @@ export class CctvMonitoringPage {
             ${boundingBoxesHtml}
             <div style="position:absolute;top:10px;right:12px;display:flex;align-items:center;gap:5px;z-index:5;">
               <span style="width:7px;height:7px;border-radius:50%;background:#22c55e;animation:pulse-cloud 1.2s infinite;box-shadow:0 0 6px rgba(34,197,94,0.7);"></span>
-              <span style="font-size:0.62rem;font-weight:800;color:#fff;letter-spacing:0.05em;text-shadow:0 1px 3px rgba(0,0,0,0.8);">LIVE</span>
+              <span style="font-size:0.62rem;font-weight:800;color:#fff;letter-spacing:0.05em;text-shadow:0 1px 3px rgba(0,0,0,0.8);">LANGSUNG</span>
             </div>`;
         } else if (ch.mediaType === 'Cloud') {
           const isCloudTuya = ch.vendor === 'TUYA' || (ch.streamUrl && ch.streamUrl.startsWith('tuya://'));
@@ -780,10 +725,19 @@ export class CctvMonitoringPage {
         } else if (ch.mediaType === 'Video' && ch.playUrl && ch.playUrl.endsWith('.mp4')) {
           mediaHtml = `<video src="${ch.playUrl}" autoplay loop muted playsinline class="cctv-feed-img"></video><div class="cctv-overlay-gradient"></div>${boundingBoxesHtml}`;
         } else {
-          mediaHtml = `<img src="${imageSrc}" alt="" class="cctv-feed-img" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='/uploads/detection_1.jpg';"><div class="cctv-overlay-gradient"></div>${boundingBoxesHtml}`;
+          mediaHtml = `
+            <img src="${imageSrc}" alt="" class="cctv-feed-img" loading="lazy" decoding="async" 
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="cctv-static-screen" style="display:none; height:100%; width:100%; flex-direction:column; justify-content:center; align-items:center; background:#111827;">
+              <i data-lucide="video-off" style="width:24px; height:24px; color:rgba(255,255,255,0.4); margin-bottom:8px;"></i>
+              <span style="font-size:0.65rem; color:rgba(255,255,255,0.4); font-weight:700; text-transform:uppercase;">Stream Terputus</span>
+            </div>
+            <div class="cctv-overlay-gradient"></div>
+            ${boundingBoxesHtml}
+          `;
         }
       } else {
-        mediaHtml = `<div class="cctv-static-screen"><div class="static-noise"></div><div class="static-label">PAUSED</div></div>`;
+        mediaHtml = `<div class="cctv-static-screen"><div class="static-noise"></div><div class="static-label">NONAKTIF</div></div>`;
       }
 
       let statusClass = 'status-offline';
@@ -791,7 +745,7 @@ export class CctvMonitoringPage {
       if (isChActive) {
         if (ch.status === 'ONLINE' || ch.status === 'MONITORING') {
           statusClass = isAlert ? 'status-alert' : 'status-live';
-          statusText = isAlert ? 'AI DETECTING' : 'LIVE';
+          statusText = isAlert ? 'DETEKSI AI' : 'LIVE';
         } else if (ch.status === 'CONNECTING' || ch.status === 'BUFFERING') {
           statusClass = 'status-connecting';
           statusText = ch.status;
@@ -836,17 +790,17 @@ export class CctvMonitoringPage {
             ${isChActive ? `
               <span class="badge bg-danger text-white" style="font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; display: flex; align-items: center; gap: 4px;">
                 <span class="rec-dot" style="width:6px; height:6px; background:white; border-radius:50%; display:inline-block; animation: pulse-cloud 1s infinite;"></span>
-                REC
+                REKAM
               </span>
-              <span class="badge bg-primary text-white" style="font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">LIVE</span>
+              <span class="badge bg-primary text-white" style="font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">LANGSUNG</span>
               <span class="badge bg-info text-white" style="font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">HD</span>
               ${isAlert ? `
                 <span class="badge bg-warning text-white" style="font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; display: flex; align-items: center; gap: 4px; animation: pulse-cloud 1.5s infinite;">
-                  <i data-lucide="scan-eye" style="width: 10px; height: 10px;"></i> AI DETECTING
+                  <i data-lucide="scan-eye" style="width: 10px; height: 10px;"></i> DETEKSI AI
                 </span>
               ` : ''}
             ` : `
-              <span class="badge bg-secondary text-white" style="font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">STANDBY</span>
+              <span class="badge bg-secondary text-white" style="font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">SIAGA</span>
             `}
           </div>
         </div>
@@ -863,24 +817,24 @@ export class CctvMonitoringPage {
             </span>
           </div>
           <div style="font-size: 0.72rem; color: var(--text-secondary); display: flex; gap: 8px; font-weight: 600; opacity: 0.85;">
-            <span>Latency: ${ch.health && ch.health.latency ? `${ch.health.latency} ms` : '45 ms'}</span>
+            <span>Latensi: ${ch.health && ch.health.latency ? `${ch.health.latency} ms` : '45 ms'}</span>
             <span>|</span>
-            <span>Res: ${ch.health && ch.health.resolution ? ch.health.resolution : '1080p'}</span>
+            <span>Resolusi: ${ch.health && ch.health.resolution ? ch.health.resolution : '1080p'}</span>
             <span>|</span>
-            <span>Last Motion: ${matchReport ? 'Detected' : 'No motion'}</span>
+            <span>Gerakan Terakhir: ${matchReport ? 'Terdeteksi' : 'Tidak ada gerakan'}</span>
           </div>
 
           <!-- Visible Action Bar -->
           <div class="cctv-card-action-bar" style="display: flex; gap: 6px; margin-top: 6px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.06); align-items: center; justify-content: space-between;">
             <button class="btn btn-sm btn-glass btn-rounded btn-card-fs" style="padding: 4px 8px; font-size: 0.7rem; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 4px; border-color: rgba(47,107,255,0.25);" title="Layar Penuh VMS">
-              <i data-lucide="maximize-2" style="width: 12px; height: 12px;"></i> Fullscreen
+              <i data-lucide="maximize-2" style="width: 12px; height: 12px;"></i> Layar Penuh
             </button>
             <button class="btn btn-sm btn-glass btn-rounded btn-card-reconnect" style="padding: 4px 8px; font-size: 0.7rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 4px;" title="Koneksi Ulang Sinyal">
-              <i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i> Refresh
+              <i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i> Segarkan
             </button>
             ${isAdmin ? `
               <button class="btn btn-sm btn-glass btn-rounded btn-card-edit" style="padding: 4px 8px; font-size: 0.7rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 4px;" title="Pengaturan & Edit Konfigurasi CCTV">
-                <i data-lucide="settings" style="width: 12px; height: 12px;"></i> Edit
+                <i data-lucide="settings" style="width: 12px; height: 12px;"></i> Ubah
               </button>
               <button class="btn btn-sm btn-glass btn-rounded btn-card-delete" style="padding: 4px 8px; font-size: 0.7rem; font-weight: 700; color: var(--danger); border-color: rgba(220,38,38,0.25); display: flex; align-items: center; gap: 4px;" title="Putuskan & Hapus CCTV">
                 <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Hapus
@@ -1063,6 +1017,11 @@ export class CctvMonitoringPage {
 
   async loadDetections() {
     try {
+      if (!this.autoMonitoring) {
+        this.detectionLog = [];
+        this.renderDetectionLog();
+        return;
+      }
       const detections = await CctvService.getMonitoringDetections(20);
       this.detectionLog = Array.isArray(detections) ? detections : [];
       this.renderDetectionLog();
@@ -1081,7 +1040,7 @@ export class CctvMonitoringPage {
     if (this.detectionLog.length === 0) {
       list.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:0.82rem;">
         <i data-lucide="radio" style="width:24px;height:24px;margin-bottom:8px;"></i><br>
-        Belum ada deteksi.
+        Belum ada deteksi. Mulai monitoring untuk melihat data.
       </div>`;
       if (window.lucide) window.lucide.createIcons();
       return;
@@ -1123,7 +1082,7 @@ export class CctvMonitoringPage {
       btnClearAll.addEventListener('click', async () => {
         const confirmed = await MacModal.confirm({
           title: 'Hapus Semua CCTV',
-          message: `Apakah Anda yakin ingin menghapus <strong>SELURUH</strong> saluran CCTV dummy saat ini?`,
+          message: `Apakah Anda yakin ingin menghapus <strong>SELURUH</strong> saluran CCTV saat ini?`,
           confirmText: 'Hapus Semua',
           cancelText: 'Batal',
           type: 'danger'
@@ -1131,7 +1090,7 @@ export class CctvMonitoringPage {
         if (!confirmed) return;
         try {
           await API.delete('/api/cctv/clear-all');
-            EventBus.emit('toast:show', { message: 'Seluruh CCTV dummy berhasil dihapus.', type: 'success' });
+            EventBus.emit('toast:show', { message: 'Seluruh CCTV berhasil dihapus.', type: 'success' });
             await this.loadCctvList();
           } catch (err) {
             EventBus.emit('toast:show', { message: 'Gagal menghapus CCTV: ' + err.message, type: 'danger' });
@@ -1200,6 +1159,7 @@ export class CctvMonitoringPage {
       btnListDevices.addEventListener('click', async () => {
         const accessId = document.getElementById('cctv-input-tuya-access-id')?.value;
         const accessSecret = document.getElementById('cctv-input-tuya-access-secret')?.value;
+        const region = document.getElementById('cctv-input-tuya-region')?.value;
         if (!accessId || !accessSecret) {
           EventBus.emit('toast:show', { message: 'Isi Access ID dan Access Secret Tuya dulu.', type: 'warning' });
           return;
@@ -1445,28 +1405,34 @@ export class CctvMonitoringPage {
 
         try {
           if (this.editingCctvId) {
+            const tuyaAccessId = document.getElementById('cctv-input-tuya-access-id')?.value || '';
+            const tuyaAccessSecret = document.getElementById('cctv-input-tuya-access-secret')?.value || '';
+            const finalDescription = isTuya ? ((description && !description.includes('Tuya Device ID:')) ? `${description} | ` : '') + `Tuya Device ID: ${tuyaDeviceId}` : description;
+            const proxyUrl = `/api/cctv/hls-proxy/${tuyaDeviceId}/stream.m3u8`;
             const payload = {
               name,
               location,
-              description,
+              description: finalDescription,
               vendor,
-              protocol,
-              username,
-              password,
-              streamUrl: host + (port ? `:${port}` : ''),
-              tuyaRegion,
-              tuyaDeviceId
+              protocol: isTuya ? 'HLS' : protocol,
+              username: isTuya ? tuyaAccessId : username,
+              password: isTuya ? tuyaAccessSecret : password,
+              streamUrl: isTuya ? proxyUrl : (host + (port ? `:${port}` : '')),
+              playUrl: isTuya ? proxyUrl : (host + (port ? `:${port}` : ''))
             };
-            if (isTuya) payload.protocol = 'TUYA';
             await CctvService.updateCctv(this.editingCctvId, payload);
             EventBus.emit('toast:show', { message: 'Konfigurasi CCTV berhasil diperbarui!', type: 'success' });
           } else {
             if (!detectedConfig && !isTuya) return;
             if (isTuya) {
+              const tuyaAccessId = document.getElementById('cctv-input-tuya-access-id')?.value || '';
+              const tuyaAccessSecret = document.getElementById('cctv-input-tuya-access-secret')?.value || '';
+              const finalDescription = (description ? `${description} | ` : '') + `Tuya Device ID: ${tuyaDeviceId}`;
+              const proxyUrl = `/api/cctv/hls-proxy/${tuyaDeviceId}/stream.m3u8`;
               detectedConfig = {
                 name,
                 location,
-                description,
+                description: finalDescription,
                 vendor: 'TUYA',
                 model: 'Tuya IoT Camera',
                 protocol: 'TUYA',
@@ -1480,6 +1446,30 @@ export class CctvMonitoringPage {
                 tuyaRegion
               };
             } else {
+              if (!detectedConfig) {
+                const streamTarget = (host && host.includes('://')) ? host : `rtsp://${username}:${password}@${host}:${port || 554}/live`;
+                detectedConfig = {
+                  name: name || `CCTV ${host}`,
+                  location: location || 'Lokasi Pemantauan',
+                  description: description || '',
+                  vendor: vendor || 'GENERIC',
+                  model: 'IP Camera',
+                  protocol: protocol === 'AUTO' ? (streamTarget.endsWith('.mp4') ? 'HLS' : 'RTSP') : protocol,
+                  mediaType: streamTarget.endsWith('.mp4') ? 'Video' : 'HLS',
+                  streamUrl: streamTarget,
+                  playUrl: streamTarget,
+                  username,
+                  password,
+                  capabilities: {
+                    rtsp: protocol === 'RTSP' || protocol === 'AUTO',
+                    hls: protocol === 'HLS',
+                    snapshot: protocol === 'SNAPSHOT',
+                    mjpeg: protocol === 'MJPEG',
+                    onvif: false,
+                    cloud: protocol === 'CLOUD_VIEWER'
+                  }
+                };
+              }
               detectedConfig.name = name;
               detectedConfig.location = location;
               detectedConfig.description = description;
@@ -1615,8 +1605,8 @@ export class CctvMonitoringPage {
 
     const isMon = AppState.get('isMonitoring');
     const isChActive = isMon && ch.isActive;
-    const imageSrc = ch.playUrl || ch.streamUrl || '/uploads/detection_1.jpg';
-    const statusText = isChActive ? (ch.status === 'ONLINE' ? 'ONLINE' : ch.status) : 'STANDBY';
+    const imageSrc = `/uploads/cctv_capture_${ch.id}.jpg?t=${Date.now()}`;
+    const statusText = isChActive ? (ch.status === 'ONLINE' ? 'ONLINE' : ch.status) : 'SIAGA';
     const statusColor = statusText === 'ONLINE' ? 'var(--success)' : 'var(--danger)';
 
     drawer.innerHTML = `
@@ -1634,16 +1624,21 @@ export class CctvMonitoringPage {
       <div class="drawer-body" style="padding: 20px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px;">
         <div class="drawer-feed-container" style="width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden; position: relative; border: 1px solid rgba(0,0,0,0.05);">
           ${isChActive ? `
-            <img id="drawer-preview-img" style="width:100%; height:100%; object-fit: cover;" src="${imageSrc}" />
+            <img id="drawer-preview-img" style="width:100%; height:100%; object-fit: cover;" src="${imageSrc}" 
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+            <div style="display:none; width: 100%; height: 100%; align-items: center; justify-content: center; background: #111; color: #666; font-size: 0.8rem; font-weight: 700; flex-direction:column; gap:6px;">
+              <i data-lucide="video-off" style="width:20px; height:20px;"></i>
+              <span>PRATINJAU TIDAK TERSEDIA</span>
+            </div>
           ` : `
             <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #111; color: #666; font-size: 0.8rem; font-weight: 700;">
-              MONITORING INACTIVE
+              PEMANTAUAN NONAKTIF
             </div>
           `}
           <div class="drawer-rec-hud" style="position: absolute; top: 12px; left: 12px; display: flex; gap: 6px;">
             <span class="badge bg-danger text-white" style="font-size: 0.65rem; font-weight: 800; border-radius: 4px; padding: 2px 6px; display: flex; align-items: center; gap: 4px;">
               <span style="width: 6px; height: 6px; background: white; border-radius: 50%; display: inline-block; animation: pulse-cloud 1s infinite;"></span>
-              REC
+              REKAM
             </span>
             <span class="badge bg-primary text-white" style="font-size: 0.65rem; font-weight: 800; border-radius: 4px; padding: 2px 6px;">HD</span>
           </div>
@@ -1838,13 +1833,16 @@ export class CctvMonitoringPage {
     let isRecording = false;
     let recordInterval = null;
     let recSeconds = 0;
+    let fsDetectionPollInterval = null;
 
     const matchReport = this.latestReports.find(r => r.location && r.location.toLowerCase().includes(ch.name.toLowerCase()));
-    const imageSrc = matchReport ? matchReport.image : (ch.isDefault ? ch.streamUrl : '/uploads/detection_1.jpg');
+    const imageSrc = matchReport ? matchReport.image : (ch.isDefault ? ch.streamUrl : `/uploads/cctv_capture_${ch.id}.jpg`);
 
     // 1. Render Active player view
     const renderActivePlayer = () => {
       let playerHtml = '';
+      const isVideo = ch.mediaType === 'Video' || ch.mediaType === 'HLS' || ch.mediaType === 'RTSP_TUYA' || (ch.playUrl && ch.playUrl.includes('.m3u8'));
+
       if (ch.mediaType === 'Cloud') {
         const isTuya = (ch.vendor === 'TUYA' || (ch.streamUrl && ch.streamUrl.startsWith('tuya://')));
         
@@ -1904,9 +1902,9 @@ export class CctvMonitoringPage {
             </div>
           `;
         }
-      } else if (ch.mediaType === 'Video') {
+      } else if (isVideo) {
         playerHtml = `
-          <video src="${ch.playUrl}" id="vms-fs-media-element" autoplay loop ${isMuted ? 'muted' : ''} playsinline style="width:100%; height:100%; object-fit:contain;"></video>
+          <video id="vms-fs-media-element" autoplay loop ${isMuted ? 'muted' : ''} playsinline style="width:100%; height:100%; object-fit:contain;"></video>
           <div style="position: absolute; top: 12px; left: 16px; display: flex; align-items: center; gap: 8px; font-size: 0.72rem; color: white; background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 4px;">
             <span style="width: 6px; height: 6px; background: #22c55e; border-radius: 50%;"></span>
             <span>Live</span>
@@ -1937,37 +1935,496 @@ export class CctvMonitoringPage {
       }
       playerContainer.innerHTML = playerHtml;
 
+      // Handle stream loading (HLS vs native MP4)
+      if (isVideo) {
+        const videoEl = document.getElementById('vms-fs-media-element');
+        const playUrl = ch.playUrl || ch.streamUrl;
+        if (videoEl && playUrl) {
+          if (playUrl.includes('.m3u8')) {
+            if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+              if (videoEl._hlsInstance) {
+                videoEl._hlsInstance.destroy();
+              }
+              const hls = new Hls({
+                maxBufferSize: 0,
+                maxBufferLength: 2,
+                liveSyncDurationCount: 2,
+                enableWorker: true
+              });
+              hls.loadSource(playUrl);
+              hls.attachMedia(videoEl);
+              hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                videoEl.play().catch(() => {});
+              });
+              hls.on(Hls.Events.ERROR, (event, data) => {
+                if (data.fatal) {
+                  console.warn(`[HLS FS] Fatal error:`, data.type, data.details);
+                  hls.destroy();
+                }
+              });
+              videoEl._hlsInstance = hls;
+            } else {
+              videoEl.src = playUrl;
+            }
+          } else {
+            videoEl.src = playUrl;
+          }
+        }
+      }
+
       setTimeout(() => { renderYoloBoxes(); }, 50);
       if (window.lucide) window.lucide.createIcons();
     };
 
-    const renderYoloBoxes = () => {
+    const renderYoloBoxes = (customBoxes) => {
+      console.log('[renderYoloBoxes] boxes:', customBoxes);
       const yoloOverlay = document.getElementById('vms-fs-yolo-overlay');
-      if (!yoloOverlay) return;
-      yoloOverlay.innerHTML = '';
-      if (!isAiActive) return;
-
-      if (matchReport && matchReport.boundingBoxes) {
-        matchReport.boundingBoxes.forEach(box => {
-          let boxColorClass = 'yolo-default';
-          if (box.label === 'person') boxColorClass = 'yolo-person';
-          if (box.label === 'trash') boxColorClass = 'yolo-trash';
-          if (box.label === 'boat') boxColorClass = 'yolo-boat';
-
-          const el = document.createElement('div');
-          el.className = `yolo-preview-box ${boxColorClass}`;
-          el.style.cssText = `position:absolute; top:${box.y}%; left:${box.x}%; width:${box.w}%; height:${box.h}%; border:2px solid var(--primary);`;
-          el.innerHTML = `<span class="yolo-preview-label" style="background:var(--primary); color:white; font-size:0.6rem; font-weight:800; padding:1px 4px; border-radius:2px; position:absolute; top:-16px; left:-2px; white-space:nowrap;">${box.label}</span>`;
-          yoloOverlay.appendChild(el);
-        });
+      if (!yoloOverlay) {
+        console.warn('[renderYoloBoxes] overlay container #vms-fs-yolo-overlay not found!');
+        return;
       }
+      yoloOverlay.innerHTML = '';
+
+      const currentCh = this.cctvList.find(c => c.id === ch.id);
+      const isChActive = AppState.get('isMonitoring') && currentCh && currentCh.isActive && currentCh.status !== 'OFFLINE';
+
+      if (!isAiActive || !isChActive) {
+        console.log('[renderYoloBoxes] isAiActive or Camera is inactive, skipping render.');
+        return;
+      }
+
+      const boxesToShow = customBoxes || (matchReport && matchReport.boundingBoxes) || [];
+      console.log('[renderYoloBoxes] boxesToShow:', boxesToShow);
+      if (boxesToShow.length === 0) return;
+
+      boxesToShow.forEach(box => {
+        let label = box.label || box.class || 'object';
+        let x = box.x !== undefined ? box.x : (box.bbox ? box.bbox[0] : 0);
+        let y = box.y !== undefined ? box.y : (box.bbox ? box.bbox[1] : 0);
+        let w = box.w !== undefined ? box.w : (box.bbox ? box.bbox[2] : 0);
+        let h = box.h !== undefined ? box.h : (box.bbox ? box.bbox[3] : 0);
+
+        console.log(`[renderYoloBoxes] Drawing box: label=${label}, x=${x}%, y=${y}%, w=${w}%, h=${h}%`);
+
+        let boxColorClass = 'yolo-default';
+        if (label === 'person') boxColorClass = 'yolo-person';
+        if (label === 'trash') boxColorClass = 'yolo-trash';
+        if (label === 'boat') boxColorClass = 'yolo-boat';
+
+        const el = document.createElement('div');
+        el.className = `yolo-preview-box ${boxColorClass}`;
+        el.style.cssText = `position:absolute; top:${y}%; left:${x}%; width:${w}%; height:${h}%; border:2px solid var(--primary);`;
+        el.innerHTML = `<span class="yolo-preview-label" style="background:var(--primary); color:white; font-size:0.6rem; font-weight:800; padding:1px 4px; border-radius:2px; position:absolute; top:-16px; left:-2px; white-space:nowrap;">${label} (${Math.round((box.confidence || 0.8) * 100)}%)</span>`;
+        yoloOverlay.appendChild(el);
+      });
     };
 
-    // 2. Back/Close button
+    // 2. Event Handlers Binding
     btnBack.onclick = () => {
       page.classList.remove('vms-visible');
       page.classList.add('vms-hidden');
       if (recordInterval) clearInterval(recordInterval);
+      if (fsDetectionPollInterval) clearInterval(fsDetectionPollInterval);
+      const videoEl = document.getElementById('vms-fs-media-element');
+      if (videoEl && videoEl._hlsInstance) {
+        videoEl._hlsInstance.destroy();
+        delete videoEl._hlsInstance;
+      }
+    };
+
+    const setupFsControls = () => {
+      const btnPlayPause = document.getElementById('vms-fs-btn-play-pause');
+      const btnReplay = document.getElementById('vms-fs-btn-replay');
+      const btnMute = document.getElementById('vms-fs-btn-mute');
+      const seekSlider = document.getElementById('vms-fs-seek-slider');
+      const timeLabel = document.getElementById('vms-fs-time-label');
+      const btnGridToggle = document.getElementById('vms-fs-btn-grid-toggle');
+      const btnRefreshStream = document.getElementById('vms-fs-btn-refresh-stream');
+      const btnToggleAiMon = document.getElementById('vms-fs-btn-toggle-ai-mon');
+      const btnMore = document.getElementById('vms-fs-btn-more');
+      const moreDropdown = document.getElementById('vms-fs-more-dropdown');
+
+      const dropSettings = document.getElementById('vms-fs-drop-settings');
+      const dropReconnect = document.getElementById('vms-fs-drop-reconnect');
+      const dropToggleOverlay = document.getElementById('vms-fs-drop-toggle-overlay');
+      const dropDelete = document.getElementById('vms-fs-drop-delete');
+      const dropDeleteContainer = document.getElementById('vms-fs-drop-delete-container');
+
+      const actSnapshot = document.getElementById('vms-fs-action-snapshot');
+      const actRecord = document.getElementById('vms-fs-action-record');
+      const actMic = document.getElementById('vms-fs-action-mic');
+      const actAi = document.getElementById('vms-fs-action-ai');
+
+      const videoEl = document.getElementById('vms-fs-media-element');
+
+      // More dropdown toggle
+      if (btnMore && moreDropdown) {
+        btnMore.onclick = (e) => {
+          e.stopPropagation();
+          moreDropdown.style.display = moreDropdown.style.display === 'none' ? 'block' : 'none';
+        };
+        document.addEventListener('click', () => {
+          if (moreDropdown) moreDropdown.style.display = 'none';
+        });
+      }
+
+      // Dropdown operations
+      if (dropSettings) {
+        dropSettings.onclick = (e) => {
+          e.stopPropagation();
+          if (moreDropdown) moreDropdown.style.display = 'none';
+          this.openEditCctvModal(ch);
+        };
+      }
+      if (dropReconnect) {
+        dropReconnect.onclick = (e) => {
+          e.stopPropagation();
+          if (moreDropdown) moreDropdown.style.display = 'none';
+          this.reconnectCCTVStream(ch.id);
+        };
+      }
+      if (dropToggleOverlay) {
+        dropToggleOverlay.onclick = (e) => {
+          e.stopPropagation();
+          if (moreDropdown) moreDropdown.style.display = 'none';
+          if (btnToggleAiMon) btnToggleAiMon.click();
+        };
+      }
+      if (dropDelete && ch.id) {
+        if (dropDeleteContainer) dropDeleteContainer.style.display = 'block';
+        dropDelete.onclick = async (e) => {
+          e.stopPropagation();
+          if (moreDropdown) moreDropdown.style.display = 'none';
+          const confirmed = await MacModal.confirm({
+            title: 'Hapus CCTV',
+            message: `Apakah Anda yakin ingin memutuskan & menghapus CCTV <strong>"${ch.name}"</strong>?`,
+            confirmText: 'Hapus',
+            cancelText: 'Batal',
+            type: 'danger'
+          });
+          if (!confirmed) return;
+          try {
+            await CctvService.disconnectCctv(ch.id);
+            EventBus.emit('toast:show', { message: `Koneksi CCTV "${ch.name}" berhasil diputuskan.`, type: 'success' });
+            page.style.display = 'none';
+            await this.loadCctvList();
+          } catch (err) {
+            EventBus.emit('toast:show', { message: `Gagal memutuskan CCTV: ${err.message}`, type: 'danger' });
+          }
+        };
+      }
+
+      // Format time helper (HH:MM:SS or MM:SS)
+      const formatTime = (secs) => {
+        if (isNaN(secs) || secs === Infinity) return '00:00';
+        const m = Math.floor(secs / 60).toString().padStart(2, '0');
+        const s = Math.floor(secs % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
+      };
+
+      // Set up video specific events
+      if (videoEl && videoEl.tagName === 'VIDEO') {
+        // Mute state sync
+        videoEl.muted = isMuted;
+        if (btnMute) {
+          btnMute.innerHTML = isMuted ? '<i data-lucide="volume-x"></i>' : '<i data-lucide="volume-2"></i>';
+        }
+
+        // Metadata load
+        videoEl.onloadedmetadata = () => {
+          if (videoEl.duration && isFinite(videoEl.duration)) {
+            if (seekSlider) {
+              seekSlider.style.display = 'inline-block';
+              seekSlider.max = Math.floor(videoEl.duration);
+              seekSlider.value = 0;
+            }
+            if (timeLabel) {
+              timeLabel.style.display = 'inline';
+              timeLabel.innerText = `00:00 / ${formatTime(videoEl.duration)}`;
+            }
+          } else {
+            // Live Stream - show HLS slider simulation
+            if (seekSlider) {
+              seekSlider.style.display = 'inline-block';
+              seekSlider.max = 30;
+              seekSlider.value = 30;
+            }
+            if (timeLabel) {
+              timeLabel.style.display = 'inline';
+              timeLabel.innerText = 'LIVE';
+            }
+          }
+          if (window.lucide) window.lucide.createIcons();
+        };
+
+        // Time updates
+        videoEl.ontimeupdate = () => {
+          if (videoEl.duration && isFinite(videoEl.duration)) {
+            if (seekSlider) seekSlider.value = Math.floor(videoEl.currentTime);
+            if (timeLabel) {
+              timeLabel.innerText = `${formatTime(videoEl.currentTime)} / ${formatTime(videoEl.duration)}`;
+            }
+          } else {
+            if (timeLabel) {
+              timeLabel.innerText = `LIVE | ${new Date().toLocaleTimeString()}`;
+            }
+          }
+        };
+
+        // Play/Pause button action
+        if (btnPlayPause) {
+          btnPlayPause.onclick = () => {
+            if (videoEl.paused) {
+              videoEl.play().catch(() => {});
+              btnPlayPause.innerHTML = '<i data-lucide="pause"></i>';
+            } else {
+              videoEl.pause();
+              btnPlayPause.innerHTML = '<i data-lucide="play"></i>';
+            }
+            if (window.lucide) window.lucide.createIcons();
+          };
+        }
+
+        // Replay 10s action
+        if (btnReplay) {
+          btnReplay.onclick = () => {
+            videoEl.currentTime = Math.max(0, videoEl.currentTime - 10);
+            EventBus.emit('toast:show', { message: 'Mundur 10 detik', type: 'info' });
+          };
+        }
+
+        // Mute action
+        if (btnMute) {
+          btnMute.onclick = () => {
+            videoEl.muted = !videoEl.muted;
+            isMuted = videoEl.muted;
+            btnMute.innerHTML = isMuted ? '<i data-lucide="volume-x"></i>' : '<i data-lucide="volume-2"></i>';
+            if (window.lucide) window.lucide.createIcons();
+          };
+        }
+
+        // Slider seeking
+        if (seekSlider) {
+          seekSlider.oninput = () => {
+            if (videoEl.duration && isFinite(videoEl.duration)) {
+              videoEl.currentTime = seekSlider.value;
+            } else {
+              // HLS live sync position seeking fallback
+              const hls = videoEl._hlsInstance;
+              if (hls && hls.media) {
+                const livePos = hls.liveSyncPosition;
+                if (livePos) {
+                  const offset = 30 - seekSlider.value;
+                  videoEl.currentTime = Math.max(0, livePos - offset);
+                }
+              }
+            }
+          };
+        }
+      }
+
+      // Refresh stream
+      if (btnRefreshStream) {
+        btnRefreshStream.onclick = () => {
+          this.reconnectCCTVStream(ch.id);
+        };
+      }
+
+      // Grid toggle
+      if (btnGridToggle) {
+        btnGridToggle.onclick = () => {
+          btnBack.click();
+        };
+      }
+
+      // AI Overlay Toggles
+      const toggleAi = () => {
+        isAiActive = !isAiActive;
+        if (btnToggleAiMon) {
+          btnToggleAiMon.style.color = isAiActive ? 'var(--primary)' : 'rgba(255,255,255,0.6)';
+        }
+        if (actAi) {
+          if (isAiActive) actAi.classList.add('active');
+          else actAi.classList.remove('active');
+        }
+        renderYoloBoxes();
+      };
+      if (btnToggleAiMon) btnToggleAiMon.onclick = toggleAi;
+      if (actAi) actAi.onclick = toggleAi;
+
+      // Snapshot action
+      if (actSnapshot) {
+        actSnapshot.onclick = () => {
+          const mediaEl = document.getElementById('vms-fs-media-element');
+          if (!mediaEl) return;
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = mediaEl.videoWidth || mediaEl.naturalWidth || 1280;
+            canvas.height = mediaEl.videoHeight || mediaEl.naturalHeight || 720;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(mediaEl, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/jpeg');
+            const link = document.createElement('a');
+            link.download = `${ch.name.replace(/\s+/g, '_')}_Snapshot_${Date.now()}.jpg`;
+            link.href = dataUrl;
+            link.click();
+            EventBus.emit('toast:show', { message: 'Snapshot berhasil disimpan & diunduh.', type: 'success' });
+          } catch (err) {
+            console.error(err);
+            EventBus.emit('toast:show', { message: 'Gagal mengambil snapshot.', type: 'danger' });
+          }
+        };
+      }
+
+      // Record action
+      let isRecording = false;
+      let recordSeconds = 0;
+      let mediaRecorder = null;
+      let recordedChunks = [];
+
+      if (actRecord) {
+        actRecord.onclick = () => {
+          const recBadge = document.getElementById('vms-fs-rec-badge');
+          const recTimer = document.getElementById('vms-fs-rec-timer');
+          isRecording = !isRecording;
+
+          if (isRecording) {
+            // Start recording
+            actRecord.classList.add('active');
+            actRecord.style.color = '#ef4444';
+            if (recBadge) recBadge.style.display = 'flex';
+            recordSeconds = 0;
+            if (recTimer) recTimer.innerText = '00:00';
+
+            recordedChunks = [];
+
+            try {
+              const stream = videoEl.captureStream ? videoEl.captureStream() : (videoEl.mozCaptureStream ? videoEl.mozCaptureStream() : null);
+              if (stream) {
+                let options = { mimeType: 'video/webm;codecs=vp8' };
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                  options = { mimeType: 'video/webm' };
+                }
+
+                mediaRecorder = new MediaRecorder(stream, options);
+                mediaRecorder.ondataavailable = (event) => {
+                  if (event.data && event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                  }
+                };
+
+                mediaRecorder.onstop = () => {
+                  const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.style.display = 'none';
+                  a.href = url;
+                  a.download = `${ch.name.replace(/\s+/g, '_')}_Record_${Date.now()}.webm`;
+                  document.body.appendChild(a);
+                  a.click();
+                  setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                  }, 100);
+
+                  EventBus.emit('toast:show', {
+                    message: `Rekaman selesai (${recordSeconds} detik). Berhasil diunduh ke folder Downloads!`,
+                    type: 'success'
+                  });
+                };
+
+                mediaRecorder.start(1000); // chunk every 1 second
+              } else {
+                console.warn('captureStream not supported in this browser.');
+              }
+            } catch (err) {
+              console.error('Failed to start MediaRecorder:', err);
+            }
+
+            if (recordInterval) clearInterval(recordInterval);
+            recordInterval = setInterval(() => {
+              recordSeconds++;
+              const m = Math.floor(recordSeconds / 60).toString().padStart(2, '0');
+              const s = Math.floor(recordSeconds % 60).toString().padStart(2, '0');
+              if (recTimer) recTimer.innerText = `${m}:${s}`;
+            }, 1000);
+
+            EventBus.emit('toast:show', { message: 'Merekam cuplikan video...', type: 'info' });
+          } else {
+            // Stop recording
+            actRecord.classList.remove('active');
+            actRecord.style.color = '';
+            if (recBadge) recBadge.style.display = 'none';
+            if (recordInterval) clearInterval(recordInterval);
+
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+              mediaRecorder.stop();
+            } else {
+              EventBus.emit('toast:show', { message: `Rekaman selesai (${recordSeconds} detik).`, type: 'success' });
+            }
+          }
+        };
+      }
+
+      // Intercom action
+      let isMicActive = false;
+      if (actMic) {
+        actMic.onclick = () => {
+          isMicActive = !isMicActive;
+          if (isMicActive) {
+            actMic.classList.add('active');
+            actMic.style.color = 'var(--primary)';
+            EventBus.emit('toast:show', { message: 'Koneksi audio dua arah aktif. Silakan berbicara.', type: 'success' });
+          } else {
+            actMic.classList.remove('active');
+            actMic.style.color = '';
+            EventBus.emit('toast:show', { message: 'Intercom dinonaktifkan.', type: 'warning' });
+          }
+        };
+      }
+
+      // Poll live AI detections for current camera
+      const pollFsDetections = async () => {
+        const currentCh = this.cctvList.find(c => c.id === ch.id);
+        const isChActive = AppState.get('isMonitoring') && currentCh && currentCh.isActive && currentCh.status !== 'OFFLINE';
+        if (!isAiActive || !isChActive) {
+          const yoloOverlay = document.getElementById('vms-fs-yolo-overlay');
+          if (yoloOverlay) yoloOverlay.innerHTML = '';
+          return;
+        }
+        try {
+          const response = await API.get(`/api/cctv/monitoring/detections?limit=10`);
+          console.log('[pollFsDetections] API response:', response);
+          if (response && response.success && response.data) {
+            // Find latest detection for this camera (compare as strings to prevent type mismatches)
+            const camDets = response.data.filter(d => String(d.cameraId) === String(ch.id));
+            console.log(`[pollFsDetections] Detections for camera ${ch.name} (ID: ${ch.id}):`, camDets);
+            if (camDets.length > 0) {
+              const latestDet = camDets[0];
+              // Check if it's recent (captured within the last 15 seconds to match real-time live feed)
+              const ageMs = Date.now() - new Date(latestDet.capturedAt).getTime();
+              console.log(`[pollFsDetections] Latest detection time: ${latestDet.capturedAt}, age: ${ageMs}ms`);
+              if (Math.abs(ageMs) < 15000) {
+                renderYoloBoxes(latestDet.detections);
+                return;
+              } else {
+                console.log(`[pollFsDetections] Skipping, age ${ageMs}ms is too large.`);
+              }
+            }
+          }
+          // Clear if no recent detection
+          const yoloOverlay = document.getElementById('vms-fs-yolo-overlay');
+          if (yoloOverlay) yoloOverlay.innerHTML = '';
+        } catch (err) {
+          console.warn('Failed to poll fullscreen detections:', err);
+        }
+      };
+
+      // Start polling loop
+      fsDetectionPollInterval = setInterval(pollFsDetections, 3000);
+      pollFsDetections();
+
+      if (window.lucide) window.lucide.createIcons();
     };
 
     // 3. Boot Fullscreen view
@@ -1981,74 +2438,12 @@ export class CctvMonitoringPage {
     page.classList.add('vms-visible');
     if (window.lucide) window.lucide.createIcons();
   }
-  initTuyaSyncModal() {
-    const btnSync = document.getElementById('btn-sync-tuya');
-    const modal = document.getElementById('tuya-sync-modal');
-    const btnClose = document.getElementById('btn-close-tuya-modal');
-    const form = document.getElementById('tuya-sync-form');
-    const loader = modal ? modal.querySelector('.tuya-sync-loader') : null;
-    const btnSubmit = document.getElementById('btn-submit-tuya-sync');
 
-    if (!modal) return;
-
-    if (btnSync) {
-      btnSync.addEventListener('click', () => {
-        form.reset();
-        if (loader) loader.style.display = 'none';
-        if (btnSubmit) btnSubmit.style.display = 'block';
-        modal.style.display = 'flex';
-        if (window.lucide) window.lucide.createIcons();
-      });
-    }
-
-    if (btnClose) {
-      btnClose.addEventListener('click', () => {
-        modal.style.display = 'none';
-      });
-    }
-
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) {
-        modal.style.display = 'none';
-      }
-    });
-
-    if (form) {
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const clientId = document.getElementById('tuya-input-client-id').value.trim();
-        const clientSecret = document.getElementById('tuya-input-client-secret').value.trim();
-        const region = document.getElementById('tuya-input-region').value;
-
-        if (loader) loader.style.display = 'block';
-        if (btnSubmit) btnSubmit.style.display = 'none';
-
-        try {
-          const response = await API.post('/api/cctv/tuya-sync', {
-            clientId,
-            clientSecret,
-            region
-          });
-
-          EventBus.emit('toast:show', { message: response.message || 'Sinkronisasi Tuya berhasil!', type: 'success' });
-          modal.style.display = 'none';
-          await this.loadCctvList();
-        } catch (err) {
-          EventBus.emit('toast:show', { message: 'Gagal sinkronisasi: ' + err.message, type: 'danger' });
-        } finally {
-          if (loader) loader.style.display = 'none';
-          if (btnSubmit) btnSubmit.style.display = 'block';
-        }
-      });
-    }
-  }
 
   startPolling() {
     this.pollingTimer = setInterval(() => {
       this.loadCctvList();
       this.loadLatestReports();
-      this.loadDetections();
     }, 10000);
   }
 
