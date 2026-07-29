@@ -8,6 +8,8 @@ import { CONFIG } from '../core/config.js';
 import { Formatter } from '../utils/formatter.js';
 import { API } from '../services/api.js';
 import { MacModal } from '../utils/macModal.js?v=1.2.0';
+// Expose EventBus globally for inline HTML onclick handlers
+window.EventBus = EventBus;
 
 export class CctvMonitoringPage {
   constructor() {
@@ -1473,8 +1475,8 @@ export class CctvMonitoringPage {
                 mediaType: 'Cloud',
                 streamUrl: '',
                 playUrl: '',
-                username,
-                password,
+                username: tuyaAccessId,
+                password: tuyaAccessSecret,
                 capabilities: { rtsp: false, hls: true, snapshot: true, mjpeg: false, onvif: false, cloud: true },
                 tuyaDeviceId,
                 tuyaRegion
