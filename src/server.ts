@@ -120,17 +120,32 @@ app.use('/css', express.static(path.join(__dirname, '../public/css'), staticNoCa
 app.use('/js', express.static(path.join(__dirname, '../public/js'), staticNoCacheOptions));
 app.use('/hls', express.static(path.join(__dirname, '../public/hls')));
 
-// Uploads: local dulu, fallback ke R2
+// Uploads: local dulu, fallback ke R2 (proxy, bukan redirect)
 const uploadsDir = path.join(__dirname, '../public/uploads');
 app.use('/uploads', (req, res, next) => {
   const localPath = path.join(uploadsDir, req.path);
   if (fs.existsSync(localPath)) {
     express.static(uploadsDir)(req, res, next);
   } else {
-    // File gak ada di lokal — redirect ke signed URL R2
+    // File gak ada di lokal — proxy dari R2 langsung (gak pake redirect)
     const r2Key = req.path.startsWith('/') ? req.path.slice(1) : req.path;
-    R2StorageService.getSignedUrl(r2Key)
-      .then(url => res.redirect(url))
+    R2StorageService.getSignedUrl(r2Key, 900) // 15 menit cukup buat proxy
+      .then(async (signedUrl) => {
+        try {
+          const response = await fetch(signedUrl);
+          if (!response.ok) {
+            return res.status(response.status).send('Gagal mengambil file dari penyimpanan.');
+          }
+          const contentType = response.headers.get('content-type') || 'application/octet-stream';
+          res.setHeader('Content-Type', contentType);
+          res.setHeader('Cache-Control', 'public, max-age=86400'); // cache 1 hari
+          const buffer = Buffer.from(await response.arrayBuffer());
+          res.send(buffer);
+        } catch (proxyErr) {
+          console.error('[R2 Proxy] Fetch error for', r2Key, (proxyErr as Error).message);
+          res.status(502).send('Gagal memproses file dari penyimpanan.');
+        }
+      })
       .catch(r2Err => {
         console.warn('[R2 Proxy] Fallback for', r2Key, (r2Err as Error).message);
         express.static(uploadsDir)(req, res, next);
