@@ -64,7 +64,7 @@ class PromotionService {
             detection.promotionReason = 'ALL_RULES_PASSED';
             // Cari berkas snapshot bukti
             const evidence = await AiEvidence_1.AiEvidenceModel.findOne({ linkedDetectionId: detection._id });
-            const imagePath = evidence ? evidence.storageKey : '/uploads/detection_1.jpg';
+            const imagePath = evidence ? evidence.storageKey : `/uploads/cctv_capture_${detection.cameraId}.jpg`;
             // Cari admin utama untuk relasi pelapor default
             const adminUser = await User_1.UserModel.findOne({ id: 1 });
             const adminObjectId = adminUser ? adminUser._id : new mongoose_1.default.Types.ObjectId('000000000000000000000001');

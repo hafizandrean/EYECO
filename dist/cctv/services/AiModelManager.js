@@ -19,21 +19,21 @@ class AiModelManager {
             const modelId = activeModel ? activeModel.id : 'yolov8-river-v1.0';
             console.log(`[AiModelManager] Loading active model registry: ${modelId}`);
             this.activeModelId = modelId;
-            this.activeEngine = AIEngineFactory_1.AIEngineFactory.createEngine('MOCK');
+            this.activeEngine = AIEngineFactory_1.AIEngineFactory.createEngine('LOCAL_PYTHON');
             await this.activeEngine.initialize(`/weights/${modelId}.pt`);
             // 2. Load Canary Routing configurations if enabled
             const canarySetting = await SystemSettings_1.SystemSettingsModel.findOne({ key: 'ai.canary' }).exec();
             if (canarySetting && canarySetting.value && canarySetting.value.enabled) {
                 const { canaryModelId, engineType } = canarySetting.value;
                 this.canaryModelId = canaryModelId;
-                this.canaryEngine = AIEngineFactory_1.AIEngineFactory.createEngine(engineType || 'MOCK');
+                this.canaryEngine = AIEngineFactory_1.AIEngineFactory.createEngine(engineType || 'LOCAL_PYTHON');
                 await this.canaryEngine.initialize(`/weights/${canaryModelId}.pt`);
                 console.log(`[AiModelManager] Canary model ${canaryModelId} loaded and warmed up.`);
             }
         }
         catch (err) {
             console.error('[AiModelManager] Failed to initialize model registry:', err.message);
-            this.activeEngine = AIEngineFactory_1.AIEngineFactory.createEngine('MOCK');
+            this.activeEngine = AIEngineFactory_1.AIEngineFactory.createEngine('LOCAL_PYTHON');
             await this.activeEngine.initialize('/weights/yolov8-river-v1.0.pt');
         }
     }
@@ -48,7 +48,7 @@ class AiModelManager {
             const currentActiveId = activeModelInDb ? activeModelInDb.id : 'yolov8-river-v1.0';
             if (this.activeEngine && currentActiveId !== this.activeModelId) {
                 console.log(`[AiModelManager] DB active model changed from ${this.activeModelId} to ${currentActiveId}. Triggering auto-rollback/hot-swap.`);
-                await this.swapActiveModel(currentActiveId, 'MOCK');
+                await this.swapActiveModel(currentActiveId, 'LOCAL_PYTHON');
             }
         }
         catch (err) {

@@ -117,7 +117,7 @@ export class AiPipelineScheduler {
         const captureStartTime = Date.now();
 
         // 2. Capture Frame
-        const frame = FrameCaptureService.captureFrame(camera);
+        const frame = await FrameCaptureService.captureFrame(camera);
         const captureTime = Date.now() - captureStartTime;
 
         // Tentukan prioritas deteksi (HIGH untuk CCTV area kali/kritis)

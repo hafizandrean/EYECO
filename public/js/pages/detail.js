@@ -1415,12 +1415,14 @@ export class DetailPage {
         btnPhotoUpload.innerHTML = '<span class="status-pulse-dot" style="width:8px; height:8px; background:white; border-radius:50%; display:inline-block; margin-right:6px;"></span> Mengunggah...';
 
         try {
-          // Simulate upload
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          const formData = new FormData();
+          formData.append('file', file);
           
-          // Mock append update log to discussion list
-          const formattedText = `[Kondisi Terbaru] Warga menambahkan foto pengamatan terbaru dari lokasi lingkungan.`;
-          await ReportService.addComment(this.reportId, formattedText);
+          await API.post(`/api/detections/${this.reportId}/upload-update`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          });
 
           EventBus.emit('toast:show', { message: 'Foto kondisi terbaru berhasil diunggah!', type: 'success' });
           await this.loadComments(true);

@@ -296,6 +296,29 @@ router.post('/detections/:id/comments', commentLimiter, async (req, res) => {
         return sendError(res, err instanceof Error ? err.message : 'Internal Server Error', 500);
     }
 });
+router.post('/detections/:id/upload-update', upload.single('file'), async (req, res) => {
+    try {
+        const user = await (0, authMiddleware_1.getLoggedInUser)(req);
+        if (!user)
+            return sendError(res, 'Unauthorized', 401);
+        const reportId = parseInt(req.params.id);
+        if (!req.file)
+            return sendError(res, 'File gambar harus diunggah.', 400);
+        const report = await Report_1.ReportModel.findOne({ id: reportId, deletedAt: null })
+            .select('userId workspaceId')
+            .lean()
+            .exec();
+        if (!report)
+            return sendError(res, 'Laporan tidak ditemukan', 404);
+        const text = `[Kondisi Terbaru] Warga mengunggah foto kondisi terkini lokasi: /uploads/${req.file.filename}`;
+        const comment = await ReportRepository_1.ReportRepository.addComment(reportId, user.id, text, user.workspaceId, null);
+        return sendSuccess(res, { ...comment, username: user.username, role: user.role }, 201);
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] Upload update comment failed:', err);
+        return sendError(res, err instanceof Error ? err.message : 'Internal Server Error', 500);
+    }
+});
 router.delete('/detections/:id/comments/:commentId', async (req, res) => {
     try {
         const user = await (0, authMiddleware_1.getLoggedInUser)(req);
@@ -443,15 +466,6 @@ router.post('/detections', (req, res, next) => {
             return res.status(500).json({ error: 'Internal Server Error' });
         }
         console.log('[UPLOAD] Final report v3.0 — id=' + updatedReport.id + ', aiStatus=' + updatedReport.aiStatus + ', violationScore=' + updatedReport.violationScore + ', priority=' + updatedReport.priority);
-        // Copy last_capture.jpg
-        try {
-            const sourcePath = path_1.default.join(uploadDir, req.file.filename);
-            const destPath = path_1.default.join(uploadDir, 'last_capture.jpg');
-            fs_1.default.copyFileSync(sourcePath, destPath);
-        }
-        catch (err) {
-            console.error('[SERVER ERROR] Error copying last capture image:', err);
-        }
         // ==============================
         // STEP 5: Notifikasi cross-user — kirim notifikasi NEW_REPORT ke semua user dalam workspace kecuali uploader
         // ==============================

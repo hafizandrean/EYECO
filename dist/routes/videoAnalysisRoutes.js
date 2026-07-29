@@ -70,7 +70,7 @@ router.post('/upload', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.rol
         const sourceStorageKey = path_1.default.resolve(file.path);
         const fileBuffer = fs_1.default.readFileSync(sourceStorageKey);
         const sourceVideoHash = (0, crypto_1.createHash)('sha256').update(fileBuffer).digest('hex');
-        const dummyReport = await Report_1.ReportModel.create({
+        const initialReport = await Report_1.ReportModel.create({
             id: Date.now(),
             userId: user._id,
             tenantId: 'BBWS',
@@ -88,7 +88,7 @@ router.post('/upload', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.rol
             adminStatus: 'MENUNGGU',
             status: 'UNDER_REVIEW',
         });
-        const job = await VideoAnalysisJobRepository_1.VideoAnalysisJobRepository.createFromUpload(dummyReport._id, sourceVideoHash, sourceStorageKey);
+        const job = await VideoAnalysisJobRepository_1.VideoAnalysisJobRepository.createFromUpload(initialReport._id, sourceVideoHash, sourceStorageKey);
         sendSuccess(res, {
             jobId: job._id,
             analysisRunId: job.analysisRunId,

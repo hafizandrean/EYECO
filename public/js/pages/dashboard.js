@@ -33,12 +33,12 @@ export class DashboardPage {
       <div class="cc-hud glass-card" id="command-center-hud">
         <div class="cc-hud-status">
           <span class="status-pulse-dot green" id="cc-hud-pulse"></span>
-          <span id="brief-system-status"><i data-lucide="monitor" style="width:14px;height:14px;color:var(--success);"></i> MONITORING ACTIVE</span>
+          <span id="brief-system-status"><i data-lucide="monitor" style="width:14px;height:14px;color:var(--success);"></i> PEMANTAUAN AKTIF</span>
         </div>
         <div class="cc-hud-metrics">
-          <div class="cc-hud-metric"><i data-lucide="video" style="width:14px;height:14px;"></i> <strong id="brief-online-count">0</strong> Cameras Online</div>
-          <div class="cc-hud-metric"><i data-lucide="alert-circle" style="width:14px;height:14px;"></i> <strong id="brief-active-alerts">0</strong> Active Incidents</div>
-          <div class="cc-hud-metric"><i data-lucide="clock" style="width:14px;height:14px;"></i> Last Detection: <strong id="brief-last-incident">—</strong></div>
+          <div class="cc-hud-metric"><i data-lucide="video" style="width:14px;height:14px;"></i> <strong id="brief-online-count">0</strong> Kamera Online</div>
+          <div class="cc-hud-metric"><i data-lucide="alert-circle" style="width:14px;height:14px;"></i> <strong id="brief-active-alerts">0</strong> Kejadian Aktif</div>
+          <div class="cc-hud-metric"><i data-lucide="clock" style="width:14px;height:14px;"></i> Deteksi Terakhir: <strong id="brief-last-incident">—</strong></div>
         </div>
         <span class="cc-hud-date" id="brief-current-date">—</span>
       </div>
@@ -110,9 +110,9 @@ export class DashboardPage {
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-16);">
             <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
               <span class="status-pulse-dot red" style="width: 8px; height: 8px; background: var(--danger); border-radius: 50%;"></span>
-              Active Incident Queue
+              Antrean Kejadian Aktif
             </h3>
-            <span id="active-incidents-badge-count" style="font-size: 0.72rem; font-weight: 800; color: var(--danger); background: rgba(239, 68, 68, 0.08); padding: 4px 12px; border-radius: var(--radius-pill);">0 Queue</span>
+            <span id="active-incidents-badge-count" style="font-size: 0.72rem; font-weight: 800; color: var(--danger); background: rgba(239, 68, 68, 0.08); padding: 4px 12px; border-radius: var(--radius-pill);">0 Antrean</span>
           </div>
 
           <!-- Advanced Search & Filters -->
@@ -128,20 +128,20 @@ export class DashboardPage {
             <input type="date" id="incident-filter-date" class="incident-filter-input" />
             <select id="incident-filter-status" class="incident-filter-input">
               <option value="all">Semua Status</option>
-              <option value="waiting">Waiting Review</option>
-              <option value="validated">Validated</option>
-              <option value="assigned">Assigned</option>
-              <option value="progress">In Progress</option>
-              <option value="resolved">Resolved</option>
+              <option value="waiting">Menunggu Tinjauan</option>
+              <option value="validated">Tervalidasi</option>
+              <option value="assigned">Ditugaskan</option>
+              <option value="progress">Sedang Diproses</option>
+              <option value="resolved">Selesai</option>
             </select>
           </div>
 
           <div class="filter-tabs" id="incident-filter-tabs" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: var(--space-16);">
-            <button class="btn btn-sm btn-glass active" data-filter="all">All</button>
-            <button class="btn btn-sm btn-glass" data-filter="waiting">Waiting</button>
-            <button class="btn btn-sm btn-glass" data-filter="validated">Validated</button>
-            <button class="btn btn-sm btn-glass" data-filter="progress">In Progress</button>
-            <button class="btn btn-sm btn-glass" data-filter="resolved">Resolved</button>
+            <button class="btn btn-sm btn-glass active" data-filter="all">Semua</button>
+            <button class="btn btn-sm btn-glass" data-filter="waiting">Menunggu</button>
+            <button class="btn btn-sm btn-glass" data-filter="validated">Tervalidasi</button>
+            <button class="btn btn-sm btn-glass" data-filter="progress">Sedang Diproses</button>
+            <button class="btn btn-sm btn-glass" data-filter="resolved">Selesai</button>
           </div>
 
           <div id="dashboard-active-incidents-list" style="display: flex; flex-direction: column; gap: 10px;">

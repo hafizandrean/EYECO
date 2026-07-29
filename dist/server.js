@@ -74,9 +74,17 @@ app.use((req, res, next) => {
     }
     next();
 });
+// Options to disable browser caching for JS and CSS files to allow updates to apply immediately without Ctrl+F5
+const staticNoCacheOptions = {
+    setHeaders: (res) => {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+    }
+};
 // Serve static CSS and JS files directly
-app.use('/css', express_1.default.static(path_1.default.join(__dirname, '../public/css')));
-app.use('/js', express_1.default.static(path_1.default.join(__dirname, '../public/js')));
+app.use('/css', express_1.default.static(path_1.default.join(__dirname, '../public/css'), staticNoCacheOptions));
+app.use('/js', express_1.default.static(path_1.default.join(__dirname, '../public/js'), staticNoCacheOptions));
 app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../public/uploads')));
 app.use('/hls', express_1.default.static(path_1.default.join(__dirname, '../public/hls')));
 // Global middleware to populate req.userContext from cookie/header
@@ -99,8 +107,8 @@ app.use((req, res, next) => {
     next();
 });
 // --- STATIC FILES ---
-app.use('/css', express_1.default.static(path_1.default.join(__dirname, '../public/css')));
-app.use('/js', express_1.default.static(path_1.default.join(__dirname, '../public/js')));
+app.use('/css', express_1.default.static(path_1.default.join(__dirname, '../public/css'), staticNoCacheOptions));
+app.use('/js', express_1.default.static(path_1.default.join(__dirname, '../public/js'), staticNoCacheOptions));
 app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../public/uploads')));
 // --- MODULAR ROUTES ---
 app.use('/api/auth', authRoutes_1.default);
@@ -752,8 +760,15 @@ app.get('/api/cctv/:id/snapshot', async (req, res) => {
             res.redirect(camera.streamUrl);
         }
         else {
-            // Return default camera 1 image as fallback
-            res.redirect('/uploads/detection_1.jpg');
+            const fs = require('fs');
+            const path = require('path');
+            const capturePath = path.join(process.cwd(), 'public/uploads', `cctv_capture_${camera.id}.jpg`);
+            if (fs.existsSync(capturePath)) {
+                res.sendFile(capturePath);
+            }
+            else {
+                res.status(404).send('Belum ada snapshot yang tersimpan untuk kamera ini.');
+            }
         }
     }
     catch (err) {
@@ -916,7 +931,7 @@ let serverInstance;
     }
     catch (_) { }
     // CCTV Health Engine is started inside listenWithFallback
-    // AiPipelineScheduler.start(); — disabled, no more CCTV reports
+    AiPipelineScheduler_1.AiPipelineScheduler.start(5000);
     OutboxWorker_1.OutboxWorker.start();
     // Start background video analysis worker as a separate process
     try {

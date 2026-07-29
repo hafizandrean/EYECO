@@ -81,7 +81,7 @@ router.post(
       const fileBuffer = fs.readFileSync(sourceStorageKey);
       const sourceVideoHash = createHash('sha256').update(fileBuffer).digest('hex');
 
-      const dummyReport = await ReportModel.create({
+      const initialReport = await ReportModel.create({
         id: Date.now(),
         userId: user._id,
         tenantId: 'BBWS',
@@ -101,7 +101,7 @@ router.post(
       });
 
       const job = await VideoAnalysisJobRepository.createFromUpload(
-        dummyReport._id as mongoose.Types.ObjectId,
+        initialReport._id as mongoose.Types.ObjectId,
         sourceVideoHash,
         sourceStorageKey
       );

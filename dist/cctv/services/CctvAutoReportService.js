@@ -77,7 +77,7 @@ class CctvAutoReportService {
     // Process a single camera snapshot
     static async processCameraSnapshot(camera) {
         try {
-            const lastCapturePath = path_1.default.resolve(__dirname, '../../../public/uploads/last_capture.jpg');
+            const lastCapturePath = path_1.default.resolve(__dirname, `../../../public/uploads/cctv_capture_${camera.id}.jpg`);
             if (!fs_1.default.existsSync(lastCapturePath))
                 return;
             const detectionResult = await (0, aiDetection_service_1.detectFile)(lastCapturePath, { conf: 0.15 });
@@ -120,11 +120,23 @@ class CctvAutoReportService {
                 }
             }
             const maxPersonConf = Math.max(...personDetections.map(d => d.confidence));
+            // Copy the captured image to a unique filepath to preserve evidence from being overwritten
+            const uniqueFilename = `evidence_${Date.now()}_${camera.id}.jpg`;
+            const uniqueRelativePath = `/uploads/${uniqueFilename}`;
+            const uniqueAbsolutePath = path_1.default.join(process.cwd(), 'public', uniqueRelativePath);
+            try {
+                if (fs_1.default.existsSync(lastCapturePath)) {
+                    fs_1.default.copyFileSync(lastCapturePath, uniqueAbsolutePath);
+                }
+            }
+            catch (copyErr) {
+                console.error('[CctvAutoReportService] Failed to copy standalone evidence image:', copyErr);
+            }
             const newReport = await ReportRepository_1.ReportRepository.create({
                 location: camera.location || 'Lokasi CCTV',
                 aiStatus,
                 aiConfidence: decisionConfidence || Math.round(maxPersonConf * 100),
-                image: `/uploads/last_capture.jpg`,
+                image: uniqueRelativePath,
                 identity: `CCTV-CAM-${String(camera.id).padStart(2, '0')}`,
                 sourceType: 'AI_CCTV',
                 additionalNotes: `Deteksi otomatis dari CCTV ${camera.name} di ${camera.location}. Terdeteksi ${personDetections.length} orang.`,
@@ -161,8 +173,9 @@ class CctvAutoReportService {
         try {
             if (this.isOnCooldown(frame.cameraId))
                 return null;
-            const personDetections = detection.detections.filter(d => d.class === 'person' && d.confidence >= 0.5);
-            if (personDetections.length === 0)
+            // Only promote if it qualifies as a violation (MEDIUM, HIGH, or CRITICAL severity)
+            const hasViolation = ['MEDIUM', 'HIGH', 'CRITICAL'].includes(detection.severity);
+            if (!hasViolation)
                 return null;
             const camera = await Cctv_1.CctvModel.findOne({ id: frame.cameraId }).lean().exec();
             if (!camera)
@@ -172,27 +185,44 @@ class CctvAutoReportService {
                 .sort({ createdAt: 1 }).lean().exec();
             if (!admin)
                 return null;
-            const boundingBoxes = personDetections.map(d => ({
+            const boundingBoxes = detection.detections.map(d => ({
                 label: d.class,
                 confidence: d.confidence,
                 x: d.bbox[0], y: d.bbox[1], w: d.bbox[2], h: d.bbox[3]
             }));
-            const maxConfidence = Math.max(...personDetections.map(d => d.confidence));
-            let aiStatus = 'TINGGI';
-            if (maxConfidence >= 0.8)
+            const maxConfidence = Math.max(...detection.detections.map(d => d.confidence), 0);
+            let aiStatus = 'Tidak Terindikasi';
+            if (detection.severity === 'CRITICAL' || detection.severity === 'HIGH') {
                 aiStatus = 'TINGGI';
-            else if (maxConfidence >= 0.6)
+            }
+            else if (detection.severity === 'MEDIUM') {
                 aiStatus = 'SEDANG';
-            else
+            }
+            else if (detection.severity === 'LOW') {
                 aiStatus = 'RENDAH';
+            }
+            // Copy the captured frame image to a unique filepath to preserve evidence from being overwritten
+            const uniqueFilename = `evidence_${Date.now()}_${frame.cameraId}.jpg`;
+            const uniqueRelativePath = `/uploads/${uniqueFilename}`;
+            const uniqueAbsolutePath = path_1.default.join(process.cwd(), 'public', uniqueRelativePath);
+            const sourceAbsolutePath = path_1.default.join(process.cwd(), 'public', frame.imagePath);
+            try {
+                if (fs_1.default.existsSync(sourceAbsolutePath)) {
+                    fs_1.default.copyFileSync(sourceAbsolutePath, uniqueAbsolutePath);
+                    console.log(`[CctvAutoReportService] Saved unique evidence image: ${uniqueRelativePath}`);
+                }
+            }
+            catch (copyErr) {
+                console.error('[CctvAutoReportService] Failed to copy pipeline evidence image:', copyErr);
+            }
             const report = await ReportRepository_1.ReportRepository.create({
                 location: camera.location,
                 aiStatus,
-                aiConfidence: Math.round(maxConfidence * 100) / 100,
-                image: frame.imagePath,
+                aiConfidence: Math.round(maxConfidence * 100),
+                image: uniqueRelativePath,
                 identity: `AI Deteksi: ${camera.name}`,
                 sourceType: 'AI_CCTV',
-                additionalNotes: `Auto-generated by CCTV monitoring: Person detected at ${camera.location} via ${camera.name}`,
+                additionalNotes: `Deteksi otomatis pelanggaran ${aiStatus} dari CCTV ${camera.name} di ${camera.location}. Objek: ${detection.detections.map(d => d.class).join(', ')}.`,
                 boundingBoxes
             }, admin.id);
             this.setCooldown(frame.cameraId);
