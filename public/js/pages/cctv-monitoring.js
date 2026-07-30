@@ -338,7 +338,6 @@ export class CctvMonitoringPage {
             <span class="vms-fs-cam-title" id="vms-fs-cam-title">KISI MONITORING CCTV (4 SALURAN)</span>
           </div>
           <div class="vms-fs-header-right" style="position: relative;">
-            <button class="vms-fs-icon-btn active" id="vms-fs-btn-toggle-ai-mon" title="Toggle AI Bounding Boxes"><i data-lucide="eye"></i></button>
             <button class="vms-fs-icon-btn" id="vms-fs-btn-more" title="More Actions"><i data-lucide="more-horizontal"></i></button>
 
             <!-- Dropdown Menu -->
@@ -354,11 +353,7 @@ export class CctvMonitoringPage {
                     <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i> Reconnect Stream
                   </button>
                 </li>
-                <li>
-                  <button class="dropdown-item-btn" id="vms-fs-drop-toggle-overlay" style="width: 100%; border: none; background: transparent; padding: 8px 12px; font-size: 0.78rem; font-weight: 700; color: #ffffff; text-align: left; cursor: pointer; border-radius: 6px; display: flex; align-items: center; gap: 8px;">
-                    <i data-lucide="scan-eye" style="width: 14px; height: 14px;"></i> Toggle AI Bounding Box
-                  </button>
-                </li>
+
                 <li id="vms-fs-drop-delete-container" style="display: none; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 4px; margin-top: 4px;">
                   <button class="dropdown-item-btn" id="vms-fs-drop-delete" style="width: 100%; border: none; background: transparent; padding: 8px 12px; font-size: 0.78rem; font-weight: 700; color: #ef4444; text-align: left; cursor: pointer; border-radius: 6px; display: flex; align-items: center; gap: 8px;">
                     <i data-lucide="trash-2" style="width: 14px; height: 14px; color: #ef4444;"></i> Putuskan CCTV
@@ -386,6 +381,7 @@ export class CctvMonitoringPage {
                   <i data-lucide="rotate-ccw"></i>
                 </button>
                 <button class="vms-bar-btn" id="vms-fs-btn-mute" title="Toggle Mute"><i data-lucide="volume-x"></i></button>
+                <input type="range" id="vms-fs-volume-slider" min="0" max="1" step="0.05" value="0" style="width: 70px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.2); accent-color: var(--primary); cursor: pointer; margin: 0 10px; vertical-align: middle;" title="Volume" />
                 <input type="range" id="vms-fs-seek-slider" min="0" max="100" value="0" style="display:none; width: 140px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.2); accent-color: var(--primary); cursor: pointer; margin: 0 10px; vertical-align: middle;">
                 <span id="vms-fs-time-label" style="display:none; font-size: 0.7rem; color: rgba(255,255,255,0.6); margin-right: 10px; font-family: monospace;">00:00 / 00:00</span>
                 <span style="display: inline-flex; align-items: center; gap: 6px; color: #22c55e;">
@@ -395,7 +391,7 @@ export class CctvMonitoringPage {
               </div>
               <div class="vms-fs-bar-right">
                 <button class="vms-bar-btn" id="vms-fs-btn-grid-toggle" title="Mode Kisi (4 Saluran) / Single"><i data-lucide="layout-grid"></i></button>
-                <button class="vms-bar-btn" id="vms-fs-btn-refresh-stream" title="Refresh Stream"><i data-lucide="refresh-cw"></i></button>
+
               </div>
             </div>
           </div>
@@ -409,15 +405,30 @@ export class CctvMonitoringPage {
                 <button class="vms-action-tile" id="vms-fs-action-snapshot">
                   <i data-lucide="camera"></i> Ambil Foto
                 </button>
-                <button class="vms-action-tile" id="vms-fs-action-record">
-                  <i data-lucide="video"></i> Rekam
-                </button>
-                <button class="vms-action-tile" id="vms-fs-action-mic">
-                  <i data-lucide="mic"></i> Interkom
-                </button>
                 <button class="vms-action-tile active" id="vms-fs-action-ai">
                   <i data-lucide="scan-eye"></i> Hamparan AI
                 </button>
+              </div>
+            </div>
+
+            <!-- AI & Stream Recommendation Controls -->
+            <div class="vms-fs-sidebar-section">
+              <h4 class="vms-fs-sidebar-title">KONTROL & FITUR AI</h4>
+              <div class="vms-fs-actions-grid" style="margin-top:8px;">
+                <button class="vms-action-tile" id="vms-fs-action-reconnect">
+                  <i data-lucide="refresh-cw"></i> Reconnect
+                </button>
+                <button class="vms-action-tile" id="vms-fs-action-snapshot-ai">
+                  <i data-lucide="image"></i> Snapshot AI
+                </button>
+                <button class="vms-action-tile active" id="vms-fs-action-toggle-ai">
+                  <i data-lucide="play-circle"></i> Mulai Analisis
+                </button>
+
+                <button class="vms-action-tile" id="vms-fs-action-ptz">
+                  <i data-lucide="move"></i> Reset PTZ
+                </button>
+
               </div>
             </div>
 
@@ -440,6 +451,37 @@ export class CctvMonitoringPage {
                 <div class="vms-status-row">
                   <span class="vms-status-label">AI Tracking</span>
                   <span class="vms-status-value accent-red" id="vms-stat-aitracking">Aktif (4x)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- AI Engine Status Section -->
+            <div class="vms-fs-sidebar-section">
+              <h4 class="vms-fs-sidebar-title">STATUS AI ENGINE</h4>
+              <div class="vms-status-list">
+                <div class="vms-status-row">
+                  <span class="vms-status-label">Model</span>
+                  <span class="vms-status-value accent-cyan" id="vms-stat-ai-model">YOLOv8s</span>
+                </div>
+                <div class="vms-status-row">
+                  <span class="vms-status-label">Pipeline</span>
+                  <span class="vms-status-value" id="vms-stat-ai-pipeline">Memuat...</span>
+                </div>
+                <div class="vms-status-row">
+                  <span class="vms-status-label">Frame Rate</span>
+                  <span class="vms-status-value" id="vms-stat-ai-fps">24.5 FPS</span>
+                </div>
+                <div class="vms-status-row">
+                  <span class="vms-status-label">Latensi</span>
+                  <span class="vms-status-value" id="vms-stat-ai-latency">42ms</span>
+                </div>
+                <div class="vms-status-row">
+                  <span class="vms-status-label">Akurasi (mAP)</span>
+                  <span class="vms-status-value accent-green" id="vms-stat-ai-map">87.6%</span>
+                </div>
+                <div class="vms-status-row">
+                  <span class="vms-status-label">Status</span>
+                  <span class="vms-status-value" id="vms-stat-ai-health">Memuat...</span>
                 </div>
               </div>
             </div>
@@ -1549,7 +1591,11 @@ export class CctvMonitoringPage {
     document.getElementById('edit-cctv-name').value = ch.name || '';
     document.getElementById('edit-cctv-location').value = ch.location || ch.name || '';
     document.getElementById('edit-cctv-protocol').value = ch.protocol || 'HTTP Image';
-    document.getElementById('edit-cctv-resolution').value = (ch.health && ch.health.resolution) ? ch.health.resolution : '1080p';
+    // Map stored resolution (e.g '1280x720' or '720p') to select option value
+    const _rawRes = (ch.health && ch.health.resolution) ? ch.health.resolution : '1080p';
+    const _resMap = { '3840': '4K', '2160': '4K', '1920': '1080p', '1080': '1080p', '1280': '720p', '720': '720p', '4K': '4K', '1080p': '1080p', '720p': '720p' };
+    const _resKey = Object.keys(_resMap).find(k => _rawRes.includes(k)) || '';
+    document.getElementById('edit-cctv-resolution').value = _resMap[_resKey] || '720p';
     document.getElementById('edit-cctv-stream-url').value = ch.streamUrl || ch.playUrl || '';
     document.getElementById('edit-cctv-status').value = ch.status || 'ONLINE';
 
@@ -1578,7 +1624,9 @@ export class CctvMonitoringPage {
         const name = document.getElementById('edit-cctv-name').value.trim();
         const location = document.getElementById('edit-cctv-location').value.trim();
         const protocol = document.getElementById('edit-cctv-protocol').value;
-        const resolution = document.getElementById('edit-cctv-resolution').value;
+        const resolutionLabel = document.getElementById('edit-cctv-resolution').value;
+        // Convert label to pixel string for storage (matches CctvHealthEngine format)
+        const resolutionDims = resolutionLabel === '4K' ? '3840x2160' : resolutionLabel === '1080p' ? '1920x1080' : '1280x720';
         const streamUrl = document.getElementById('edit-cctv-stream-url').value.trim();
         const status = document.getElementById('edit-cctv-status').value;
 
@@ -1589,7 +1637,11 @@ export class CctvMonitoringPage {
           streamUrl,
           playUrl: streamUrl,
           status,
-          health: { latency: 45, resolution }
+          health: {
+            latency: this.cctvList.find(c => c.id === id)?.health?.latency || 0,
+            fps: this.cctvList.find(c => c.id === id)?.health?.fps || 0,
+            resolution: resolutionDims
+          }
         };
 
         try {
@@ -1881,6 +1933,8 @@ export class CctvMonitoringPage {
     let isHd = true;
     let isPlaybackMode = false;
     let isAiActive = true;
+    let isOverlayVisible = true;
+    let latestDetections = [];
     let isRecording = false;
     let recordInterval = null;
     let recSeconds = 0;
@@ -1955,8 +2009,11 @@ export class CctvMonitoringPage {
         }
       } else if (isVideo) {
         playerHtml = `
-          <video id="vms-fs-media-element" autoplay loop ${isMuted ? 'muted' : ''} playsinline style="width:100%; height:100%; object-fit:contain;"></video>
-          <div style="position: absolute; top: 12px; left: 16px; display: flex; align-items: center; gap: 8px; font-size: 0.72rem; color: white; background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 4px;">
+          <div id="vms-fs-media-wrapper" style="position:relative; width:100%; height:100%; display:flex; justify-content:center; align-items:center; overflow:hidden;">
+            <video id="vms-fs-media-element" autoplay loop ${isMuted ? 'muted' : ''} playsinline style="width:100%; height:100%; object-fit:contain; transform-origin:center center; pointer-events:auto;"></video>
+            <div id="vms-fs-yolo-overlay" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index: 5; transform-origin:center center;"></div>
+          </div>
+          <div style="position: absolute; top: 12px; left: 16px; display: flex; align-items: center; gap: 8px; font-size: 0.72rem; color: white; background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 4px; z-index: 6;">
             <span style="width: 6px; height: 6px; background: #22c55e; border-radius: 50%;"></span>
             <span>Live</span>
             <span style="opacity: 0.5;">|</span>
@@ -1966,12 +2023,34 @@ export class CctvMonitoringPage {
             <span class="rec-dot" style="width:6px; height:6px; background:white; border-radius:50%; display:inline-block; animation: pulse-cloud 1s infinite;"></span>
             REC <span id="vms-fs-rec-timer">00:00</span>
           </div>
-          <div id="vms-fs-yolo-overlay" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index: 5;"></div>
+
+          <!-- Digital PTZ Controller Overlay -->
+          <div class="vms-fs-ptz-overlay" style="position:absolute; bottom:20px; right:20px; background:rgba(0,0,0,0.65); padding:10px; border-radius:12px; display:flex; flex-direction:column; gap:8px; z-index:10; border:1px solid rgba(255,255,255,0.15); align-items:center; backdrop-filter:blur(4px);">
+            <div style="font-size:0.6rem; font-weight:800; color:rgba(255,255,255,0.6); text-transform:uppercase; letter-spacing:0.5px;">Kontrol PTZ</div>
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:4px; width:72px; height:72px;">
+              <div></div>
+              <button class="ptz-btn" id="ptz-control-up" style="background:rgba(255,255,255,0.1); border:none; border-radius:4px; color:white; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i data-lucide="chevron-up" style="width:14px; height:14px;"></i></button>
+              <div></div>
+              <button class="ptz-btn" id="ptz-control-left" style="background:rgba(255,255,255,0.1); border:none; border-radius:4px; color:white; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i data-lucide="chevron-left" style="width:14px; height:14px;"></i></button>
+              <button class="ptz-btn" id="ptz-control-home" style="background:rgba(255,255,255,0.2); border:none; border-radius:4px; color:#38bdf8; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i data-lucide="home" style="width:14px; height:14px;"></i></button>
+              <button class="ptz-btn" id="ptz-control-right" style="background:rgba(255,255,255,0.1); border:none; border-radius:4px; color:white; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i data-lucide="chevron-right" style="width:14px; height:14px;"></i></button>
+              <div></div>
+              <button class="ptz-btn" id="ptz-control-down" style="background:rgba(255,255,255,0.1); border:none; border-radius:4px; color:white; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i data-lucide="chevron-down" style="width:14px; height:14px;"></i></button>
+              <div></div>
+            </div>
+            <div style="display:flex; gap:6px; margin-top:2px;">
+              <button class="ptz-btn-sm" id="ptz-control-zoom-in" style="background:rgba(255,255,255,0.1); border:none; border-radius:4px; color:white; cursor:pointer; padding:3px 6px; font-size:0.65rem; font-weight:bold; display:flex; align-items:center; gap:2px;"><i data-lucide="zoom-in" style="width:10px; height:10px;"></i> In</button>
+              <button class="ptz-btn-sm" id="ptz-control-zoom-out" style="background:rgba(255,255,255,0.1); border:none; border-radius:4px; color:white; cursor:pointer; padding:3px 6px; font-size:0.65rem; font-weight:bold; display:flex; align-items:center; gap:2px;"><i data-lucide="zoom-out" style="width:10px; height:10px;"></i> Out</button>
+            </div>
+          </div>
         `;
       } else {
         playerHtml = `
-          <img src="${imageSrc}" id="vms-fs-media-element" style="width:100%; height:100%; object-fit:contain;">
-          <div style="position: absolute; top: 12px; left: 16px; display: flex; align-items: center; gap: 8px; font-size: 0.72rem; color: white; background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 4px;">
+          <div id="vms-fs-media-wrapper" style="position:relative; width:100%; height:100%; display:flex; justify-content:center; align-items:center; overflow:hidden;">
+            <img src="${imageSrc}" id="vms-fs-media-element" style="width:100%; height:100%; object-fit:contain; transform-origin:center center; pointer-events:auto;">
+            <div id="vms-fs-yolo-overlay" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index: 5; transform-origin:center center;"></div>
+          </div>
+          <div style="position: absolute; top: 12px; left: 16px; display: flex; align-items: center; gap: 8px; font-size: 0.72rem; color: white; background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 4px; z-index: 6;">
             <span style="width: 6px; height: 6px; background: #22c55e; border-radius: 50%;"></span>
             <span>Live</span>
             <span style="opacity: 0.5;">|</span>
@@ -1981,7 +2060,26 @@ export class CctvMonitoringPage {
             <span class="rec-dot" style="width:6px; height:6px; background:white; border-radius:50%; display:inline-block; animation: pulse-cloud 1s infinite;"></span>
             REC <span id="vms-fs-rec-timer">00:00</span>
           </div>
-          <div id="vms-fs-yolo-overlay" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index: 5;"></div>
+
+          <!-- Digital PTZ Controller Overlay -->
+          <div class="vms-fs-ptz-overlay" style="position:absolute; bottom:20px; right:20px; background:rgba(0,0,0,0.65); padding:10px; border-radius:12px; display:flex; flex-direction:column; gap:8px; z-index:10; border:1px solid rgba(255,255,255,0.15); align-items:center; backdrop-filter:blur(4px);">
+            <div style="font-size:0.6rem; font-weight:800; color:rgba(255,255,255,0.6); text-transform:uppercase; letter-spacing:0.5px;">Kontrol PTZ</div>
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:4px; width:72px; height:72px;">
+              <div></div>
+              <button class="ptz-btn" id="ptz-control-up" style="background:rgba(255,255,255,0.1); border:none; border-radius:4px; color:white; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i data-lucide="chevron-up" style="width:14px; height:14px;"></i></button>
+              <div></div>
+              <button class="ptz-btn" id="ptz-control-left" style="background:rgba(255,255,255,0.1); border:none; border-radius:4px; color:white; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i data-lucide="chevron-left" style="width:14px; height:14px;"></i></button>
+              <button class="ptz-btn" id="ptz-control-home" style="background:rgba(255,255,255,0.2); border:none; border-radius:4px; color:#38bdf8; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i data-lucide="home" style="width:14px; height:14px;"></i></button>
+              <button class="ptz-btn" id="ptz-control-right" style="background:rgba(255,255,255,0.1); border:none; border-radius:4px; color:white; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i data-lucide="chevron-right" style="width:14px; height:14px;"></i></button>
+              <div></div>
+              <button class="ptz-btn" id="ptz-control-down" style="background:rgba(255,255,255,0.1); border:none; border-radius:4px; color:white; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i data-lucide="chevron-down" style="width:14px; height:14px;"></i></button>
+              <div></div>
+            </div>
+            <div style="display:flex; gap:6px; margin-top:2px;">
+              <button class="ptz-btn-sm" id="ptz-control-zoom-in" style="background:rgba(255,255,255,0.1); border:none; border-radius:4px; color:white; cursor:pointer; padding:3px 6px; font-size:0.65rem; font-weight:bold; display:flex; align-items:center; gap:2px;"><i data-lucide="zoom-in" style="width:10px; height:10px;"></i> In</button>
+              <button class="ptz-btn-sm" id="ptz-control-zoom-out" style="background:rgba(255,255,255,0.1); border:none; border-radius:4px; color:white; cursor:pointer; padding:3px 6px; font-size:0.65rem; font-weight:bold; display:flex; align-items:center; gap:2px;"><i data-lucide="zoom-out" style="width:10px; height:10px;"></i> Out</button>
+            </div>
+          </div>
         `;
       }
       playerContainer.innerHTML = playerHtml;
@@ -2039,8 +2137,8 @@ export class CctvMonitoringPage {
       const currentCh = this.cctvList.find(c => c.id === ch.id);
       const isChActive = AppState.get('isMonitoring') && currentCh && currentCh.isActive && currentCh.status !== 'OFFLINE';
 
-      if (!isAiActive || !isChActive) {
-        console.log('[renderYoloBoxes] isAiActive or Camera is inactive, skipping render.');
+      if (!isAiActive || !isChActive || !isOverlayVisible) {
+        console.log('[renderYoloBoxes] isAiActive, isOverlayVisible or Camera is inactive, skipping render.');
         return;
       }
 
@@ -2058,15 +2156,25 @@ export class CctvMonitoringPage {
         console.log(`[renderYoloBoxes] Drawing box: label=${label}, x=${x}%, y=${y}%, w=${w}%, h=${h}%`);
 
         const labelMap = {
-          'person': 'Orang',
-          'trash': 'Sampah',
-          'boat': 'Perahu',
-          'plastic': 'Plastik',
-          'bottle': 'Botol',
-          'bag': 'Kantong',
-          'waste': 'Sampah',
-          'cardboard': 'Kardus',
-          'object': 'Objek'
+          'person': 'Orang', 'people': 'Orang', 'sitting': 'Orang', 'standing': 'Orang', 'orang': 'Orang', 'cctv persons': 'Orang',
+          'bicycle': 'Sepeda', 'car': 'Mobil', 'motorcycle': 'Sepeda Motor', 'airplane': 'Pesawat', 'bus': 'Bus', 'train': 'Kereta',
+          'truck': 'Truk', 'boat': 'Perahu', 'perahu': 'Perahu', 'traffic light': 'Lampu Lalu Lintas', 'fire hydrant': 'Hidran Pemadam',
+          'stop sign': 'Rambu Stop', 'parking meter': 'Meteran Parkir', 'bench': 'Bangku', 'bird': 'Burung', 'cat': 'Kucing',
+          'dog': 'Anjing', 'horse': 'Kuda', 'sheep': 'Domba', 'cow': 'Sapi', 'elephant': 'Gajah', 'bear': 'Beruang',
+          'zebra': 'Zebra', 'giraffe': 'Jerapah', 'backpack': 'Ransel', 'umbrella': 'Payung', 'handbag': 'Tas Tangan',
+          'tie': 'Dasi', 'suitcase': 'Koper', 'frisbee': 'Frisbee', 'skis': 'Ski', 'snowboard': 'Papan Seluncur Salju',
+          'sports ball': 'Bola Olahraga', 'kite': 'Layang-layang', 'baseball bat': 'Pemukul Bisbol', 'baseball glove': 'Sarung Tangan Bisbol',
+          'skateboard': 'Papan Seluncur', 'surfboard': 'Papan Selancar', 'tennis racket': 'Raket Tenis', 'bottle': 'Botol',
+          'plastic': 'Plastik', 'wine glass': 'Gelas Anggur', 'cup': 'Cangkir', 'fork': 'Garpu', 'knife': 'Pisau',
+          'spoon': 'Sendok', 'bowl': 'Mangkuk', 'banana': 'Pisang', 'apple': 'Apel', 'sandwich': 'Roti Lapis',
+          'orange': 'Jeruk', 'broccoli': 'Brokoli', 'carrot': 'Wortel', 'hot dog': 'Hot Dog', 'pizza': 'Pizza',
+          'donut': 'Donat', 'cake': 'Kue', 'chair': 'Kursi', 'couch': 'Sofa', 'potted plant': 'Tanaman Pot',
+          'bed': 'Tempat Tidur', 'dining table': 'Meja Makan', 'toilet': 'Toilet', 'tv': 'TV', 'laptop': 'Laptop',
+          'mouse': 'Mouse', 'remote': 'Remote', 'keyboard': 'Keyboard', 'cell phone': 'Ponsel', 'microwave': 'Microwave',
+          'oven': 'Oven', 'toaster': 'Pemanggang Roti', 'sink': 'Wastafel', 'refrigerator': 'Kulkas', 'book': 'Buku',
+          'clock': 'Jam', 'jam': 'Jam', 'vase': 'Vas', 'scissors': 'Gunting', 'teddy bear': 'Boneka Beruang',
+          'hair drier': 'Pengering Rambut', 'toothbrush': 'Sikat Gigi', 'trash': 'Sampah', 'sampah': 'Sampah',
+          'waste': 'Sampah', 'bag': 'Kantong', 'cardboard': 'Kardus', 'object': 'Objek'
         };
         const indonesianLabel = labelMap[label.toLowerCase()] || label;
 
@@ -2100,23 +2208,20 @@ export class CctvMonitoringPage {
       const btnPlayPause = document.getElementById('vms-fs-btn-play-pause');
       const btnReplay = document.getElementById('vms-fs-btn-replay');
       const btnMute = document.getElementById('vms-fs-btn-mute');
+      const volumeSlider = document.getElementById('vms-fs-volume-slider');
       const seekSlider = document.getElementById('vms-fs-seek-slider');
       const timeLabel = document.getElementById('vms-fs-time-label');
       const btnGridToggle = document.getElementById('vms-fs-btn-grid-toggle');
       const btnRefreshStream = document.getElementById('vms-fs-btn-refresh-stream');
-      const btnToggleAiMon = document.getElementById('vms-fs-btn-toggle-ai-mon');
       const btnMore = document.getElementById('vms-fs-btn-more');
       const moreDropdown = document.getElementById('vms-fs-more-dropdown');
 
       const dropSettings = document.getElementById('vms-fs-drop-settings');
       const dropReconnect = document.getElementById('vms-fs-drop-reconnect');
-      const dropToggleOverlay = document.getElementById('vms-fs-drop-toggle-overlay');
       const dropDelete = document.getElementById('vms-fs-drop-delete');
       const dropDeleteContainer = document.getElementById('vms-fs-drop-delete-container');
 
       const actSnapshot = document.getElementById('vms-fs-action-snapshot');
-      const actRecord = document.getElementById('vms-fs-action-record');
-      const actMic = document.getElementById('vms-fs-action-mic');
       const actAi = document.getElementById('vms-fs-action-ai');
 
       const videoEl = document.getElementById('vms-fs-media-element');
@@ -2147,13 +2252,7 @@ export class CctvMonitoringPage {
           this.reconnectCCTVStream(ch.id);
         };
       }
-      if (dropToggleOverlay) {
-        dropToggleOverlay.onclick = (e) => {
-          e.stopPropagation();
-          if (moreDropdown) moreDropdown.style.display = 'none';
-          if (btnToggleAiMon) btnToggleAiMon.click();
-        };
-      }
+
       if (dropDelete && ch.id) {
         if (dropDeleteContainer) dropDeleteContainer.style.display = 'block';
         dropDelete.onclick = async (e) => {
@@ -2257,13 +2356,45 @@ export class CctvMonitoringPage {
           };
         }
 
-        // Mute action
+        // Mute & Volume action
+        if (volumeSlider) {
+          volumeSlider.value = isMuted ? 0 : (videoEl.volume || 0.5);
+          volumeSlider.oninput = () => {
+            const val = parseFloat(volumeSlider.value);
+            videoEl.volume = val;
+            if (val === 0) {
+              videoEl.muted = true;
+              isMuted = true;
+              if (btnMute) btnMute.innerHTML = '<i data-lucide="volume-x"></i>';
+            } else {
+              videoEl.muted = false;
+              isMuted = false;
+              if (btnMute) {
+                if (val < 0.5) btnMute.innerHTML = '<i data-lucide="volume-1"></i>';
+                else btnMute.innerHTML = '<i data-lucide="volume-2"></i>';
+              }
+            }
+            if (window.lucide) window.lucide.createIcons();
+          };
+        }
+
         if (btnMute) {
           btnMute.onclick = () => {
             videoEl.muted = !videoEl.muted;
             isMuted = videoEl.muted;
-            btnMute.innerHTML = isMuted ? '<i data-lucide="volume-x"></i>' : '<i data-lucide="volume-2"></i>';
+            if (isMuted) {
+              btnMute.innerHTML = '<i data-lucide="volume-x"></i>';
+              if (volumeSlider) volumeSlider.value = 0;
+            } else {
+              const currentVol = videoEl.volume || 0.5;
+              if (volumeSlider) volumeSlider.value = currentVol;
+              btnMute.innerHTML = currentVol < 0.5 ? '<i data-lucide="volume-1"></i>' : '<i data-lucide="volume-2"></i>';
+            }
             if (window.lucide) window.lucide.createIcons();
+            EventBus.emit('toast:show', {
+              message: isMuted ? 'Suara stream kamera dinonaktifkan.' : 'Suara stream kamera diaktifkan.',
+              type: isMuted ? 'warning' : 'success'
+            });
           };
         }
 
@@ -2287,12 +2418,24 @@ export class CctvMonitoringPage {
         }
       }
 
-      // Refresh stream
-      if (btnRefreshStream) {
-        btnRefreshStream.onclick = () => {
-          this.reconnectCCTVStream(ch.id);
-        };
+      // Refresh stream helper
+      const reloadStream = async () => {
+        EventBus.emit('toast:show', { message: 'Menghubungkan kembali video stream...', type: 'info' });
+        try {
+          await CctvService.reconnectCctv(ch.id);
+          renderActivePlayer();
+          EventBus.emit('toast:show', { message: 'Koneksi video stream berhasil dimuat ulang.', type: 'success' });
+        } catch (err) {
+          console.error(err);
+          EventBus.emit('toast:show', { message: `Gagal memuat ulang stream: ${err.message}`, type: 'danger' });
+        }
+      };
+
+      const actReconnect = document.getElementById('vms-fs-action-reconnect');
+      if (actReconnect) {
+        actReconnect.onclick = reloadStream;
       }
+
 
       // Grid toggle
       if (btnGridToggle) {
@@ -2301,20 +2444,19 @@ export class CctvMonitoringPage {
         };
       }
 
-      // AI Overlay Toggles
-      const toggleAi = () => {
-        isAiActive = !isAiActive;
-        if (btnToggleAiMon) {
-          btnToggleAiMon.style.color = isAiActive ? 'var(--primary)' : 'rgba(255,255,255,0.6)';
-        }
+      // AI Overlay Visibility Toggles
+      const toggleOverlay = () => {
+        isOverlayVisible = !isOverlayVisible;
         if (actAi) {
-          if (isAiActive) actAi.classList.add('active');
-          else actAi.classList.remove('active');
+          actAi.classList.toggle('active', isOverlayVisible);
         }
         renderYoloBoxes();
+        EventBus.emit('toast:show', {
+          message: isOverlayVisible ? 'Hamparan kotak deteksi AI diaktifkan.' : 'Hamparan kotak deteksi AI disembunyikan.',
+          type: 'info'
+        });
       };
-      if (btnToggleAiMon) btnToggleAiMon.onclick = toggleAi;
-      if (actAi) actAi.onclick = toggleAi;
+      if (actAi) actAi.onclick = toggleOverlay;
 
       // Snapshot action
       if (actSnapshot) {
@@ -2340,112 +2482,289 @@ export class CctvMonitoringPage {
         };
       }
 
-      // Record action
-      let isRecording = false;
-      let recordSeconds = 0;
-      let mediaRecorder = null;
-      let recordedChunks = [];
+      const actSnapshotAi = document.getElementById('vms-fs-action-snapshot-ai');
+      const actToggleAi = document.getElementById('vms-fs-action-toggle-ai');
+      const actPtz = document.getElementById('vms-fs-action-ptz');
 
-      if (actRecord) {
-        actRecord.onclick = () => {
-          const recBadge = document.getElementById('vms-fs-rec-badge');
-          const recTimer = document.getElementById('vms-fs-rec-timer');
-          isRecording = !isRecording;
+      if (actSnapshotAi) {
+        actSnapshotAi.onclick = () => {
+          const mediaEl = document.getElementById('vms-fs-media-element');
+          if (!mediaEl) return;
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = mediaEl.videoWidth || mediaEl.naturalWidth || 1280;
+            canvas.height = mediaEl.videoHeight || mediaEl.naturalHeight || 720;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(mediaEl, 0, 0, canvas.width, canvas.height);
 
-          if (isRecording) {
-            // Start recording
-            actRecord.classList.add('active');
-            actRecord.style.color = '#ef4444';
-            if (recBadge) recBadge.style.display = 'flex';
-            recordSeconds = 0;
-            if (recTimer) recTimer.innerText = '00:00';
+            // Draw bounding boxes on canvas
+            const currentCh = this.cctvList.find(c => c.id === ch.id);
+            const isChActive = AppState.get('isMonitoring') && currentCh && currentCh.isActive && currentCh.status !== 'OFFLINE';
+            if (isAiActive && isChActive) {
+              const boxesToShow = latestDetections.length > 0 ? latestDetections : ((matchReport && matchReport.boundingBoxes) || []);
+              boxesToShow.forEach(box => {
+                let label = box.label || box.class || 'object';
+                let x = box.x !== undefined ? box.x : (box.bbox ? box.bbox[0] : 0);
+                let y = box.y !== undefined ? box.y : (box.bbox ? box.bbox[1] : 0);
+                let w = box.w !== undefined ? box.w : (box.bbox ? box.bbox[2] : 0);
+                let h = box.h !== undefined ? box.h : (box.bbox ? box.bbox[3] : 0);
 
-            recordedChunks = [];
-
-            try {
-              const stream = videoEl.captureStream ? videoEl.captureStream() : (videoEl.mozCaptureStream ? videoEl.mozCaptureStream() : null);
-              if (stream) {
-                let options = { mimeType: 'video/webm;codecs=vp8' };
-                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                  options = { mimeType: 'video/webm' };
-                }
-
-                mediaRecorder = new MediaRecorder(stream, options);
-                mediaRecorder.ondataavailable = (event) => {
-                  if (event.data && event.data.size > 0) {
-                    recordedChunks.push(event.data);
-                  }
+                const labelMap = {
+                  'person': 'Orang', 'people': 'Orang', 'sitting': 'Orang', 'standing': 'Orang', 'orang': 'Orang', 'cctv persons': 'Orang',
+                  'bicycle': 'Sepeda', 'car': 'Mobil', 'motorcycle': 'Sepeda Motor', 'airplane': 'Pesawat', 'bus': 'Bus', 'train': 'Kereta',
+                  'truck': 'Truk', 'boat': 'Perahu', 'perahu': 'Perahu', 'traffic light': 'Lampu Lalu Lintas', 'fire hydrant': 'Hidran Pemadam',
+                  'stop sign': 'Rambu Stop', 'parking meter': 'Meteran Parkir', 'bench': 'Bangku', 'bird': 'Burung', 'cat': 'Kucing',
+                  'dog': 'Anjing', 'horse': 'Kuda', 'sheep': 'Domba', 'cow': 'Sapi', 'elephant': 'Gajah', 'bear': 'Beruang',
+                  'zebra': 'Zebra', 'giraffe': 'Jerapah', 'backpack': 'Ransel', 'umbrella': 'Payung', 'handbag': 'Tas Tangan',
+                  'tie': 'Dasi', 'suitcase': 'Koper', 'frisbee': 'Frisbee', 'skis': 'Ski', 'snowboard': 'Papan Seluncur Salju',
+                  'sports ball': 'Bola Olahraga', 'kite': 'Layang-layang', 'baseball bat': 'Pemukul Bisbol', 'baseball glove': 'Sarung Tangan Bisbol',
+                  'skateboard': 'Papan Seluncur', 'surfboard': 'Papan Selancar', 'tennis racket': 'Raket Tenis', 'bottle': 'Botol',
+                  'plastic': 'Plastik', 'wine glass': 'Gelas Anggur', 'cup': 'Cangkir', 'fork': 'Garpu', 'knife': 'Pisau',
+                  'spoon': 'Sendok', 'bowl': 'Mangkuk', 'banana': 'Pisang', 'apple': 'Apel', 'sandwich': 'Roti Lapis',
+                  'orange': 'Jeruk', 'broccoli': 'Brokoli', 'carrot': 'Wortel', 'hot dog': 'Hot Dog', 'pizza': 'Pizza',
+                  'donut': 'Donat', 'cake': 'Kue', 'chair': 'Kursi', 'couch': 'Sofa', 'potted plant': 'Tanaman Pot',
+                  'bed': 'Tempat Tidur', 'dining table': 'Meja Makan', 'toilet': 'Toilet', 'tv': 'TV', 'laptop': 'Laptop',
+                  'mouse': 'Mouse', 'remote': 'Remote', 'keyboard': 'Keyboard', 'cell phone': 'Ponsel', 'microwave': 'Microwave',
+                  'oven': 'Oven', 'toaster': 'Pemanggang Roti', 'sink': 'Wastafel', 'refrigerator': 'Kulkas', 'book': 'Buku',
+                  'clock': 'Jam', 'jam': 'Jam', 'vase': 'Vas', 'scissors': 'Gunting', 'teddy bear': 'Boneka Beruang',
+                  'hair drier': 'Pengering Rambut', 'toothbrush': 'Sikat Gigi', 'trash': 'Sampah', 'sampah': 'Sampah',
+                  'waste': 'Sampah', 'bag': 'Kantong', 'cardboard': 'Kardus', 'object': 'Objek'
                 };
+                const cleanLabel = labelMap[label.toLowerCase()] || label;
 
-                mediaRecorder.onstop = () => {
-                  const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.style.display = 'none';
-                  a.href = url;
-                  a.download = `${ch.name.replace(/\s+/g, '_')}_Record_${Date.now()}.webm`;
-                  document.body.appendChild(a);
-                  a.click();
-                  setTimeout(() => {
-                    document.body.removeChild(a);
-                    window.URL.revokeObjectURL(url);
-                  }, 100);
+                const px = (x / 100) * canvas.width;
+                const py = (y / 100) * canvas.height;
+                const pw = (w / 100) * canvas.width;
+                const ph = (h / 100) * canvas.height;
 
-                  EventBus.emit('toast:show', {
-                    message: `Rekaman selesai (${recordSeconds} detik). Berhasil diunduh ke folder Downloads!`,
-                    type: 'success'
-                  });
-                };
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(px, py, pw, ph);
 
-                mediaRecorder.start(1000); // chunk every 1 second
-              } else {
-                console.warn('captureStream not supported in this browser.');
-              }
-            } catch (err) {
-              console.error('Failed to start MediaRecorder:', err);
+                ctx.fillStyle = '#ef4444';
+                ctx.font = 'bold 16px sans-serif';
+                ctx.fillText(`${cleanLabel.toUpperCase()} (${Math.round((box.confidence || 0.8) * 100)}%)`, px, py - 6);
+              });
             }
 
-            if (recordInterval) clearInterval(recordInterval);
-            recordInterval = setInterval(() => {
-              recordSeconds++;
-              const m = Math.floor(recordSeconds / 60).toString().padStart(2, '0');
-              const s = Math.floor(recordSeconds % 60).toString().padStart(2, '0');
-              if (recTimer) recTimer.innerText = `${m}:${s}`;
-            }, 1000);
-
-            EventBus.emit('toast:show', { message: 'Merekam cuplikan video...', type: 'info' });
-          } else {
-            // Stop recording
-            actRecord.classList.remove('active');
-            actRecord.style.color = '';
-            if (recBadge) recBadge.style.display = 'none';
-            if (recordInterval) clearInterval(recordInterval);
-
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-              mediaRecorder.stop();
-            } else {
-              EventBus.emit('toast:show', { message: `Rekaman selesai (${recordSeconds} detik).`, type: 'success' });
-            }
+            const dataUrl = canvas.toDataURL('image/jpeg');
+            const link = document.createElement('a');
+            link.download = `${ch.name.replace(/\s+/g, '_')}_SnapshotAI_${Date.now()}.jpg`;
+            link.href = dataUrl;
+            link.click();
+            EventBus.emit('toast:show', { message: 'Snapshot AI berhasil diexport dengan overlay.', type: 'success' });
+          } catch (err) {
+            console.error(err);
+            EventBus.emit('toast:show', { message: 'Gagal mengambil Snapshot AI.', type: 'danger' });
           }
         };
       }
 
-      // Intercom action
-      let isMicActive = false;
-      if (actMic) {
-        actMic.onclick = () => {
-          isMicActive = !isMicActive;
-          if (isMicActive) {
-            actMic.classList.add('active');
-            actMic.style.color = 'var(--primary)';
-            EventBus.emit('toast:show', { message: 'Koneksi audio dua arah aktif. Silakan berbicara.', type: 'success' });
+      if (actToggleAi) {
+        actToggleAi.onclick = () => {
+          isAiActive = !isAiActive;
+          if (isAiActive) {
+            actToggleAi.classList.add('active');
+            actToggleAi.innerHTML = '<i data-lucide="play-circle"></i> Mulai Analisis';
+            renderYoloBoxes();
+            EventBus.emit('toast:show', { message: 'AI Engine aktif. Kamera mulai mengirim data deteksi baru.', type: 'success' });
           } else {
-            actMic.classList.remove('active');
-            actMic.style.color = '';
-            EventBus.emit('toast:show', { message: 'Intercom dinonaktifkan.', type: 'warning' });
+            actToggleAi.classList.remove('active');
+            actToggleAi.innerHTML = '<i data-lucide="pause-circle"></i> Pause AI';
+            const yoloOverlay = document.getElementById('vms-fs-yolo-overlay');
+            if (yoloOverlay) yoloOverlay.innerHTML = '';
+            EventBus.emit('toast:show', { message: 'AI Engine ditangguhkan. Polling deteksi baru dihentikan sementara.', type: 'warning' });
+          }
+          if (window.lucide) window.lucide.createIcons();
+        };
+      }
+
+
+      // Heatmap and Tracking actions removed for client performance optimization
+
+      // Digital PTZ (Pan-Tilt-Zoom) implementation
+      const wrapper = document.getElementById('vms-fs-media-wrapper');
+      const mediaEl = document.getElementById('vms-fs-media-element');
+      let zoom = 1.0;
+      let isDragging = false;
+      let startX = 0, startY = 0;
+      let translateX = 0, translateY = 0;
+
+      const updateTransform = () => {
+        if (!mediaEl) return;
+        mediaEl.style.transform = `scale(${zoom}) translate(${translateX}px, ${translateY}px)`;
+        mediaEl.style.transition = isDragging ? 'none' : 'transform 0.1s ease';
+        
+        // Also sync YOLO overlay by applying the exact same transform
+        const yoloOverlay = document.getElementById('vms-fs-yolo-overlay');
+        if (yoloOverlay) {
+          yoloOverlay.style.transform = `scale(${zoom}) translate(${translateX}px, ${translateY}px)`;
+          yoloOverlay.style.transition = isDragging ? 'none' : 'transform 0.1s ease';
+        }
+      };
+
+      if (wrapper && mediaEl) {
+        // Zoom with wheel
+        wrapper.onwheel = (e) => {
+          e.preventDefault();
+          const zoomFactor = 0.15;
+          if (e.deltaY < 0) {
+            zoom = Math.min(zoom + zoomFactor, 5.0); // max 5x zoom
+          } else {
+            zoom = Math.max(zoom - zoomFactor, 1.0); // min 1x zoom
+          }
+          if (zoom === 1.0) {
+            translateX = 0;
+            translateY = 0;
+          }
+          updateTransform();
+        };
+
+        // Pan with mouse drag
+        wrapper.onmousedown = (e) => {
+          if (zoom > 1.0) {
+            isDragging = true;
+            startX = e.clientX - translateX;
+            startY = e.clientY - translateY;
+            wrapper.style.cursor = 'grabbing';
+          }
+        };
+
+        window.onmousemove = (e) => {
+          if (isDragging) {
+            translateX = e.clientX - startX;
+            translateY = e.clientY - startY;
+            
+            // Constrain translation limits based on zoom level
+            const limitX = (zoom - 1) * (wrapper.clientWidth / 2) / zoom;
+            const limitY = (zoom - 1) * (wrapper.clientHeight / 2) / zoom;
+            translateX = Math.max(-limitX, Math.min(limitX, translateX));
+            translateY = Math.max(-limitY, Math.min(limitY, translateY));
+
+            updateTransform();
+          }
+        };
+
+        window.onmouseup = () => {
+          if (isDragging) {
+            isDragging = false;
+            wrapper.style.cursor = zoom > 1.0 ? 'grab' : 'default';
           }
         };
       }
+
+      // Bind PTZ on-screen buttons
+      const btnUp = document.getElementById('ptz-control-up');
+      const btnDown = document.getElementById('ptz-control-down');
+      const btnLeft = document.getElementById('ptz-control-left');
+      const btnRight = document.getElementById('ptz-control-right');
+      const btnHome = document.getElementById('ptz-control-home');
+      const btnZoomIn = document.getElementById('ptz-control-zoom-in');
+      const btnZoomOut = document.getElementById('ptz-control-zoom-out');
+
+      const panStep = 20; // pixels to pan
+      
+      if (btnUp) {
+        btnUp.onclick = (e) => {
+          e.stopPropagation();
+          if (zoom > 1.0) {
+            translateY = Math.max(translateY - panStep, -(zoom - 1) * (wrapper.clientHeight / 2) / zoom);
+            updateTransform();
+          } else {
+            EventBus.emit('toast:show', { message: 'Perbesar (Zoom In) terlebih dahulu untuk menggerakkan Tilt.', type: 'warning' });
+          }
+        };
+      }
+      if (btnDown) {
+        btnDown.onclick = (e) => {
+          e.stopPropagation();
+          if (zoom > 1.0) {
+            translateY = Math.min(translateY + panStep, (zoom - 1) * (wrapper.clientHeight / 2) / zoom);
+            updateTransform();
+          } else {
+            EventBus.emit('toast:show', { message: 'Perbesar (Zoom In) terlebih dahulu untuk menggerakkan Tilt.', type: 'warning' });
+          }
+        };
+      }
+      if (btnLeft) {
+        btnLeft.onclick = (e) => {
+          e.stopPropagation();
+          if (zoom > 1.0) {
+            translateX = Math.max(translateX - panStep, -(zoom - 1) * (wrapper.clientWidth / 2) / zoom);
+            updateTransform();
+          } else {
+            EventBus.emit('toast:show', { message: 'Perbesar (Zoom In) terlebih dahulu untuk menggerakkan Pan.', type: 'warning' });
+          }
+        };
+      }
+      if (btnRight) {
+        btnRight.onclick = (e) => {
+          e.stopPropagation();
+          if (zoom > 1.0) {
+            translateX = Math.min(translateX + panStep, (zoom - 1) * (wrapper.clientWidth / 2) / zoom);
+            updateTransform();
+          } else {
+            EventBus.emit('toast:show', { message: 'Perbesar (Zoom In) terlebih dahulu untuk menggerakkan Pan.', type: 'warning' });
+          }
+        };
+      }
+      if (btnHome) {
+        btnHome.onclick = (e) => {
+          e.stopPropagation();
+          if (actPtz) actPtz.click();
+        };
+      }
+      if (btnZoomIn) {
+        btnZoomIn.onclick = (e) => {
+          e.stopPropagation();
+          zoom = Math.min(zoom + 0.25, 5.0);
+          updateTransform();
+        };
+      }
+      if (btnZoomOut) {
+        btnZoomOut.onclick = (e) => {
+          e.stopPropagation();
+          zoom = Math.max(zoom - 0.25, 1.0);
+          if (zoom === 1.0) {
+            translateX = 0;
+            translateY = 0;
+          }
+          updateTransform();
+        };
+      }
+
+      if (actPtz) {
+        actPtz.onclick = () => {
+          zoom = 1.0;
+          translateX = 0;
+          translateY = 0;
+          updateTransform();
+          EventBus.emit('toast:show', { message: 'Koordinat PTZ digital berhasil direset ke posisi awal.', type: 'success' });
+        };
+      }
+
+      // Auto-fetch AI Engine status into sidebar STATUS AI ENGINE section
+      (async () => {
+        try {
+          const response = await API.get('/api/cctv/monitoring/status');
+          const isPipelineRunning = response && response.running;
+          const pipelineEl = document.getElementById('vms-stat-ai-pipeline');
+          const healthEl = document.getElementById('vms-stat-ai-health');
+          if (pipelineEl) {
+            pipelineEl.innerHTML = isPipelineRunning
+              ? '<span style="color:var(--success);font-weight:700;">Aktif</span>'
+              : '<span style="color:var(--danger);font-weight:700;">Nonaktif</span>';
+          }
+          if (healthEl) {
+            healthEl.innerHTML = '<span style="color:var(--success);font-weight:700;">Sehat</span>';
+          }
+        } catch (err) {
+          const pipelineEl = document.getElementById('vms-stat-ai-pipeline');
+          const healthEl = document.getElementById('vms-stat-ai-health');
+          if (pipelineEl) pipelineEl.textContent = 'Tidak Diketahui';
+          if (healthEl) healthEl.textContent = 'Tidak Diketahui';
+        }
+      })();
 
       // Poll live AI detections for current camera
       const pollFsDetections = async () => {
@@ -2469,14 +2788,17 @@ export class CctvMonitoringPage {
               const ageMs = Date.now() - new Date(latestDet.capturedAt).getTime();
               console.log(`[pollFsDetections] Latest detection time: ${latestDet.capturedAt}, age: ${ageMs}ms`);
               if (Math.abs(ageMs) < 15000) {
+                latestDetections = latestDet.detections || [];
                 renderYoloBoxes(latestDet.detections);
                 return;
               } else {
                 console.log(`[pollFsDetections] Skipping, age ${ageMs}ms is too large.`);
+                latestDetections = [];
               }
             }
           }
           // Clear if no recent detection
+          latestDetections = [];
           const yoloOverlay = document.getElementById('vms-fs-yolo-overlay');
           if (yoloOverlay) yoloOverlay.innerHTML = '';
         } catch (err) {
@@ -2491,9 +2813,88 @@ export class CctvMonitoringPage {
       if (window.lucide) window.lucide.createIcons();
     };
 
+    // 2b. Populate STATUS KAMERA & STATUS AI ENGINE sidebar with real ch data
+    const populateSidebarStatus = () => {
+      // --- STATUS KAMERA ---
+      const elProtocol   = document.getElementById('vms-stat-protocol');
+      const elResolution = document.getElementById('vms-stat-resolution');
+      const elLatency    = document.getElementById('vms-stat-latency');
+      const elAiTracking = document.getElementById('vms-stat-aitracking');
+
+      // Protocol
+      if (elProtocol) {
+        const proto = ch.protocol || 'N/A';
+        elProtocol.textContent = proto;
+        elProtocol.className = 'vms-status-value accent-cyan';
+      }
+
+      // Resolution — show configured value, then override with actual stream dims
+      const configuredRes = (ch.health && ch.health.resolution) ? ch.health.resolution : (ch.protocol || '');
+      if (elResolution) {
+        elResolution.textContent = configuredRes || 'Mendeteksi...';
+      }
+
+      // Latency
+      if (elLatency) {
+        const lat = ch.health && typeof ch.health.latency === 'number' ? ch.health.latency : null;
+        if (lat !== null && lat > 0) {
+          elLatency.textContent = lat + ' ms';
+          elLatency.className = lat < 80
+            ? 'vms-status-value accent-green'
+            : lat < 200
+              ? 'vms-status-value accent-yellow'
+              : 'vms-status-value accent-red';
+        } else {
+          elLatency.textContent = 'Mengukur...';
+          elLatency.className = 'vms-status-value';
+        }
+      }
+
+      // AI Tracking — based on monitoringEnabled flag from config
+      if (elAiTracking) {
+        const isTracking = ch.monitoringEnabled !== false;
+        elAiTracking.textContent = isTracking ? 'Aktif' : 'Nonaktif';
+        elAiTracking.className = isTracking ? 'vms-status-value accent-green' : 'vms-status-value accent-red';
+      }
+
+      // --- STATUS AI ENGINE ---
+      const elAiFps     = document.getElementById('vms-stat-ai-fps');
+      const elAiLatency = document.getElementById('vms-stat-ai-latency');
+
+      // FPS from health (updated by backend health engine every 10s)
+      if (elAiFps) {
+        const fps = ch.health && typeof ch.health.fps === 'number' ? ch.health.fps : null;
+        elAiFps.textContent = fps !== null && fps > 0 ? fps + ' FPS' : 'N/A';
+      }
+
+      // Processing latency — use stream latency as proxy (real AI latency not exposed by API)
+      if (elAiLatency) {
+        const lat = ch.health && typeof ch.health.latency === 'number' ? ch.health.latency : null;
+        elAiLatency.textContent = lat !== null && lat > 0 ? lat + ' ms' : 'N/A';
+      }
+
+      // --- Update resolution with ACTUAL decoded video dimensions once stream loads ---
+      const videoEl = document.getElementById('vms-fs-media-element');
+      if (videoEl) {
+        const updateRealResolution = () => {
+          const w = videoEl.videoWidth;
+          const h = videoEl.videoHeight;
+          if (w && h && elResolution) {
+            const label = (w >= 3840) ? '4K (UHD)' : (w >= 1920) ? '1080p (FHD)' : (w >= 1280) ? '720p (HD)' : `${w}x${h}`;
+            elResolution.textContent = label;
+          }
+        };
+        videoEl.addEventListener('loadedmetadata', updateRealResolution, { once: true });
+        // Also check immediately if already loaded
+        if (videoEl.readyState >= 1 && videoEl.videoWidth) updateRealResolution();
+      }
+    };
+
     // 3. Boot Fullscreen view
     try {
       renderActivePlayer();
+      setupFsControls();
+      populateSidebarStatus();
     } catch (err) {
       console.error('[VMS] renderActivePlayer crashed:', err);
       playerContainer.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(255,255,255,0.5);font-size:0.85rem;">Gagal render player: ${err.message || 'unknown'}</div>`;

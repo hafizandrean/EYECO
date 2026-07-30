@@ -469,8 +469,20 @@ router.post('/detections', (req, res, next) => {
     console.log('[AI] Mengupdate report #' + newReport.id + ' dengan hasil AI Engine v3.0...');
 
     const isVideo = req.file.mimetype.startsWith('video/') || sourceType === 'Video';
+    
+    // Normalize status for consistency
+    const rawStatus = aiAnalysis.decision.status as string;
+    let normalizedStatus = 'Tidak Terindikasi';
+    if (rawStatus === 'Indikasi Tinggi' || rawStatus === 'TINGGI') {
+      normalizedStatus = 'TINGGI';
+    } else if (rawStatus === 'Indikasi Sedang' || rawStatus === 'SEDANG') {
+      normalizedStatus = 'SEDANG';
+    } else if (rawStatus === 'Indikasi Rendah' || rawStatus === 'RENDAH') {
+      normalizedStatus = 'RENDAH';
+    }
+
     const updateFields: any = {
-      aiStatus: aiAnalysis.decision.status,
+      aiStatus: normalizedStatus,
       aiConfidence: aiAnalysis.decision.decisionConfidence,
       violationScore: aiAnalysis.decision.violationScore,
       objectConfidence: aiAnalysis.decision.objectConfidence,
@@ -480,14 +492,38 @@ router.post('/detections', (req, res, next) => {
       priority: aiAnalysis.decision.priority,
       recommendedAction: aiAnalysis.decision.recommendedAction,
       activeSnapshotId: aiAnalysis.snapshot._id,
-      boundingBoxes: aiAnalysis.objects.map((o: any) => ({
-        label: o.class,
-        confidence: o.confidence,
-        x: o.x,
-        y: o.y,
-        w: o.w,
-        h: o.h
-      })),
+      boundingBoxes: aiAnalysis.objects.map((o: any) => {
+        const labelMap: Record<string, string> = {
+          'person': 'Orang', 'people': 'Orang', 'sitting': 'Orang', 'standing': 'Orang', 'orang': 'Orang', 'cctv persons': 'Orang',
+          'bicycle': 'Sepeda', 'car': 'Mobil', 'motorcycle': 'Sepeda Motor', 'airplane': 'Pesawat', 'bus': 'Bus', 'train': 'Kereta',
+          'truck': 'Truk', 'boat': 'Perahu', 'perahu': 'Perahu', 'traffic light': 'Lampu Lalu Lintas', 'fire hydrant': 'Hidran Pemadam',
+          'stop sign': 'Rambu Stop', 'parking meter': 'Meteran Parkir', 'bench': 'Bangku', 'bird': 'Burung', 'cat': 'Kucing',
+          'dog': 'Anjing', 'horse': 'Kuda', 'sheep': 'Domba', 'cow': 'Sapi', 'elephant': 'Gajah', 'bear': 'Beruang',
+          'zebra': 'Zebra', 'giraffe': 'Jerapah', 'backpack': 'Ransel', 'umbrella': 'Payung', 'handbag': 'Tas Tangan',
+          'tie': 'Dasi', 'suitcase': 'Koper', 'frisbee': 'Frisbee', 'skis': 'Ski', 'snowboard': 'Papan Seluncur Salju',
+          'sports ball': 'Bola Olahraga', 'kite': 'Layang-layang', 'baseball bat': 'Pemukul Bisbol', 'baseball glove': 'Sarung Tangan Bisbol',
+          'skateboard': 'Papan Seluncur', 'surfboard': 'Papan Selancar', 'tennis racket': 'Raket Tenis', 'bottle': 'Botol',
+          'plastic': 'Plastik', 'wine glass': 'Gelas Anggur', 'cup': 'Cangkir', 'fork': 'Garpu', 'knife': 'Pisau',
+          'spoon': 'Sendok', 'bowl': 'Mangkuk', 'banana': 'Pisang', 'apple': 'Apel', 'sandwich': 'Roti Lapis',
+          'orange': 'Jeruk', 'broccoli': 'Brokoli', 'carrot': 'Wortel', 'hot dog': 'Hot Dog', 'pizza': 'Pizza',
+          'donut': 'Donat', 'cake': 'Kue', 'chair': 'Kursi', 'couch': 'Sofa', 'potted plant': 'Tanaman Pot',
+          'bed': 'Tempat Tidur', 'dining table': 'Meja Makan', 'toilet': 'Toilet', 'tv': 'TV', 'laptop': 'Laptop',
+          'mouse': 'Mouse', 'remote': 'Remote', 'keyboard': 'Keyboard', 'cell phone': 'Ponsel', 'microwave': 'Microwave',
+          'oven': 'Oven', 'toaster': 'Pemanggang Roti', 'sink': 'Wastafel', 'refrigerator': 'Kulkas', 'book': 'Buku',
+          'clock': 'Jam', 'jam': 'Jam', 'vase': 'Vas', 'scissors': 'Gunting', 'teddy bear': 'Boneka Beruang',
+          'hair drier': 'Pengering Rambut', 'toothbrush': 'Sikat Gigi', 'trash': 'Sampah', 'sampah': 'Sampah',
+          'waste': 'Sampah', 'bag': 'Kantong', 'cardboard': 'Kardus', 'object': 'Objek'
+        };
+        const cleanLabel = labelMap[o.class.toLowerCase()] || o.class;
+        return {
+          label: cleanLabel,
+          confidence: o.confidence,
+          x: o.x,
+          y: o.y,
+          w: o.w,
+          h: o.h
+        };
+      }),
     };
 
     if (isVideo) {

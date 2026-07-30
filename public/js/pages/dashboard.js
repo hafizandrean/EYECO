@@ -28,6 +28,13 @@ export class DashboardPage {
     const user = AppState.get('user');
     const isAdmin = user?.role === 'admin';
 
+    // Pick up camera filter from CCTV Monitoring "Riwayat Deteksi" button
+    const pendingSearch = AppState.get('dashboardSearchQuery');
+    if (pendingSearch) {
+      this.searchQuery = pendingSearch.toLowerCase().trim();
+      AppState.set('dashboardSearchQuery', null);
+    }
+
     container.innerHTML = `
       <!-- 1. Command Center HUD -->
       <div class="cc-hud glass-card" id="command-center-hud" style="padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
@@ -119,7 +126,7 @@ export class DashboardPage {
           <div class="incident-filter-row">
             <div style="position: relative;">
               <i data-lucide="search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; color: var(--text-secondary);"></i>
-              <input type="text" id="incident-search-input" class="incident-filter-input" placeholder="Cari lokasi, kamera..." style="padding-left: 32px;" />
+              <input type="text" id="incident-search-input" class="incident-filter-input" placeholder="Cari lokasi, kamera..." style="padding-left: 32px;" value="${this.searchQuery}" />
             </div>
             <input type="text" id="incident-filter-id" class="incident-filter-input" placeholder="ID (#0042)" />
             <select id="incident-filter-camera" class="incident-filter-input">
@@ -560,13 +567,13 @@ export class DashboardPage {
     const sysBarEl = document.getElementById('stat-system-health-bar');
     const sysDescEl = document.getElementById('stat-system-health-desc');
 
-    if (sysValEl) sysValEl.innerText = isMon ? 'Active' : 'Standby';
+    if (sysValEl) sysValEl.innerText = isMon ? 'Aktif' : 'Siaga';
     if (sysBarEl) {
       sysBarEl.style.width = isMon ? '100%' : '50%';
       sysBarEl.style.background = isMon ? 'var(--success)' : 'var(--text-muted)';
     }
     if (sysDescEl) {
-      sysDescEl.innerText = isMon ? 'System Online' : 'Monitoring Paused';
+      sysDescEl.innerText = isMon ? 'Sistem Online' : 'Pemantauan Dijeda';
     }
 
     // Filter & Render Active Incident Queue (priority sorted)
@@ -576,7 +583,7 @@ export class DashboardPage {
     const queueReports = this.filterQueueReports(this.latestReports);
 
     if (activeIncidentsBadge) {
-      activeIncidentsBadge.innerText = `${queueReports.length} Queue`;
+      activeIncidentsBadge.innerText = `${queueReports.length} Antrean`;
       activeIncidentsBadge.style.background = queueReports.length > 0 ? 'rgba(239, 68, 68, 0.08)' : 'rgba(34, 197, 94, 0.08)';
       activeIncidentsBadge.style.color = queueReports.length > 0 ? 'var(--danger)' : 'var(--success)';
     }
@@ -673,7 +680,7 @@ export class DashboardPage {
               ${officerHtml}
             </div>
             <button class="btn btn-sm btn-glass btn-open-incident" style="margin-left: auto; padding: 8px 18px; font-size:0.7rem; font-weight:800; flex-shrink:0; white-space:nowrap;">
-              Open Incident
+              Buka Laporan
             </button>
           `;
           
@@ -834,6 +841,11 @@ export class DashboardPage {
       clearInterval(this.pollingTimer);
       this.pollingTimer = null;
     }
+    this.searchQuery = '';
+    this.filterId = '';
+    this.filterCamera = 'all';
+    this.filterDate = '';
+    this.filterStatus = 'all';
   }
 }
 export const Dashboard = new DashboardPage();
