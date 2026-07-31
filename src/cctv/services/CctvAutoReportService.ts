@@ -101,8 +101,8 @@ export class CctvAutoReportService {
 
       // AI Engine analysis
       let aiStatus: 'TINGGI' | 'SEDANG' | 'RENDAH' | 'Tidak Terindikasi' = 'Tidak Terindikasi';
-      let violationScore = 0;
-      let decisionConfidence = 0;
+      let violationScore: number | null = 0;
+      let decisionConfidence: number | null = 0;
 
       try {
         const aiAnalysis = await aiEngine.analyze(lastCapturePath);

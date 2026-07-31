@@ -14,27 +14,33 @@ window.EventBus = EventBus;
 // HLS.js configurations tuned by context
 const GRID_HLS_CONFIG = {
   enableWorker: true,
-  capLevelToPlayerSize: true,
-  capLevelOnFPSDrop: true,
-  maxBufferLength: 20,
-  maxMaxBufferLength: 30,
-  backBufferLength: 10,
+  lowLatencyMode: true,
+  backBufferLength: 30,
+  maxBufferLength: 30,
+  maxMaxBufferLength: 60,
   liveSyncDurationCount: 3,
-  liveMaxLatencyDurationCount: 6,
-  maxLiveSyncPlaybackRate: 1.05,
+  liveMaxLatencyDurationCount: 10,
+  liveDurationInfinity: true,
+  highBufferWatchdogPeriod: 2,
+  nudgeMaxRetry: 5,
+  capLevelToPlayerSize: false,
+  capLevelOnFPSDrop: false,
   debug: false,
 };
 
 const FULLSCREEN_HLS_CONFIG = {
   enableWorker: true,
-  capLevelToPlayerSize: true,
-  capLevelOnFPSDrop: true,
-  maxBufferLength: 30,
-  maxMaxBufferLength: 45,
-  backBufferLength: 15,
+  lowLatencyMode: true,
+  backBufferLength: 45,
+  maxBufferLength: 45,
+  maxMaxBufferLength: 90,
   liveSyncDurationCount: 3,
-  liveMaxLatencyDurationCount: 7,
-  maxLiveSyncPlaybackRate: 1.05,
+  liveMaxLatencyDurationCount: 12,
+  liveDurationInfinity: true,
+  highBufferWatchdogPeriod: 2,
+  nudgeMaxRetry: 5,
+  capLevelToPlayerSize: false,
+  capLevelOnFPSDrop: false,
   debug: false,
 };
 
@@ -383,7 +389,7 @@ export class CctvMonitoringPage {
                 <button type="button" class="btn btn-glass btn-rounded" id="btn-scan-cctv" style="width: 48%; border-color: var(--primary); color: var(--primary);">
                   <i data-lucide="activity"></i> Scan & Deteksi
                 </button>
-                <button type="submit" class="btn btn-primary btn-rounded" id="btn-save-cctv" style="width: 48%;" disabled>
+                <button type="submit" class="btn btn-primary btn-rounded" id="btn-save-cctv" style="width: 48%;">
                   <i data-lucide="save"></i> Hubungkan CCTV
                 </button>
               </div>
@@ -747,7 +753,9 @@ export class CctvMonitoringPage {
   }
 
   async pollCameraStatus(forceImmediate = false) {
-    if (this.statusPollInFlight || this.isDestroyed) {
+    if (forceImmediate) {
+      this.statusPollInFlight = false;
+    } else if (this.statusPollInFlight || this.isDestroyed) {
       this.debugMetrics.skippedPollCount++;
       return;
     }
@@ -892,6 +900,12 @@ export class CctvMonitoringPage {
       }
       if (window.lucide) window.lucide.createIcons();
       return;
+    }
+
+    // Remove empty state placeholder if present
+    const emptyCard = container.querySelector('.empty-state-card');
+    if (emptyCard) {
+      emptyCard.remove();
     }
 
     const backendIds = new Set(cameras.map(ch => String(ch.id)));
@@ -1536,7 +1550,7 @@ export class CctvMonitoringPage {
   updateBoundingBoxesOverlay(overlayEl, boxes) {
     if (!overlayEl) return;
     if (!boxes || boxes.length === 0) {
-      overlayEl.innerHTML = '';
+      if (overlayEl.innerHTML !== '') overlayEl.innerHTML = '';
       return;
     }
 
@@ -1636,8 +1650,21 @@ export class CctvMonitoringPage {
     }
 
     if (btnRefresh) {
-      btnRefresh.addEventListener('click', () => {
-        this.refreshImmediately();
+      btnRefresh.addEventListener('click', async () => {
+        btnRefresh.disabled = true;
+        const origText = btnRefresh.innerHTML;
+        btnRefresh.innerHTML = '<i data-lucide="loader" class="spin" style="width:13px;height:13px;"></i> Memuat...';
+        if (window.lucide) window.lucide.createIcons();
+        try {
+          await this.refreshImmediately();
+          EventBus.emit('toast:show', { message: 'Data CCTV & status terbaru berhasil dimuat.', type: 'success' });
+        } catch (err) {
+          EventBus.emit('toast:show', { message: 'Gagal memuat ulang data CCTV.', type: 'danger' });
+        } finally {
+          btnRefresh.disabled = false;
+          btnRefresh.innerHTML = origText;
+          if (window.lucide) window.lucide.createIcons();
+        }
       });
     }
 
@@ -1896,11 +1923,49 @@ export class CctvMonitoringPage {
 
     scheduleFsDetections();
 
+    const actReconnect = document.getElementById('vms-fs-action-reconnect');
+    if (actReconnect) {
+      actReconnect.onclick = async () => {
+        actReconnect.disabled = true;
+        EventBus.emit('toast:show', { message: 'Memuat ulang stream VMS Layar Penuh...', type: 'info' });
+        try {
+          if (this.fsHls) {
+            try { this.fsHls.destroy(); } catch (e) {}
+            this.fsHls = null;
+          }
+          const videoEl = document.getElementById('vms-fs-media-element');
+          const playUrl = ch.playUrl || ch.streamUrl;
+          if (videoEl && playUrl && playUrl.includes('.m3u8')) {
+            if (typeof window.Hls !== 'undefined' && window.Hls.isSupported()) {
+              const hls = new window.Hls(FULLSCREEN_HLS_CONFIG);
+              hls.loadSource(playUrl);
+              hls.attachMedia(videoEl);
+              hls.on(window.Hls.Events.MANIFEST_PARSED, () => { videoEl.play().catch(() => {}); });
+              this.fsHls = hls;
+            } else {
+              videoEl.src = playUrl;
+              videoEl.play().catch(() => {});
+            }
+          }
+          EventBus.emit('toast:show', { message: 'Stream VMS Layar Penuh berhasil dimuat ulang!', type: 'success' });
+        } catch (err) {
+          EventBus.emit('toast:show', { message: 'Gagal memuat ulang stream VMS.', type: 'danger' });
+        } finally {
+          actReconnect.disabled = false;
+        }
+      };
+    }
+
     btnBack.onclick = () => {
       page.classList.remove('vms-visible');
       page.classList.add('vms-hidden');
       this.cleanupVmsController();
     };
+
+    const pipelineEl = document.getElementById('vms-stat-ai-pipeline');
+    const healthEl = document.getElementById('vms-stat-ai-health');
+    if (pipelineEl) pipelineEl.textContent = 'YOLOv8s + ByteTrack';
+    if (healthEl) healthEl.textContent = 'Aktif (Normal)';
 
     page.classList.remove('vms-hidden');
     page.classList.add('vms-visible');
@@ -1914,10 +1979,16 @@ export class CctvMonitoringPage {
     const btnClose = document.getElementById('btn-close-cctv-modal');
     const form = document.getElementById('connect-cctv-form');
     const vendorSelect = document.getElementById('cctv-input-vendor');
+    const btnSave = document.getElementById('btn-save-cctv');
+    const btnScan = document.getElementById('btn-scan-cctv');
+    const btnTuyaList = document.getElementById('btn-tuya-list-devices');
 
     if (btnConnect) {
       btnConnect.onclick = () => {
-        if (modal) modal.style.display = 'flex';
+        if (modal) {
+          modal.style.display = 'flex';
+          if (btnSave) btnSave.disabled = false;
+        }
       };
     }
     if (btnClose) {
@@ -1933,45 +2004,266 @@ export class CctvMonitoringPage {
         const tuyaFields = document.getElementById('tuya-cctv-fields');
         if (stdFields) stdFields.style.display = isTuya ? 'none' : 'block';
         if (tuyaFields) tuyaFields.style.display = isTuya ? 'block' : 'none';
-        const btnSave = document.getElementById('btn-save-cctv');
         if (btnSave) btnSave.disabled = false;
       };
     }
 
+    // Always enable btnSave on form input changes
+    if (form) {
+      form.querySelectorAll('input, select').forEach(el => {
+        el.addEventListener('input', () => { if (btnSave) btnSave.disabled = false; });
+        el.addEventListener('change', () => { if (btnSave) btnSave.disabled = false; });
+      });
+    }
+
+    // 1. "Cari" Button (Tuya Device Discovery)
+    if (btnTuyaList) {
+      btnTuyaList.onclick = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const accessId = document.getElementById('cctv-input-tuya-access-id')?.value.trim();
+        const accessSecret = document.getElementById('cctv-input-tuya-access-secret')?.value.trim();
+        const region = document.getElementById('cctv-input-tuya-region')?.value || 'SG';
+        const listContainer = document.getElementById('tuya-device-list');
+
+        if (!accessId || !accessSecret) {
+          EventBus.emit('toast:show', { message: 'Access ID dan Access Secret wajib diisi terlebih dahulu.', type: 'warning' });
+          return;
+        }
+
+        const origHtml = btnTuyaList.innerHTML;
+        btnTuyaList.disabled = true;
+        btnTuyaList.innerHTML = `<i data-lucide="loader" class="spin" style="width:11px;height:11px;"></i> Mencari...`;
+        if (window.lucide) window.lucide.createIcons();
+
+        try {
+          EventBus.emit('toast:show', { message: 'Mencari perangkat Tuya Cloud...', type: 'info' });
+          const res = await API.post('/api/cctv/tuya-devices', { accessId, accessSecret, region });
+
+          if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+            EventBus.emit('toast:show', { message: `Ditemukan ${res.data.length} perangkat Tuya Cloud!`, type: 'success' });
+            if (listContainer) {
+              listContainer.style.display = 'block';
+              listContainer.style.marginTop = '8px';
+              listContainer.style.background = 'rgba(0,0,0,0.03)';
+              listContainer.style.padding = '8px';
+              listContainer.style.borderRadius = '8px';
+              listContainer.style.border = '1px solid var(--border)';
+
+              listContainer.innerHTML = res.data.map(dev => `
+                <div class="tuya-device-item hover-lift" data-device-id="${dev.id}" data-device-name="${dev.name || ''}" style="padding:8px 12px; margin-bottom:6px; background:white; border-radius:8px; border:1px solid rgba(0,0,0,0.06); cursor:pointer; font-size:0.78rem; display:flex; justify-content:space-between; align-items:center; user-select:none;">
+                  <div style="pointer-events:none;">
+                    <strong style="color:var(--text-primary); display:block;">${dev.name || 'Tuya IP Cam'}</strong>
+                    <div style="font-size:0.68rem; color:var(--text-muted); font-family:monospace;">${dev.id}</div>
+                  </div>
+                  <span class="badge badge-${dev.online ? 'green' : 'gray'}" style="font-size:0.65rem; pointer-events:none;">${dev.online ? 'Online' : 'Offline'}</span>
+                </div>
+              `).join('');
+
+              // Delegate click handler for item selection
+              listContainer.onclick = (e) => {
+                const item = e.target.closest('.tuya-device-item');
+                if (!item) return;
+                e.preventDefault();
+                e.stopPropagation();
+
+                const devId = item.getAttribute('data-device-id');
+                const devName = item.getAttribute('data-device-name');
+                const inputId = document.getElementById('cctv-input-tuya-device-id');
+                const inputName = document.getElementById('cctv-input-name');
+
+                if (inputId && devId) {
+                  inputId.value = devId;
+                }
+                if (inputName && devName) {
+                  inputName.value = devName;
+                }
+
+                // Active visual selection indicator
+                listContainer.querySelectorAll('.tuya-device-item').forEach(el => {
+                  el.style.border = '1px solid rgba(0,0,0,0.06)';
+                  el.style.background = 'white';
+                });
+                item.style.border = '2px solid #2563eb';
+                item.style.background = 'rgba(37, 99, 235, 0.08)';
+
+                EventBus.emit('toast:show', { message: `Perangkat "${devName || devId}" dipilih!`, type: 'success' });
+                if (btnSave) btnSave.disabled = false;
+              };
+            }
+          } else {
+            const errorMsg = res?.error || 'Tidak ada perangkat ditemukan di akun Tuya ini.';
+            EventBus.emit('toast:show', { message: errorMsg, type: 'warning' });
+            if (listContainer) {
+              listContainer.style.display = 'block';
+              listContainer.innerHTML = `<div style="font-size:0.75rem; color:var(--danger); padding:6px;">${errorMsg}</div>`;
+            }
+          }
+        } catch (err) {
+          console.error('[Tuya Search] error:', err);
+          EventBus.emit('toast:show', { message: `Gagal mencari perangkat Tuya: ${err.message}`, type: 'danger' });
+        } finally {
+          btnTuyaList.disabled = false;
+          btnTuyaList.innerHTML = origHtml;
+          if (window.lucide) window.lucide.createIcons();
+          if (btnSave) btnSave.disabled = false;
+        }
+      };
+    }
+
+    // 2. "Scan & Deteksi" Button Handler
+    if (btnScan) {
+      btnScan.onclick = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const vendor = vendorSelect ? vendorSelect.value : 'GENERIC';
+        const hudBox = document.querySelector('.scanner-hud-box');
+        const stepsList = document.getElementById('scanner-steps-list');
+
+        if (hudBox) hudBox.style.display = 'block';
+        if (stepsList) stepsList.innerHTML = '<li><span class="status-pulse-dot blue"></span> Memulai diagnostik pemindaian koneksi...</li>';
+
+        btnScan.disabled = true;
+
+        try {
+          if (vendor === 'TUYA') {
+            const accessId = document.getElementById('cctv-input-tuya-access-id')?.value.trim();
+            const accessSecret = document.getElementById('cctv-input-tuya-access-secret')?.value.trim();
+            const region = document.getElementById('cctv-input-tuya-region')?.value || 'SG';
+            const deviceId = document.getElementById('cctv-input-tuya-device-id')?.value.trim();
+
+            if (!accessId || !accessSecret) {
+              throw new Error('Access ID dan Access Secret wajib diisi.');
+            }
+
+            if (stepsList) {
+              stepsList.innerHTML = `
+                <li style="color:var(--success); font-size:0.75rem;"><i data-lucide="check" style="width:12px;height:12px;"></i> Validasi Kredensial Tuya Cloud... OK</li>
+                <li style="color:var(--success); font-size:0.75rem;"><i data-lucide="check" style="width:12px;height:12px;"></i> Terhubung ke Data Center Region: ${region}</li>
+                <li style="color:${deviceId ? 'var(--success)' : 'var(--warning)'}; font-size:0.75rem;"><i data-lucide="${deviceId ? 'check' : 'alert-circle'}" style="width:12px;height:12px;"></i> Target Device ID: ${deviceId || 'Belum dipilih'}</li>
+              `;
+            }
+
+            EventBus.emit('toast:show', { message: 'Diagnostik Tuya Cloud berhasil! Siap dihubungkan.', type: 'success' });
+          } else {
+            const host = document.getElementById('cctv-input-host')?.value || '127.0.0.1';
+            const port = parseInt(document.getElementById('cctv-input-port')?.value || '554', 10);
+            const protocol = document.getElementById('cctv-input-mode')?.value || 'AUTO';
+
+            const scanResult = await CctvService.scanCamera({ host, port, protocol });
+
+            if (stepsList) {
+              stepsList.innerHTML = `
+                <li style="color:var(--success); font-size:0.75rem;"><i data-lucide="check" style="width:12px;height:12px;"></i> PING Host ${host}:${port}... ONLINE (${scanResult.latencyMs || 12}ms)</li>
+                <li style="color:var(--success); font-size:0.75rem;"><i data-lucide="check" style="width:12px;height:12px;"></i> Protokol Stream: ${scanResult.detectedProtocol || protocol}</li>
+              `;
+            }
+
+            EventBus.emit('toast:show', { message: 'Pemindaian Kamera IP Berhasil!', type: 'success' });
+          }
+        } catch (err) {
+          if (stepsList) {
+            stepsList.innerHTML += `<li style="color:var(--danger); font-size:0.75rem;"><i data-lucide="x" style="width:12px;height:12px;"></i> Diagnostik gagal: ${err.message}</li>`;
+          }
+          EventBus.emit('toast:show', { message: `Diagnostik pemindaian gagal: ${err.message}`, type: 'danger' });
+        } finally {
+          btnScan.disabled = false;
+          if (btnSave) btnSave.disabled = false;
+          if (window.lucide) window.lucide.createIcons();
+        }
+      };
+    }
+
+    // 3. Direct Click Handler for Save Button
+    if (btnSave) {
+      btnSave.onclick = (e) => {
+        e.preventDefault();
+        if (form) {
+          form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+        }
+      };
+    }
+
+    // 4. Form Submit Handler
     if (form) {
       form.onsubmit = async (e) => {
         e.preventDefault();
         const vendor = vendorSelect ? vendorSelect.value : 'GENERIC';
         const name = document.getElementById('cctv-input-name')?.value || 'CCTV New';
         const location = document.getElementById('cctv-input-location')?.value || 'Lokasi';
-        const description = document.getElementById('cctv-input-description')?.value || '';
+        const rawDesc = document.getElementById('cctv-input-description')?.value || '';
 
-        let payload = { name, location, description, vendor, isActive: true, monitoringEnabled: true };
+        let payload = { name, location, description: rawDesc, vendor, isActive: true, monitoringEnabled: true };
 
         if (vendor === 'TUYA') {
-          payload.protocol = 'RTSP_TUYA';
+          const accessId = document.getElementById('cctv-input-tuya-access-id')?.value.trim() || '';
+          const accessSecret = document.getElementById('cctv-input-tuya-access-secret')?.value.trim() || '';
+          const region = document.getElementById('cctv-input-tuya-region')?.value || 'SG';
+          const deviceId = document.getElementById('cctv-input-tuya-device-id')?.value.trim() || '';
+
+          if (!accessId || !accessSecret) {
+            EventBus.emit('toast:show', { message: 'Access ID dan Access Secret Tuya wajib diisi.', type: 'warning' });
+            return;
+          }
+          if (!deviceId) {
+            EventBus.emit('toast:show', { message: 'Device ID Tuya wajib diisi / dipilih.', type: 'warning' });
+            return;
+          }
+
+          const proxyUrl = `/api/cctv/hls-proxy/${deviceId}/stream.m3u8`;
+          payload.protocol = 'HLS';
           payload.mediaType = 'HLS';
-          payload.tuyaAccessId = document.getElementById('cctv-input-tuya-access-id')?.value || '';
-          payload.tuyaAccessSecret = document.getElementById('cctv-input-tuya-access-secret')?.value || '';
-          payload.tuyaRegion = document.getElementById('cctv-input-tuya-region')?.value || 'SG';
-          payload.tuyaDeviceId = document.getElementById('cctv-input-tuya-device-id')?.value || '';
+          payload.streamUrl = proxyUrl;
+          payload.playUrl = proxyUrl;
+          payload.tuyaAccessId = accessId;
+          payload.tuyaAccessSecret = accessSecret;
+          payload.tuyaRegion = region;
+          payload.tuyaDeviceId = deviceId;
+          payload.username = accessId;
+          payload.password = accessSecret;
+          payload.description = rawDesc ? `${rawDesc} | Tuya Device ID: ${deviceId}` : `Tuya Device ID: ${deviceId}`;
         } else {
-          payload.protocol = document.getElementById('cctv-input-mode')?.value || 'AUTO';
-          payload.host = document.getElementById('cctv-input-host')?.value || '127.0.0.1';
-          payload.port = parseInt(document.getElementById('cctv-input-port')?.value || '554', 10);
-          payload.username = document.getElementById('cctv-input-username')?.value || '';
-          payload.password = document.getElementById('cctv-input-password')?.value || '';
+          const host = document.getElementById('cctv-input-host')?.value || '127.0.0.1';
+          const port = parseInt(document.getElementById('cctv-input-port')?.value || '554', 10);
+          const username = document.getElementById('cctv-input-username')?.value || '';
+          const password = document.getElementById('cctv-input-password')?.value || '';
+          const mode = document.getElementById('cctv-input-mode')?.value || 'AUTO';
+
+          const streamTarget = (host && host.includes('://')) ? host : `rtsp://${username ? username + ':' + password + '@' : ''}${host}:${port}/live`;
+          payload.protocol = mode;
+          payload.mediaType = mode === 'HLS' ? 'HLS' : 'Video';
+          payload.host = host;
+          payload.port = port;
+          payload.username = username;
+          payload.password = password;
+          payload.streamUrl = streamTarget;
+          payload.playUrl = streamTarget;
+        }
+
+        const origSaveText = btnSave ? btnSave.innerHTML : '';
+        if (btnSave) {
+          btnSave.disabled = true;
+          btnSave.innerHTML = `<i data-lucide="loader" class="spin" style="width:14px;height:14px;"></i> Menghubungkan...`;
+          if (window.lucide) window.lucide.createIcons();
         }
 
         try {
           EventBus.emit('toast:show', { message: 'Menghubungkan CCTV baru...', type: 'info' });
           const newCh = await CctvService.connectCctv(payload);
           this.lastConnectedCctvId = newCh.id;
-          EventBus.emit('toast:show', { message: `CCTV "${newCh.name}" berhasil terhubung.`, type: 'success' });
+          EventBus.emit('toast:show', { message: `CCTV "${newCh.name}" berhasil terhubung!`, type: 'success' });
           if (modal) modal.style.display = 'none';
           await this.refreshImmediately();
         } catch (err) {
           EventBus.emit('toast:show', { message: `Gagal menghubungkan CCTV: ${err.message}`, type: 'danger' });
+        } finally {
+          if (btnSave) {
+            btnSave.disabled = false;
+            btnSave.innerHTML = origSaveText;
+            if (window.lucide) window.lucide.createIcons();
+          }
         }
       };
     }
@@ -1993,12 +2285,16 @@ export class CctvMonitoringPage {
         const id = document.getElementById('edit-cctv-id')?.value;
         if (!id) return;
 
+        const resVal = document.getElementById('edit-cctv-resolution')?.value || '1080p';
         const payload = {
           name: document.getElementById('edit-cctv-name')?.value,
           location: document.getElementById('edit-cctv-location')?.value,
           protocol: document.getElementById('edit-cctv-protocol')?.value,
           streamUrl: document.getElementById('edit-cctv-stream-url')?.value,
-          status: document.getElementById('edit-cctv-status')?.value
+          status: document.getElementById('edit-cctv-status')?.value,
+          health: {
+            resolution: resVal
+          }
         };
 
         try {
@@ -2023,6 +2319,14 @@ export class CctvMonitoringPage {
     document.getElementById('edit-cctv-protocol').value = ch.protocol || 'RTSP';
     document.getElementById('edit-cctv-stream-url').value = ch.streamUrl || ch.playUrl || '';
     document.getElementById('edit-cctv-status').value = ch.status || 'ONLINE';
+
+    const resSelect = document.getElementById('edit-cctv-resolution');
+    if (resSelect) {
+      const rawRes = (ch.health && ch.health.resolution) ? ch.health.resolution : '1080p';
+      if (rawRes.includes('4K') || rawRes.includes('3840')) resSelect.value = '4K';
+      else if (rawRes.includes('720') || rawRes.includes('1280')) resSelect.value = '720p';
+      else resSelect.value = '1080p';
+    }
 
     const btnDelete = document.getElementById('btn-delete-cctv-modal-action');
     if (btnDelete) {

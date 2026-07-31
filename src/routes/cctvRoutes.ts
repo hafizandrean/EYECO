@@ -72,7 +72,10 @@ async function refreshTuyaStreamUrl(cctv: any): Promise<string> {
 router.get('/', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
-    const workspaceId = user ? (user.workspaceId || -1) : -1;
+    let workspaceId: number | undefined = undefined;
+    if (user && user.role !== 'superadmin' && user.workspaceId && user.workspaceId !== -1) {
+      workspaceId = user.workspaceId;
+    }
     const cctvs = await CctvRepository.getAll(workspaceId);
     
     const { CctvModel } = require('../database/models/Cctv');
@@ -110,7 +113,11 @@ router.get('/:id', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
     if (!user) return res.status(401).json({ error: 'Belum masuk' });
-    const workspaceId = user.workspaceId || -1;
+
+    let workspaceId: number | undefined = undefined;
+    if (user.role !== 'superadmin' && user.workspaceId && user.workspaceId !== -1) {
+      workspaceId = user.workspaceId;
+    }
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: 'ID tidak valid' });
     const c = await CctvRepository.getById(id, workspaceId);
@@ -221,9 +228,13 @@ router.post('/', async (req, res) => {
     if (!user.workspaceId) return res.status(403).json({ error: 'Admin belum diassign ke workspace' });
 
     if (req.body.vendor === 'TUYA') {
-      const { username: accessId, password: accessSecret, description } = req.body;
-      const match = description?.match(/Tuya Device ID:\s*([a-zA-Z0-9_-]+)/);
-      const deviceId = match ? match[1] : '';
+      const accessId = (req.body.tuyaAccessId || req.body.username || '').trim();
+      const accessSecret = (req.body.tuyaAccessSecret || req.body.password || '').trim();
+      let deviceId = (req.body.tuyaDeviceId || '').trim();
+      if (!deviceId && req.body.description) {
+        const match = req.body.description.match(/Tuya Device ID:\s*([a-zA-Z0-9_-]+)/);
+        if (match) deviceId = match[1];
+      }
 
       if (!accessId || !accessSecret) {
         return res.status(400).json({ error: 'Access ID dan Access Secret Tuya wajib diisi.' });
@@ -232,31 +243,21 @@ router.post('/', async (req, res) => {
         return res.status(400).json({ error: 'Device ID Tuya tidak valid.' });
       }
 
-      const { TuyaCloudService } = await import('../cctv/TuyaCloudService');
-      let validation: any = { ok: false, msg: '', devices: [] };
-      let allDevices: any[] = [];
-      let anyRegionOk = false;
-      for (const reg of ['SG', 'US', 'US_EAST', 'EU', 'EU_WEST', 'CN', 'IN']) {
-        const valResult = await TuyaCloudService.validateCredentials(accessId, accessSecret, reg);
-        if (valResult.ok) {
-          anyRegionOk = true;
-          if (Array.isArray(valResult.devices)) {
-            allDevices.push(...valResult.devices);
-          }
-        } else {
-          validation.msg = valResult.msg;
-        }
-      }
-      validation.ok = anyRegionOk;
-      validation.devices = allDevices;
+      const region = req.body.tuyaRegion || 'SG';
+      const proxyUrl = `/api/cctv/hls-proxy/${deviceId}/stream.m3u8`;
 
-      if (!validation.ok) {
-        return res.status(400).json({ error: `Kredensial Tuya tidak valid: ${validation.msg}` });
-      }
-
-      const deviceExists = allDevices.some((d: any) => d.id === deviceId);
-      if (!deviceExists) {
-        return res.status(400).json({ error: `Device ID "${deviceId}" tidak ditemukan pada akun Tuya Anda.` });
+      req.body.username = accessId;
+      req.body.password = accessSecret;
+      req.body.tuyaAccessId = accessId;
+      req.body.tuyaAccessSecret = accessSecret;
+      req.body.tuyaDeviceId = deviceId;
+      req.body.tuyaRegion = region;
+      req.body.streamUrl = proxyUrl;
+      req.body.playUrl = proxyUrl;
+      req.body.mediaType = 'HLS';
+      req.body.protocol = 'HLS';
+      if (!req.body.description || !req.body.description.includes('Tuya Device ID')) {
+        req.body.description = req.body.description ? `${req.body.description} | Tuya Device ID: ${deviceId}` : `Tuya Device ID: ${deviceId}`;
       }
     }
 

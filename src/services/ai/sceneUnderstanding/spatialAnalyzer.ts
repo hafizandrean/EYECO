@@ -17,7 +17,8 @@ export class SpatialAnalyzer {
     trashNearWrist: boolean;
     possibleReleasePose: boolean;
   } {
-    const trashObjects = objects.filter(o => isTrashClass(o.class));
+    const HELD_CANDIDATE_CLASSES = new Set(['bag', 'handbag', 'backpack', 'bottle', 'cup', 'box', 'plastic', 'object', 'sampah', 'trash', 'suitcase']);
+    const trashObjects = objects.filter(o => isTrashClass(o.class) || HELD_CANDIDATE_CLASSES.has(o.class.toLowerCase().trim()));
     const personObjects = objects.filter(o => o.class === 'person' || o.class === 'orang');
 
     const relations: HumanTrashRelation[] = [];
@@ -56,10 +57,10 @@ export class SpatialAnalyzer {
               minNormalizedDist = nearestDist;
             }
 
-            if (nearestDist <= 0.45) {
+            if (nearestDist <= 0.70) {
               trashNearWrist = true;
             }
-            if (nearestDist > 0.45 && nearestDist <= 0.90 && trash.y < pose.bbox[3]) {
+            if (nearestDist > 0.35 && nearestDist <= 1.10) {
               possibleReleasePose = true;
             }
 

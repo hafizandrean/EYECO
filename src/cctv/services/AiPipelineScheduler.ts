@@ -15,8 +15,11 @@ export class AiPipelineScheduler {
   private static instanceId = crypto.randomUUID();
   private static workspaceId: number | null = null;
 
+  private static bootTimeoutId: NodeJS.Timeout | null = null;
+  private static isStopping = false;
+
   public static getStatus(): boolean {
-    return this.intervalId !== null;
+    return this.intervalId !== null && !this.isStopping;
   }
 
   /**
@@ -25,6 +28,7 @@ export class AiPipelineScheduler {
    */
   public static start(intervalMs: number = 20000, workspaceId?: number) {
     if (this.intervalId) return;
+    this.isStopping = false;
 
     // Inisialisasi worker pool antrean AI
     InferenceQueue.startWorkers();
@@ -37,13 +41,18 @@ export class AiPipelineScheduler {
     }, intervalMs);
 
     // Jalankan siklus pertama sesaat setelah booting
-    setTimeout(() => this.runPipelineCycle(), 3000);
+    this.bootTimeoutId = setTimeout(() => this.runPipelineCycle(), 3000);
   }
 
   /**
    * Stops the background AI pipeline scheduler.
    */
   public static async stop() {
+    this.isStopping = true;
+    if (this.bootTimeoutId) {
+      clearTimeout(this.bootTimeoutId);
+      this.bootTimeoutId = null;
+    }
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
@@ -58,8 +67,15 @@ export class AiPipelineScheduler {
    * Runs a single cycle of the AI pipeline for all active cameras.
    */
   private static async runPipelineCycle() {
-    if (this.isRunning) return; // Cegah tumpang tindih proses lokal jika kueri lambat
+    if (this.isStopping || this.isRunning) return; // Cegah tumpang tindih proses lokal jika kueri lambat
     this.isRunning = true;
+
+    // Run single-flight stale lease recovery & pending re-analysis job
+    try {
+      await PromotionService.runPeriodicRecoveryJob();
+    } catch (recErr: any) {
+      console.error('[AiPipelineScheduler] Promotion recovery failed:', recErr.message);
+    }
 
     // 0. Coba dapatkan Distributed Lock untuk kluster horizontal (Leader Election)
     try {

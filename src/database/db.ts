@@ -270,7 +270,7 @@ export class DatabaseManager {
         }
       });
 
-      return newReport.toJSON();
+      return (newReport as any).toJSON();
     } catch (err) {
       console.error('[DATABASE ERROR] create report failed:', err);
       throw err;

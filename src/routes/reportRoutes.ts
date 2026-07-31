@@ -5,8 +5,10 @@ import fs from 'fs';
 import rateLimit from 'express-rate-limit';
 import mongoose from 'mongoose';
 import { ReportModel } from '../database/models/Report';
+import { AiSnapshotModel } from '../database/models/AiSnapshot';
 import { UserModel } from '../database/models/User';
 import { ReportRepository } from '../database/repositories/ReportRepository';
+import { ReportAiProjectionService } from '../services/ai/ReportAiProjectionService';
 import { getLoggedInUser } from '../auth/authMiddleware';
 import { detectFile, warmupAI, isAiReady, getWarmupError } from '../services/aiDetection.service';
 import { NotificationService } from '../services/NotificationService';
@@ -108,6 +110,21 @@ router.get('/detections', async (req, res) => {
       return { ...plain, canDelete };
     });
 
+    // Batch fetch active snapshots for all reports in 1 single MongoDB query (0 N+1 overhead)
+    const activeSnapIds = [...new Set(reportsWithFlags.map((r: any) => r.activeSnapshotId?.toString()).filter(Boolean))];
+    const snapMap = new Map<string, any>();
+    if (activeSnapIds.length > 0) {
+      const snapshots = await AiSnapshotModel.find({ _id: { $in: activeSnapIds } }).lean().exec();
+      snapshots.forEach((s: any) => snapMap.set(s._id.toString(), s));
+    }
+
+    // Attach ReportAiProjectionService projection for each report
+    reportsWithFlags.forEach((r: any) => {
+      const snap = r.activeSnapshotId ? snapMap.get(r.activeSnapshotId.toString()) : null;
+      const projection = ReportAiProjectionService.buildReportAiProjection(r, snap);
+      Object.assign(r, projection);
+    });
+
     // Batch fetch uploader info for admin/superadmin
     if (user && (user.role === 'admin' || user.role === 'superadmin')) {
       const userIds = [...new Set(reportsWithFlags.map((r: any) => r.userId?.toString()).filter(Boolean))] as string[];
@@ -157,6 +174,24 @@ router.get('/detections/:id', async (req, res) => {
 
     // Include info user yang upload laporan (jika admin/superadmin)
     const responseReport: Record<string, unknown> = { ...report };
+
+    // Resolve active snapshot & build single-source-of-truth AI projection
+    let snapshot = null;
+    if (report.activeSnapshotId) {
+      snapshot = await AiSnapshotModel.findById(report.activeSnapshotId).lean().exec();
+    }
+    const aiProjection = ReportAiProjectionService.buildReportAiProjection(report, snapshot);
+    Object.assign(responseReport, aiProjection);
+
+    // Reporter privacy projection (Backend-enforced, NO raw email/phone sent to unauthorized users)
+    const uploaderDoc = report.userId ? await UserModel.findById(report.userId as any).select('username name avatar email phone id').lean().exec() : null;
+    const reporterProj = ReportAiProjectionService.projectReporterForViewer(
+      uploaderDoc,
+      uploaderDoc?.id,
+      user?.id,
+      user?.role
+    );
+    responseReport.reporterInfo = reporterProj;
 
     if (responseReport.image && typeof responseReport.image === 'string') {
       let img = responseReport.image as string;

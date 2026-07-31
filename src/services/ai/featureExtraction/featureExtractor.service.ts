@@ -1,9 +1,10 @@
 /**
  * EYECO AI Engine v3.0 — Layer 2.5: Feature Extractor
- * Transmutes Layer 1 and Layer 2 outputs into a standardized numerical FeatureVector (Schema: feature-v1).
+ * Transmutes Layer 1, Layer 2, and FusionDecisions into a standardized numerical FeatureVector (Schema: feature-v1).
  */
 
-import { YoloObject, PersonPose, FeatureVector, HumanTrashRelation, ImageQualityMetrics } from '../types/ai.types';
+import { YoloObject, PersonPose, FeatureVector, HumanTrashRelation, ImageQualityMetrics, FEATURE_V1_ORDER, StandardizedFeatureVector } from '../types/ai.types';
+import { FusionDecision } from '../sceneUnderstanding/CrossLayerEvidenceFusionService';
 import { isTrashClass } from '../taxonomy/trashTaxonomy';
 
 export class FeatureExtractorService {
@@ -13,27 +14,34 @@ export class FeatureExtractorService {
     relations: HumanTrashRelation[],
     semanticData: { riverDetected: boolean; roadDetected: boolean; trashInsideBin: boolean },
     analyzersAvailable: string[],
+    fusionDecisions: FusionDecision[] = [],
     qualityOverride?: ImageQualityMetrics
-  ): FeatureVector {
+  ): FeatureVector & { standardized: StandardizedFeatureVector } {
     const personObjects = objects.filter(o => {
       const pc = o.class.toLowerCase();
       return ['person', 'orang'].includes(pc);
     });
-    const trashObjects = objects.filter(o => isTrashClass(o.class));
+    
+    // Filter trash objects based on fusion Decisions (CONFIRMED existence status)
+    const confirmedTrashIds = new Set(
+      fusionDecisions.filter(fd => fd.objectExistenceStatus === 'CONFIRMED').map(fd => fd.detectionId)
+    );
 
-    // Vehicle detection — kendaraan sebagai context clues, bukan sampah
+    const trashObjects = objects.filter(o => {
+      if (!isTrashClass(o.class)) return false;
+      const detId = (o as any).detectionId || `det-${o.class}-${Math.round(o.x)}_${Math.round(o.y)}`;
+      return fusionDecisions.length === 0 || confirmedTrashIds.has(detId) || o.confidence >= 0.35;
+    });
+
     const VEHICLE_CLASSES = new Set(['car', 'motorcycle', 'motorbike', 'bus', 'truck', 'bicycle', 'bike', 'train']);
     const vehicleObjects = objects.filter(o => VEHICLE_CLASSES.has(o.class.toLowerCase()));
     const vehicleCount = vehicleObjects.length;
 
-    // Ground-level objects — non-person, non-vehicle, non-trash objects on ground as potential trash
     const groundObjectCount = objects.filter(o => {
       const cls = o.class.toLowerCase();
-      // Not person, not vehicle, not already counted as trash
       if (['person', 'orang'].includes(cls)) return false;
       if (VEHICLE_CLASSES.has(cls)) return false;
       if (isTrashClass(o.class)) return false;
-      // Ground-level heuristic: bottom of bbox near bottom of image (>70% y + h)
       const bottomY = (o.y || 0) + (o.h || 0);
       return bottomY > 70;
     }).length;
@@ -47,21 +55,18 @@ export class FeatureExtractorService {
     const highestTrashConfidence = trashConfs.length > 0 ? Math.round(Math.max(...trashConfs) * 100) : 0;
     const highestPersonConfidence = personConfs.length > 0 ? Math.round(Math.max(...personConfs) * 100) : 0;
 
-    // Nearest wrist distance calculation
     const wristDists = relations.map(r => r.nearestWristDistanceNormalized).filter((d): d is number => d !== null);
     const nearestWristDistanceNormalized = wristDists.length > 0 ? Math.min(...wristDists) : null;
 
-    const trashNearWrist = nearestWristDistanceNormalized !== null && nearestWristDistanceNormalized <= 0.45;
-    const possibleReleasePose = nearestWristDistanceNormalized !== null && nearestWristDistanceNormalized > 0.45 && nearestWristDistanceNormalized <= 0.90;
+    const trashNearWrist = nearestWristDistanceNormalized !== null && nearestWristDistanceNormalized <= 0.70;
+    const possibleReleasePose = nearestWristDistanceNormalized !== null && nearestWristDistanceNormalized > 0.35 && nearestWristDistanceNormalized <= 1.10;
 
     const trashOnWaterZone = trashCount > 0 && semanticData.riverDetected;
     const trashOnRoadZone = trashCount > 0 && semanticData.roadDetected;
     const trashInsideBinZone = semanticData.trashInsideBin;
 
-    // A trash object is a large pile if its bounding box area is >= 80 (in percentage space, e.g. w=10, h=8 -> area=80)
     const trashLargePile = trashObjects.some(o => (o.w * o.h) >= 80);
 
-    // Lightweight image quality estimation
     const imageQuality: ImageQualityMetrics = qualityOverride || {
       blurScore: highestTrashConfidence > 0 || highestPersonConfidence > 0 ? 85 : 40,
       brightnessScore: 80,
@@ -69,10 +74,60 @@ export class FeatureExtractorService {
       qualityStatus: (highestTrashConfidence > 0 || highestPersonConfidence > 0) ? 'GOOD' : 'ACCEPTABLE'
     };
 
-    // Evidence coverage ratio
     const expectedAnalyzers = ['YOLO_OBJECT', 'POSE_ESTIMATION', 'SPATIAL_ANALYZER', 'SEMANTIC_ANALYZER', 'REGION_ANALYZER'];
     const activeCount = analyzersAvailable.filter(a => expectedAnalyzers.includes(a)).length;
     const evidenceCoverage = Math.round((activeCount / expectedAnalyzers.length) * 100) / 100;
+
+    // Map 24 features strictly using FEATURE_V1_ORDER registry
+    const featureMap: Record<string, { value: number; available: boolean; sources: string[] }> = {
+      personCount: { value: personCount, available: true, sources: ['YOLO_OBJECT'] },
+      trashCount: { value: trashCount, available: true, sources: ['YOLO_OBJECT', 'FUSION_SERVICE'] },
+      vehicleCount: { value: vehicleCount, available: true, sources: ['YOLO_OBJECT'] },
+      binCount: { value: semanticData.trashInsideBin ? 1 : 0, available: true, sources: ['SEMANTIC_ANALYZER'] },
+      highestTrashConfidence: { value: highestTrashConfidence, available: trashCount > 0, sources: ['YOLO_OBJECT'] },
+      highestPersonConfidence: { value: highestPersonConfidence, available: personCount > 0, sources: ['YOLO_OBJECT'] },
+      highestVehicleConfidence: { value: vehicleCount > 0 ? 80 : 0, available: vehicleCount > 0, sources: ['YOLO_OBJECT'] },
+      nearestWristDistanceNormalized: { value: nearestWristDistanceNormalized ?? -1, available: nearestWristDistanceNormalized !== null, sources: ['SPATIAL_ANALYZER'] },
+      trashNearWrist: { value: trashNearWrist ? 1 : 0, available: nearestWristDistanceNormalized !== null, sources: ['SPATIAL_ANALYZER'] },
+      possibleHoldingPose: { value: poses.length > 0 ? 1 : 0, available: analyzersAvailable.includes('POSE_ESTIMATION'), sources: ['POSE_ESTIMATION'] },
+      possibleReleasePose: { value: possibleReleasePose ? 1 : 0, available: analyzersAvailable.includes('POSE_ESTIMATION'), sources: ['POSE_ESTIMATION'] },
+      possibleThrowingPose: { value: 0, available: false, sources: ['POSE_ESTIMATION'] },
+      trashInsideBinZone: { value: trashInsideBinZone ? 1 : 0, available: analyzersAvailable.includes('SEMANTIC_ANALYZER'), sources: ['SEMANTIC_ANALYZER'] },
+      trashNearBinZone: { value: 0, available: false, sources: ['SEMANTIC_ANALYZER'] },
+      trashOnWaterZone: { value: trashOnWaterZone ? 1 : 0, available: analyzersAvailable.includes('SEMANTIC_ANALYZER'), sources: ['SEMANTIC_ANALYZER'] },
+      trashOnRoadZone: { value: trashOnRoadZone ? 1 : 0, available: analyzersAvailable.includes('SEMANTIC_ANALYZER'), sources: ['SEMANTIC_ANALYZER'] },
+      prohibitedRegionOverlap: { value: trashOnWaterZone ? 1 : 0, available: analyzersAvailable.includes('REGION_ANALYZER'), sources: ['REGION_ANALYZER'] },
+      allowedDisposalOverlap: { value: trashInsideBinZone ? 1 : 0, available: analyzersAvailable.includes('REGION_ANALYZER'), sources: ['REGION_ANALYZER'] },
+      airborneCandidate: { value: 0, available: false, sources: ['SPATIAL_ANALYZER'] },
+      temporalReleaseEvidence: { value: 0, available: false, sources: ['TEMPORAL_ANALYZER'] },
+      sceneRisk: { value: trashOnWaterZone ? 100 : (trashOnRoadZone ? 75 : 25), available: true, sources: ['SEMANTIC_ANALYZER'] },
+      nightFlag: { value: 0, available: true, sources: ['IMAGE_QUALITY'] },
+      motionFlag: { value: 0, available: false, sources: ['VIDEO_TRACKER'] },
+      inputQualityScore: { value: imageQuality.blurScore, available: true, sources: ['IMAGE_QUALITY'] }
+    };
+
+    const values = FEATURE_V1_ORDER.map(name => featureMap[name].value);
+    const availabilityMask = FEATURE_V1_ORDER.map(name => featureMap[name].available);
+    const sourceMap: Record<string, string[]> = {};
+    FEATURE_V1_ORDER.forEach(name => {
+      sourceMap[name] = featureMap[name].sources;
+    });
+
+    if (FEATURE_V1_ORDER.length !== 24 || values.length !== 24 || availabilityMask.length !== 24) {
+      throw new Error('[FeatureExtractor] Dimension mismatch: feature-v1 must contain exactly 24 dimensions');
+    }
+    if (values.some(Number.isNaN)) {
+      throw new Error('[FeatureExtractor] feature-v1 values contain NaN');
+    }
+
+    const standardized: StandardizedFeatureVector = {
+      schemaVersion: 'feature-v1',
+      featureNames: FEATURE_V1_ORDER,
+      values,
+      availabilityMask,
+      sourceMap,
+      qualityScore: imageQuality.blurScore
+    };
 
     return {
       featureSchemaVersion: 'feature-v1',
@@ -92,6 +147,7 @@ export class FeatureExtractorService {
       analyzersAvailable,
       vehicleCount,
       groundObjectCount,
+      standardized
     };
   }
 }

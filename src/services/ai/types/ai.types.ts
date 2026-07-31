@@ -2,6 +2,18 @@
  * EYECO AI Engine v3.0 - Unified DTO Types
  */
 
+export interface LayerResult<T> {
+  layerId: string;
+  available: boolean;
+  value: T | null;
+  confidence: number | null;
+  qualityScore: number;
+  warnings: string[];
+  processingTimeMs: number;
+  modelVersion?: string;
+  failureCode?: string;
+}
+
 export interface YoloObject {
   class: string;
   confidence: number;
@@ -10,6 +22,9 @@ export interface YoloObject {
   y: number; // percentage 0-100
   w: number; // percentage 0-100
   h: number; // percentage 0-100
+  acceptedForVisualization?: boolean;
+  acceptedForDecision?: boolean;
+  rejectionReason?: string;
 }
 
 export interface PoseKeypoint {
@@ -64,6 +79,42 @@ export interface ImageQualityMetrics {
   qualityStatus: QualityLevel;
 }
 
+export const FEATURE_V1_ORDER = [
+  'personCount',
+  'trashCount',
+  'vehicleCount',
+  'binCount',
+  'highestTrashConfidence',
+  'highestPersonConfidence',
+  'highestVehicleConfidence',
+  'nearestWristDistanceNormalized',
+  'trashNearWrist',
+  'possibleHoldingPose',
+  'possibleReleasePose',
+  'possibleThrowingPose',
+  'trashInsideBinZone',
+  'trashNearBinZone',
+  'trashOnWaterZone',
+  'trashOnRoadZone',
+  'prohibitedRegionOverlap',
+  'allowedDisposalOverlap',
+  'airborneCandidate',
+  'temporalReleaseEvidence',
+  'sceneRisk',
+  'nightFlag',
+  'motionFlag',
+  'inputQualityScore'
+] as const;
+
+export interface StandardizedFeatureVector {
+  schemaVersion: 'feature-v1';
+  featureNames: readonly string[];
+  values: number[];
+  availabilityMask: boolean[];
+  sourceMap: Record<string, string[]>;
+  qualityScore: number;
+}
+
 export interface FeatureVector {
   featureSchemaVersion: 'feature-v1';
   personCount: number;
@@ -84,21 +135,23 @@ export interface FeatureVector {
   groundObjectCount?: number; // Jumlah objek di permukaan tanah (potensi sampah)
 }
 
+export type AnalysisOutcome = 'COMPLETE' | 'COMPLETE_WITH_LIMITATIONS' | 'INCOMPLETE';
 export type AiIndicationStatus = 'Indikasi Tinggi' | 'Indikasi Sedang' | 'Indikasi Rendah' | 'Tidak Terindikasi';
 export type OperationalPriority = 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE';
 
 export interface DecisionResult {
-  status: AiIndicationStatus;
-  violationScore: number; // 0-100
-  objectConfidence: number; // 0-100
-  sceneConfidence: number; // 0-100
-  decisionConfidence: number; // 0-100 (heuristic reliability)
+  status: AiIndicationStatus | null;
+  violationScore: number | null; // 0-100 or null if INCOMPLETE
+  objectConfidence: number | null; // 0-100
+  sceneConfidence: number | null; // 0-100
+  decisionConfidence: number | null; // 0-100 (heuristic reliability)
   uncertaintyScore: number; // 100 - decisionConfidence
   confidenceType: 'MODEL_PROBABILITY' | 'HEURISTIC_RELIABILITY' | 'RULE_CERTAINTY';
-  priority: OperationalPriority;
+  priority: OperationalPriority | null;
   recommendedAction: string;
   needsHumanValidation: boolean;
   policyVersion: string;
+  analysisOutcome?: AnalysisOutcome;
 }
 
 export interface ModelRegistryInfo {

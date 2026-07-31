@@ -49,11 +49,11 @@ async function getNextSequence(sequenceName, seedModel) {
     let counter = await exports.CounterModel.findOneAndUpdate({ _id: sequenceName }, { $inc: { seq: 1 } }, { returnDocument: 'after', upsert: true, new: true }).exec();
     if (!counter)
         return 1;
-    // If counter was just initialized to 1 and seedModel exists, seed to maxId + 1 if maxId >= 1
-    if (counter.seq === 1 && seedModel) {
-        const maxDoc = await seedModel.findOne().sort({ id: -1 }).exec();
-        if (maxDoc && typeof maxDoc.id === 'number' && maxDoc.id >= 1) {
-            const seeded = await exports.CounterModel.findOneAndUpdate({ _id: sequenceName }, { $set: { seq: maxDoc.id + 1 } }, { returnDocument: 'after', upsert: true, new: true }).exec();
+    // Ensure counter sequence is aligned with max legacy ID in database using $max operator
+    if (seedModel) {
+        const maxDoc = await seedModel.findOne().sort({ id: -1 }).select({ id: 1 }).lean().exec();
+        if (maxDoc && typeof maxDoc.id === 'number' && counter.seq <= maxDoc.id) {
+            const seeded = await exports.CounterModel.findOneAndUpdate({ _id: sequenceName }, { $max: { seq: maxDoc.id + 1 } }, { returnDocument: 'after', upsert: true, new: true }).exec();
             return seeded ? seeded.seq : maxDoc.id + 1;
         }
     }

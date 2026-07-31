@@ -27,19 +27,63 @@ export interface IAiSnapshot extends Document {
   featureSchemaVersion: string;
   modelRegistryInfo: ModelRegistryInfo;
   featureVector: FeatureVector;
+  fusionDecisions?: any[];
   evidenceItems: EvidenceItem[];
   decision: DecisionResult;
   limitations: string[];
   pipelineTrace?: IPipelineTrace;
   parentSnapshotId?: mongoose.Types.ObjectId;
+  reportObjectId?: mongoose.Types.ObjectId;
+  analysisClaimToken?: string;
   createdAt: Date;
   updatedAt: Date;
 }
+
+const FusionSignalSchema = new Schema(
+  {
+    evidenceId: { type: String, required: true },
+    category: {
+      type: String,
+      enum: ['OBJECT_EXISTENCE', 'HUMAN_INTERACTION', 'TEMPORAL_SUPPORT', 'ENVIRONMENT_CONTEXT', 'CONFLICT', 'QUALITY_WARNING'],
+      required: true
+    },
+    code: { type: String, required: true },
+    sourceLayer: { type: String, required: true },
+    confidence: { type: Number, default: null }
+  },
+  { _id: false }
+);
+
+const FusionDecisionSchema = new Schema(
+  {
+    detectionId: { type: String, required: true },
+    originalConfidence: { type: Number, required: true },
+    candidateClass: { type: String, required: true },
+    objectExistenceStatus: {
+      type: String,
+      enum: ['CONFIRMED', 'CANDIDATE', 'REJECTED'],
+      required: true
+    },
+    policyEvidenceRole: {
+      type: String,
+      enum: ['POSITIVE', 'NEGATIVE', 'NEUTRAL', 'UNAVAILABLE'],
+      required: true
+    },
+    acceptanceReason: { type: String, required: true },
+    supportSignals: [FusionSignalSchema],
+    conflictSignals: [FusionSignalSchema],
+    fusionConfidence: { type: Number, required: true },
+    fusionRuleVersion: { type: String, default: 'fusion-v1' }
+  },
+  { _id: false }
+);
 
 const AiSnapshotSchema = new Schema<IAiSnapshot>(
   {
     analysisId: { type: String, required: true, unique: true, index: true },
     reportId: { type: Number, index: true },
+    reportObjectId: { type: Schema.Types.ObjectId, ref: 'Report', index: true },
+    analysisClaimToken: { type: String, index: true },
     inputImageHash: { type: String, required: true, index: true },
     imagePath: { type: String, required: true },
     pipelineVersion: { type: String, required: true, default: 'v3.0.0' },
@@ -54,6 +98,7 @@ const AiSnapshotSchema = new Schema<IAiSnapshot>(
       policyVersion: { type: String, default: 'policy-v1.0' },
     },
     featureVector: { type: Schema.Types.Mixed, required: true },
+    fusionDecisions: [FusionDecisionSchema],
     evidenceItems: { type: Schema.Types.Mixed, required: true, default: [] },
     decision: { type: Schema.Types.Mixed, required: true },
     limitations: [{ type: String }],

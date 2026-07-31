@@ -183,7 +183,29 @@ export class DetailPage {
       }
       // Generate YOLO Boxes with precise image aspect ratio calibration
       let initialBoxesHtml = '';
-      const boxes = (report.boundingBoxes && Array.isArray(report.boundingBoxes)) ? report.boundingBoxes : [];
+      const rawBoxes = (report.boundingBoxes && Array.isArray(report.boundingBoxes)) ? report.boundingBoxes : [];
+
+      // IoU (Intersection over Union) calculation for box deduplication
+      const calculateIoU = (b1, b2) => {
+        const xA = Math.max(b1.x, b2.x);
+        const yA = Math.max(b1.y, b2.y);
+        const xB = Math.min(b1.x + b1.w, b2.x + b2.w);
+        const yB = Math.min(b1.y + b1.h, b2.y + b2.h);
+        const interArea = Math.max(0, xB - xA) * Math.max(0, yB - yA);
+        const box1Area = b1.w * b1.h;
+        const box2Area = b2.w * b2.h;
+        const unionArea = box1Area + box2Area - interArea;
+        return unionArea > 0 ? interArea / unionArea : 0;
+      };
+
+      const boxes = [];
+      rawBoxes.forEach(box => {
+        const isDuplicate = boxes.some(u => 
+          (u.label || '').toLowerCase() === (box.label || '').toLowerCase() &&
+          calculateIoU(u, box) > 0.80
+        );
+        if (!isDuplicate) boxes.push(box);
+      });
 
       boxes.forEach(box => {
         const lbl = (box.label || '').toLowerCase();
@@ -268,34 +290,84 @@ export class DetailPage {
 
           <!-- Metadata Properties Card & 4 Scientific AI Metrics -->
           <div class="glass-card" style="padding: var(--space-24); border-radius: var(--radius-card); display: flex; flex-direction: column; gap: var(--space-16);">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin: 0; display:flex; align-items:center; gap:8px;">
-                <i data-lucide="brain-circuit" style="color: var(--primary);"></i> Status Indikasi AI v3.0
-              </h3>
-              <span class="badge badge-${(report.aiStatus || '').toUpperCase().replace('INDIKASI ','') === 'TINGGI' ? 'high' : ((report.aiStatus || '').toUpperCase().replace('INDIKASI ','') === 'SEDANG' ? 'medium' : ((report.aiStatus || '').toUpperCase().replace('INDIKASI ','') === 'RENDAH' ? 'low' : 'none'))}" style="font-size:0.85rem; font-weight:800; padding:6px 14px;">
-                ${report.aiStatus === 'TINGGI' || report.aiStatus === 'Indikasi Tinggi' ? 'Tinggi' : report.aiStatus === 'SEDANG' || report.aiStatus === 'Indikasi Sedang' ? 'Sedang' : report.aiStatus === 'RENDAH' || report.aiStatus === 'Indikasi Rendah' ? 'Rendah' : 'Tidak Terindikasi'}
-              </span>
-            </div>
+            ${(() => {
+              const integrityStatus = report.aiDataIntegrityStatus || (report.activeSnapshotId ? 'VALID' : 'LEGACY');
+              let headerTitle = '<i data-lucide="brain-circuit" style="color: var(--primary);"></i> Status Indikasi AI v3.0';
+              if (integrityStatus === 'SNAPSHOT_MISSING') {
+                headerTitle = '<i data-lucide="alert-triangle" style="color: var(--danger);"></i> Data Analisis AI Tidak Lengkap';
+              } else if (integrityStatus === 'LEGACY') {
+                headerTitle = '<i data-lucide="history" style="color: var(--text-muted);"></i> Hasil AI Versi Lama';
+              }
+              const rawStatus = (report.aiStatus || '').toUpperCase().trim();
+              const isHigh = rawStatus.includes('TINGGI') || rawStatus === 'HIGH';
+              const isMed = rawStatus.includes('SEDANG') || rawStatus === 'MEDIUM';
+              const isLow = rawStatus.includes('RENDAH') || rawStatus === 'LOW';
+              const badgeClass = isHigh ? 'high' : (isMed ? 'medium' : (isLow ? 'low' : 'none'));
+              const badgeText = isHigh ? 'Tinggi' : (isMed ? 'Sedang' : (isLow ? 'Rendah' : 'Tidak Terindikasi'));
+              return `
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin: 0; display:flex; align-items:center; gap:8px;">
+                    ${headerTitle}
+                  </h3>
+                  <span class="badge badge-${badgeClass}" style="font-size:0.85rem; font-weight:800; padding:6px 14px;">
+                    ${badgeText}
+                  </span>
+                </div>
+              `;
+            })()}
             
             <!-- 4 Scientific AI Metrics -->
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
-              <div style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 8px; text-align:center;">
-                <div style="font-size: 0.6rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Keyakinan Objek</div>
-                <strong style="font-size: 1rem; color: var(--primary); margin-top: 2px; display:block;">${typeof report.objectConfidence === 'number' ? report.objectConfidence : (report.aiConfidence || 0)}%</strong>
-              </div>
-              <div style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 8px; text-align:center;">
-                <div style="font-size: 0.6rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Keyakinan Lokasi</div>
-                <strong style="font-size: 1rem; color: var(--primary); margin-top: 2px; display:block;">${typeof report.sceneConfidence === 'number' ? report.sceneConfidence : 0}%</strong>
-              </div>
-              <div style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 8px; text-align:center;">
-                <div style="font-size: 0.6rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Keyakinan Keputusan</div>
-                <strong style="font-size: 1rem; color: var(--primary); margin-top: 2px; display:block;">${typeof report.decisionConfidence === 'number' ? report.decisionConfidence : 80}%</strong>
-              </div>
-              <div style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 8px; text-align:center;">
-                <div style="font-size: 0.6rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Skor Pelanggaran</div>
-                <strong style="font-size: 1rem; color: var(--danger); margin-top: 2px; display:block;">${typeof report.violationScore === 'number' ? report.violationScore : 0}/100</strong>
-              </div>
-            </div>
+            ${(() => {
+              const integrityStatus = report.aiDataIntegrityStatus || (report.analysisState === 'PROCESSING' ? 'PENDING' : (report.activeSnapshotId ? 'VALID' : 'LEGACY'));
+              if (integrityStatus !== 'VALID') {
+                let noteMsg = `Keyakinan Deteksi Legacy: ${report.aiConfidence ? report.aiConfidence + '%' : '—'} — Skor Indikasi AI: Tidak tersedia`;
+                let noteStyle = 'color: var(--text-secondary); background: rgba(0,0,0,0.03); font-style: italic;';
+                if (integrityStatus === 'PENDING' || report.analysisState === 'PROCESSING') {
+                  noteMsg = 'Sedang diproses oleh AI Engine v3.0 — Menunggu hasil analisis keputusan (Skor: Menunggu)';
+                  noteStyle = 'color: var(--primary); background: rgba(47,107,255,0.06); font-weight: 700;';
+                } else if (report.analysisState === 'REANALYSIS_PENDING') {
+                  noteMsg = 'Proses AI sebelumnya terhenti — Masuk antrean analisis ulang otomatis (Skor: Menunggu)';
+                  noteStyle = 'color: var(--warning); background: rgba(245,158,11,0.06); font-weight: 700;';
+                } else if (integrityStatus === 'SNAPSHOT_MISSING') {
+                  noteMsg = 'Snapshot AI tidak berhasil dibuat — analisis ulang diperlukan (Skor: Tidak tersedia)';
+                  noteStyle = 'color: var(--danger); background: rgba(239,68,68,0.06); font-weight: 700;';
+                } else if (integrityStatus === 'INCONSISTENT') {
+                  noteMsg = 'Data AI tidak konsisten — laporan sedang menunggu perbaikan integritas';
+                  noteStyle = 'color: var(--warning); background: rgba(245,158,11,0.06); font-weight: 700;';
+                }
+                return `
+                  <div style="${noteStyle} padding: 10px 14px; border-radius: 8px; font-size: 0.78rem; text-align: center;">
+                    ${noteMsg}
+                  </div>
+                `;
+              }
+
+              const objVal = report.objectConfidence !== null && report.objectConfidence !== undefined ? `${report.objectConfidence}%` : '—';
+              const sceneVal = report.sceneConfidence !== null && report.sceneConfidence !== undefined ? `${report.sceneConfidence}%` : '—';
+              const decVal = report.decisionConfidence !== null && report.decisionConfidence !== undefined ? `${report.decisionConfidence}%` : '—';
+              const scoreVal = typeof report.violationScore === 'number' ? `${report.violationScore}/100` : 'Tidak tersedia';
+
+              return `
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                  <div style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 8px; text-align:center;">
+                    <div style="font-size: 0.6rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Keyakinan Objek</div>
+                    <strong style="font-size: 1rem; color: var(--primary); margin-top: 2px; display:block;">${objVal}</strong>
+                  </div>
+                  <div style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 8px; text-align:center;">
+                    <div style="font-size: 0.6rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Keyakinan Lokasi</div>
+                    <strong style="font-size: 1rem; color: var(--primary); margin-top: 2px; display:block;">${sceneVal}</strong>
+                  </div>
+                  <div style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 8px; text-align:center;">
+                    <div style="font-size: 0.6rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Keyakinan Keputusan</div>
+                    <strong style="font-size: 1rem; color: var(--primary); margin-top: 2px; display:block;">${decVal}</strong>
+                  </div>
+                  <div style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 8px; text-align:center;">
+                    <div style="font-size: 0.6rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Skor Indikasi AI</div>
+                    <strong style="font-size: 1rem; color: var(--danger); margin-top: 2px; display:block;">${scoreVal}</strong>
+                  </div>
+                </div>
+              `;
+            })()}
 
             <!-- Priority & Recommended Action -->
             <div style="display:flex; justify-content:space-between; align-items:center; background: rgba(47, 107, 255, 0.04); padding: 12px 16px; border-radius: 10px; border: 1px solid rgba(47, 107, 255, 0.15);">
@@ -345,10 +417,11 @@ export class DetailPage {
               <i data-lucide="shield-check" style="color: var(--success); width:18px; height:18px;"></i> Rincian Bukti & Transparansi Keputusan AI
             </h4>
             <div style="display:flex; flex-direction:column; gap:8px;">
-              ${(report.evidenceItems || report.snapshot?.evidenceItems || [
-                { code: 'YOLO_OBJECT', label: 'Objek sampah/manusia terdeteksi oleh YOLOv8', value: true, source: 'YOLO_OBJECT', scoreDelta: 25 },
-                { code: 'TRASH_NEAR_WRIST', label: 'Kedekatan objek dengan pergelangan tangan', value: false, source: 'POSE_ESTIMATION', scoreDelta: 0 }
-              ]).map(ev => {
+              ${(() => {
+                const items = (report.evidenceItems || report.snapshot?.evidenceItems || [
+                  { code: 'YOLO_OBJECT', label: 'Objek sampah/manusia terdeteksi oleh YOLOv8', value: true, source: 'YOLO_OBJECT', scoreDelta: 25 },
+                  { code: 'TRASH_NEAR_WRIST', label: 'Kedekatan objek dengan pergelangan tangan', value: false, source: 'POSE_ESTIMATION', scoreDelta: 0 }
+                ]);
                 const srcMap = {
                   'YOLO_OBJECT': 'DETEKSI_OBJEK_YOLO',
                   'POSE_ESTIMATION': 'ESTIMASI_POSE',
@@ -356,20 +429,38 @@ export class DetailPage {
                   'SEMANTIC_ANALYZER': 'ANALISIS_SEMANTIK',
                   'REGION_ANALYZER': 'ANALISIS_WILAYAH'
                 };
-                const cleanSource = srcMap[ev.source] || ev.source;
-                return `
-                  <div style="display:flex; align-items:center; justify-content:space-between; background: rgba(0,0,0,0.02); padding: 8px 12px; border-radius: 8px; font-size: 0.8rem;">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                      <i data-lucide="${ev.value ? 'check-circle' : 'minus-circle'}" style="color: ${ev.value ? 'var(--success)' : 'var(--text-muted)'}; width:16px; height:16px;"></i>
-                      <span>${ev.label}</span>
+                
+                let sumDelta = 0;
+                let html = items.map(ev => {
+                  if (ev.value && typeof ev.scoreDelta === 'number') sumDelta += ev.scoreDelta;
+                  const cleanSource = srcMap[ev.source] || ev.source;
+                  return `
+                    <div style="display:flex; align-items:center; justify-content:space-between; background: rgba(0,0,0,0.02); padding: 8px 12px; border-radius: 8px; font-size: 0.8rem;">
+                      <div style="display:flex; align-items:center; gap:8px;">
+                        <i data-lucide="${ev.value ? 'check-circle' : 'minus-circle'}" style="color: ${ev.value ? 'var(--success)' : 'var(--text-muted)'}; width:16px; height:16px;"></i>
+                        <span>${ev.label}</span>
+                      </div>
+                      <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size: 0.65rem; background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; font-weight:700; color: var(--text-secondary);">${cleanSource}</span>
+                        <strong style="color: ${ev.scoreDelta > 0 ? 'var(--danger)' : (ev.scoreDelta < 0 ? 'var(--success)' : 'var(--text-muted)')};">+${ev.scoreDelta || 0}</strong>
+                      </div>
                     </div>
-                    <div style="display:flex; align-items:center; gap:6px;">
-                      <span style="font-size: 0.65rem; background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; font-weight:700; color: var(--text-secondary);">${cleanSource}</span>
-                      <strong style="color: ${ev.scoreDelta > 0 ? 'var(--danger)' : (ev.scoreDelta < 0 ? 'var(--success)' : 'var(--text-muted)')};">+${ev.scoreDelta || 0}</strong>
+                  `;
+                }).join('');
+
+                if (typeof report.violationScore === 'number' && report.violationScore > sumDelta) {
+                  html += `
+                    <div style="display:flex; align-items:center; justify-content:space-between; background: rgba(0,0,0,0.02); border: 1px dashed rgba(0,0,0,0.1); padding: 8px 12px; border-radius: 8px; font-size: 0.75rem; color: var(--text-secondary);">
+                      <div style="display:flex; align-items:center; gap:8px;">
+                        <i data-lucide="info" style="color: var(--text-muted); width:14px; height:14px;"></i>
+                        <span>Komponen bukti terdaftar: +${sumDelta} poin (Skor Akhir AI: ${report.violationScore}/100)</span>
+                      </div>
+                      <span style="font-size:0.7rem; font-style:italic; color:var(--text-muted);">Rincian aturan lengkap tidak tersedia</span>
                     </div>
-                  </div>
-                `;
-              }).join('')}
+                  `;
+                }
+                return html;
+              })()}
             </div>
             <div style="background: rgba(239, 68, 68, 0.04); border-left: 3px solid var(--warning); padding: 10px 14px; border-radius: 6px; margin-top: 6px;">
               <span style="font-size: 0.7rem; font-weight: 800; color: var(--text-primary); display:block;">Catatan Limitasi Analisis:</span>
@@ -861,7 +952,7 @@ export class DetailPage {
       const reviewMinutes = Math.floor((reviewMs % (1000 * 60 * 60)) / (1000 * 60));
       const reviewSeconds = Math.floor((reviewMs % (1000 * 60)) / 1000);
       
-      timerEl.innerText = `${reviewHours}j ${reviewMinutes}m ${reviewSeconds}d`;
+      timerEl.innerText = `${reviewHours}j ${reviewMinutes}m ${reviewSeconds}dtk`;
       timerEl.style.color = 'var(--success)';
       timerEl.style.background = 'rgba(16,185,129,0.08)';
       
@@ -890,7 +981,7 @@ export class DetailPage {
       const diff = now - start;
 
       if (isNaN(diff) || diff < 0) {
-        timerEl.innerText = '0j 0m 0d';
+        timerEl.innerText = '0j 0m 0dtk';
         return;
       }
 
@@ -898,7 +989,7 @@ export class DetailPage {
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-      timerEl.innerText = `${hours}j ${minutes}m ${seconds}d`;
+      timerEl.innerText = `${hours}j ${minutes}m ${seconds}dtk`;
     }, 1000);
   }
 

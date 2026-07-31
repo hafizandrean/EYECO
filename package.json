@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "npm run build && node dist/server.js",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "repair:report-snapshots": "tsx scripts/repair-report-snapshots.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1096.0",

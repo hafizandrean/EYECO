@@ -32,6 +32,7 @@ import { NotificationModel } from './database/models/Notification';
 import { TelegramNotificationChannel } from './notifications/TelegramNotificationChannel';
 import { warmupAI } from './services/aiDetection.service';
 import { R2StorageService } from './services/R2StorageService';
+import { ReportAiProjectionService } from './services/ai/ReportAiProjectionService';
 
 dotenv.config();
 
@@ -1080,6 +1081,18 @@ connectDB().then(async () => {
       console.log(`[PASSWORD MIGRATION] Converted ${(userWithSha as any[]).length} user password(s) from SHA-256 to bcrypt.`);
     }
   } catch (_) {}
+
+  // Validate AI Cutoff Environment & run stale lease recovery at startup
+  try {
+    ReportAiProjectionService.getSnapshotRequiredCutoff();
+    const { PromotionService } = require('./cctv/services/PromotionService');
+    await PromotionService.recoverExpiredAnalysis();
+  } catch (err: any) {
+    console.error('[SERVER CRITICAL] Startup validation failed:', err.message);
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
+  }
 
   // CCTV Health Engine is started inside listenWithFallback
   AiPipelineScheduler.start(5000);

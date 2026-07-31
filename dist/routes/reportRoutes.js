@@ -9,8 +9,10 @@ const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const Report_1 = require("../database/models/Report");
+const AiSnapshot_1 = require("../database/models/AiSnapshot");
 const User_1 = require("../database/models/User");
 const ReportRepository_1 = require("../database/repositories/ReportRepository");
+const ReportAiProjectionService_1 = require("../services/ai/ReportAiProjectionService");
 const authMiddleware_1 = require("../auth/authMiddleware");
 const NotificationService_1 = require("../services/NotificationService");
 const Notification_1 = require("../database/models/Notification");
@@ -97,6 +99,19 @@ router.get('/detections', async (req, res) => {
                 && repCreatedAt && (Date.now() - new Date(repCreatedAt).getTime()) < TEN_MINUTES;
             return { ...plain, canDelete };
         });
+        // Batch fetch active snapshots for all reports in 1 single MongoDB query (0 N+1 overhead)
+        const activeSnapIds = [...new Set(reportsWithFlags.map((r) => r.activeSnapshotId?.toString()).filter(Boolean))];
+        const snapMap = new Map();
+        if (activeSnapIds.length > 0) {
+            const snapshots = await AiSnapshot_1.AiSnapshotModel.find({ _id: { $in: activeSnapIds } }).lean().exec();
+            snapshots.forEach((s) => snapMap.set(s._id.toString(), s));
+        }
+        // Attach ReportAiProjectionService projection for each report
+        reportsWithFlags.forEach((r) => {
+            const snap = r.activeSnapshotId ? snapMap.get(r.activeSnapshotId.toString()) : null;
+            const projection = ReportAiProjectionService_1.ReportAiProjectionService.buildReportAiProjection(r, snap);
+            Object.assign(r, projection);
+        });
         // Batch fetch uploader info for admin/superadmin
         if (user && (user.role === 'admin' || user.role === 'superadmin')) {
             const userIds = [...new Set(reportsWithFlags.map((r) => r.userId?.toString()).filter(Boolean))];
@@ -143,6 +158,17 @@ router.get('/detections/:id', async (req, res) => {
         }
         // Include info user yang upload laporan (jika admin/superadmin)
         const responseReport = { ...report };
+        // Resolve active snapshot & build single-source-of-truth AI projection
+        let snapshot = null;
+        if (report.activeSnapshotId) {
+            snapshot = await AiSnapshot_1.AiSnapshotModel.findById(report.activeSnapshotId).lean().exec();
+        }
+        const aiProjection = ReportAiProjectionService_1.ReportAiProjectionService.buildReportAiProjection(report, snapshot);
+        Object.assign(responseReport, aiProjection);
+        // Reporter privacy projection (Backend-enforced, NO raw email/phone sent to unauthorized users)
+        const uploaderDoc = report.userId ? await User_1.UserModel.findById(report.userId).select('username name avatar email phone id').lean().exec() : null;
+        const reporterProj = ReportAiProjectionService_1.ReportAiProjectionService.projectReporterForViewer(uploaderDoc, uploaderDoc?.id, user?.id, user?.role);
+        responseReport.reporterInfo = reporterProj;
         if (responseReport.image && typeof responseReport.image === 'string') {
             let img = responseReport.image;
             if (!img.startsWith('/') && !img.startsWith('http')) {

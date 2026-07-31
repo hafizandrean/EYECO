@@ -408,13 +408,23 @@ export class LaporanPage {
           ${report.uploaderInfo ? `<div class="row-reporter" style="font-size:0.72rem; color:var(--text-muted); margin-top:3px; display:flex; align-items:center; gap:4px;"><i data-lucide="user" style="width:10px;height:10px;"></i> ${report.uploaderInfo.name || report.uploaderInfo.username}</div>` : ''}
         </div>
         <div class="col-badge">
-          <span class="badge ${aiBadgeClass}">
-            <span class="pill-dot" style="background-color: currentColor;"></span>
-            AI: ${aiLabel}
-          </span>
-          ${typeof report.violationScore === 'number' 
-            ? `<span class="row-confidence-label" style="font-weight:800; font-size:0.75rem; color:var(--text-secondary); display:block; margin-top:2px;">Skor: ${report.violationScore}/100</span>` 
-            : (report.aiConfidence ? `<span class="row-confidence-label" style="font-size:0.72rem; color:var(--text-secondary); display:block; margin-top:2px;">Deteksi: ${report.aiConfidence}%</span>` : '')}
+          ${report.analysisState === 'PROCESSING' || report.aiDataIntegrityStatus === 'PENDING'
+            ? `<span class="badge badge-secondary" style="background: rgba(47,107,255,0.08); color: var(--primary);"><span class="pill-dot" style="background-color: currentColor;"></span>AI: Sedang dianalisis</span>
+               <span class="row-confidence-label" style="font-size:0.72rem; color:var(--primary); font-weight:700; display:block; margin-top:2px;">Menunggu hasil AI</span>`
+            : report.analysisState === 'REANALYSIS_PENDING'
+              ? `<span class="badge badge-secondary" style="background: rgba(245,158,11,0.08); color: var(--warning);"><span class="pill-dot" style="background-color: currentColor;"></span>AI: Antrean Analisis Ulang</span>
+                 <span class="row-confidence-label" style="font-size:0.72rem; color:var(--warning); font-weight:700; display:block; margin-top:2px;">Menunggu jadwal retry</span>`
+              : report.analysisState === 'FAILED'
+                ? `<span class="badge badge-secondary" style="background: rgba(239,68,68,0.08); color: var(--danger);"><span class="pill-dot" style="background-color: currentColor;"></span>AI: Gagal Analisis</span>
+                   <span class="row-confidence-label" style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:2px;">Skor: Tidak tersedia</span>`
+                : `<span class="badge ${aiBadgeClass}">
+                     <span class="pill-dot" style="background-color: currentColor;"></span>
+                     AI: ${aiLabel}
+                   </span>
+                   ${Number.isFinite(report.violationScore)
+                     ? `<span class="row-confidence-label" style="font-weight:800; font-size:0.75rem; color:var(--text-secondary); display:block; margin-top:2px;">Skor: ${report.violationScore}/100</span>` 
+                     : `<span class="row-confidence-label" style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:2px;">Skor: Tidak tersedia</span>`}`
+          }
         </div>
         <div class="col-badge">
           <span class="status-badge ${adminBadgeClass}">${report.adminStatus}</span>

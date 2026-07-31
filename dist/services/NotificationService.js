@@ -83,37 +83,58 @@ class NotificationService {
      * @param reportOwnerId Numeric legacy user ID of the report owner
      * @param workspaceId   Optional workspace scope
      */
-    static async notifyValidation(reportId, status, reportOwnerId, workspaceId) {
+    static async notifyValidation(reportId, status, reportOwnerId, workspaceId, oldStatus) {
         try {
+            const cleanStatus = (status || '').toUpperCase().trim();
+            // Guard: Validation notifications MUST only be created for actual transitions to VALID or DIABAIKAN
+            if (cleanStatus === 'MENUNGGU' || cleanStatus === 'PENDING' || (oldStatus && oldStatus === cleanStatus)) {
+                console.log(`[NotificationService] Suppressing validation notification for report #${reportId} (status: ${cleanStatus}, oldStatus: ${oldStatus})`);
+                return { success: true, count: 0 };
+            }
             const owner = await User_1.UserModel.findOne({ id: reportOwnerId }).lean().exec();
             if (!owner) {
                 return { success: false, count: 0, error: 'Report owner not found' };
             }
             const report = await Report_1.ReportModel.findOne({ id: reportId, deletedAt: null })
-                .select('_id workspaceId')
+                .select('_id workspaceId analysisState activeSnapshotId')
                 .lean()
                 .exec();
             if (!report) {
                 return { success: false, count: 0, error: 'Report not found' };
             }
-            const statusLabel = status === 'VALID' ? 'Valid' : status === 'DIABAIKAN' ? 'Diabaikan' : status;
+            if (report.analysisState && report.analysisState !== 'READY') {
+                console.log(`[NotificationService] Suppressing validation notification for unready report #${reportId} (analysisState: ${report.analysisState})`);
+                return { success: true, count: 0 };
+            }
+            const statusLabel = cleanStatus === 'VALID' ? 'Valid' : cleanStatus === 'DIABAIKAN' ? 'Diabaikan' : cleanStatus;
+            const eventKey = `${reportId}:VALIDATION:${oldStatus || 'PENDING'}:${cleanStatus}`;
             const now = new Date();
             const expiresAt = new Date(now.getTime() + this.EXPIRY_DAYS * 24 * 60 * 60 * 1000);
-            await Notification_1.NotificationModel.create({
-                workspaceId: workspaceId ?? report.workspaceId,
-                recipientId: owner._id,
-                reportId: report._id,
-                type: 'VALIDATION',
-                title: 'Laporan Telah Divalidasi',
-                message: `Laporan #${reportId} telah divalidasi dengan status: ${statusLabel}.`,
-                actionUrl: `/dashboard/detections/${reportId}`,
-                icon: 'shield-check',
-                priority: 'HIGH',
-                read: false,
-                readAt: null,
-                expiresAt,
-                deletedAt: null,
-            });
+            try {
+                await Notification_1.NotificationModel.create({
+                    eventKey,
+                    workspaceId: workspaceId ?? report.workspaceId,
+                    recipientId: owner._id,
+                    reportId: report._id,
+                    type: 'VALIDATION',
+                    title: 'Laporan Telah Divalidasi',
+                    message: `Laporan #${reportId} telah divalidasi dengan status: ${statusLabel}.`,
+                    actionUrl: `/dashboard/detections/${reportId}`,
+                    icon: 'shield-check',
+                    priority: 'HIGH',
+                    read: false,
+                    readAt: null,
+                    expiresAt,
+                    deletedAt: null,
+                });
+            }
+            catch (dbErr) {
+                if (dbErr.code === 11000 || (dbErr.message && dbErr.message.includes('E11000'))) {
+                    console.log(`[NotificationService] Duplicate eventKey suppressed idempotently: ${eventKey}`);
+                    return { success: true, count: 0 };
+                }
+                throw dbErr;
+            }
             return { success: true, count: 1 };
         }
         catch (err) {

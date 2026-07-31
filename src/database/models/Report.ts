@@ -40,17 +40,27 @@ export interface IReport extends Document {
   tenantId: string;
   location: string;
   timestamp: Date;
-  aiStatus: 'Indikasi Tinggi' | 'Indikasi Sedang' | 'Indikasi Rendah' | 'Tidak Terindikasi' | 'TINGGI' | 'SEDANG' | 'RENDAH';
-  aiConfidence: number | null;
-  violationScore?: number;
-  objectConfidence?: number;
-  sceneConfidence?: number;
-  decisionConfidence?: number;
-  uncertaintyScore?: number;
-  priority?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE';
-  recommendedAction?: string;
+  aiStatus: 'TINGGI' | 'SEDANG' | 'RENDAH' | 'Tidak Terindikasi' | 'Indikasi Tinggi' | 'Indikasi Sedang' | 'Indikasi Rendah';
+  aiConfidence: number | null; // 0 - 100
+  violationScore?: number | null;
+  objectConfidence?: number | null;
+  sceneConfidence?: number | null;
+  decisionConfidence?: number | null;
+  uncertaintyScore?: number | null;
+  priority?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE' | null;
+  recommendedAction?: string | null;
   activeSnapshotId?: mongoose.Types.ObjectId | null;
   snapshotHistory?: mongoose.Types.ObjectId[];
+  analysisState?: 'PROCESSING' | 'READY' | 'FAILED' | 'REANALYSIS_PENDING';
+  analysisOutcome?: 'COMPLETE' | 'COMPLETE_WITH_LIMITATIONS' | 'INCOMPLETE' | null;
+  aiDataIntegrityStatus?: 'VALID' | 'PENDING' | 'LEGACY' | 'SNAPSHOT_MISSING' | 'INCONSISTENT' | null;
+  sourceDetectionId?: mongoose.Types.ObjectId | null;
+  analysisStartedAt?: Date | null;
+  analysisLeaseExpiresAt?: Date | null;
+  analysisAttemptCount?: number;
+  analysisErrorCode?: string | null;
+  analysisClaimToken?: string | null;
+  analysisNextRetryAt?: Date | null;
   adminStatus: 'MENUNGGU' | 'VALID' | 'DIABAIKAN';
   image: string;
   identity: string;
@@ -163,15 +173,28 @@ const ReportSchema = new Schema<IReport>({
     index: true 
   },
   aiConfidence: { type: Number, default: null },
-  violationScore: { type: Number, default: 0 },
-  objectConfidence: { type: Number, default: 0 },
-  sceneConfidence: { type: Number, default: 0 },
-  decisionConfidence: { type: Number, default: 0 },
-  uncertaintyScore: { type: Number, default: 0 },
-  priority: { type: String, enum: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'NONE'], default: 'NONE' },
-  recommendedAction: { type: String, default: '' },
+  violationScore: { type: Number, default: null },
+  objectConfidence: { type: Number, default: null },
+  sceneConfidence: { type: Number, default: null },
+  decisionConfidence: { type: Number, default: null },
+  uncertaintyScore: { type: Number, default: null },
+  priority: { type: String, enum: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'NONE'], default: null },
+  recommendedAction: { type: String, default: null },
   activeSnapshotId: { type: Schema.Types.ObjectId, ref: 'AiSnapshot', default: null },
   snapshotHistory: [{ type: Schema.Types.ObjectId, ref: 'AiSnapshot' }],
+  analysisState: { 
+    type: String, 
+    enum: ['PROCESSING', 'READY', 'FAILED', 'REANALYSIS_PENDING'], 
+    default: 'READY', 
+    index: true 
+  },
+  sourceDetectionId: { type: Schema.Types.ObjectId, ref: 'AiDetection', default: null, sparse: true, index: true },
+  analysisStartedAt: { type: Date, default: null },
+  analysisLeaseExpiresAt: { type: Date, default: null, index: true },
+  analysisAttemptCount: { type: Number, default: 0 },
+  analysisErrorCode: { type: String, default: null },
+  analysisClaimToken: { type: String, default: null, index: true },
+  analysisNextRetryAt: { type: Date, default: null, index: true },
   adminStatus: { 
     type: String, 
     enum: ['MENUNGGU', 'VALID', 'DIABAIKAN'], 

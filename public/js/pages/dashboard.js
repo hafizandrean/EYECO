@@ -606,9 +606,11 @@ export class DashboardPage {
       } else {
         queueReports.forEach(r => {
           const item = document.createElement('div');
-          const isHigh = r.aiStatus === 'TINGGI';
-          const isMed = r.aiStatus === 'SEDANG';
-          const priorityClass = isHigh ? 'incident-priority-high' : (isMed ? 'incident-priority-medium' : 'incident-priority-low');
+          const isProcessing = r.analysisState === 'PROCESSING' || r.aiDataIntegrityStatus === 'PENDING';
+          const isFailed = r.analysisState === 'FAILED';
+          const isHigh = !isProcessing && !isFailed && (r.aiStatus === 'TINGGI' || r.aiStatus === 'Indikasi Tinggi');
+          const isMed = !isProcessing && !isFailed && (r.aiStatus === 'SEDANG' || r.aiStatus === 'Indikasi Sedang');
+          const priorityClass = isProcessing ? 'incident-priority-medium' : (isHigh ? 'incident-priority-high' : (isMed ? 'incident-priority-medium' : 'incident-priority-low'));
           item.className = `incident-queue-item hover-lift ${priorityClass}`;
           
           const rawCategory = r.boundingBoxes && r.boundingBoxes[0] ? r.boundingBoxes[0].label : 'Sampah';
@@ -626,7 +628,7 @@ export class DashboardPage {
           const indonesianCategory = labelMap[rawCategory.toLowerCase()] || rawCategory;
           const labelText = rawCategory === 'person' ? 'Pelaku membuang sampah' : `Pembuangan Liar · ${indonesianCategory}`;
           
-          const severityText = isHigh ? 'TINGGI' : (isMed ? 'SEDANG' : 'RENDAH');
+          const severityText = isProcessing ? 'SEDANG DIANALISIS' : (isFailed ? 'GAGAL ANALISIS' : (isHigh ? 'TINGGI' : (isMed ? 'SEDANG' : 'RENDAH')));
 
           let workflowState = 'MENUNGGU';
           if (r.adminStatus === 'VALID') {
@@ -706,7 +708,7 @@ export class DashboardPage {
     const statInProgress = document.getElementById('stat-in-progress');
     const statResolvedToday = document.getElementById('stat-resolved-today');
 
-    if (statWaiting) statWaiting.innerText = isMon ? this.latestReports.filter(r => r.adminStatus === 'MENUNGGU').length : 0;
+    if (statWaiting) statWaiting.innerText = isMon ? (this.stats.pending !== undefined ? this.stats.pending : this.latestReports.filter(r => r.adminStatus === 'MENUNGGU').length) : 0;
     if (statAssigned) statAssigned.innerText = isMon ? this.latestReports.filter(r => r.adminStatus === 'VALID' && r.assignedOfficer && r.status !== 'PROSES' && r.status !== 'SELESAI').length : 0;
     if (statInProgress) statInProgress.innerText = isMon ? this.latestReports.filter(r => r.status === 'PROSES').length : 0;
     if (statResolvedToday) statResolvedToday.innerText = isMon ? this.latestReports.filter(r => r.status === 'SELESAI' && new Date(r.timestamp) >= todayStart).length : 0;

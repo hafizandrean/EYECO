@@ -36,6 +36,7 @@ const Notification_1 = require("./database/models/Notification");
 const TelegramNotificationChannel_1 = require("./notifications/TelegramNotificationChannel");
 const aiDetection_service_1 = require("./services/aiDetection.service");
 const R2StorageService_1 = require("./services/R2StorageService");
+const ReportAiProjectionService_1 = require("./services/ai/ReportAiProjectionService");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = Number(process.env.PORT || 8000);
@@ -965,6 +966,18 @@ let serverInstance;
         }
     }
     catch (_) { }
+    // Validate AI Cutoff Environment & run stale lease recovery at startup
+    try {
+        ReportAiProjectionService_1.ReportAiProjectionService.getSnapshotRequiredCutoff();
+        const { PromotionService } = require('./cctv/services/PromotionService');
+        await PromotionService.recoverExpiredAnalysis();
+    }
+    catch (err) {
+        console.error('[SERVER CRITICAL] Startup validation failed:', err.message);
+        if (process.env.NODE_ENV === 'production') {
+            process.exit(1);
+        }
+    }
     // CCTV Health Engine is started inside listenWithFallback
     AiPipelineScheduler_1.AiPipelineScheduler.start(5000);
     OutboxWorker_1.OutboxWorker.start();
