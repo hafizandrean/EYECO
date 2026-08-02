@@ -16,6 +16,12 @@ import { NotificationModel } from '../database/models/Notification';
 import { SystemAuditLogModel } from '../database/models/SystemAuditLog';
 import { WorkspaceModel } from '../database/models/Workspace';
 import { R2StorageService } from '../services/R2StorageService';
+import { feedbackCollector } from '../services/ai/validation/feedbackCollector';
+import { AiValidationLogModel } from '../database/models/AiValidationLog';
+import { TimelineEventModel } from '../database/models/TimelineEvent';
+import { AiDatasetCandidateModel } from '../database/models/AiDatasetCandidate';
+import { AiDatasetVersionModel } from '../database/models/AiDatasetVersion';
+import { datasetBuilder } from '../services/ai/continualLearning/datasetBuilder';
 
 const router = Router();
 
@@ -1079,6 +1085,245 @@ router.get('/detections/:id/pdf', async (req, res) => {
   } catch (err) {
     console.error('[SERVER ERROR] PDF export failed:', err);
     res.status(500).json({ error: 'Gagal mengekspor PDF' });
+  }
+});
+// POST /api/reports/:reportId/ai-feedback — Record/update operator AI feedback
+router.post('/:reportId/ai-feedback', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized: Harap login terlebih dahulu' });
+
+    const reportIdNum = parseInt(req.params.reportId, 10);
+    if (isNaN(reportIdNum)) return res.status(400).json({ error: 'ID Laporan tidak valid' });
+
+    const report = await ReportModel.findOne({ id: reportIdNum, deletedAt: null }).exec();
+    if (!report) return res.status(404).json({ error: 'Laporan tidak ditemukan' });
+
+    const { snapshotId, groundTruthLabel, isLitteringConfirmed, correctedPriority, correctedObjects, notes, idempotencyKey } = req.body;
+    if (!snapshotId) return res.status(400).json({ error: 'snapshotId wajib diisi' });
+    if (!groundTruthLabel) return res.status(400).json({ error: 'groundTruthLabel wajib diisi' });
+
+    const snapshot = await AiSnapshotModel.findById(snapshotId).exec();
+    if (!snapshot) return res.status(404).json({ error: 'AiSnapshot tidak ditemukan' });
+    if (snapshot.reportId !== reportIdNum && String(report._id) !== String(snapshot.reportId)) {
+      return res.status(400).json({ error: 'snapshotId tidak terhubung ke Laporan ini' });
+    }
+
+    // Validate correctedObjects payload if present
+    if (Array.isArray(correctedObjects)) {
+      for (const item of correctedObjects) {
+        if (!['CONFIRM', 'REMOVE', 'RELABEL', 'ADD'].includes(item.action)) {
+          return res.status(400).json({ error: `Aksi correctedObjects '${item.action}' tidak valid` });
+        }
+        if (['CONFIRM', 'REMOVE', 'RELABEL'].includes(item.action) && !item.detectionId) {
+          return res.status(400).json({ error: `Aksi ${item.action} membutuhkan detectionId` });
+        }
+        if (item.action === 'RELABEL' && !item.correctedClass) {
+          return res.status(400).json({ error: 'Aksi RELABEL membutuhkan correctedClass' });
+        }
+        if (item.action === 'ADD') {
+          if (!item.correctedClass) return res.status(400).json({ error: 'Aksi ADD membutuhkan correctedClass' });
+          if (!Array.isArray(item.correctedBbox) || item.correctedBbox.length !== 4) {
+            return res.status(400).json({ error: 'Aksi ADD membutuhkan correctedBbox [x1, y1, x2, y2]' });
+          }
+          const [x1, y1, x2, y2] = item.correctedBbox;
+          if (!Number.isFinite(x1) || !Number.isFinite(y1) || !Number.isFinite(x2) || !Number.isFinite(y2) || x2 <= x1 || y2 <= y1) {
+            return res.status(400).json({ error: 'Aksi ADD membutuhkan koordinat bounding box valid (x2 > x1 dan y2 > y1)' });
+          }
+        }
+      }
+    }
+
+    const key = idempotencyKey || `feedback-${snapshotId}-${user._id}-${Date.now()}`;
+
+    const feedbackLog = await feedbackCollector.logOperatorFeedback({
+      idempotencyKey: key,
+      reportId: reportIdNum,
+      reportObjectId: String(report._id),
+      snapshotId: String(snapshot._id),
+      userId: String(user._id),
+      operatorUsername: user.username || user.name || 'Operator',
+      operatorDecision: groundTruthLabel,
+      isLitteringConfirmed,
+      correctedPriority,
+      correctedObjects,
+      notes,
+      predictedStatus: snapshot.decision ? (snapshot.decision.status || '') : '',
+      predictedScore: snapshot.decision ? snapshot.decision.violationScore : null,
+      inputImageHash: snapshot.inputImageHash || ''
+    });
+
+    // Record Timeline Event
+    await TimelineEventModel.create({
+      workspaceId: report.workspaceId || user.workspaceId || 1,
+      reportId: report._id,
+      eventVersion: 1,
+      type: 'REVIEW',
+      actorId: user._id,
+      actorName: user.name || user.username || 'Operator',
+      actorRole: user.role || 'operator',
+      title: 'Validasi AI Operator Catat Ground Truth',
+      description: `Operator mencatat umpan balik AI: ${groundTruthLabel} (Versi Log v${feedbackLog.validationVersion}).`,
+      metadata: { validationLogId: feedbackLog._id, idempotencyKey: key },
+      ipAddress: req.ip || '127.0.0.1',
+      userAgent: req.get('user-agent') || 'EYECO Command Center',
+      createdAt: new Date()
+    });
+
+    res.status(200).json({
+      message: 'Umpan balik operator berhasil dicatat secara idempotent',
+      feedbackLog
+    });
+  } catch (err: any) {
+    if (err.code === 'IDEMPOTENCY_KEY_CONFLICT' || err.status === 409) {
+      return res.status(409).json({ error: err.message, errorCode: 'IDEMPOTENCY_KEY_CONFLICT' });
+    }
+    console.error('[SERVER ERROR] AI feedback recording failed:', err);
+    res.status(500).json({ error: 'Gagal mencatat umpan balik AI: ' + err.message });
+  }
+});
+
+// GET /api/reports/:reportId/ai-feedback — Get feedback history for a report
+router.get('/:reportId/ai-feedback', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const reportIdNum = parseInt(req.params.reportId, 10);
+    if (isNaN(reportIdNum)) return res.status(400).json({ error: 'ID Laporan tidak valid' });
+
+    const logs = await AiValidationLogModel.find({ reportId: reportIdNum }).sort({ validationVersion: -1 }).exec();
+    res.status(200).json({ logs });
+  } catch (err: any) {
+    console.error('[SERVER ERROR] Get AI feedback history failed:', err);
+    res.status(500).json({ error: 'Gagal mengambil riwayat umpan balik' });
+  }
+});
+
+// GET /api/admin/continual-learning/candidates — Get active learning candidates
+router.get('/admin/continual-learning/candidates', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized: Harap login terlebih dahulu' });
+    if (!['admin'].includes(user.role)) {
+      return res.status(403).json({ error: 'Forbidden: Membutuhkan hak akses admin' });
+    }
+
+    const { status = 'PENDING_APPROVAL', targetModel } = req.query;
+    const query: any = {};
+    if (status) query.approvalStatus = status;
+    if (targetModel) query.targetModel = targetModel;
+
+    const candidates = await AiDatasetCandidateModel.find(query).sort({ candidateScore: -1, createdAt: -1 }).limit(100).exec();
+    res.status(200).json({ candidates, count: candidates.length });
+  } catch (err: any) {
+    console.error('[SERVER ERROR] Failed to fetch candidates:', err);
+    res.status(500).json({ error: 'Gagal mengambil daftar kandidat pembelajaran' });
+  }
+});
+
+// POST /api/admin/continual-learning/candidates/:candidateId/review — Review candidate with atomic state transition
+router.post('/admin/continual-learning/candidates/:candidateId/review', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized: Harap login terlebih dahulu' });
+    if (!['admin'].includes(user.role)) {
+      return res.status(403).json({ error: 'Forbidden: Hanya Admin yang dapat menyetujui kandidat dataset' });
+    }
+
+    const { approvalStatus, approvalNotes } = req.body;
+    if (!['APPROVED', 'REJECTED'].includes(approvalStatus)) {
+      return res.status(400).json({ error: 'approvalStatus harus APPROVED atau REJECTED' });
+    }
+
+    // Atomic State Transition Guard: Only transition if current status is PENDING_APPROVAL
+    const updatedCandidate = await AiDatasetCandidateModel.findOneAndUpdate(
+      { _id: req.params.candidateId, approvalStatus: 'PENDING_APPROVAL' },
+      {
+        $set: {
+          approvalStatus,
+          approvedByUserId: user._id,
+          approvalNotes: approvalNotes || '',
+          reviewedAt: new Date()
+        }
+      },
+      { new: true }
+    ).exec();
+
+    if (!updatedCandidate) {
+      const existing = await AiDatasetCandidateModel.findById(req.params.candidateId).exec();
+      if (!existing) return res.status(404).json({ error: 'Kandidat dataset tidak ditemukan' });
+      return res.status(409).json({
+        error: `Kandidat sudah ditinjau sebelumnya (Status: ${existing.approvalStatus})`,
+        errorCode: 'CANDIDATE_ALREADY_REVIEWED'
+      });
+    }
+
+    // Audit Event
+    await SystemAuditLogModel.create({
+      tenantId: (user as any).tenantId || 'tenant-default',
+      actorId: user._id,
+      actorName: user.name || user.username || 'Admin',
+      action: 'REVIEW_AI_CANDIDATE',
+      details: {
+        candidateId: req.params.candidateId,
+        approvalStatus,
+        approvalNotes
+      },
+      ipAddress: req.ip || '127.0.0.1',
+      userAgent: req.get('user-agent') || 'EYECO Admin Center',
+      createdAt: new Date()
+    });
+
+    res.status(200).json({ message: `Kandidat berhasil diubah menjadi ${approvalStatus}`, candidate: updatedCandidate });
+  } catch (err: any) {
+    console.error('[SERVER ERROR] Candidate review failed:', err);
+    res.status(500).json({ error: 'Gagal memproses persetujuan kandidat' });
+  }
+});
+
+// POST /api/admin/continual-learning/datasets/build — Build anti-leakage dataset version manifest
+router.post('/admin/continual-learning/datasets/build', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized: Harap login terlebih dahulu' });
+    if (!['admin'].includes(user.role)) {
+      return res.status(403).json({ error: 'Forbidden: Hanya Admin yang dapat membangun versi dataset' });
+    }
+
+    const { targetModel = 'OBJECT_DETECTOR' } = req.body;
+    const datasetVersion = await datasetBuilder.buildDatasetVersion({
+      targetModel,
+      createdByUserId: String(user._id)
+    });
+
+    res.status(201).json({
+      message: `Versi dataset ${datasetVersion.datasetVersion} berhasil dibuat (Status: ${datasetVersion.status})`,
+      datasetVersion
+    });
+  } catch (err: any) {
+    if (err.code === 'NO_APPROVED_CANDIDATES' || err.status === 400) {
+      return res.status(400).json({ error: err.message, errorCode: 'NO_APPROVED_CANDIDATES' });
+    }
+    console.error('[SERVER ERROR] Dataset build failed:', err);
+    res.status(500).json({ error: 'Gagal membangun versi dataset: ' + err.message });
+  }
+});
+
+// GET /api/admin/continual-learning/datasets — Get list of dataset version manifests
+router.get('/admin/continual-learning/datasets', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized: Harap login terlebih dahulu' });
+    if (!['admin'].includes(user.role)) {
+      return res.status(403).json({ error: 'Forbidden: Membutuhkan hak akses admin' });
+    }
+
+    const datasets = await AiDatasetVersionModel.find().sort({ createdAt: -1 }).limit(50).exec();
+    res.status(200).json({ datasets, count: datasets.length });
+  } catch (err: any) {
+    console.error('[SERVER ERROR] Failed to fetch dataset versions:', err);
+    res.status(500).json({ error: 'Gagal mengambil riwayat versi dataset' });
   }
 });
 

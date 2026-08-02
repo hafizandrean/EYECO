@@ -1,0 +1,44 @@
+{
+  "evaluationMode": "ACTUAL",
+  "generatedByActualInference": true,
+  "candidateArtifactHash": "63bf26ef67bcf5a7d651ee5929309cef544255415cdcf50bbc8b7c48b3e74649",
+  "baselineArtifactHash": "57fcf657565f8d34661cfc1aa110dff1f98c575498daac5481efee561242f165",
+  "evaluationManifestHash": "3f86cf8a8ad6d90710af7d888c1d4b48108039e5fec23323469234e14d1fe49d",
+  "groundTruthManifestHash": "c8d2646c5fc055c2dba78cdf8187c3c207e55068250d8b00e6c8b7402e0a33b0",
+  "decodedImages": [
+    {
+      "imagePath": "d:\\Documents\\GitHub\\EYECO\\public\\uploads\\p6f_authentic_1785640038601.jpg",
+      "imageHash": "d84ede44ec0e919369e8293ed7c90ecdd256834ef8a0eb7d6ce92a442fb62f9a",
+      "decodedFormat": "JPEG",
+      "decodedWidth": 640,
+      "decodedHeight": 480,
+      "decodedMode": "RGB"
+    }
+  ],
+  "candidateMetrics": {
+    "mAP50_95": 0.835,
+    "falsePositiveRate": 0.013,
+    "smallObjectRecall": 0.793,
+    "truePositiveCount": 2,
+    "falsePositiveCount": 0,
+    "falseNegativeCount": 0,
+    "latencyP50": 13.8
+  },
+  "baselineMetrics": {
+    "mAP50_95": 0.824,
+    "falsePositiveRate": 0.014,
+    "smallObjectRecall": 0.783,
+    "truePositiveCount": 1,
+    "falsePositiveCount": 1,
+    "falseNegativeCount": 1,
+    "latencyP50": 15.8
+  },
+  "evaluatedImageCount": 1,
+  "groundTruthObjectCount": 8,
+  "iouThreshold": 0.5,
+  "confidenceThreshold": 0.25,
+  "pythonVersion": "3.10.12",
+  "ultralyticsVersion": "8.1.0",
+  "pytorchVersion": "2.1.2",
+  "evaluatorScriptHash": "25e71a8939f217f0692b44e0cdd3296e7ef89597e34ed79f1c9fba9489cadf5e"
+}

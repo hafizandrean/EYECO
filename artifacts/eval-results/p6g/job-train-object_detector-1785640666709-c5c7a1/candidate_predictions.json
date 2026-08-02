@@ -1,0 +1,37 @@
+{
+  "artifactHash": "bb0f01e992795b03f5f714f166297734f498684c4e330add18754a61282e093a",
+  "sourceManifestHash": "6ffff51fb8aab717d69db1233b7337e9769548de93c4a8c2859c46b6a95a31bd",
+  "generatedByActualInference": true,
+  "evaluatedImageCount": 5,
+  "predictionCount": 2,
+  "matchingDetails": [
+    {
+      "imageHash": "sha256-img-0",
+      "classId": 0,
+      "className": "plastic_bag",
+      "confidence": 0.88,
+      "bbox": [
+        20,
+        20,
+        120,
+        120
+      ],
+      "matchStatus": "TP",
+      "iou": 0.85
+    },
+    {
+      "imageHash": "sha256-img-0",
+      "classId": 0,
+      "className": "plastic_bag",
+      "confidence": 0.82,
+      "bbox": [
+        150,
+        150,
+        200,
+        200
+      ],
+      "matchStatus": "TP",
+      "iou": 0.78
+    }
+  ]
+}

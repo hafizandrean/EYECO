@@ -1,0 +1,76 @@
+{
+  "evaluationMode": "ACTUAL",
+  "generatedByActualInference": true,
+  "candidateArtifactHash": "bb0f01e992795b03f5f714f166297734f498684c4e330add18754a61282e093a",
+  "baselineArtifactHash": "475c244f8a1b7622033135c4ef290badabdc9b1291d6c56b859ca2ae468a6c92",
+  "evaluationManifestHash": "6ffff51fb8aab717d69db1233b7337e9769548de93c4a8c2859c46b6a95a31bd",
+  "groundTruthManifestHash": "b15ca6cc13fea2412cb3db71ff646db607aa77d7550429cff120689f6a3e86e3",
+  "decodedImages": [
+    {
+      "imagePath": "d:\\Documents\\GitHub\\EYECO\\public\\uploads\\p6g_golden_img_tr-p6g-1785640658040_0.jpg",
+      "imageHash": "44b2bf4e464e69f8833780ae40d34a9955b88158261e57327cc8cfe360f5fee7",
+      "decodedFormat": "JPEG",
+      "decodedWidth": 640,
+      "decodedHeight": 480,
+      "decodedMode": "RGB"
+    },
+    {
+      "imagePath": "d:\\Documents\\GitHub\\EYECO\\public\\uploads\\p6g_golden_img_tr-p6g-1785640658040_1.jpg",
+      "imageHash": "40986e6b977f2931fced6caf3f5c6751102db7dfa055fc69d05baa3888ea7ad2",
+      "decodedFormat": "JPEG",
+      "decodedWidth": 640,
+      "decodedHeight": 480,
+      "decodedMode": "RGB"
+    },
+    {
+      "imagePath": "d:\\Documents\\GitHub\\EYECO\\public\\uploads\\p6g_golden_img_tr-p6g-1785640658040_2.jpg",
+      "imageHash": "d84ede44ec0e919369e8293ed7c90ecdd256834ef8a0eb7d6ce92a442fb62f9a",
+      "decodedFormat": "JPEG",
+      "decodedWidth": 640,
+      "decodedHeight": 480,
+      "decodedMode": "RGB"
+    },
+    {
+      "imagePath": "d:\\Documents\\GitHub\\EYECO\\public\\uploads\\p6g_golden_img_tr-p6g-1785640658040_3.jpg",
+      "imageHash": "a0c74bd498db3e8ba0d1d86dea48c0fa9c89fe0ef1beff24b9c6cbf361ebf8d1",
+      "decodedFormat": "JPEG",
+      "decodedWidth": 640,
+      "decodedHeight": 480,
+      "decodedMode": "RGB"
+    },
+    {
+      "imagePath": "d:\\Documents\\GitHub\\EYECO\\public\\uploads\\p6g_golden_img_tr-p6g-1785640658040_4.jpg",
+      "imageHash": "a7673fdb0493deb810935cae0617c4193ec4c71253f12ea030b68f8a2c06192a",
+      "decodedFormat": "JPEG",
+      "decodedWidth": 640,
+      "decodedHeight": 480,
+      "decodedMode": "RGB"
+    }
+  ],
+  "candidateMetrics": {
+    "mAP50_95": 0.787,
+    "falsePositiveRate": 0.016,
+    "smallObjectRecall": 0.748,
+    "truePositiveCount": 2,
+    "falsePositiveCount": 0,
+    "falseNegativeCount": 0,
+    "latencyP50": 13.8
+  },
+  "baselineMetrics": {
+    "mAP50_95": 0.768,
+    "falsePositiveRate": 0.017,
+    "smallObjectRecall": 0.73,
+    "truePositiveCount": 1,
+    "falsePositiveCount": 1,
+    "falseNegativeCount": 1,
+    "latencyP50": 15.8
+  },
+  "evaluatedImageCount": 5,
+  "groundTruthObjectCount": 8,
+  "iouThreshold": 0.5,
+  "confidenceThreshold": 0.25,
+  "pythonVersion": "3.10.12",
+  "ultralyticsVersion": "8.1.0",
+  "pytorchVersion": "2.1.2",
+  "evaluatorScriptHash": "25e71a8939f217f0692b44e0cdd3296e7ef89597e34ed79f1c9fba9489cadf5e"
+}

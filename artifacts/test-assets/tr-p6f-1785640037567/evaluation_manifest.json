@@ -1,0 +1,11 @@
+{
+  "goldenDatasetVersion": "v3.0.0-golden-object_detector-1785640040747-6e2bb9",
+  "goldenManifestHash": "ef1d89446063e6f1dfd082f4d873f36ca317f0298423fc42611c883dece8d174",
+  "items": [
+    {
+      "imagePath": "d:\\Documents\\GitHub\\EYECO\\public\\uploads\\p6f_authentic_1785640038601.jpg",
+      "imageHash": "d84ede44ec0e919369e8293ed7c90ecdd256834ef8a0eb7d6ce92a442fb62f9a",
+      "split": "TEST"
+    }
+  ]
+}

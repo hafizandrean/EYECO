@@ -1,0 +1,19 @@
+{
+  "sourceGoldenDatasetHash": "4439227e938c8582474520d30084d99daaad597efa7a6571f8cbc76688fe9572",
+  "items": [
+    {
+      "imagePath": "d:\\Documents\\GitHub\\EYECO\\public\\uploads\\p6d_sample.jpg",
+      "annotations": [
+        {
+          "className": "plastic_bag",
+          "bbox": [
+            10,
+            10,
+            90,
+            90
+          ]
+        }
+      ]
+    }
+  ]
+}

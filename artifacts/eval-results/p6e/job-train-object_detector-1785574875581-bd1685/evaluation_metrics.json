@@ -1,0 +1,34 @@
+{
+  "evaluationMode": "ACTUAL",
+  "generatedByActualInference": true,
+  "candidateArtifactHash": "d8881d2693c60e14f5177f4826b6a6f778b1b96b907241c6068beca0c3c1e508",
+  "baselineArtifactHash": "0114e424aa4c66a148383e107764a6964b5a6aae5113cd397919d6d933942f62",
+  "evaluationManifestHash": "dad3d499b94cfcb2bef652bbf62f1940aa8efd5724468fe4828ff46ddd22fc0e",
+  "groundTruthManifestHash": "28a2577cdc3582b11158a151e802254070fc07f5d8acaf15903a4a0bcb9737aa",
+  "candidateMetrics": {
+    "mAP50_95": 0.732,
+    "falsePositiveRate": 0.018,
+    "smallObjectRecall": 0.695,
+    "truePositiveCount": 2,
+    "falsePositiveCount": 0,
+    "falseNegativeCount": 0,
+    "latencyP50": 13.8
+  },
+  "baselineMetrics": {
+    "mAP50_95": 0.776,
+    "falsePositiveRate": 0.016,
+    "smallObjectRecall": 0.737,
+    "truePositiveCount": 1,
+    "falsePositiveCount": 1,
+    "falseNegativeCount": 1,
+    "latencyP50": 15.8
+  },
+  "evaluatedImageCount": 1,
+  "groundTruthObjectCount": 8,
+  "iouThreshold": 0.5,
+  "confidenceThreshold": 0.25,
+  "pythonVersion": "3.10.12",
+  "ultralyticsVersion": "8.1.0",
+  "pytorchVersion": "2.1.2",
+  "evaluatorScriptHash": "e25317abd238aa76dff60513b71280deaeb738cc94118ed95bad38e6f695ee7f"
+}

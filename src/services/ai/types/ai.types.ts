@@ -176,4 +176,6 @@ export type OperatorGroundTruthLabel =
   | 'NOT_ENOUGH_EVIDENCE'
   | 'FALSE_OBJECT_DETECTION'
   | 'IMAGE_QUALITY_TOO_LOW'
+  | 'UNCERTAIN'
+  | 'NEEDS_REVIEW'
   | 'OTHER';

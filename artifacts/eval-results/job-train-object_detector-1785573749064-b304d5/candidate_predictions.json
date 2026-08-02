@@ -1,0 +1,22 @@
+{
+  "artifactHash": "8f976bac2fc4a3a072d7c45ee313a87f1c58109390f87e329ff23a7f0ed05450",
+  "generatedByActualInference": true,
+  "evaluatedImageCount": 5,
+  "predictions": [
+    {
+      "imageHash": "sha256-img-0",
+      "detections": [
+        {
+          "classId": 0,
+          "confidence": 0.88,
+          "bbox": [
+            20,
+            20,
+            120,
+            120
+          ]
+        }
+      ]
+    }
+  ]
+}

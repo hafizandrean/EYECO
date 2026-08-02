@@ -696,6 +696,11 @@ export class DetailPage {
               <button class="btn btn-glass btn-rounded" id="btn-telegram-dispatch" style="width: 100%; color: var(--primary); border-color: rgba(47, 107, 255, 0.2); font-size: 0.8rem; font-weight: 700; height: 38px;">
                 <i data-lucide="send" style="width:14px; height:14px; margin-right:4px;"></i> Siarkan Telegram Respon
               </button>
+
+              <!-- Tombol Validasi Umpan Balik AI (Ground Truth) -->
+              <button class="btn btn-glass btn-rounded" id="btn-ai-feedback-modal" style="width: 100%; color: var(--success); border-color: rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.04); font-size: 0.8rem; font-weight: 700; height: 38px; display:flex; align-items:center; justify-content:center; gap:6px; margin-top:4px;">
+                <i data-lucide="brain-circuit" style="width:14px; height:14px; color: var(--success);"></i> Catat Umpan Balik AI (Ground Truth)
+              </button>
               ` : `
               <div style="display:flex; flex-direction:column; gap:8px; padding: var(--space-16) 0;">
                 <span style="font-size:0.85rem; color: var(--text-primary); font-weight:600;">
@@ -1441,6 +1446,14 @@ export class DetailPage {
       });
     }
 
+    // Operator AI Feedback Modal Trigger Button
+    const aiFeedbackModalBtn = document.getElementById('btn-ai-feedback-modal');
+    if (aiFeedbackModalBtn) {
+      aiFeedbackModalBtn.addEventListener('click', () => {
+        this.openAiFeedbackModal();
+      });
+    }
+
     // Characters counter validation
     if (commentInput && charCounter) {
       commentInput.addEventListener('input', () => {
@@ -1580,6 +1593,113 @@ export class DetailPage {
     const createdAt = report.createdAt || report.timestamp;
     if (!createdAt) return false;
     return (Date.now() - new Date(createdAt).getTime()) < 10 * 60 * 1000;
+  }
+
+  openAiFeedbackModal() {
+    const existingModal = document.getElementById('modal-ai-feedback');
+    if (existingModal) existingModal.remove();
+
+    const snapshotId = this.currentReport && (this.currentReport.activeSnapshotId || (this.currentReport.aiProjection && this.currentReport.aiProjection.activeSnapshotId)) ? (this.currentReport.activeSnapshotId || this.currentReport.aiProjection.activeSnapshotId) : '';
+    if (!snapshotId) {
+      EventBus.emit('toast:show', { message: 'Snapshot AI belum tersedia untuk laporan ini.', type: 'warning' });
+      return;
+    }
+
+    const modalHtml = `
+      <div id="modal-ai-feedback" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; z-index:9999;">
+        <div style="background:#ffffff; width:90%; max-width:520px; border-radius:16px; padding:24px; box-shadow:0 20px 40px rgba(0,0,0,0.2); display:flex; flex-direction:column; gap:16px; max-height:90vh; overflow-y:auto;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #E2E8F0; padding-bottom:12px;">
+            <h3 style="font-family:'Outfit',sans-serif; font-size:1.1rem; font-weight:800; color:#1E293B; margin:0; display:flex; align-items:center; gap:8px;">
+              <i data-lucide="brain-circuit" style="color:var(--primary); width:20px; height:20px;"></i> Catat Umpan Balik AI (Ground Truth)
+            </h3>
+            <button id="btn-close-ai-feedback" style="background:none; border:none; cursor:pointer; font-size:1.2rem; color:#64748B;">✕</button>
+          </div>
+
+          <form id="form-ai-feedback-submit" style="display:flex; flex-direction:column; gap:14px;">
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:0.78rem; font-weight:700; color:#334155;">Label Keputusan Operator (Ground Truth):</label>
+              <select id="feedback-label-select" class="form-control select-rounded" style="font-size:0.82rem; height:38px; background:#F8FAFC;" required>
+                <option value="CONFIRMED_LITTERING">✓ Konfirmasi Membuang Sampah Sembarangan</option>
+                <option value="DISPOSING_IN_BIN">✓ Objek Dibuang ke Tempat Sampah Resmi</option>
+                <option value="FALSE_OBJECT_DETECTION">✗ Deteksi Objek Salah (Bukan Sampah)</option>
+                <option value="IMAGE_QUALITY_TOO_LOW">⚠ Kualitas Gambar Terlalu Buruk</option>
+                <option value="UNCERTAIN">❓ Ragu-ragu / Tidak Yakin</option>
+                <option value="NEEDS_REVIEW">🔍 Memerlukan Peninjauan Ulang</option>
+              </select>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:0.78rem; font-weight:700; color:#334155;">Koreksi Tingkat Prioritas (Opsional):</label>
+              <select id="feedback-priority-select" class="form-control select-rounded" style="font-size:0.82rem; height:38px; background:#F8FAFC;">
+                <option value="NONE">Tidak Ada (Default)</option>
+                <option value="LOW">Rendah (LOW)</option>
+                <option value="MEDIUM">Sedang (MEDIUM)</option>
+                <option value="HIGH">Tinggi (HIGH)</option>
+                <option value="CRITICAL">Kritis (CRITICAL)</option>
+              </select>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:0.78rem; font-weight:700; color:#334155;">Catatan Verifikator Operator:</label>
+              <textarea id="feedback-notes-input" class="form-control textarea-rounded" rows="3" style="font-size:0.82rem; padding:10px; background:#F8FAFC;" placeholder="Jelaskan alasan koreksi atau observasi detail lapangan..."></textarea>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:8px;">
+              <button type="button" id="btn-cancel-ai-feedback" class="btn btn-glass btn-rounded" style="flex:1; font-weight:700; height:40px; font-size:0.8rem;">Batal</button>
+              <button type="submit" id="btn-submit-ai-feedback" class="btn btn-primary btn-rounded" style="flex:1; font-weight:700; height:40px; font-size:0.8rem;">Simpan Ground Truth</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    if (window.lucide) window.lucide.createIcons();
+
+    const closeModal = () => {
+      const modal = document.getElementById('modal-ai-feedback');
+      if (modal) modal.remove();
+    };
+
+    document.getElementById('btn-close-ai-feedback')?.addEventListener('click', closeModal);
+    document.getElementById('btn-cancel-ai-feedback')?.addEventListener('click', closeModal);
+
+    document.getElementById('form-ai-feedback-submit')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = document.getElementById('btn-submit-ai-feedback');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'Menyimpan...';
+      }
+
+      const groundTruthLabel = document.getElementById('feedback-label-select').value;
+      const correctedPriority = document.getElementById('feedback-priority-select').value;
+      const notes = document.getElementById('feedback-notes-input').value.trim();
+      const currentUser = AppState.get('user') || {};
+
+      const idempotencyKey = `feedback-${snapshotId}-${currentUser._id || currentUser.id || 'op'}-${Date.now()}`;
+
+      try {
+        const res = await API.post(`/api/reports/${this.reportId}/ai-feedback`, {
+          snapshotId,
+          groundTruthLabel,
+          correctedPriority,
+          notes,
+          idempotencyKey
+        });
+
+        EventBus.emit('toast:show', { message: 'Ground truth umpan balik AI berhasil dicatat!', type: 'success' });
+        closeModal();
+        await this.loadData();
+      } catch (err) {
+        EventBus.emit('toast:show', { message: err.message || 'Gagal menyimpan umpan balik AI', type: 'danger' });
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerText = 'Simpan Ground Truth';
+        }
+      }
+    });
   }
 
   destroy() {
