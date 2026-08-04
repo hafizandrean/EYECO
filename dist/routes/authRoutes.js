@@ -19,6 +19,7 @@ const authMiddleware_1 = require("../auth/authMiddleware");
 const RoleMiddleware_1 = require("../auth/RoleMiddleware");
 const Session_1 = require("../database/models/Session");
 const SystemAuditLog_1 = require("../database/models/SystemAuditLog");
+const password_1 = require("../utils/password");
 const router = (0, express_1.Router)();
 const authLimiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000,
@@ -64,8 +65,10 @@ router.post('/register', async (req, res) => {
         return res.status(400).json({ error: 'Format email tidak valid' });
     if (!password)
         return res.status(400).json({ error: 'Password wajib diisi' });
-    if (password.length < 6)
-        return res.status(400).json({ error: 'Password minimal 6 karakter' });
+    const strength = (0, password_1.checkPasswordStrength)(password);
+    if (strength.errors.length > 0) {
+        return res.status(400).json({ error: 'Password lemah: ' + strength.errors.join(', ') });
+    }
     if (password !== confirmPassword)
         return res.status(400).json({ error: 'Konfirmasi password tidak cocok' });
     try {
@@ -104,8 +107,10 @@ router.post('/register-superadmin', async (req, res) => {
     if (!orgName || !workspaceName || !picName || !email || !username || !password) {
         return res.status(400).json({ error: 'Semua field wajib diisi' });
     }
-    if (password.length < 6)
-        return res.status(400).json({ error: 'Password minimal 6 karakter' });
+    const strength = (0, password_1.checkPasswordStrength)(password);
+    if (strength.errors.length > 0) {
+        return res.status(400).json({ error: 'Password lemah: ' + strength.errors.join(', ') });
+    }
     if (password !== confirmPassword)
         return res.status(400).json({ error: 'Konfirmasi password tidak cocok' });
     try {
@@ -201,12 +206,20 @@ router.post('/login', async (req, res) => {
         const tokenHash = crypto_1.default.createHash('sha256').update(token).digest('hex');
         const deviceInfo = req.headers['user-agent'] || 'Unknown Device';
         const ipAddress = req.ip || req.socket.remoteAddress || 'Unknown IP';
-        // Hapus SEMUA session lama user ini — cuma 1 session aktif per akun
-        await Session_1.SessionModel.deleteMany({ userId: user.id });
+        const deviceId = typeof req.body.deviceId === 'string' && req.body.deviceId ? req.body.deviceId : '';
+        // 1 perangkat = 1 data sesi. Hapus hanya sesi untuk perangkat yang SAMA
+        // agar sesi perangkat lain (mis. perangkat teman) tetap aktif & terdaftar.
+        if (deviceId) {
+            await Session_1.SessionModel.deleteMany({ userId: user.id, deviceId });
+        }
+        else {
+            await Session_1.SessionModel.deleteMany({ userId: user.id, deviceInfo });
+        }
         await Session_1.SessionModel.create({
             userId: user.id,
             tokenHash,
             deviceInfo,
+            deviceId,
             ipAddress
         });
         await SystemAuditLog_1.SystemAuditLogModel.create({
@@ -386,8 +399,10 @@ router.post('/change-password', authMiddleware_1.authMiddleware, async (req, res
     const { currentPassword, newPassword, confirmPassword } = req.body;
     if (!currentPassword || !newPassword || !confirmPassword)
         return res.status(400).json({ error: 'Semua field wajib diisi' });
-    if (newPassword.length < 6)
-        return res.status(400).json({ error: 'Password minimal 6 karakter' });
+    const strength = (0, password_1.checkPasswordStrength)(newPassword);
+    if (strength.errors.length > 0) {
+        return res.status(400).json({ error: 'Password lemah: ' + strength.errors.join(', ') });
+    }
     if (newPassword !== confirmPassword)
         return res.status(400).json({ error: 'Konfirmasi password tidak cocok' });
     try {
@@ -438,6 +453,7 @@ router.get('/sessions', authMiddleware_1.authMiddleware, async (req, res) => {
         const safeSessions = sessions.map(s => ({
             id: s._id,
             deviceInfo: s.deviceInfo,
+            deviceId: s.deviceId,
             ipAddress: s.ipAddress,
             lastActive: s.lastActive,
             isCurrent: s.tokenHash === currentTokenHash
@@ -479,7 +495,6 @@ router.delete('/sessions', authMiddleware_1.authMiddleware, async (req, res) => 
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-exports.default = router;
 // ──────────────────────────────────────────────
 //  Forgot / Reset Password (no auth required)
 // ──────────────────────────────────────────────
@@ -557,8 +572,9 @@ router.post('/reset-password', async (req, res) => {
         const { token, newPassword } = req.body;
         if (!token)
             return res.status(400).json({ error: 'Token reset diperlukan' });
-        if (!newPassword || newPassword.length < 6) {
-            return res.status(400).json({ error: 'Password minimal 6 karakter' });
+        const strength = (0, password_1.checkPasswordStrength)(newPassword);
+        if (strength.errors.length > 0) {
+            return res.status(400).json({ error: 'Password lemah: ' + strength.errors.join(', ') });
         }
         const user = await User_1.UserModel.findOne({
             resetToken: token,
@@ -581,3 +597,40 @@ router.post('/reset-password', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+// GET /api/auth/audit-logs - Get user's own audit logs
+router.get('/audit-logs', authMiddleware_1.authMiddleware, async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+        const skip = (page - 1) * limit;
+        // Find audit logs for the current user
+        const userId = req.userContext?.id;
+        if (!userId)
+            return res.status(401).json({ error: 'Unauthorized' });
+        const filter = { actorId: userId };
+        const [logs, total] = await Promise.all([
+            SystemAuditLog_1.SystemAuditLogModel.find(filter)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean()
+                .exec(),
+            SystemAuditLog_1.SystemAuditLogModel.countDocuments(filter).exec(),
+        ]);
+        res.json({
+            success: true,
+            logs,
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit),
+            },
+        });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] Get audit logs failed:', err.message);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+exports.default = router;

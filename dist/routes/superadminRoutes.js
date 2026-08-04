@@ -47,6 +47,7 @@ const authMiddleware_1 = require("../auth/authMiddleware");
 const RoleMiddleware_1 = require("../auth/RoleMiddleware");
 const SystemAuditLog_1 = require("../database/models/SystemAuditLog");
 const Session_1 = require("../database/models/Session");
+const password_1 = require("../utils/password");
 const router = (0, express_1.Router)();
 function adminIdentifierQuery(identifier) {
     const numericId = Number(identifier);
@@ -418,9 +419,9 @@ router.delete('/sessions/:sessionId', authMiddleware_1.authMiddleware, (0, RoleM
         const sessionId = req.params.sessionId;
         if (!userId)
             return res.status(401).json({ error: 'Unauthorized' });
-        const deleted = await Session_1.SessionModel.findByIdAndDelete(sessionId).exec();
+        const deleted = await Session_1.SessionModel.findOneAndDelete({ _id: sessionId, userId }).exec();
         if (!deleted)
-            return res.status(404).json({ error: 'Session tidak ditemukan' });
+            return res.status(404).json({ error: 'Session tidak ditemukan atau tidak diizinkan' });
         res.json({ success: true, message: 'Session berhasil dihapus' });
     }
     catch (err) {
@@ -437,8 +438,10 @@ router.post('/change-password', authMiddleware_1.authMiddleware, (0, RoleMiddlew
             return res.status(401).json({ error: 'Unauthorized' });
         if (!currentPassword || !newPassword)
             return res.status(400).json({ error: 'Password lama dan baru wajib diisi' });
-        if (newPassword.length < 6)
-            return res.status(400).json({ error: 'Password baru minimal 6 karakter' });
+        const strength = (0, password_1.checkPasswordStrength)(newPassword);
+        if (strength.errors.length > 0) {
+            return res.status(400).json({ error: 'Password lemah: ' + strength.errors.join(', ') });
+        }
         const user = await User_1.UserModel.findOne({ id: userId }).select('+passwordHash').exec();
         if (!user)
             return res.status(401).json({ error: 'User tidak ditemukan' });
@@ -760,3 +763,95 @@ router.get('/workspaces/:id/detail', authMiddleware_1.authMiddleware, (0, RoleMi
     }
 });
 exports.default = router;
+// GET /api/superadmin/audit-logs - Retrieve system audit logs (superadmin only)
+router.get('/audit-logs', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.roleGuard)(['superadmin']), async (req, res) => {
+    try {
+        const { action, tenantId, actorName, fromDate, toDate, page = 1, limit = 50 } = req.query;
+        const query = {};
+        if (action)
+            query.action = action;
+        if (tenantId)
+            query.tenantId = tenantId;
+        if (actorName)
+            query.actorName = { $regex: actorName, $options: 'i' };
+        if (fromDate || toDate) {
+            query.createdAt = {};
+            if (fromDate)
+                query.createdAt.$gte = new Date(fromDate);
+            if (toDate)
+                query.createdAt.$lte = new Date(toDate);
+        }
+        const pageNum = Math.max(1, parseInt(page));
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+        const skip = (pageNum - 1) * limitNum;
+        const [logs, total] = await Promise.all([
+            SystemAuditLog_1.SystemAuditLogModel.find(query)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limitNum)
+                .lean()
+                .exec(),
+            SystemAuditLog_1.SystemAuditLogModel.countDocuments(query).exec()
+        ]);
+        res.json({
+            success: true,
+            logs,
+            pagination: {
+                page: pageNum,
+                limit: limitNum,
+                total,
+                pages: Math.ceil(total / limitNum)
+            }
+        });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] GET /api/superadmin/audit-logs failed:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+// GET /api/auth/audit-logs - User's own audit logs (authenticated users)
+router.get('/auth/audit-logs', authMiddleware_1.authMiddleware, async (req, res) => {
+    try {
+        const userId = req.userContext?.id;
+        if (!userId)
+            return res.status(401).json({ error: 'Unauthorized' });
+        const user = await User_1.UserModel.findOne({ id: userId }).lean().exec();
+        if (!user)
+            return res.status(404).json({ error: 'User tidak ditemukan' });
+        const { fromDate, toDate, page = 1, limit = 20 } = req.query;
+        const query = { actorId: user._id };
+        if (fromDate || toDate) {
+            query.createdAt = {};
+            if (fromDate)
+                query.createdAt.$gte = new Date(fromDate);
+            if (toDate)
+                query.createdAt.$lte = new Date(toDate);
+        }
+        const pageNum = Math.max(1, parseInt(page));
+        const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
+        const skip = (pageNum - 1) * limitNum;
+        const [logs, total] = await Promise.all([
+            SystemAuditLog_1.SystemAuditLogModel.find(query)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limitNum)
+                .lean()
+                .exec(),
+            SystemAuditLog_1.SystemAuditLogModel.countDocuments(query).exec()
+        ]);
+        res.json({
+            success: true,
+            logs,
+            pagination: {
+                page: pageNum,
+                limit: limitNum,
+                total,
+                pages: Math.ceil(total / limitNum)
+            }
+        });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] GET /api/auth/audit-logs failed:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});

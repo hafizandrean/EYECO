@@ -8,6 +8,7 @@ import { EventBus } from '../core/eventBus.js';
 import { CONFIG } from '../core/config.js';
 import { API } from '../services/api.js';
 import { animateCounter, createScrollObserver } from '../utils/animations.js';
+import { CctvService } from '../services/cctvService.js';
 
 
 export class DashboardPage {
@@ -29,7 +30,7 @@ export class DashboardPage {
     const isAdmin = user?.role === 'admin';
 
     container.innerHTML = `
-      <!-- 1. Command Center HUD -->
+      <!-- 1. Command Center HUD --> 
       <div class="cc-hud glass-card" id="command-center-hud" style="padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
         <div class="cc-hud-status" style="display: flex; align-items: center; gap: 8px;">
           <span class="status-pulse-dot green" id="cc-hud-pulse"></span>
@@ -43,66 +44,109 @@ export class DashboardPage {
         <span class="cc-hud-date" id="brief-current-date" style="font-size: 0.7rem; color: var(--text-secondary); font-weight: 600;">—</span>
       </div>
 
-      <!-- 2. Stats summary cards & Validation chart (from laporan) -->
-      <section class="stats-chart-layout">
-        <!-- Stats cards -->
-        <div class="stats-vertical-grid">
-          <div class="glass-card stat-card glow-yellow" style="padding: 10px 14px;">
-            <div class="stat-icon-wrapper yellow" style="width: 32px; height: 32px; font-size: 0.85rem;"><i data-lucide="folder-open" style="width:14px;height:14px;"></i></div>
-            <div class="stat-info">
-              <div class="stat-label" style="font-size: 0.68rem;">Total Laporan</div>
-              <div class="stat-value" id="dashboard-stat-total" style="font-size: 1.5rem;">0</div>
-            </div>
-          </div>
-          <div class="glass-card stat-card glow-blue" style="padding: 10px 14px;">
-            <div class="stat-icon-wrapper blue" style="width: 32px; height: 32px; font-size: 0.85rem;"><i data-lucide="map" style="width:14px;height:14px;"></i></div>
-            <div class="stat-info">
-              <div class="stat-label" style="font-size: 0.68rem;">Titik Paling Rawan</div>
-              <div class="stat-value" id="dashboard-stat-rawan" style="font-size: 1.5rem;">-</div>
-            </div>
-          </div>
-          <div class="glass-card stat-card glow-green" style="padding: 10px 14px;">
-            <div class="stat-icon-wrapper green" style="width: 32px; height: 32px; font-size: 0.85rem;"><i data-lucide="check-square" style="width:14px;height:14px;"></i></div>
-            <div class="stat-info">
-              <div class="stat-label" style="font-size: 0.68rem;">Validasi Selesai</div>
-              <div class="stat-value" id="dashboard-stat-valid" style="font-size: 1.5rem;">0</div>
-            </div>
-          </div>
-          <div class="glass-card stat-card glow-red" style="padding: 10px 14px;">
-            <div class="stat-icon-wrapper red" style="width: 32px; height: 32px; font-size: 0.85rem;"><i data-lucide="x-circle" style="width:14px;height:14px;"></i></div>
-            <div class="stat-info">
-              <div class="stat-label" style="font-size: 0.68rem;">Dibatalkan</div>
-              <div class="stat-value" id="dashboard-stat-cancelled" style="font-size: 1.5rem;">0</div>
-            </div>
+      <!-- 2. Premium KPI Strip — full-width horizontal row -->
+      <section class="dash-kpi-strip">
+        <div class="glass-card dash-kpi glow-yellow">
+          <div class="dash-kpi-icon yellow"><i data-lucide="folder-open"></i></div>
+          <div class="dash-kpi-body">
+            <span class="dash-kpi-label">Total Laporan</span>
+            <span class="dash-kpi-value tabular-nums" id="dashboard-stat-total">0</span>
           </div>
         </div>
-
-        <!-- Chart card -->
-        <div class="glass-card validation-chart-card">
-          <div class="card-header-clean">
-            <div class="section-title"><i data-lucide="bar-chart-3"></i> Grafik Validasi Admin</div>
+        <div class="glass-card dash-kpi glow-blue">
+          <div class="dash-kpi-icon blue"><i data-lucide="map"></i></div>
+          <div class="dash-kpi-body">
+            <span class="dash-kpi-label">Titik Paling Rawan</span>
+            <span class="dash-kpi-value" id="dashboard-stat-rawan" style="font-size: clamp(1.3rem, 2vw, 1.7rem);">-</span>
           </div>
-          <div class="chart-container">
-            <div class="chart-bar-wrapper">
-              <span class="chart-value" id="dashboard-val-pending-count">0</span>
-              <div class="chart-bar pending" id="dashboard-bar-pending" style="height: 0%;"></div>
-              <span class="chart-label">Menunggu</span>
-            </div>
-            <div class="chart-bar-wrapper">
-              <span class="chart-value" id="dashboard-val-valid-count">0</span>
-              <div class="chart-bar valid" id="dashboard-bar-valid" style="height: 0%;"></div>
-              <span class="chart-label">Valid</span>
-            </div>
-            <div class="chart-bar-wrapper">
-              <span class="chart-value" id="dashboard-val-ignored-count">0</span>
-              <div class="chart-bar ignored" id="dashboard-bar-ignored" style="height: 0%;"></div>
-              <span class="chart-label">Dibatalkan</span>
-            </div>
+        </div>
+        <div class="glass-card dash-kpi glow-green">
+          <div class="dash-kpi-icon green"><i data-lucide="check-square"></i></div>
+          <div class="dash-kpi-body">
+            <span class="dash-kpi-label">Validasi Selesai</span>
+            <span class="dash-kpi-value tabular-nums" id="dashboard-stat-valid">0</span>
+          </div>
+        </div>
+        <div class="glass-card dash-kpi glow-red">
+          <div class="dash-kpi-icon red"><i data-lucide="x-circle"></i></div>
+          <div class="dash-kpi-body">
+            <span class="dash-kpi-label">Dibatalkan</span>
+            <span class="dash-kpi-value tabular-nums" id="dashboard-stat-cancelled">0</span>
           </div>
         </div>
       </section>
 
-      <!-- 3. Primary Zone: Incident Queue (dominant) + Operational Summary -->
+      <!-- 3. Chart + Operational Summary (new composition: chart dominant left, ops rail right) -->
+      <div class="dash-chart-ops-row">
+        <div class="glass-card dash-chart-panel">
+          <div class="card-header-clean">
+            <div class="section-title" style="font-size: 1.4rem; font-weight: 800;"><i data-lucide="bar-chart-3"></i> Grafik Validasi</div>
+          </div>
+          <div class="chart-container" style="padding: 24px 0;">
+            <div class="chart-bar-wrapper">
+              <span class="chart-value tabular-nums" id="dashboard-val-pending-count" style="font-size: 1.9rem; font-weight: 800;">0</span>
+              <div class="chart-bar pending" id="dashboard-bar-pending" style="height: 0%;"></div>
+              <span class="chart-label" style="font-size: 0.85rem; font-weight: 700;">Menunggu</span>
+            </div>
+            <div class="chart-bar-wrapper">
+              <span class="chart-value tabular-nums" id="dashboard-val-valid-count" style="font-size: 1.9rem; font-weight: 800;">0</span>
+              <div class="chart-bar valid" id="dashboard-bar-valid" style="height: 0%;"></div>
+              <span class="chart-label" style="font-size: 0.85rem; font-weight: 700;">Valid</span>
+            </div>
+            <div class="chart-bar-wrapper">
+              <span class="chart-value tabular-nums" id="dashboard-val-ignored-count" style="font-size: 1.9rem; font-weight: 800;">0</span>
+              <div class="chart-bar ignored" id="dashboard-bar-ignored" style="height: 0%;"></div>
+              <span class="chart-label" style="font-size: 0.85rem; font-weight: 700;">Dibatalkan</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Operational Summary Sidebar (right rail) -->
+        <aside class="glass-card dash-ops-panel">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.9rem; font-weight: 800; color: var(--text-primary); text-transform: uppercase; margin: 0; letter-spacing: 0.5px;">Ringkasan Kamera</h4>
+            <span id="camera-online-badge" style="font-size: 0.72rem; font-weight: 800; color: var(--success); background: rgba(16, 185, 129, 0.1); padding: 4px 12px; border-radius: var(--radius-pill);">0 / 0 Kamera Online</span>
+          </div>
+
+          <div class="ops-metric-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+            <div class="ops-metric-card" style="background: rgba(0,0,0,0.02); padding: 16px; border-radius: var(--radius-lg);">
+              <div class="ops-metric-value tabular-nums" id="stat-online-cameras" style="color: var(--success); font-size: 1.8rem; font-weight: 800;">0</div>
+              <div class="ops-metric-label" style="font-size: 0.8rem; font-weight: 700;">Kamera Online</div>
+            </div>
+            <div class="ops-metric-card" style="background: rgba(0,0,0,0.02); padding: 16px; border-radius: var(--radius-lg);">
+              <div class="ops-metric-value tabular-nums" id="stat-total-cameras" style="color: var(--primary); font-size: 1.8rem; font-weight: 800;">0</div>
+              <div class="ops-metric-label" style="font-size: 0.8rem; font-weight: 700;">Total Kamera</div>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 20px;">
+            <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px;">Kamera Online</div>
+            <div id="online-camera-list" style="font-size: 0.85rem; color: var(--text-primary); line-height: 2;">
+              <span style="color: var(--text-muted);">Memuat daftar kamera...</span>
+            </div>
+          </div>
+
+          <div class="officer-live-panel">
+            <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.78rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin: 0 0 8px 0; letter-spacing: 0.4px;">Status Petugas</h4>
+            <div id="officer-live-list">
+              <div style="font-size: 0.78rem; color: var(--text-muted); padding: 6px 0;">Tidak ada petugas aktif.</div>
+            </div>
+          </div>
+
+          <div style="border-top: 1px solid var(--border); padding-top: var(--space-12);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Status Sistem</span>
+              <span id="stat-system-health-val" style="font-size: 0.82rem; font-weight: 800; color: var(--success);">Aktif</span>
+            </div>
+            <div class="progress-bar-flat" style="width: 100%; height: 5px; background: rgba(0,0,0,0.05); border-radius: 3px; overflow: hidden;">
+              <div id="stat-system-health-bar" style="width: 100%; height: 100%; background: var(--success); transition: width 0.3s ease;"></div>
+            </div>
+            <span id="stat-system-health-desc" style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; margin-top: 4px; display: block;">Sistem Online</span>
+          </div>
+        </aside>
+      </div>
+
+      <!-- 4. Primary Zone: Incident Queue (dominant) -->
       <div class="command-center-primary">
 
         <!-- Active Incident Queue — largest component -->
@@ -126,70 +170,12 @@ export class DashboardPage {
               <option value="all">Semua Kamera</option>
             </select>
             <input type="date" id="incident-filter-date" class="incident-filter-input" />
-            <select id="incident-filter-status" class="incident-filter-input">
-              <option value="all">Semua Status</option>
-              <option value="waiting">Menunggu Tinjauan</option>
-              <option value="validated">Tervalidasi</option>
-              <option value="assigned">Ditugaskan</option>
-              <option value="progress">Sedang Diproses</option>
-              <option value="resolved">Selesai</option>
-            </select>
-          </div>
-
-          <div class="filter-tabs" id="incident-filter-tabs" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: var(--space-16);">
-            <button class="btn btn-sm btn-glass active" data-filter="all">Semua</button>
-            <button class="btn btn-sm btn-glass" data-filter="waiting">Menunggu</button>
-            <button class="btn btn-sm btn-glass" data-filter="validated">Tervalidasi</button>
-            <button class="btn btn-sm btn-glass" data-filter="progress">Sedang Diproses</button>
-            <button class="btn btn-sm btn-glass" data-filter="resolved">Selesai</button>
           </div>
 
           <div id="dashboard-active-incidents-list" style="display: flex; flex-direction: column; gap: 10px;">
             <!-- Populated by JS -->
           </div>
         </div>
-
-        <!-- Operational Summary Sidebar -->
-        <aside class="operational-summary-panel glass-card">
-          <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.78rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin: 0; letter-spacing: 0.5px;">Ringkasan Operasional</h4>
-
-          <div class="ops-metric-grid">
-            <div class="ops-metric-card">
-              <div class="ops-metric-value" id="stat-waiting-review" style="color: var(--warning);">0</div>
-              <div class="ops-metric-label">Menunggu Tinjauan</div>
-            </div>
-            <div class="ops-metric-card">
-              <div class="ops-metric-value" id="stat-assigned" style="color: var(--primary);">0</div>
-              <div class="ops-metric-label">Ditugaskan</div>
-            </div>
-            <div class="ops-metric-card">
-              <div class="ops-metric-value" id="stat-in-progress" style="color: var(--info);">0</div>
-              <div class="ops-metric-label">Petugas di Lapangan</div>
-            </div>
-            <div class="ops-metric-card">
-              <div class="ops-metric-value" id="stat-resolved-today" style="color: var(--success);">0</div>
-              <div class="ops-metric-label">Selesai Hari Ini</div>
-            </div>
-          </div>
-
-          <div class="officer-live-panel">
-            <h4 style="font-family: 'Outfit', sans-serif; font-size: 0.78rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin: 0 0 8px 0; letter-spacing: 0.4px;">Status Petugas</h4>
-            <div id="officer-live-list">
-              <div style="font-size: 0.78rem; color: var(--text-muted); padding: 6px 0;">Tidak ada petugas aktif.</div>
-            </div>
-          </div>
-
-          <div style="border-top: 1px solid var(--border); padding-top: var(--space-12);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <span style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Status Sistem</span>
-              <span id="stat-system-health-val" style="font-size: 0.82rem; font-weight: 800; color: var(--success);">Aktif</span>
-            </div>
-            <div class="progress-bar-flat" style="width: 100%; height: 5px; background: rgba(0,0,0,0.05); border-radius: 3px; overflow: hidden;">
-              <div id="stat-system-health-bar" style="width: 100%; height: 100%; background: var(--success); transition: width 0.3s ease;"></div>
-            </div>
-            <span id="stat-system-health-desc" style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; margin-top: 4px; display: block;">Sistem Online</span>
-          </div>
-        </aside>
       </div>
     `;
 
@@ -221,69 +207,40 @@ export class DashboardPage {
   }
 
   bindEvents() {
-    const searchInput = document.getElementById('incident-search-input');
-    const filterIdInput = document.getElementById('incident-filter-id');
-    const filterCameraSelect = document.getElementById('incident-filter-camera');
-    const filterDateInput = document.getElementById('incident-filter-date');
-    const filterStatusSelect = document.getElementById('incident-filter-status');
-    const filterTabsContainer = document.getElementById('incident-filter-tabs');
+      const searchInput = document.getElementById('incident-search-input');
+      const filterIdInput = document.getElementById('incident-filter-id');
+      const filterCameraSelect = document.getElementById('incident-filter-camera');
+      const filterDateInput = document.getElementById('incident-filter-date');
 
-    // Search Incident Queue Listener
-    if (searchInput) {
-      searchInput.addEventListener('input', (e) => {
-        this.searchQuery = e.target.value.toLowerCase().trim();
-        this.animateStats();
-      });
-    }
-
-    if (filterIdInput) {
-      filterIdInput.addEventListener('input', (e) => {
-        this.filterId = e.target.value.replace('#', '').trim();
-        this.animateStats();
-      });
-    }
-
-    if (filterCameraSelect) {
-      filterCameraSelect.addEventListener('change', (e) => {
-        this.filterCamera = e.target.value;
-        this.animateStats();
-      });
-    }
-
-    if (filterDateInput) {
-      filterDateInput.addEventListener('change', (e) => {
-        this.filterDate = e.target.value;
-        this.animateStats();
-      });
-    }
-
-    if (filterStatusSelect) {
-      filterStatusSelect.addEventListener('change', (e) => {
-        this.filterStatus = e.target.value;
-        if (e.target.value !== 'all') {
-          this.filterTag = e.target.value === 'assigned' ? 'validated' : e.target.value;
-          filterTabsContainer?.querySelectorAll('button').forEach(b => {
-            b.classList.toggle('active', b.getAttribute('data-filter') === this.filterTag);
-          });
-        }
-        this.animateStats();
-      });
-    }
-
-    // Filter Incident Tabs Listeners
-    if (filterTabsContainer) {
-      const buttons = filterTabsContainer.querySelectorAll('button');
-      buttons.forEach(btn => {
-        btn.addEventListener('click', () => {
-          buttons.forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          this.filterTag = btn.getAttribute('data-filter');
-          if (filterStatusSelect) filterStatusSelect.value = this.filterTag === 'all' ? 'all' : this.filterTag;
+      // Search Incident Queue Listener
+      if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+          this.searchQuery = e.target.value.toLowerCase().trim();
           this.animateStats();
         });
-      });
+      }
+
+      if (filterIdInput) {
+        filterIdInput.addEventListener('input', (e) => {
+          this.filterId = e.target.value.replace('#', '').trim();
+          this.animateStats();
+        });
+      }
+
+      if (filterCameraSelect) {
+        filterCameraSelect.addEventListener('change', (e) => {
+          this.filterCamera = e.target.value;
+          this.animateStats();
+        });
+      }
+
+      if (filterDateInput) {
+        filterDateInput.addEventListener('change', (e) => {
+          this.filterDate = e.target.value;
+          this.animateStats();
+        });
+      }
     }
-  }
 
   // Render stats & chart (adapted from laporan.js)
   renderStats() {
@@ -314,33 +271,19 @@ export class DashboardPage {
     if (barValid) barValid.style.height = '0%';
     if (barIgnored) barIgnored.style.height = '0%';
 
-    // Scroll observer — animasi jalan saat masuk viewport
-    createScrollObserver('.stats-chart-layout', () => {
-      // Animate counters
-      if (totalEl) animateCounter(totalEl, this.stats.total, 1200);
-      if (rawanEl) rawanEl.innerText = this.stats.mostVulnerable;
-      if (validEl) animateCounter(validEl, this.stats.valid, 1200);
-      if (cancelledEl) animateCounter(cancelledEl, this.stats.cancelled, 1200);
+    // Populate immediately (tidak bergantung scroll observer) lalu animasi
+    const maxVal = Math.max(this.stats.pending, this.stats.valid, this.stats.cancelled, 1);
+    if (totalEl && this.stats.total !== undefined) animateCounter(totalEl, this.stats.total, 800);
+    if (rawanEl) rawanEl.innerText = this.stats.mostVulnerable || '-';
+    if (validEl) animateCounter(validEl, this.stats.valid || 0, 800);
+    if (cancelledEl) animateCounter(cancelledEl, this.stats.cancelled || 0, 800);
+    if (pendingCount) animateCounter(pendingCount, this.stats.pending || 0, 700);
+    if (validCount) animateCounter(validCount, this.stats.valid || 0, 700);
+    if (ignoredCount) animateCounter(ignoredCount, this.stats.cancelled || 0, 700);
 
-      if (pendingCount) animateCounter(pendingCount, this.stats.pending, 1000);
-      if (validCount) animateCounter(validCount, this.stats.valid, 1000);
-      if (ignoredCount) animateCounter(ignoredCount, this.stats.cancelled, 1000);
-
-      // Set chart bars heights with transition
-      const maxVal = Math.max(this.stats.pending, this.stats.valid, this.stats.cancelled, 1);
-      if (barPending) {
-        barPending.style.transition = 'height 1s cubic-bezier(0.34, 1.56, 0.64, 1)';
-        barPending.style.height = `${(this.stats.pending / maxVal) * 80}%`;
-      }
-      if (barValid) {
-        barValid.style.transition = 'height 1s cubic-bezier(0.34, 1.56, 0.64, 1)';
-        barValid.style.height = `${(this.stats.valid / maxVal) * 80}%`;
-      }
-      if (barIgnored) {
-        barIgnored.style.transition = 'height 1s cubic-bezier(0.34, 1.56, 0.64, 1)';
-        barIgnored.style.height = `${(this.stats.cancelled / maxVal) * 80}%`;
-      }
-    });
+    if (barPending) { barPending.style.transition = 'height 1s cubic-bezier(0.34, 1.56, 0.64, 1)'; barPending.style.height = `${((this.stats.pending||0) / maxVal) * 80}%`; }
+    if (barValid) { barValid.style.transition = 'height 1s cubic-bezier(0.34, 1.56, 0.64, 1)'; barValid.style.height = `${((this.stats.valid||0) / maxVal) * 80}%`; }
+    if (barIgnored) { barIgnored.style.transition = 'height 1s cubic-bezier(0.34, 1.56, 0.64, 1)'; barIgnored.style.height = `${((this.stats.cancelled||0) / maxVal) * 80}%`; }
   }
 
   async loadData() {
@@ -414,6 +357,11 @@ export class DashboardPage {
     this.renderStats();
     this.animateStats();
     this.renderLiveAlerts();
+    
+    // Load camera data for dropdown and sidebar
+    await this.populateCameraDropdown();
+    await this.populateCameraStatus();
+    this.renderQueue();
   }
 
   getPriorityScore(aiStatus) {
@@ -568,8 +516,88 @@ export class DashboardPage {
     if (sysDescEl) {
       sysDescEl.innerText = isMon ? 'System Online' : 'Monitoring Paused';
     }
+  }
 
-    // Filter & Render Active Incident Queue (priority sorted)
+  // 3. Populate Camera Dropdown dynamically from CCTV Service (separate async method)
+  async populateCameraDropdown() {
+    const filterCameraSelect = document.getElementById('incident-filter-camera');
+    if (!filterCameraSelect) return;
+
+    try {
+      const cctvList = await CctvService.getCctvList();
+      const cameras = cctvList
+        .filter(c => c.enabled && c.online)
+        .map(c => c.name || `CH${c.channel || c.id}`);
+      const currentValue = filterCameraSelect.value;
+      filterCameraSelect.innerHTML = '<option value="all">Semua Kamera</option>';
+      cameras.forEach(cam => {
+        const option = document.createElement('option');
+        option.value = cam;
+        option.textContent = cam;
+        filterCameraSelect.appendChild(option);
+      });
+      // Restore selected value if still exists
+      if ([...filterCameraSelect.options].some(opt => opt.value === currentValue)) {
+        filterCameraSelect.value = currentValue;
+      } else {
+        filterCameraSelect.value = 'all';
+        this.filterCamera = 'all';
+      }
+    } catch (err) {
+      console.warn('[Dashboard] Failed to load CCTV list for dropdown:', err);
+      // Fallback to reports-based cameras
+      const cameras = [...new Set(this.latestReports.map(r => r.location).filter(Boolean))];
+      const currentValue = filterCameraSelect.value;
+      filterCameraSelect.innerHTML = '<option value="all">Semua Kamera</option>';
+      cameras.forEach(cam => {
+        const option = document.createElement('option');
+        option.value = cam;
+        option.textContent = cam;
+        filterCameraSelect.appendChild(option);
+      });
+      if ([...filterCameraSelect.options].some(opt => opt.value === currentValue)) {
+        filterCameraSelect.value = currentValue;
+      } else {
+        filterCameraSelect.value = 'all';
+        this.filterCamera = 'all';
+      }
+    }
+  }
+
+  // 4. Populate Camera Online Status in sidebar
+  async populateCameraStatus() {
+    try {
+      const cctvList = await CctvService.getCctvList();
+      const onlineCameras = cctvList.filter(c => c.enabled && c.online);
+      const totalCameras = cctvList.filter(c => c.enabled).length;
+
+      const onlineEl = document.getElementById('stat-online-cameras');
+      const totalEl = document.getElementById('stat-total-cameras');
+      const badgeEl = document.getElementById('camera-online-badge');
+      const listEl = document.getElementById('online-camera-list');
+
+      if (onlineEl) onlineEl.innerText = onlineCameras.length;
+      if (totalEl) totalEl.innerText = totalCameras;
+      if (badgeEl) badgeEl.innerText = `${onlineCameras.length} / ${totalCameras} Kamera Online`;
+
+      if (listEl) {
+        if (onlineCameras.length === 0) {
+          listEl.innerHTML = '<span style="color: var(--text-muted);">Tidak ada kamera online</span>';
+        } else {
+          listEl.innerHTML = onlineCameras.map(c => {
+            const name = c.name || `CH${c.channel || c.id}`;
+            return `<div style="display: flex; align-items: center; gap: 6px; padding: 2px 0;"><span style="width: 6px; height: 6px; background: var(--success); border-radius: 50%;"></span>${name}</div>`;
+          }).join('');
+        }
+      }
+    } catch (err) {
+      console.warn('[Dashboard] Failed to load camera status:', err);
+    }
+  }
+
+  // Filter & Render Active Incident Queue (priority sorted)
+  renderQueue() {
+    const isMon = AppState.get('isMonitoring');
     const activeIncidentsList = document.getElementById('dashboard-active-incidents-list');
     const activeIncidentsBadge = document.getElementById('active-incidents-badge-count');
 
@@ -617,7 +645,12 @@ export class DashboardPage {
             'object': 'Objek'
           };
           const indonesianCategory = labelMap[rawCategory.toLowerCase()] || rawCategory;
-          const labelText = rawCategory === 'person' ? 'Pelaku membuang sampah' : `Pembuangan Liar · ${indonesianCategory}`;
+          
+          // Use camera location as source
+          const cameraSource = r.location || 'CCTV';
+          const labelText = /^cctv\s/i.test(cameraSource)
+            ? `Laporan dari ${cameraSource}`
+            : `Laporan dari CCTV ${cameraSource}`;
           
           const severityText = isHigh ? 'TINGGI' : (isMed ? 'SEDANG' : 'RENDAH');
 

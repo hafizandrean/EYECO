@@ -67,17 +67,18 @@
         <label for="password">Password</label>
         <div class="input-wrapper">
           <i data-lucide="lock"></i>
-          <input type="password" id="password" class="input-control" placeholder="Minimal 6 karakter" autocomplete="new-password" required minlength="6">
+          <input type="password" id="password" class="input-control" placeholder="Minimal 8 karakter" autocomplete="new-password" required minlength="8">
         </div>
-        <div class="strength-meter"><div id="strength-bar"></div></div>
+        <div class="strength-meter"><div id="strength-bar"></div><div id="strength-bar2"></div><div id="strength-bar3"></div><div id="strength-bar4"></div><div id="strength-bar5"></div></div>
         <div class="strength-text" id="strength-text"></div>
+        <small style="color:#94A3B8;font-size:0.68rem;">Minimal 8 karakter: huruf besar, huruf kecil, angka, simbol (!@#$%^&*)</small>
       </div>
 
       <div class="form-group">
         <label for="confirmPassword">Konfirmasi Password</label>
         <div class="input-wrapper">
           <i data-lucide="check-circle"></i>
-          <input type="password" id="confirmPassword" class="input-control" placeholder="Ulangi password" autocomplete="new-password" required minlength="6">
+          <input type="password" id="confirmPassword" class="input-control" placeholder="Ulangi password" autocomplete="new-password" required minlength="8">
           <div class="validation-icon" id="match-icon"></div>
         </div>
       </div>
@@ -104,21 +105,37 @@
     const pwd         = document.getElementById('password');
     const cpwd        = document.getElementById('confirmPassword');
     const strengthBar = document.getElementById('strength-bar');
+    const strengthBar2 = document.getElementById('strength-bar2');
+    const strengthBar3 = document.getElementById('strength-bar3');
+    const strengthBar4 = document.getElementById('strength-bar4');
+    const strengthBar5 = document.getElementById('strength-bar5');
     const strengthTxt = document.getElementById('strength-text');
     const matchIcon   = document.getElementById('match-icon');
     const submitBtn   = document.getElementById('btn-submit');
 
     function checkPasswordStrength(val) {
-      if (!val) { strengthBar.className = ''; strengthTxt.textContent = ''; return 0; }
+      if (!val) { 
+        strengthBar.className = ''; 
+        if (strengthBar2) strengthBar2.className = '';
+        if (strengthBar3) strengthBar3.className = '';
+        if (strengthBar4) strengthBar4.className = '';
+        if (strengthBar5) strengthBar5.className = '';
+        strengthTxt.textContent = ''; 
+        return 0; 
+      }
       let score = 0;
-      if (val.length >= 6) score++;
-      if (val.length >= 8 && /[A-Z]/.test(val) && /[0-9]/.test(val)) score++;
-      if (val.length >= 10 && /[^A-Za-z0-9]/.test(val)) score++;
+      if (val.length >= 8) score++;
+      if (/[A-Z]/.test(val)) score++;
+      if (/[a-z]/.test(val)) score++;
+      if (/[0-9]/.test(val)) score++;
+      if (/[^A-Za-z0-9]/.test(val)) score++;
 
-      const labels = ['', 'Lemah', 'Sedang', 'Kuat'];
-      const classes = ['', 'weak', 'medium', 'strong'];
-      const colors  = ['', '#ef4444', '#eab308', '#22c55e'];
-      strengthBar.className      = classes[score] || '';
+      const labels = ['', 'Sangat Lemah', 'Lemah', 'Sedang', 'Kuat', 'Sangat Kuat'];
+      const colors  = ['', '#ef4444', '#ef4444', '#eab308', '#22c55e', '#16a34a'];
+      const bars = [strengthBar, strengthBar2, strengthBar3, strengthBar4, strengthBar5];
+      bars.forEach((bar, i) => {
+        if (bar) bar.style.background = i < score ? colors[score] : 'rgba(0,0,0,0.1)';
+      });
       strengthTxt.textContent    = labels[score]  || '';
       strengthTxt.style.color    = colors[score]  || '';
       return score;
@@ -128,7 +145,7 @@
       const p1 = pwd.value;
       const p2 = cpwd.value;
       if (!p2) { matchIcon.innerHTML = ''; submitBtn.disabled = true; return; }
-      if (p1 === p2 && p1.length >= 6) {
+      if (p1 === p2 && p1.length >= 8) {
         matchIcon.innerHTML = '<i data-lucide="check" style="color:#22c55e;width:18px;height:18px;"></i>';
         submitBtn.disabled = false;
       } else {

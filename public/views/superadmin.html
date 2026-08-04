@@ -374,6 +374,7 @@
       <div class="sa-nav-item active" data-target="dashboard" data-label="Dashboard"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></div>
       <div class="sa-nav-item" data-target="workspaces" data-label="Workspace"><i data-lucide="building-2"></i><span>Workspace</span></div>
       <div class="sa-nav-item" data-target="admins" data-label="Administrator"><i data-lucide="shield-user"></i><span>Administrator</span></div>
+      <div class="sa-nav-item" data-target="audit-logs" data-label="Audit Log"><i data-lucide="activity"></i><span>Audit Log</span></div>
       <div class="sa-nav-spacer"></div>
       <div class="sa-nav-item logout" id="sa-logout-btn" data-label="Keluar"><i data-lucide="log-out"></i><span>Keluar</span></div>
     </nav>
@@ -515,6 +516,27 @@
 
   <!-- ══ MODALS ══ -->
 
+  <!-- ══ AUDIT LOGS SECTION ══ -->
+  <section id="sec-audit-logs" class="sa-section">
+    <div class="sa-page-header"><h1>Audit Log</h1><p>Riwayat aktivitas sistem (login, perubahan password, hapus data, dll).</p></div>
+    <div class="sa-section-header">
+      <h2>Semua Audit Log</h2>
+      <div class="sa-toolbar">
+        <div class="search-box-wrap"><i data-lucide="search"></i><input type="text" id="audit-search" class="search-box-input" placeholder="Cari aksi, aktor, tenant..."></div>
+        <select id="audit-filter-action" class="filter-select"><option value="all">Semua Aksi</option><option value="User Login">User Login</option><option value="Change Password">Change Password</option><option value="Register Superadmin">Register Superadmin</option><option value="CLEAR_ALL_REPORTS">Hapus Semua Laporan</option><option value="VERIFY_REPORT">Validasi Laporan</option><option value="MANUAL_TELEGRAM_BROADCAST">Broadcast Telegram</option></select>
+        <input type="date" id="audit-from" class="sa-input" style="width:150px;">
+        <input type="date" id="audit-to" class="sa-input" style="width:150px;">
+        <button class="btn-primary btn-sm" id="audit-refresh"><i data-lucide="refresh-cw"></i> Refresh</button>
+      </div>
+    </div>
+    <div class="sa-table-wrap">
+      <table class="sa-table"><thead><tr><th style="width:50px;">#</th><th>Waktu</th><th>Aksi</th><th>Aktor</th><th>Tenant</th><th>IP Address</th><th style="width:300px;">Detail</th></tr></thead><tbody id="audit-table-body"></tbody></table>
+    </div>
+    <div class="sa-pagination" id="audit-pagination" style="display:none;"><div class="sa-pagination-info"></div><div class="sa-pagination-pages"></div></div>
+  </section>
+
+  <!-- ══ MODALS ══ -->
+
   <div class="sa-modal" id="modal-ws-create">
     <div class="sa-modal-box">
       <div class="sa-modal-header"><h3><i data-lucide="building-2" style="width:15px;height:15px;vertical-align:middle;margin-right:4px;"></i> Tambah Workspace</h3><button class="sa-modal-close" data-close="modal-ws-create"><i data-lucide="x"></i></button></div>
@@ -579,8 +601,26 @@
       <form id="form-changepw">
         <div class="sa-modal-body" style="display:flex;flex-direction:column;gap:10px;">
           <div><label class="sa-label">Password Saat Ini *</label><input type="password" id="pw-current" class="sa-input" required placeholder="Masukkan password sekarang"></div>
-          <div><label class="sa-label">Password Baru *</label><input type="password" id="pw-new" class="sa-input" required placeholder="Minimal 6 karakter"></div>
-          <div><label class="sa-label">Konfirmasi Password Baru *</label><input type="password" id="pw-confirm" class="sa-input" required placeholder="Ulangi password baru"></div>
+          <div><label class="sa-label">Password Baru *</label>
+            <div style="position:relative;">
+              <input type="password" id="pw-new" class="sa-input" required placeholder="Minimal 8 karakter" style="padding-right:40px;">
+              <button type="button" class="toggle-password-btn" data-target="pw-new" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#94A3B8;padding:4px;"><i data-lucide="eye" style="width:16px;height:16px;"></i></button>
+            </div>
+            <div class="password-strength" id="pw-strength" style="margin-top:6px;display:flex;gap:4px;">
+              <div class="strength-bar" style="height:3px;flex:1;border-radius:2px;background:rgba(0,0,0,0.1);"></div>
+              <div class="strength-bar" style="height:3px;flex:1;border-radius:2px;background:rgba(0,0,0,0.1);"></div>
+              <div class="strength-bar" style="height:3px;flex:1;border-radius:2px;background:rgba(0,0,0,0.1);"></div>
+              <div class="strength-bar" style="height:3px;flex:1;border-radius:2px;background:rgba(0,0,0,0.1);"></div>
+              <div class="strength-bar" style="height:3px;flex:1;border-radius:2px;background:rgba(0,0,0,0.1);"></div>
+            </div>
+            <small style="color:#94A3B8;font-size:0.68rem;">Minimal 8 karakter: huruf besar, huruf kecil, angka, simbol (!@#$%^&*)</small>
+          </div>
+          <div><label class="sa-label">Konfirmasi Password Baru *</label>
+            <div style="position:relative;">
+              <input type="password" id="pw-confirm" class="sa-input" required placeholder="Ulangi password baru" style="padding-right:40px;">
+              <button type="button" class="toggle-password-btn" data-target="pw-confirm" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#94A3B8;padding:4px;"><i data-lucide="eye" style="width:16px;height:16px;"></i></button>
+            </div>
+          </div>
           <p id="pw-error" style="font-size:0.78rem;color:#EF4444;margin:0;display:none;"></p>
         </div>
         <div class="sa-modal-footer"><button type="button" class="btn btn-glass" data-close="modal-changepw">Batal</button><button type="submit" class="btn-primary"><i data-lucide="save"></i> Simpan</button></div>
@@ -761,7 +801,26 @@
       document.getElementById('sa-dropdown').classList.remove('open');
       document.getElementById('form-changepw').reset();
       document.getElementById('pw-error').style.display = 'none';
+      // Reset strength bars
+      document.querySelectorAll('#pw-strength .strength-bar').forEach(bar => bar.style.background = 'rgba(0,0,0,0.1)');
       document.getElementById('modal-changepw').classList.add('open');
+    });
+
+    // Password strength indicator for change password modal
+    document.getElementById('pw-new')?.addEventListener('input', (e) => {
+      const pw = e.target.value;
+      let score = 0;
+      if (pw.length >= 8) score++;
+      if (/[A-Z]/.test(pw)) score++;
+      if (/[a-z]/.test(pw)) score++;
+      if (/[0-9]/.test(pw)) score++;
+      if (/[^A-Za-z0-9]/.test(pw)) score++;
+      
+      const bars = document.querySelectorAll('#pw-strength .strength-bar');
+      const colors = ['#EF4444', '#F59E0B', '#CA8A04', '#84CC16', '#22C55E'];
+      bars.forEach((bar, i) => {
+        bar.style.background = i < score ? colors[i] : 'rgba(0,0,0,0.1)';
+      });
     });
     document.getElementById('form-changepw').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -770,7 +829,27 @@
       const confirm = document.getElementById('pw-confirm').value;
       const errEl = document.getElementById('pw-error');
       if (pw !== confirm) { errEl.textContent = 'Password baru tidak cocok.'; errEl.style.display = 'block'; return; }
-      if (pw.length < 6) { errEl.textContent = 'Password baru minimal 6 karakter.'; errEl.style.display = 'block'; return; }
+      
+      // Password strength validation
+      let score = 0;
+      if (pw.length >= 8) score++;
+      if (/[A-Z]/.test(pw)) score++;
+      if (/[a-z]/.test(pw)) score++;
+      if (/[0-9]/.test(pw)) score++;
+      if (/[^A-Za-z0-9]/.test(pw)) score++;
+      
+      if (score < 5) {
+        const errors = [];
+        if (pw.length < 8) errors.push('Minimal 8 karakter');
+        if (!/[A-Z]/.test(pw)) errors.push('Harus mengandung huruf besar');
+        if (!/[a-z]/.test(pw)) errors.push('Harus mengandung huruf kecil');
+        if (!/[0-9]/.test(pw)) errors.push('Harus mengandung angka');
+        if (!/[^A-Za-z0-9]/.test(pw)) errors.push('Harus mengandung simbol (!@#$%^&*)');
+        errEl.textContent = 'Password lemah: ' + errors.join(', ');
+        errEl.style.display = 'block';
+        return;
+      }
+      
       const btn = e.target.querySelector('button[type="submit"]');
       btn.disabled = true; btn.textContent = 'Menyimpan...';
       try {
@@ -826,6 +905,23 @@
     });
     document.querySelectorAll('.sa-modal').forEach(m => {
       m.addEventListener('click', (e) => { if (e.target === m) m.classList.remove('open'); });
+    });
+
+    // Toggle password visibility
+    document.querySelectorAll('.toggle-password-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.getAttribute('data-target');
+        const input = document.getElementById(targetId);
+        const icon = btn.querySelector('i');
+        if (input.type === 'password') {
+          input.type = 'text';
+          icon.setAttribute('data-lucide', 'eye-off');
+        } else {
+          input.type = 'password';
+          icon.setAttribute('data-lucide', 'eye');
+        }
+        if (window.lucide) window.lucide.createIcons();
+      });
     });
 
     function showConfirm(title, msg, cb) {
@@ -1120,6 +1216,104 @@
         try { const res = await fetch(`/api/superadmin/admins/${id}`, { method:'DELETE', credentials:'include' }); const data = await res.json(); if (data.success) { await loadAdmins(); await loadStats(); showToast('Admin berhasil dihapus'); } else { alert(data.error||'Gagal'); } } catch(_) { alert('Gagal'); }
       });
     }
+
+    // ══ AUDIT LOGS ══
+    let auditPage = 1;
+    let auditFilters = { search: '', action: 'all', fromDate: '', toDate: '' };
+
+    async function loadAuditLogs(page = 1) {
+      auditPage = page;
+      const params = new URLSearchParams();
+      params.set('page', String(page));
+      params.set('limit', '50');
+      if (auditFilters.action && auditFilters.action !== 'all') params.set('action', auditFilters.action);
+      if (auditFilters.fromDate) params.set('fromDate', auditFilters.fromDate);
+      if (auditFilters.toDate) params.set('toDate', auditFilters.toDate);
+
+      try {
+        const res = await fetch(`/api/superadmin/audit-logs?${params.toString()}`, { credentials: 'include' });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Gagal');
+
+        const tbody = document.getElementById('audit-table-body');
+        const logs = data.logs || [];
+        if (logs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="sa-empty"><i data-lucide="activity"></i><p>Belum ada audit log.</p></td></tr>';
+        } else {
+          tbody.innerHTML = logs.map((log, idx) => {
+            const num = (data.pagination.page - 1) * data.pagination.limit + idx + 1;
+            const time = log.createdAt ? new Date(log.createdAt).toLocaleString('id-ID') : '-';
+            const action = log.action || '-';
+            const actor = log.actorName || '-';
+            const tenant = log.tenantId || '-';
+            const ip = log.ipAddress || '-';
+            let detail = '';
+            if (log.details) {
+              const d = log.details;
+              detail = Object.entries(d).map(([k,v]) => `${k}: ${JSON.stringify(v)}`).join('; ');
+            }
+            return `<tr><td style="font-weight:700;color:#0F172A;">${num}</td><td>${time}</td><td><span class="sa-badge sa-badge-blue">${action}</span></td><td>${actor}</td><td>${tenant}</td><td style="font-family:monospace;font-size:0.7rem;">${ip}</td><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.75rem;color:#64748B;" title="${detail}">${detail || '-'}</td></tr>`;
+          }).join('');
+        }
+
+        // Pagination
+        const pag = data.pagination || { page: 1, pages: 1, total: 0 };
+        const pagEl = document.getElementById('audit-pagination');
+        if (pag.total <= 1) { pagEl.style.display = 'none'; return; }
+        pagEl.style.display = 'flex';
+        const start = (pag.page - 1) * pag.limit + 1;
+        const end = Math.min(pag.page * pag.limit, pag.total);
+        pagEl.querySelector('.sa-pagination-info').textContent = `Showing ${start}–${end} of ${pag.total} entries`;
+        let html = `<button class="sa-page-btn" data-page="${pag.page-1}" ${pag.page<=1?'disabled':''}>Prev</button>`;
+        for (let i = 1; i <= pag.pages; i++) html += `<button class="sa-page-btn ${i===pag.page?'active':''}" data-page="${i}">${i}</button>`;
+        html += `<button class="sa-page-btn" data-page="${pag.page+1}" ${pag.page>=pag.pages?'disabled':''}>Next</button>`;
+        pagEl.querySelector('.sa-pagination-pages').innerHTML = html;
+        pagEl.querySelectorAll('.sa-page-btn').forEach(b => {
+          b.addEventListener('click', () => {
+            const p = parseInt(b.getAttribute('data-page'));
+            if (p >= 1 && p <= pag.pages) loadAuditLogs(p);
+          });
+        });
+
+        if (window.lucide) window.lucide.createIcons();
+      } catch (err) {
+        console.error('[AUDIT LOGS ERROR]', err);
+        document.getElementById('audit-table-body').innerHTML = '<tr><td colspan="7" class="sa-empty"><i data-lucide="alert-circle"></i><p style="color:#EF4444;">Gagal memuat audit log.</p></td></tr>';
+      }
+    }
+
+    document.getElementById('audit-search')?.addEventListener('input', (e) => {
+      auditFilters.search = e.target.value.toLowerCase();
+      // Client-side filter on action column (col 3)
+      const q = auditFilters.search;
+      document.querySelectorAll('#audit-table-body tr').forEach(tr => {
+        tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+      });
+    });
+
+    document.getElementById('audit-filter-action')?.addEventListener('change', (e) => {
+      auditFilters.action = e.target.value;
+      loadAuditLogs(1);
+    });
+
+    document.getElementById('audit-from')?.addEventListener('change', (e) => {
+      auditFilters.fromDate = e.target.value;
+      loadAuditLogs(1);
+    });
+
+    document.getElementById('audit-to')?.addEventListener('change', (e) => {
+      auditFilters.toDate = e.target.value;
+      loadAuditLogs(1);
+    });
+
+    document.getElementById('audit-refresh')?.addEventListener('click', () => loadAuditLogs(auditPage));
+
+    // Extend showSection to handle audit-logs
+    const originalShowSection = showSection;
+    window.showSection = function(sectionId) {
+      originalShowSection(sectionId);
+      if (sectionId === 'audit-logs') loadAuditLogs(1);
+    };
 
     init();
   </script>

@@ -16,6 +16,7 @@ const Profile = {
     }
     this.renderProfile();
     await this.loadSessions();
+    await this.loadAuditLogs();
   },
 
   escapeHtml(str) {
@@ -33,7 +34,27 @@ const Profile = {
     const isDark = document.body.classList.contains('dark-mode');
 
     this.viewport.innerHTML = `
-      <div class="profile-page-container">
+      <div class="profile-page-container profile-tiktok">
+        <!-- Sidebar Navigasi (single page layout) -->
+        <aside class="profile-sidebar glass-card" id="profile-sidebar">
+          <div class="profile-sidebar-user">
+            <div class="profile-avatar" id="profile-avatar-chip">${initials}</div>
+            <div class="profile-sidebar-meta">
+              <strong>${this.escapeHtml(u.name || u.username)}</strong>
+              <span>@${this.escapeHtml(u.username)}</span>
+            </div>
+          </div>
+          <nav class="profile-sidebar-nav" id="profile-sidebar-nav">
+            <a href="#profile-section-profile" class="profile-menu-item" data-target="profile-section-profile"><i data-lucide="circle-user"></i> Profil</a>
+            <a href="#profile-section-account" class="profile-menu-item" data-target="profile-section-account"><i data-lucide="user-round"></i> Informasi Akun</a>
+            <a href="#profile-section-security" class="profile-menu-item" data-target="profile-section-security"><i data-lucide="shield"></i> Keamanan</a>
+            <a href="#profile-section-language" class="profile-menu-item" data-target="profile-section-language"><i data-lucide="languages"></i> Bahasa</a>
+            <a href="#profile-section-sessions" class="profile-menu-item" data-target="profile-section-sessions"><i data-lucide="monitor"></i> Sesi Login</a>
+            <a href="#profile-section-audit" class="profile-menu-item" data-target="profile-section-audit"><i data-lucide="activity"></i> Riwayat Aktivitas</a>
+          </nav>
+        </aside>
+
+        <main class="profile-main-content">
         <!-- Tombol Kembali -->
         <div class="profile-back-link" style="margin-bottom: 20px;">
           <button class="btn btn-glass btn-rounded btn-back-route" id="btn-profile-back" style="padding: 10px 20px; font-weight:700;">
@@ -42,7 +63,7 @@ const Profile = {
         </div>
 
         <!-- Profile Header Card -->
-        <div class="glass-card profile-header-card">
+        <div class="glass-card profile-header-card" id="profile-section-profile">
           <div class="profile-avatar-large" id="avatar-upload-trigger" style="cursor:pointer; position:relative;" title="Klik untuk ganti foto profil">
             ${u.avatar
               ? `<img src="${u.avatar}" alt="Foto Profil" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
@@ -102,7 +123,7 @@ const Profile = {
         </div>
 
         <!-- Informasi Akun Card -->
-        <div class="glass-card profile-info-card">
+        <div class="glass-card profile-info-card" id="profile-section-account">
           <h3><i data-lucide="user"></i> Informasi Akun</h3>
           <div class="profile-info-grid">
             <div class="profile-info-item">
@@ -142,7 +163,7 @@ const Profile = {
         </div>
 
         <!-- Keamanan & Tindakan Card -->
-        <div class="glass-card profile-security-card">
+        <div class="glass-card profile-security-card" id="profile-section-security">
           <h3><i data-lucide="shield"></i> Keamanan & Pengaturan</h3>
           <div class="profile-security-actions">
             <button class="btn-outline" id="btn-edit-profile">
@@ -157,8 +178,22 @@ const Profile = {
           </div>
         </div>
 
+        <!-- Pengaturan Bahasa -->
+        <div class="glass-card profile-language-card" id="profile-section-language">
+          <h3><i data-lucide="languages"></i> Bahasa</h3>
+          <p style="font-size:0.78rem;color:var(--text-muted);margin:0 0 16px 0;">Pilih bahasa tampilan aplikasi.</p>
+          <div class="language-selector-row" style="display:flex;gap:12px;flex-wrap:wrap;">
+            <button class="btn btn-glass btn-rounded language-option active" data-lang="id">
+              <i data-lucide="globe"></i> Indonesia
+            </button>
+            <button class="btn btn-glass btn-rounded language-option" data-lang="en">
+              <i data-lucide="flag"></i> English
+            </button>
+          </div>
+        </div>
+
         <!-- Riwayat Sesi Login -->
-        <div class="glass-card profile-sessions-card">
+        <div class="glass-card profile-sessions-card" id="profile-section-sessions">
           <h3><i data-lucide="monitor"></i> Sesi Login Aktif</h3>
           <p style="font-size:0.78rem;color:var(--text-muted);margin:0 0 16px 0;">
             Kelola perangkat yang terhubung ke akun Anda. Logout dari perangkat yang tidak dikenal.
@@ -174,6 +209,25 @@ const Profile = {
             </button>
           </div>
         </div>
+
+        <!-- Riwayat Aktivitas (Audit Log) -->
+        <div class="glass-card profile-audit-card" id="profile-section-audit">
+          <h3><i data-lucide="activity"></i> Riwayat Aktivitas Akun</h3>
+          <p style="font-size:0.78rem;color:var(--text-muted);margin:0 0 16px 0;">
+            Login, perubahan password, dan aktivitas keamanan lainnya.
+          </p>
+          <div id="audit-list">
+            <div style="padding: 20px; text-align: center; color: var(--text-muted);">
+              <i data-lucide="loader" style="width:20px;height:20px;"></i> Memuat riwayat...
+            </div>
+          </div>
+          <div style="margin-top:12px;display:flex;gap:8px;">
+            <button class="btn btn-sm btn-glass" id="btn-audit-prev" style="display:none;">Sebelumnya</button>
+            <button class="btn btn-sm btn-glass" id="btn-audit-next" style="display:none;">Selanjutnya</button>
+          </div>
+        </div>
+
+        </main>
       </div>
 
       <!-- Modal Edit Profil -->
@@ -229,7 +283,7 @@ const Profile = {
               <div class="form-group">
                 <label class="form-label">Password Baru</label>
                 <div style="position:relative;">
-                  <input type="password" id="cp-new" class="filter-control input-rounded" required minlength="6" autocomplete="new-password" style="padding-right:40px;">
+                  <input type="password" id="cp-new" class="filter-control input-rounded" required minlength="8" autocomplete="new-password" style="padding-right:40px;">
                   <button type="button" class="toggle-password-btn" data-target="cp-new" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);padding:4px;">
                     <i data-lucide="eye" style="width:16px;height:16px;"></i>
                   </button>
@@ -238,8 +292,10 @@ const Profile = {
                   <div class="strength-bar" style="height:3px;flex:1;border-radius:2px;background:var(--border);"></div>
                   <div class="strength-bar" style="height:3px;flex:1;border-radius:2px;background:var(--border);"></div>
                   <div class="strength-bar" style="height:3px;flex:1;border-radius:2px;background:var(--border);"></div>
+                  <div class="strength-bar" style="height:3px;flex:1;border-radius:2px;background:var(--border);"></div>
+                  <div class="strength-bar" style="height:3px;flex:1;border-radius:2px;background:var(--border);"></div>
                 </div>
-                <small style="color:var(--text-muted);font-size:0.68rem;">Minimal 6 karakter, gunakan kombinasi huruf dan angka untuk keamanan lebih.</small>
+                <small style="color:var(--text-muted);font-size:0.68rem;">Minimal 8 karakter: huruf besar, huruf kecil, angka, simbol (!@#$%^&*)</small>
               </div>
               <div class="form-group">
                 <label class="form-label">Konfirmasi Password Baru</label>
@@ -267,6 +323,53 @@ const Profile = {
   },
 
   bindEvents() {
+    // Sidebar navigasi (single page) — scroll ke section target
+    const menuItems = document.querySelectorAll('#profile-sidebar-nav .profile-menu-item');
+    if (menuItems.length) {
+      menuItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+          const targetId = item.getAttribute('data-target');
+          const el = document.getElementById(targetId);
+          if (el) {
+            e.preventDefault();
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            menuItems.forEach(m => m.classList.remove('active'));
+            item.classList.add('active');
+          }
+        });
+      });
+
+      // Scrollspy: highlight item sesuai section yang dilihat
+      const sections = ['profile-section-profile','profile-section-account','profile-section-security','profile-section-language','profile-section-sessions','profile-section-audit'];
+      const spyObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const active = document.querySelector(`#profile-sidebar-nav .profile-menu-item[data-target="${entry.target.id}"]`);
+            menuItems.forEach(m => m.classList.remove('active'));
+            if (active) active.classList.add('active');
+          }
+        });
+      }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+      sections.forEach(id => { const el = document.getElementById(id); if (el) spyObserver.observe(el); });
+
+      // Sync avatar chip
+      const chip = document.getElementById('profile-avatar-chip');
+      if (chip && this.user?.avatar) {
+        chip.innerHTML = `<img src="${this.user.avatar}" alt="Foto Profil" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+      }
+    }
+
+    // Pilihan bahasa
+    document.querySelectorAll('.language-option').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.language-option').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const lang = btn.getAttribute('data-lang');
+        localStorage.setItem('eyeco_lang', lang);
+        EventBus.emit('toast:show', { message: lang === 'en' ? 'Language set to English' : 'Bahasa diatur ke Indonesia', type: 'success' });
+      });
+    });
+
     document.getElementById('btn-profile-back')?.addEventListener('click', () => {
       const user = AppState.get('user');
       Router.navigate(user?.role === 'admin' ? '/dashboard' : '/dashboard');
@@ -319,9 +422,10 @@ const Profile = {
         const val = newPw.value;
         const bars = document.querySelectorAll('#password-strength .strength-bar');
         let score = 0;
-        if (val.length >= 6) score++;
-        if (val.length >= 10) score++;
-        if (/[A-Z]/.test(val) && /[a-z]/.test(val) && /[0-9]/.test(val)) score++;
+        if (val.length >= 8) score++;
+        if (/[A-Z]/.test(val)) score++;
+        if (/[a-z]/.test(val)) score++;
+        if (/[0-9]/.test(val)) score++;
         if (/[^A-Za-z0-9]/.test(val)) score++;
 
         const colors = ['var(--border)', 'var(--danger)', 'var(--warning)', 'var(--success)', 'var(--primary)'];
@@ -387,8 +491,12 @@ const Profile = {
         EventBus.emit('toast:show', { message: 'Konfirmasi password baru tidak cocok', type: 'danger' });
         return;
       }
-      if (newPw.length < 6) {
-        EventBus.emit('toast:show', { message: 'Password minimal 6 karakter', type: 'danger' });
+      if (newPw.length < 8) {
+        EventBus.emit('toast:show', { message: 'Password minimal 8 karakter', type: 'danger' });
+        return;
+      }
+      if (!/[A-Z]/.test(newPw) || !/[a-z]/.test(newPw) || !/[0-9]/.test(newPw) || !/[^A-Za-z0-9]/.test(newPw)) {
+        EventBus.emit('toast:show', { message: 'Password harus mengandung huruf besar, huruf kecil, angka, dan simbol', type: 'danger' });
         return;
       }
 
@@ -674,7 +782,19 @@ const Profile = {
         list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.85rem;">Tidak ada sesi aktif.</div>';
         return;
       }
-      list.innerHTML = result.sessions.map(s => `
+      // Dedupe per perangkat: setidaknya satu sesi aktif per device, tanpa duplikat
+      const seen = new Set();
+      const grouped = [];
+      for (const s of result.sessions) {
+        const key = String(s.deviceInfo || s.ipAddress || s.id || Math.random()).toLowerCase();
+        if (s.isCurrent) {
+          if (!grouped.some(g => g.isCurrent)) grouped.push(s);
+        } else if (!seen.has(key)) {
+          seen.add(key);
+          grouped.push(s);
+        }
+      }
+      list.innerHTML = grouped.map(s => `
         <div class="session-item" style="display:flex;align-items:center;justify-content:space-between;padding:12px;border-bottom:1px solid var(--border);font-size:0.82rem;">
           <div style="display:flex;align-items:center;gap:12px;">
             <i data-lucide="${s.isCurrent ? 'smartphone' : 'monitor'}" style="width:18px;height:18px;color:${s.isCurrent ? 'var(--success)' : 'var(--text-muted)'};"></i>
@@ -713,6 +833,73 @@ const Profile = {
 
   destroy() {
     this.viewport = null;
+    this.auditPage = 1;
+  },
+
+  async loadAuditLogs(page = 1) {
+    this.auditPage = page;
+    const list = document.getElementById('audit-list');
+    const prevBtn = document.getElementById('btn-audit-prev');
+    const nextBtn = document.getElementById('btn-audit-next');
+    if (!list) return;
+    try {
+      const res = await fetch(`/api/auth/audit-logs?page=${page}&limit=10`, { credentials: 'include' });
+      const result = await res.json();
+      if (!result.success || !result.logs) {
+        list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.85rem;">Tidak ada riwayat aktivitas.</div>';
+        if (prevBtn) prevBtn.style.display = 'none';
+        if (nextBtn) nextBtn.style.display = 'none';
+        return;
+      }
+      if (result.logs.length === 0) {
+        list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.85rem;">Belum ada aktivitas.</div>';
+        if (prevBtn) prevBtn.style.display = 'none';
+        if (nextBtn) nextBtn.style.display = 'none';
+        return;
+      }
+      list.innerHTML = result.logs.map(log => {
+        const time = log.createdAt ? new Date(log.createdAt).toLocaleString('id-ID') : '—';
+        const action = log.action || '—';
+        const ip = log.ipAddress || '—';
+        const ua = log.userAgent || '—';
+        let detail = '';
+        if (log.details) {
+          const d = log.details;
+          detail = Object.entries(d).map(([k,v]) => `${k}: ${JSON.stringify(v)}`).join('; ');
+        }
+        return `
+        <div class="audit-item" style="padding:12px;border-bottom:1px solid var(--border);font-size:0.82rem;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+            <span class="badge badge-blue">${this.escapeHtml(action)}</span>
+            <span style="font-size:0.7rem;color:var(--text-muted);">${this.escapeHtml(time)}</span>
+          </div>
+          <div style="font-size:0.7rem;color:var(--text-muted);font-family:monospace;">IP: ${this.escapeHtml(ip)}</div>
+          <div style="font-size:0.7rem;color:var(--text-muted);font-family:monospace;">${this.escapeHtml(ua)}</div>
+          ${detail ? `<div style="margin-top:6px;font-size:0.68rem;color:var(--text-secondary);max-height:40px;overflow:hidden;">${this.escapeHtml(detail)}</div>` : ''}
+        </div>`;
+      }).join('');
+      if (window.lucide) lucide.createIcons();
+
+      // Pagination buttons
+      const pag = result.pagination || { page: 1, pages: 1 };
+      if (prevBtn) {
+        prevBtn.style.display = pag.page > 1 ? 'inline-flex' : 'none';
+        prevBtn.onclick = () => this.loadAuditLogs(pag.page - 1);
+      }
+      if (nextBtn) {
+        nextBtn.style.display = pag.page < pag.pages ? 'inline-flex' : 'none';
+        nextBtn.onclick = () => this.loadAuditLogs(pag.page + 1);
+      }
+    } catch (err) {
+      list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.85rem;">Gagal memuat riwayat.</div>';
+      if (prevBtn) prevBtn.style.display = 'none';
+      if (nextBtn) nextBtn.style.display = 'none';
+    }
+  },
+
+  destroy() {
+    this.viewport = null;
+    this.auditPage = 1;
   }
 };
 

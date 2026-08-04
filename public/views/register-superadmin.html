@@ -75,14 +75,17 @@
           <label for="password">Password <span style="color:var(--error)">*</span></label>
           <div class="input-wrapper">
             <i data-lucide="lock"></i>
-            <input type="password" name="password" id="password" class="input-control" required placeholder="Minimal 6 karakter" minlength="6" autocomplete="new-password">
+            <input type="password" name="password" id="password" class="input-control" required placeholder="Minimal 8 karakter" minlength="8" autocomplete="new-password">
           </div>
+          <div class="strength-meter"><div id="strength-bar"></div><div id="strength-bar2"></div><div id="strength-bar3"></div><div id="strength-bar4"></div><div id="strength-bar5"></div></div>
+          <div class="strength-text" id="strength-text"></div>
+          <small style="color:#94A3B8;font-size:0.68rem;">Minimal 8 karakter: huruf besar, huruf kecil, angka, simbol (!@#$%^&*)</small>
         </div>
         <div class="form-group">
           <label for="confirmPassword">Konfirmasi Password <span style="color:var(--error)">*</span></label>
           <div class="input-wrapper">
             <i data-lucide="check-circle"></i>
-            <input type="password" name="confirmPassword" id="confirmPassword" class="input-control" required placeholder="Ulangi password" minlength="6" autocomplete="new-password">
+            <input type="password" name="confirmPassword" id="confirmPassword" class="input-control" required placeholder="Ulangi password" minlength="8" autocomplete="new-password">
           </div>
         </div>
       </div>
@@ -113,6 +116,45 @@
   <script>
     lucide.createIcons();
 
+    const pwd         = document.getElementById('password');
+    const cpwd        = document.getElementById('confirmPassword');
+    const strengthBar = document.getElementById('strength-bar');
+    const strengthBar2 = document.getElementById('strength-bar2');
+    const strengthBar3 = document.getElementById('strength-bar3');
+    const strengthBar4 = document.getElementById('strength-bar4');
+    const strengthBar5 = document.getElementById('strength-bar5');
+    const strengthTxt = document.getElementById('strength-text');
+
+    function checkPasswordStrength(val) {
+      if (!val) { 
+        strengthBar.className = ''; 
+        if (strengthBar2) strengthBar2.className = '';
+        if (strengthBar3) strengthBar3.className = '';
+        if (strengthBar4) strengthBar4.className = '';
+        if (strengthBar5) strengthBar5.className = '';
+        strengthTxt.textContent = ''; 
+        return 0; 
+      }
+      let score = 0;
+      if (val.length >= 8) score++;
+      if (/[A-Z]/.test(val)) score++;
+      if (/[a-z]/.test(val)) score++;
+      if (/[0-9]/.test(val)) score++;
+      if (/[^A-Za-z0-9]/.test(val)) score++;
+
+      const labels = ['', 'Sangat Lemah', 'Lemah', 'Sedang', 'Kuat', 'Sangat Kuat'];
+      const colors  = ['', '#ef4444', '#ef4444', '#eab308', '#22c55e', '#16a34a'];
+      const bars = [strengthBar, strengthBar2, strengthBar3, strengthBar4, strengthBar5];
+      bars.forEach((bar, i) => {
+        if (bar) bar.style.background = i < score ? colors[score] : 'rgba(0,0,0,0.1)';
+      });
+      strengthTxt.textContent    = labels[score]  || '';
+      strengthTxt.style.color    = colors[score]  || '';
+      return score;
+    }
+
+    pwd.addEventListener('input',  e => { checkPasswordStrength(e.target.value); });
+
     document.getElementById('registerForm').addEventListener('submit', async e => {
       e.preventDefault();
 
@@ -128,6 +170,16 @@
 
       if (data.password !== data.confirmPassword) {
         errorBox.textContent   = 'Password tidak cocok. Periksa kembali konfirmasi password.';
+        errorBox.style.display = 'block';
+        return;
+      }
+      if (data.password.length < 8) {
+        errorBox.textContent   = 'Password minimal 8 karakter.';
+        errorBox.style.display = 'block';
+        return;
+      }
+      if (!/[A-Z]/.test(data.password) || !/[a-z]/.test(data.password) || !/[0-9]/.test(data.password) || !/[^A-Za-z0-9]/.test(data.password)) {
+        errorBox.textContent   = 'Password harus mengandung huruf besar, huruf kecil, angka, dan simbol.';
         errorBox.style.display = 'block';
         return;
       }

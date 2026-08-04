@@ -14,6 +14,7 @@ import { Home } from '../pages/home.js';
 import { Profile } from '../pages/profile.js';
 import { BeritaAdmin } from '../pages/berita-admin.js';
 import { CctvMonitoring } from '../pages/cctv-monitoring.js?v=1.9.0';
+import { FAQ } from '../pages/faq.js';
 
 class AppInitializer {
   constructor() {
@@ -61,10 +62,19 @@ class AppInitializer {
       this.currentPageInstance.destroy();
     }
 
-    // Scroll ke atas instan
+    // Scroll ke atas mkomen
     window.scrollTo(0, 0);
     document.body.scrollTop = 0;
     document.documentElement.scrollTop = 0;
+
+    // Sembunyikan navbar utama saat berada di halaman Profile (single page TikTok)
+    const isProfile = path === '/dashboard/profile';
+    const headerEl = document.getElementById('app-header');
+    if (headerEl) {
+      headerEl.style.display = isProfile ? 'none' : 'block';
+      if (isProfile) document.body.classList.add('no-app-header');
+      else document.body.classList.remove('no-app-header');
+    }
 
     // Render halaman baru DI BELAKANG LAYER (opacity 0), tanpa nunggu
     // Dengan begini pas indicator slider sampe, konten udah siap
@@ -114,6 +124,9 @@ class AppInitializer {
       } else if (path === '/dashboard/cctv-monitoring') {
         this.currentPageInstance = CctvMonitoring;
         await CctvMonitoring.render(this.viewport);
+      } else if (path === '/faq') {
+        this.currentPageInstance = FAQ;
+        await FAQ.render(this.viewport);
       } else {
         Router.navigate('/dashboard');
       }

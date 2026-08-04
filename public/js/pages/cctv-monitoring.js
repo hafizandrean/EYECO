@@ -43,22 +43,15 @@ export class CctvMonitoringPage {
     const isAdmin = user?.role === 'admin';
 
     container.innerHTML = `
-      <!-- Merged Control Bar + Control Panel -->
-      <section class="glass-card" style="margin-bottom:var(--space-20);padding:var(--space-20);">
+      <!-- Control Bar -->
+      <section class="cctv-header-clean" style="margin-bottom:var(--space-24);padding:0;background:transparent;box-shadow:none;">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
           <div style="display:flex;align-items:center;gap:12px;">
-            <h2 style="font-family:'Outfit',sans-serif;font-size:1.15rem;font-weight:800;margin:0;display:flex;align-items:center;gap:8px;">
-              <i data-lucide="monitor" style="color:var(--primary);"></i> Pemantauan CCTV Real-Time
+            <h2 style="font-family:'Outfit',sans-serif;font-size:1.6rem;font-weight:800;margin:0;display:flex;align-items:center;gap:8px;">
+              <i data-lucide="monitor" style="color:var(--primary);"></i> Pemantauan CCTV
             </h2>
-            <span id="cctv-mon-status" class="badge" style="font-size:0.65rem;padding:4px 10px;background:var(--text-muted);color:#fff;">NONAKTIF</span>
           </div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            <div class="form-group-inline" style="display:flex;align-items:center;gap:6px;margin:0;">
-              <label for="cctv-select-camera" class="caption-label" style="margin:0;font-size:0.68rem;">Saluran Aktif</label>
-              <select id="cctv-select-camera" class="filter-control select-rounded" style="height:32px;font-size:0.72rem;width:140px;">
-                <option value="semua">Semua Saluran</option>
-              </select>
-            </div>
             <button id="btn-mon-start" class="btn btn-primary btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;">
               <i data-lucide="video" style="width:13px;height:13px;"></i> Mulai Monitoring
             </button>
@@ -85,12 +78,23 @@ export class CctvMonitoringPage {
         </div>
       </section>
 
+      <!-- Saluran Aktif — tepat di bawah header -->
+      <section class="glass-card cctv-active-channel" style="margin-bottom:var(--space-28);padding:14px 20px;display:flex;align-items:center;gap:12px;">
+        <div class="form-group-inline" style="display:flex;align-items:center;gap:6px;margin:0;">
+          <label for="cctv-select-camera" class="caption-label" style="margin:0;font-size:0.72rem;font-weight:800;">Saluran Aktif</label>
+          <select id="cctv-select-camera" class="filter-control select-rounded" style="height:34px;font-size:0.78rem;width:170px;">
+            <option value="semua">Semua Saluran</option>
+          </select>
+        </div>
+        <span id="active-channel-badge" style="font-size:0.72rem;font-weight:700;color:var(--success);background:rgba(16,185,129,0.1);padding:4px 12px;border-radius:var(--radius-pill);">0 saluran aktif</span>
+      </section>
+
       <!-- Main Layout: CCTV Grid -->
       <div style="width:100%;">
         <!-- CCTV Grid -->
         <div class="glass-card" style="padding:var(--space-20); width:100%;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-16);">
-            <h3 style="font-family:'Outfit',sans-serif;font-size:0.95rem;font-weight:800;margin:0;display:flex;align-items:center;gap:6px;">
+            <h3 style="font-family:'Outfit',sans-serif;font-size:1.15rem;font-weight:800;margin:0;display:flex;align-items:center;gap:6px;">
               <i data-lucide="layout-grid" style="color:var(--primary);"></i> Feed Kamera Langsung
             </h3>
             <span id="camera-count-badge" style="font-size:0.72rem;font-weight:700;color:var(--text-secondary);background:var(--surface);padding:4px 10px;border-radius:var(--radius-pill);">0 kamera</span>
@@ -669,6 +673,13 @@ export class CctvMonitoringPage {
 
     const selectCam = document.getElementById('cctv-select-camera');
     const selectedValue = selectCam ? selectCam.value : 'semua';
+
+    // Wire Saluran Aktif badge: count kamera yang ditampilkan filter ini
+    const channelBadge = document.getElementById('active-channel-badge');
+    if (channelBadge) {
+      const counted = this.cctvList.filter(c => selectedValue === 'semua' || c.id.toString() === selectedValue);
+      channelBadge.textContent = `${counted.length} saluran aktif`;
+    }
 
     this.cctvList.forEach(ch => {
       if (selectedValue !== 'semua' && ch.id.toString() !== selectedValue) {
@@ -2078,7 +2089,7 @@ export class CctvMonitoringPage {
         const el = document.createElement('div');
         el.className = `yolo-preview-box ${boxColorClass}`;
         el.style.cssText = `position:absolute; top:${y}%; left:${x}%; width:${w}%; height:${h}%; border:2px solid var(--primary);`;
-        el.innerHTML = `<span class="yolo-preview-label" style="background:var(--primary); color:white; font-size:0.6rem; font-weight:800; padding:1px 4px; border-radius:2px; position:absolute; top:-16px; left:-2px; white-space:nowrap;">${indonesianLabel} (${Math.round((box.confidence || 0.8) * 100)}%)</span>`;
+        el.innerHTML = `<span class="yolo-preview-label" style="background:var(--primary); color:white; font-size:0.6rem; font-weight:800; padding:1px 4px; border-radius:2px; position:absolute; top:0; left:-2px;">${indonesianLabel} (${Math.round((box.confidence || 0.8) * 100)}%)</span>`;
         yoloOverlay.appendChild(el);
       });
     };

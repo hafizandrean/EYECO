@@ -20,7 +20,9 @@ class AuthServiceClass {
   // Masuk Akun
   async login(username, password) {
     try {
-      const user = await API.post('/api/auth/login', { username, password });
+      const deviceId = this.getDeviceId();
+      const deviceName = this.getDeviceName();
+      const user = await API.post('/api/auth/login', { username, password, deviceId, deviceName });
       AppState.set('user', user);
       EventBus.emit('toast:show', { message: `Selamat datang kembali, ${user.username}!`, type: 'success' });
       Router.navigate(user.redirect || (user.role === 'admin' ? '/dashboard' : '/select-workspace'));
@@ -29,6 +31,25 @@ class AuthServiceClass {
       EventBus.emit('toast:show', { message: err.message, type: 'danger' });
       throw err;
     }
+  }
+
+  // ID perangkat stabil (per browser), dipakai untuk dedupe 1 perangkat = 1 sesi
+  getDeviceId() {
+    const key = 'eyeco_device_id';
+    let id = '';
+    try { id = localStorage.getItem(key) || ''; } catch (_) {}
+    if (!id) {
+      id = 'dev_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+      try { localStorage.setItem(key, id); } catch (_) {}
+    }
+    return id;
+  }
+
+  getDeviceName() {
+    const nav = navigator?.userAgent || '';
+    const os = /Windows/i.test(nav) ? 'Windows' : /Macintosh|Mac OS/i.test(nav) ? 'MacOS' : /Android/i.test(nav) ? 'Android' : /Linux/i.test(nav) ? 'Linux' : /iPhone|iPad/i.test(nav) ? 'iOS' : 'Perangkat';
+    const browser = /Chrome/i.test(nav) && !/Edg/i.test(nav) ? 'Chrome' : /Firefox/i.test(nav) ? 'Firefox' : /Edg/i.test(nav) ? 'Edge' : /Safari/i.test(nav) ? 'Safari' : '';
+    return [os, browser].filter(Boolean).join(' ');
   }
 
   // Keluar Akun

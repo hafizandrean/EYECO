@@ -49,6 +49,7 @@ class ClientRouter {
     if (path === '/dashboard/upload') return 'upload';
     if (path.startsWith('/dashboard/detections/')) return 'detail';
     if (path === '/dashboard/cctv-monitoring') return 'cctv-monitoring';
+    if (path === '/faq') return 'faq';
     return 'dashboard';
   }
 }

@@ -36,8 +36,15 @@ export class LaporanPage {
     }
 
     container.innerHTML = `
-      <!-- Advanced Filter row - single line -->
-      <section class="glass-card filters-section">
+      <!-- Page Header -->
+      <div class="page-header" style="margin-bottom: var(--space-24);">
+        <div class="section-title" style="font-size: 1.8rem; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="database" style="color: var(--primary);"></i> Log Aktivitas Lingkungan
+        </div>
+      </div>
+
+      <!-- Advanced Filter row - single line, NO background -->
+      <section class="filters-section" style="background: transparent; border: none; box-shadow: none; padding: 0; margin-bottom: var(--space-20);">
         <div class="filters-row">
           <div class="filter-item-compact">
             <label class="filter-label">Rentang Waktu</label>
@@ -96,10 +103,9 @@ export class LaporanPage {
       <!-- Logs Card Table -->
       <section class="glass-card card-table-section">
         <div class="card-header-clean">
-          <div class="section-title" style="font-size:0.95rem;font-weight:600;">Log Aktivitas Lingkungan</div>
           ${AppState.get('user')?.role === 'admin' || AppState.get('user')?.role === 'superadmin' ? `
-            <button class="btn btn-glass btn-sm btn-rounded" id="btn-clear-all-reports" style="color: var(--error); border-color: rgba(239,68,68,0.3);">
-              <i data-lucide="trash-2"></i> Hapus Semua Data
+            <button class="btn btn-sm btn-rounded" id="btn-clear-all-reports" style="background: rgba(239,68,68,0.1); color: #DC2626; border: 1px solid rgba(239,68,68,0.4); font-weight: 700;">
+              <i data-lucide="trash-2" style="color:#DC2626;"></i> Hapus Semua Data
             </button>
           ` : ''}
         </div>
@@ -240,14 +246,22 @@ export class LaporanPage {
         );
         if (!confirmed) return;
 
-        // Second step: type "hapus semua laporan" to confirm
+        // Second step: type "HAPUS SEMUA LAPORAN" to confirm
         const input = await MacModal.prompt(
           'Konfirmasi Penghapusan',
-          `Ketik <strong>hapus semua laporan</strong> untuk mengonfirmasi penghapusan <strong>semua</strong> data laporan dan foto.`,
-          { placeholder: 'Ketik "hapus semua laporan" di sini...', confirmText: 'Hapus Semua', iconType: 'danger' }
+          `Ketik <strong>"HAPUS SEMUA LAPORAN"</strong> (huruf kapital) untuk mengonfirmasi penghapusan <strong>semua</strong> data laporan dan foto.`,
+          {
+            placeholder: 'Ketik "HAPUS SEMUA LAPORAN" di sini...',
+            confirmText: 'Hapus Semua',
+            cancelText: 'Batal',
+            iconType: 'danger',
+            confirmStyle: 'danger',
+            validate: (val) => val === 'HAPUS SEMUA LAPORAN',
+            errMsg: 'Konfirmasi belum sesuai.'
+          }
         );
-        if (!input || input.trim().toLowerCase() !== 'hapus semua laporan') {
-          EventBus.emit('toast:show', { message: 'Penghapusan dibatalkan.', type: 'info' });
+        if (!input || input.trim() !== 'HAPUS SEMUA LAPORAN') {
+          EventBus.emit('toast:show', { message: 'Penghapusan dibatalkan. Teks konfirmasi tidak cocok.', type: 'info' });
           return;
         }
 

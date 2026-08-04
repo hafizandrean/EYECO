@@ -39,6 +39,7 @@ const SessionSchema = new mongoose_1.Schema({
     userId: { type: Number, required: true, index: true },
     tokenHash: { type: String, required: true, unique: true },
     deviceInfo: { type: String, default: 'Unknown Device' },
+    deviceId: { type: String, index: true },
     ipAddress: { type: String, default: 'Unknown IP' },
     lastActive: { type: Date, default: Date.now }
 }, {

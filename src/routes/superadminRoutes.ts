@@ -10,6 +10,7 @@ import { authMiddleware } from '../auth/authMiddleware';
 import { roleGuard } from '../auth/RoleMiddleware';
 import { SystemAuditLogModel } from '../database/models/SystemAuditLog';
 import { SessionModel } from '../database/models/Session';
+import { checkPasswordStrength } from '../utils/password';
 
 const router = Router();
 
@@ -417,8 +418,8 @@ router.delete('/sessions/:sessionId', authMiddleware, roleGuard(['superadmin']),
     const sessionId = req.params.sessionId;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const deleted = await SessionModel.findByIdAndDelete(sessionId).exec();
-    if (!deleted) return res.status(404).json({ error: 'Session tidak ditemukan' });
+    const deleted = await SessionModel.findOneAndDelete({ _id: sessionId, userId }).exec();
+    if (!deleted) return res.status(404).json({ error: 'Session tidak ditemukan atau tidak diizinkan' });
 
     res.json({ success: true, message: 'Session berhasil dihapus' });
   } catch (err) {
@@ -434,7 +435,11 @@ router.post('/change-password', authMiddleware, roleGuard(['superadmin']), async
     const { currentPassword, newPassword } = req.body;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
     if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Password lama dan baru wajib diisi' });
-    if (newPassword.length < 6) return res.status(400).json({ error: 'Password baru minimal 6 karakter' });
+
+    const strength = checkPasswordStrength(newPassword);
+    if (strength.errors.length > 0) {
+      return res.status(400).json({ error: 'Password lemah: ' + strength.errors.join(', ') });
+    }
 
     const user = await UserModel.findOne({ id: userId }).select('+passwordHash').exec();
     if (!user) return res.status(401).json({ error: 'User tidak ditemukan' });
@@ -792,3 +797,98 @@ router.get('/workspaces/:id/detail', authMiddleware, roleGuard(['superadmin']), 
 });
 
 export default router;
+
+// GET /api/superadmin/audit-logs - Retrieve system audit logs (superadmin only)
+router.get('/audit-logs', authMiddleware, roleGuard(['superadmin']), async (req, res) => {
+  try {
+    const { action, tenantId, actorName, fromDate, toDate, page = 1, limit = 50 } = req.query;
+    
+    const query: Record<string, any> = {};
+    if (action) query.action = action;
+    if (tenantId) query.tenantId = tenantId;
+    if (actorName) query.actorName = { $regex: actorName, $options: 'i' };
+    
+    if (fromDate || toDate) {
+      query.createdAt = {};
+      if (fromDate) query.createdAt.$gte = new Date(fromDate as string);
+      if (toDate) query.createdAt.$lte = new Date(toDate as string);
+    }
+    
+    const pageNum = Math.max(1, parseInt(page as string));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string)));
+    const skip = (pageNum - 1) * limitNum;
+    
+    const [logs, total] = await Promise.all([
+      SystemAuditLogModel.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean()
+        .exec(),
+      SystemAuditLogModel.countDocuments(query).exec()
+    ]);
+    
+    res.json({
+      success: true,
+      logs,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum)
+      }
+    });
+  } catch (err) {
+    console.error('[SERVER ERROR] GET /api/superadmin/audit-logs failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// GET /api/auth/audit-logs - User's own audit logs (authenticated users)
+router.get('/auth/audit-logs', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userContext?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const user = await UserModel.findOne({ id: userId }).lean().exec();
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+    
+    const { fromDate, toDate, page = 1, limit = 20 } = req.query;
+    
+    const query: Record<string, any> = { actorId: user._id };
+    
+    if (fromDate || toDate) {
+      query.createdAt = {};
+      if (fromDate) query.createdAt.$gte = new Date(fromDate as string);
+      if (toDate) query.createdAt.$lte = new Date(toDate as string);
+    }
+    
+    const pageNum = Math.max(1, parseInt(page as string));
+    const limitNum = Math.min(50, Math.max(1, parseInt(limit as string)));
+    const skip = (pageNum - 1) * limitNum;
+    
+    const [logs, total] = await Promise.all([
+      SystemAuditLogModel.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean()
+        .exec(),
+      SystemAuditLogModel.countDocuments(query).exec()
+    ]);
+    
+    res.json({
+      success: true,
+      logs,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum)
+      }
+    });
+  } catch (err) {
+    console.error('[SERVER ERROR] GET /api/auth/audit-logs failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FAQ — EYECO</title>
+  <link rel="stylesheet" href="/css/style.css?v=1.2.0">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script type="module">
+    import { FAQ } from '/js/pages/faq.js?v=1.0.1';
+    document.addEventListener('DOMContentLoaded', () => {
+      const container = document.getElementById('app-viewport');
+      if (container) FAQ.render(container);
+    });
+  </script>
+</head>
+<body>
+  <main class="viewport-viewport" id="app-viewport" style="max-width: none; padding: 0; margin: 0;">
+    <!-- FAQ page will be rendered here by FAQPage -->
+  </main>
+</body>
+</html>

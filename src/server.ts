@@ -93,6 +93,7 @@ app.use('/css', express.static(path.join(__dirname, '../public/css'), staticNoCa
 app.use('/js', express.static(path.join(__dirname, '../public/js'), staticNoCacheOptions));
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 app.use('/hls', express.static(path.join(__dirname, '../public/hls')));
+app.use('/assets', express.static(path.join(__dirname, '../public/assets')));
 // Global middleware to populate req.userContext from cookie/header
 app.use((req, res, next) => {
   const { verifyToken } = require('./auth/auth.service');
@@ -119,6 +120,7 @@ app.use((req, res, next) => {
 app.use('/css', express.static(path.join(__dirname, '../public/css'), staticNoCacheOptions));
 app.use('/js', express.static(path.join(__dirname, '../public/js'), staticNoCacheOptions));
 app.use('/hls', express.static(path.join(__dirname, '../public/hls')));
+app.use('/assets', express.static(path.join(__dirname, '../public/assets')));
 
 // Uploads: local dulu, fallback ke R2 (proxy, bukan redirect)
 const uploadsDir = path.join(__dirname, '../public/uploads');
@@ -227,13 +229,9 @@ function getRedirectPath(role: string): string {
 
 // --- VIEW ROUTES ---
 app.get('/', async (req, res) => {
-  try {
-    const user = await getLoggedInUser(req);
-    if (!user) return res.redirect('/login');
-    res.redirect(getRedirectPath(user.role));
-  } catch (err) {
-    res.redirect('/login');
-  }
+  const user = await getLoggedInUser(req);
+  if (user) return res.redirect(getRedirectPath(user.role));
+  res.sendFile(path.join(__dirname, '../public/views/landing.html'));
 });
 
 app.get('/login', async (req, res) => {
@@ -264,6 +262,11 @@ app.get('/register-superadmin', async (req, res) => {
   } catch (err) {
     res.redirect('/login');
   }
+});
+
+app.get('/faq', async (req, res) => {
+  const user = await getLoggedInUser(req);
+  res.sendFile(path.join(__dirname, '../public/views/faq.html'));
 });
 
 

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="EYECO — Environmental AI Platform untuk Kabupaten Bandung. Computer vision + partisipasi warga = lingkungan lebih bersih.">
+  <title>EYECO — Pantau Lingkungan Real-time</title>
+  <link rel="stylesheet" href="/css/style.css?v=1.4.0">
+  <!-- Load Lucide Icons CDN (Fork of Feather Icons) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script type="module">
+    import { Home } from '/js/pages/home.js?v=1.0.1';
+    document.addEventListener('DOMContentLoaded', () => {
+      const container = document.getElementById('app-viewport');
+      if (container) Home.render(container);
+    });
+  </script>
+</head>
+<body>
+  <main class="viewport-viewport" id="app-viewport" style="max-width: none; padding: 0; margin: 0;">
+    <!-- Landing page will be rendered here by HomePage -->
+  </main>
+</body>
+</html>

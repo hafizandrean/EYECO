@@ -17,27 +17,27 @@ export class UploadPage {
   async render(container) {
     container.innerHTML = `
       <div class="upload-container-layout" style="animation: pageFadeIn var(--motion-open);">
-        <!-- Left: Upload Form Card -->
-        <main class="glass-card upload-card" id="upload-main-card" style="padding: var(--space-32);">
-          <div class="card-header-clean" style="margin-bottom: var(--space-24);">
-            <span style="background: rgba(47, 107, 255, 0.1); color: var(--primary); font-size: 0.72rem; font-weight: 800; text-transform: uppercase; padding: 4px 12px; border-radius: var(--radius-pill); letter-spacing: 0.5px;">Unggah Bukti</span>
-            <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--text-primary); margin-top: 6px; margin-bottom: 0;">Lapor Keadaan Lingkungan</h2>
-            <p style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 4px;">Seret media foto lingkungan untuk mendeteksi pencemaran sampah otomatis berbasis AI</p>
+        <!-- Left: Upload Form -->
+        <main class="upload-card" id="upload-main-card" style="padding: 0; background: transparent; border: none; box-shadow: none;">
+          <div class="card-header-clean" style="margin-bottom: var(--space-24); text-align: center; background: transparent;">
+            <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.8rem; font-weight: 800; color: var(--text-primary); margin: 0 0 8px 0;">Lapor Keadaan Lingkungan</h2>
+            <p style="font-size: 0.92rem; color: var(--text-secondary); margin: 0 auto; max-width: 500px;">Seret media foto lingkungan untuk mendeteksi pencemaran sampah otomatis berbasis AI</p>
+            <div style="height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 20px auto 0; width: 100%;"></div>
           </div>
 
           <form id="upload-form-element" class="upload-form" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: var(--space-20);">
             <!-- Drag & Drop Area -->
             <div class="form-group">
-              <div class="drag-drop-zone" id="drop-zone" style="min-height: 220px; border: 2px dashed rgba(47,107,255,0.2); border-radius: var(--radius-card); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; background: rgba(255,255,255,0.3);">
-                <input type="file" id="upload-input-file" accept="image/*,video/*" required style="display: none;">
+              <div class="drag-drop-zone glass-card" id="drop-zone" style="min-height: 560px; border: 2px dashed rgba(47,107,255,0.25); border-radius: var(--radius-card); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; background: rgba(255,255,255,0.45);">
+                <input type="file" id="upload-input-file" accept="image/jpeg,image/jpg,image/png,video/mp4" required style="display: none;">
                 
                 <!-- Initial State -->
                 <div class="drag-drop-content" id="drop-zone-content" style="text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: var(--space-24);">
-                  <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(47,107,255,0.05); color: var(--primary); display: flex; align-items: center; justify-content: center;">
-                    <i data-lucide="image" style="width: 24px; height: 24px;"></i>
+                  <div style="width: 68px; height: 68px; border-radius: 50%; background: rgba(47,107,255,0.06); color: var(--primary); display: flex; align-items: center; justify-content: center;">
+                    <i data-lucide="image" style="width: 30px; height: 30px;"></i>
                   </div>
-                  <p style="font-size: 0.9rem; color: var(--text-primary); font-weight: 700; margin: 0;">Seret & lepas gambar di sini, atau klik untuk memilih</p>
-                  <p style="font-size: 0.72rem; color: var(--text-secondary); margin: 0;">Mendukung format JPG, PNG, MP4 hingga 10MB</p>
+                  <p style="font-size: 1.05rem; color: var(--text-primary); font-weight: 700; margin: 8px 0 0;">Seret & lepas gambar di sini, atau klik untuk memilih</p>
+                  <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0;">Mendukung format JPG, JPEG, PNG, MP4 hingga 10MB</p>
                   <div style="display:flex; gap:8px; margin-top:8px;">
                     <button type="button" class="btn btn-glass btn-rounded btn-sm" id="btn-camera-capture" style="font-size:0.82rem; padding:8px 18px; display:flex; align-items:center; gap:6px;">
                       <i data-lucide="camera" style="width:16px;height:16px;"></i> Buka Kamera
@@ -46,6 +46,14 @@ export class UploadPage {
                       <i data-lucide="folder-open" style="width:16px;height:16px;"></i> Pilih File
                     </button>
                   </div>
+                </div>
+
+                <!-- Drag Overlay State -->
+                <div class="drag-overlay" id="drag-overlay" style="display: none; position: absolute; inset: 0; background: rgba(47, 107, 255, 0.1); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 10; align-items: center; justify-content: center; flex-direction: column; gap: 16px; transition: all 0.2s;">
+                  <div id="drag-indicator" style="width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; transition: all 0.2s;">
+                    <i data-lucide="plus" style="width: 40px; height: 40px; color: var(--success);"></i>
+                  </div>
+                  <p id="drag-text" style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); margin: 0;">Lepaskan untuk mengunggah</p>
                 </div>
 
                 <!-- Preview Area -->
@@ -134,6 +142,9 @@ export class UploadPage {
     const fileInput = document.getElementById('upload-input-file');
     const autofillBtn = document.getElementById('btn-autofill-time');
     const form = document.getElementById('upload-form-element');
+    const dragOverlay = document.getElementById('drag-overlay');
+    const dragIndicator = document.getElementById('drag-indicator');
+    const dragText = document.getElementById('drag-text');
 
     // Camera capture
     const cameraBtn = document.getElementById('btn-camera-capture');
@@ -161,18 +172,73 @@ export class UploadPage {
         }
       });
 
+      // Depth counter: dragenter/dragleave fire per child element; only reset
+      // when leaving the whole zone (counter back to 0) to avoid flicker/glitch.
+      let dragDepth = 0;
+
       // Drag and drop handlers
-      dropZone.addEventListener('dragover', (e) => {
+      dropZone.addEventListener('dragenter', (e) => {
         e.preventDefault();
-        if (!this.isScanning) dropZone.classList.add('dragover');
+        dragDepth++;
+        if (!this.isScanning && dragDepth === 1) {
+          dropZone.classList.add('dragover');
+          // Blur effect di zone saat drag (glassmorphism) + tint
+          dropZone.style.backdropFilter = 'blur(14px)';
+          dropZone.style.webkitBackdropFilter = 'blur(14px)';
+          dropZone.style.background = 'rgba(47,107,255,0.08)';
+          if (dragOverlay) {
+            dragOverlay.style.display = 'flex';
+          }
+        }
       });
 
-      ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'));
+      dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if (!this.isScanning) {
+          dropZone.classList.add('dragover');
+          // Check if file is supported
+          const file = e.dataTransfer.files[0];
+          if (file) {
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime'];
+            const allowedExts = ['.jpg', '.jpeg', '.png', '.webp', '.mp4', '.mov'];
+            const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+            const isSupported = allowedTypes.includes(file.type) || allowedExts.includes(ext);
+
+            if (dragIndicator && dragText) {
+              if (isSupported) {
+                dragIndicator.innerHTML = '<i data-lucide="plus" style="width: 40px; height: 40px; color: #10B981;"></i>';
+                dragIndicator.style.background = 'rgba(16, 185, 129, 0.15)';
+                dragText.textContent = 'Lepaskan untuk mengunggah';
+                dragText.style.color = '#10B981';
+              } else {
+                dragIndicator.innerHTML = '<i data-lucide="minus" style="width: 40px; height: 40px; color: #EF4444;"></i>';
+                dragIndicator.style.background = 'rgba(239, 68, 68, 0.15)';
+                dragText.textContent = 'Format tidak didukung';
+                dragText.style.color = '#EF4444';
+              }
+              if (window.lucide) window.lucide.createIcons();
+            }
+          }
+        }
+      });
+
+      dropZone.addEventListener('dragleave', (e) => {
+        dragDepth--;
+        if (dragDepth <= 0) {
+          dragDepth = 0;
+          // Only reset when truly leaving the zone
+          const rect = dropZone.getBoundingClientRect();
+          const x = e.clientX, y = e.clientY;
+          if (x <= rect.left || x >= rect.right || y <= rect.top || y >= rect.bottom) {
+            this.resetDropZone(dropZone, dragOverlay);
+          }
+        }
       });
 
       dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
+        dragDepth = 0;
+        this.resetDropZone(dropZone, dragOverlay);
         if (this.isScanning) return;
         const files = e.dataTransfer.files;
         if (files.length > 0) {
@@ -193,6 +259,18 @@ export class UploadPage {
 
     if (form) {
       form.addEventListener('submit', (e) => this.handleSubmit(e));
+    }
+  }
+
+  resetDropZone(dropZone, dragOverlay) {
+    if (!dropZone) return;
+    dropZone.classList.remove('dragover');
+    // Clear blur effect
+    dropZone.style.backdropFilter = '';
+    dropZone.style.webkitBackdropFilter = '';
+    dropZone.style.background = 'rgba(255,255,255,0.45)';
+    if (dragOverlay) {
+      dragOverlay.style.display = 'none';
     }
   }
 

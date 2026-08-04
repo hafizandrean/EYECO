@@ -88,6 +88,7 @@ app.use('/css', express_1.default.static(path_1.default.join(__dirname, '../publ
 app.use('/js', express_1.default.static(path_1.default.join(__dirname, '../public/js'), staticNoCacheOptions));
 app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../public/uploads')));
 app.use('/hls', express_1.default.static(path_1.default.join(__dirname, '../public/hls')));
+app.use('/assets', express_1.default.static(path_1.default.join(__dirname, '../public/assets')));
 // Global middleware to populate req.userContext from cookie/header
 app.use((req, res, next) => {
     const { verifyToken } = require('./auth/auth.service');
@@ -111,6 +112,7 @@ app.use((req, res, next) => {
 app.use('/css', express_1.default.static(path_1.default.join(__dirname, '../public/css'), staticNoCacheOptions));
 app.use('/js', express_1.default.static(path_1.default.join(__dirname, '../public/js'), staticNoCacheOptions));
 app.use('/hls', express_1.default.static(path_1.default.join(__dirname, '../public/hls')));
+app.use('/assets', express_1.default.static(path_1.default.join(__dirname, '../public/assets')));
 // Uploads: local dulu, fallback ke R2 (proxy, bukan redirect)
 const uploadsDir = path_1.default.join(__dirname, '../public/uploads');
 app.use('/uploads', (req, res, next) => {
@@ -214,15 +216,10 @@ function getRedirectPath(role) {
 }
 // --- VIEW ROUTES ---
 app.get('/', async (req, res) => {
-    try {
-        const user = await (0, authMiddleware_1.getLoggedInUser)(req);
-        if (!user)
-            return res.redirect('/login');
-        res.redirect(getRedirectPath(user.role));
-    }
-    catch (err) {
-        res.redirect('/login');
-    }
+    const user = await (0, authMiddleware_1.getLoggedInUser)(req);
+    if (user)
+        return res.redirect(getRedirectPath(user.role));
+    res.sendFile(path_1.default.join(__dirname, '../public/views/landing.html'));
 });
 app.get('/login', async (req, res) => {
     try {
@@ -256,6 +253,10 @@ app.get('/register-superadmin', async (req, res) => {
     catch (err) {
         res.redirect('/login');
     }
+});
+app.get('/faq', async (req, res) => {
+    const user = await (0, authMiddleware_1.getLoggedInUser)(req);
+    res.sendFile(path_1.default.join(__dirname, '../public/views/faq.html'));
 });
 // API: Get single report detail by ID (Public read access)
 app.get('/api/detections/:id', async (req, res) => {

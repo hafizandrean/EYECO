@@ -97,9 +97,11 @@ export const MacModal = {
       opt = titleOrObj;
     }
 
-    const placeholder = opt.placeholder || 'Catatan (opsional)...';
+    const placeholder = typeof opt.placeholder === 'string' ? opt.placeholder : 'Catatan (opsional)...';
     const confirmText = opt.confirmText || 'Simpan';
     const iconType = opt.iconType || opt.type || 'warning';
+    const validate = opt.validate || null;
+    const errMsg = opt.errorMessage || 'Konfirmasi belum sesuai.';
 
     return new Promise((resolve) => {
       const overlay = document.createElement('div');
@@ -111,9 +113,10 @@ export const MacModal = {
           </div>
           <div class="macos-modal-title">${title}</div>
           <div class="macos-modal-desc">${message}</div>
+          ${validate ? '<div class="macos-modal-error" id="mac-modal-error" style="display:none;color:var(--danger);font-size:0.8rem;font-weight:600;"></div>' : ''}
           <textarea id="mac-modal-textarea" placeholder="${placeholder}"></textarea>
           <div class="macos-modal-actions">
-            <button class="btn btn-secondary-sheet" id="mac-modal-cancel">Batal</button>
+            <button class="btn btn-secondary-sheet" id="mac-modal-cancel">${opt.cancelText || 'Batal'}</button>
             <button class="btn btn-primary-sheet" id="mac-modal-confirm">${confirmText}</button>
           </div>
         </div>
@@ -135,10 +138,33 @@ export const MacModal = {
         resolve(null);
       });
       overlay.querySelector('#mac-modal-confirm').addEventListener('click', () => {
-        const val = overlay.querySelector('#mac-modal-textarea').value.trim();
+        const textarea = overlay.querySelector('#mac-modal-textarea');
+        const val = (textarea ? textarea.value : '').trim();
+
+        if (validate && !validate(val)) {
+          const errEl = overlay.querySelector('#mac-modal-error');
+          if (errEl) {
+            errEl.textContent = opt.errMsg && opt.errMsg.trim() ? opt.errMsg : 'Konfirmasi belum sesuai.';
+            errEl.style.display = 'block';
+          }
+          if (textarea) textarea.focus();
+          return; // dialog stays open
+        }
+
         cleanup();
-        resolve(val);
+        resolve(val !== undefined || val !== '' ? val : '');
       });
+
+      // Live clear error while typing
+      const errEl = overlay.querySelector('#mac-modal-error');
+      const textarea = overlay.querySelector('#mac-modal-textarea');
+      if (errEl && textarea && validate) {
+        textarea.addEventListener('input', () => {
+          if (validate(textarea.value.trim())) {
+            errEl.style.display = 'none';
+          }
+        });
+      }
 
       const escHandler = (e) => {
         if (e.key === 'Escape') {
@@ -150,7 +176,7 @@ export const MacModal = {
       document.addEventListener('keydown', escHandler);
 
       // Auto-focus textarea
-      setTimeout(() => overlay.querySelector('#mac-modal-textarea').focus(), 100);
+      setTimeout(() => { if (textarea) textarea.focus(); }, 100);
     });
   },
 
