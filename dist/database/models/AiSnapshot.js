@@ -35,9 +35,42 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AiSnapshotModel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
+const FusionSignalSchema = new mongoose_1.Schema({
+    evidenceId: { type: String, required: true },
+    category: {
+        type: String,
+        enum: ['OBJECT_EXISTENCE', 'HUMAN_INTERACTION', 'TEMPORAL_SUPPORT', 'ENVIRONMENT_CONTEXT', 'CONFLICT', 'QUALITY_WARNING'],
+        required: true
+    },
+    code: { type: String, required: true },
+    sourceLayer: { type: String, required: true },
+    confidence: { type: Number, default: null }
+}, { _id: false });
+const FusionDecisionSchema = new mongoose_1.Schema({
+    detectionId: { type: String, required: true },
+    originalConfidence: { type: Number, required: true },
+    candidateClass: { type: String, required: true },
+    objectExistenceStatus: {
+        type: String,
+        enum: ['CONFIRMED', 'CANDIDATE', 'REJECTED'],
+        required: true
+    },
+    policyEvidenceRole: {
+        type: String,
+        enum: ['POSITIVE', 'NEGATIVE', 'NEUTRAL', 'UNAVAILABLE'],
+        required: true
+    },
+    acceptanceReason: { type: String, required: true },
+    supportSignals: [FusionSignalSchema],
+    conflictSignals: [FusionSignalSchema],
+    fusionConfidence: { type: Number, required: true },
+    fusionRuleVersion: { type: String, default: 'fusion-v1' }
+}, { _id: false });
 const AiSnapshotSchema = new mongoose_1.Schema({
     analysisId: { type: String, required: true, unique: true, index: true },
     reportId: { type: Number, index: true },
+    reportObjectId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Report', index: true },
+    analysisClaimToken: { type: String, index: true },
     inputImageHash: { type: String, required: true, index: true },
     imagePath: { type: String, required: true },
     pipelineVersion: { type: String, required: true, default: 'v3.0.0' },
@@ -52,6 +85,7 @@ const AiSnapshotSchema = new mongoose_1.Schema({
         policyVersion: { type: String, default: 'policy-v1.0' },
     },
     featureVector: { type: mongoose_1.Schema.Types.Mixed, required: true },
+    fusionDecisions: [FusionDecisionSchema],
     evidenceItems: { type: mongoose_1.Schema.Types.Mixed, required: true, default: [] },
     decision: { type: mongoose_1.Schema.Types.Mixed, required: true },
     limitations: [{ type: String }],

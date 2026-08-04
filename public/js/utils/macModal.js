@@ -218,5 +218,57 @@ export const MacModal = {
         if (el) el.textContent = msg;
       }
     };
+  },
+  /**
+   * Show a simple alert/info dialog with only a close button.
+   * @param {string|object} titleOrObj
+   * @returns {Promise<void>}
+   */
+  alert(titleOrObj) {
+    let title = titleOrObj;
+    let message = '';
+
+    if (typeof titleOrObj === 'object' && titleOrObj !== null) {
+      title = titleOrObj.title || 'Info';
+      message = titleOrObj.message || titleOrObj.desc || '';
+    }
+
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'macos-modal-overlay';
+      overlay.innerHTML = `
+        <div class="macos-modal">
+          <div class="macos-modal-icon success">
+            <i data-lucide="info" style="width:28px;height:28px;"></i>
+          </div>
+          <div class="macos-modal-title">${title}</div>
+          <div class="macos-modal-desc">${message}</div>
+          <div class="macos-modal-actions">
+            <button class="btn btn-primary-sheet" id="mac-modal-ok">Tutup</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      if (window.lucide) window.lucide.createIcons();
+
+      const cleanup = () => {
+        overlay.removeEventListener('click', handleOverlay);
+        overlay.remove();
+        resolve();
+      };
+      const handleOverlay = (e) => {
+        if (e.target === overlay) cleanup();
+      };
+      overlay.addEventListener('click', handleOverlay);
+      overlay.querySelector('#mac-modal-ok').addEventListener('click', cleanup);
+
+      const escHandler = (e) => {
+        if (e.key === 'Escape') {
+          cleanup();
+          document.removeEventListener('keydown', escHandler);
+        }
+      };
+      document.addEventListener('keydown', escHandler);
+    });
   }
 };

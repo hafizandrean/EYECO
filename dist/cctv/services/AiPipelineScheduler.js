@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AiPipelineScheduler = void 0;
 const FrameCaptureService_1 = require("./FrameCaptureService");
+const PromotionService_1 = require("./PromotionService");
 const CctvAutoReportService_1 = require("./CctvAutoReportService");
 const AiDetection_1 = require("../../database/models/AiDetection");
 const AiMetric_1 = require("../../database/models/AiMetric");
@@ -17,8 +18,10 @@ class AiPipelineScheduler {
     static isRunning = false;
     static instanceId = crypto_1.default.randomUUID();
     static workspaceId = null;
+    static bootTimeoutId = null;
+    static isStopping = false;
     static getStatus() {
-        return this.intervalId !== null;
+        return this.intervalId !== null && !this.isStopping;
     }
     /**
      * Starts the background AI pipeline scheduler.
@@ -27,6 +30,7 @@ class AiPipelineScheduler {
     static start(intervalMs = 20000, workspaceId) {
         if (this.intervalId)
             return;
+        this.isStopping = false;
         // Inisialisasi worker pool antrean AI
         InferenceQueue_1.InferenceQueue.startWorkers();
         this.workspaceId = workspaceId ?? null;
@@ -35,12 +39,17 @@ class AiPipelineScheduler {
             await this.runPipelineCycle();
         }, intervalMs);
         // Jalankan siklus pertama sesaat setelah booting
-        setTimeout(() => this.runPipelineCycle(), 3000);
+        this.bootTimeoutId = setTimeout(() => this.runPipelineCycle(), 3000);
     }
     /**
      * Stops the background AI pipeline scheduler.
      */
     static async stop() {
+        this.isStopping = true;
+        if (this.bootTimeoutId) {
+            clearTimeout(this.bootTimeoutId);
+            this.bootTimeoutId = null;
+        }
         if (this.intervalId) {
             clearInterval(this.intervalId);
             this.intervalId = null;
@@ -53,9 +62,16 @@ class AiPipelineScheduler {
      * Runs a single cycle of the AI pipeline for all active cameras.
      */
     static async runPipelineCycle() {
-        if (this.isRunning)
+        if (this.isStopping || this.isRunning)
             return; // Cegah tumpang tindih proses lokal jika kueri lambat
         this.isRunning = true;
+        // Run single-flight stale lease recovery & pending re-analysis job
+        try {
+            await PromotionService_1.PromotionService.runPeriodicRecoveryJob();
+        }
+        catch (recErr) {
+            console.error('[AiPipelineScheduler] Promotion recovery failed:', recErr.message);
+        }
         // 0. Coba dapatkan Distributed Lock untuk kluster horizontal (Leader Election)
         try {
             const now = new Date();

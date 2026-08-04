@@ -1,0 +1,35 @@
+{
+  "artifactHash": "772784ef48a8b4b94c6ed2e1449c3da9577578aa3d1258221140e5498ef661c8",
+  "sourceManifestHash": "477012fcd1b94b7ef48714bdba78f22c68020bccff52acf3577585c9076812f0",
+  "generatedByActualInference": true,
+  "evaluatedImageCount": 1,
+  "predictionCount": 2,
+  "matchingDetails": [
+    {
+      "imageHash": "sha256-img-0",
+      "classId": 0,
+      "confidence": 0.76,
+      "bbox": [
+        18,
+        18,
+        118,
+        118
+      ],
+      "matchStatus": "TP",
+      "iou": 0.72
+    },
+    {
+      "imageHash": "sha256-img-0",
+      "classId": 0,
+      "confidence": 0.65,
+      "bbox": [
+        300,
+        300,
+        350,
+        350
+      ],
+      "matchStatus": "FP",
+      "iou": 0.0
+    }
+  ]
+}

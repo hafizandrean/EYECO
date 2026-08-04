@@ -1,0 +1,1397 @@
+{
+  "mode": "APPLY",
+  "executedAt": "2026-07-30T17:56:54.563Z",
+  "stats": {
+    "totalScanned": 139,
+    "valid": 2,
+    "legacy": 135,
+    "repaired": 2,
+    "unchanged": 2,
+    "snapshotMissing": 0,
+    "inconsistent": 0,
+    "manualReview": 0,
+    "failed": 0
+  },
+  "auditLogs": [
+    {
+      "reportId": 4,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 5,
+      "action": "SET_ACTIVE_SNAPSHOT",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "VALID",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": "6a697f86c466a4f1888059b5",
+      "changedFields": {
+        "activeSnapshotId": {
+          "before": null,
+          "after": "6a697f86c466a4f1888059b5"
+        }
+      },
+      "reason": "Assigned single candidate snapshot as active and synced summary fields"
+    },
+    {
+      "reportId": 6,
+      "action": "SET_ACTIVE_SNAPSHOT",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "VALID",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": "6a69801fbd840f04f3448c2d",
+      "changedFields": {
+        "activeSnapshotId": {
+          "before": null,
+          "after": "6a69801fbd840f04f3448c2d"
+        }
+      },
+      "reason": "Assigned single candidate snapshot as active and synced summary fields"
+    },
+    {
+      "reportId": 7,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 8,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 9,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 10,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 11,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 12,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 13,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 14,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 15,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 16,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 17,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 18,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 19,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 20,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 21,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 22,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 23,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 24,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 25,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 26,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 27,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 28,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 29,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 30,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 31,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 32,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 33,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 34,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 35,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 36,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 37,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 38,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 39,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 40,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 41,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 42,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 43,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 44,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 45,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 46,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 47,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 48,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 49,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 50,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 51,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 52,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 53,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 54,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 55,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 56,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 57,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 58,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 59,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 60,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 61,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 62,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 63,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 64,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 65,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 66,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 67,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 68,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 69,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 70,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 71,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 72,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 73,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 74,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 75,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 76,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 77,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 78,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 79,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 80,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 81,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 82,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 83,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 84,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 85,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 86,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 87,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 88,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 89,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 90,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 91,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 92,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 93,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 94,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 95,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 96,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 97,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 98,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 99,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 100,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 101,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 102,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 103,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 104,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 105,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 106,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 107,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 108,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 109,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 110,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 111,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 112,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 113,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 114,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 115,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 116,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 117,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 118,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 119,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 121,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 122,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 123,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 124,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 125,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 126,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 127,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 128,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 129,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 130,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 131,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 132,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 133,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 134,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 135,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 136,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 137,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 138,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 139,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 140,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    },
+    {
+      "reportId": 141,
+      "action": "SKIPPED_LEGACY",
+      "integrityBefore": "LEGACY",
+      "integrityAfter": "LEGACY",
+      "activeSnapshotIdBefore": null,
+      "activeSnapshotIdAfter": null,
+      "changedFields": {},
+      "reason": "Report has no associated AiSnapshots. Confirmed as legacy report."
+    }
+  ]
+}

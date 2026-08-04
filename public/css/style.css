@@ -3629,6 +3629,10 @@ body.dark-mode .news-mcard-body p {
   color: #ef4444;
 }
 
+.vms-status-value.accent-yellow {
+  color: #f59e0b;
+}
+
 /* Event Logs List */
 .vms-event-logs-list {
   display: flex;

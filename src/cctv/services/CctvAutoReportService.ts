@@ -101,12 +101,21 @@ export class CctvAutoReportService {
 
       // AI Engine analysis
       let aiStatus: 'TINGGI' | 'SEDANG' | 'RENDAH' | 'Tidak Terindikasi' = 'Tidak Terindikasi';
-      let violationScore = 0;
-      let decisionConfidence = 0;
+      let violationScore: number | null = 0;
+      let decisionConfidence: number | null = 0;
 
       try {
         const aiAnalysis = await aiEngine.analyze(lastCapturePath);
-        aiStatus = aiAnalysis.decision.status as any;
+        const rawStatus = aiAnalysis.decision.status as string;
+        if (rawStatus === 'Indikasi Tinggi' || rawStatus === 'TINGGI') {
+          aiStatus = 'TINGGI';
+        } else if (rawStatus === 'Indikasi Sedang' || rawStatus === 'SEDANG') {
+          aiStatus = 'SEDANG';
+        } else if (rawStatus === 'Indikasi Rendah' || rawStatus === 'RENDAH') {
+          aiStatus = 'RENDAH';
+        } else {
+          aiStatus = 'Tidak Terindikasi';
+        }
         violationScore = aiAnalysis.decision.violationScore;
         decisionConfidence = aiAnalysis.decision.decisionConfidence;
       } catch {
@@ -126,6 +135,11 @@ export class CctvAutoReportService {
             violationScore = Math.round(70 + 25 * Math.max(...trashDets.map(d => d.confidence)));
           }
         }
+      }
+
+      // Only auto-report if it triggers a medium (SEDANG) or high (TINGGI) violation
+      if (aiStatus !== 'TINGGI' && aiStatus !== 'SEDANG') {
+        return;
       }
 
       const maxPersonConf = Math.max(...personDetections.map(d => d.confidence));
@@ -150,14 +164,38 @@ export class CctvAutoReportService {
         identity: `CCTV-CAM-${String(camera.id).padStart(2, '0')}`,
         sourceType: 'AI_CCTV',
         additionalNotes: `Deteksi otomatis dari CCTV ${camera.name} di ${camera.location}. Terdeteksi ${personDetections.length} orang.`,
-        boundingBoxes: detectionResult.boxes.map(b => ({
-          label: b.label,
-          confidence: b.confidence,
-          x: b.x,
-          y: b.y,
-          w: b.w,
-          h: b.h
-        })),
+        boundingBoxes: detectionResult.boxes.map(b => {
+          const labelMap: Record<string, string> = {
+            'person': 'Orang', 'people': 'Orang', 'sitting': 'Orang', 'standing': 'Orang', 'orang': 'Orang', 'cctv persons': 'Orang',
+            'bicycle': 'Sepeda', 'car': 'Mobil', 'motorcycle': 'Sepeda Motor', 'airplane': 'Pesawat', 'bus': 'Bus', 'train': 'Kereta',
+            'truck': 'Truk', 'boat': 'Perahu', 'perahu': 'Perahu', 'traffic light': 'Lampu Lalu Lintas', 'fire hydrant': 'Hidran Pemadam',
+            'stop sign': 'Rambu Stop', 'parking meter': 'Meteran Parkir', 'bench': 'Bangku', 'bird': 'Burung', 'cat': 'Kucing',
+            'dog': 'Anjing', 'horse': 'Kuda', 'sheep': 'Domba', 'cow': 'Sapi', 'elephant': 'Gajah', 'bear': 'Beruang',
+            'zebra': 'Zebra', 'giraffe': 'Jerapah', 'backpack': 'Ransel', 'umbrella': 'Payung', 'handbag': 'Tas Tangan',
+            'tie': 'Dasi', 'suitcase': 'Koper', 'frisbee': 'Frisbee', 'skis': 'Ski', 'snowboard': 'Papan Seluncur Salju',
+            'sports ball': 'Bola Olahraga', 'kite': 'Layang-layang', 'baseball bat': 'Pemukul Bisbol', 'baseball glove': 'Sarung Tangan Bisbol',
+            'skateboard': 'Papan Seluncur', 'surfboard': 'Papan Selancar', 'tennis racket': 'Raket Tenis', 'bottle': 'Botol',
+            'plastic': 'Plastik', 'wine glass': 'Gelas Anggur', 'cup': 'Cangkir', 'fork': 'Garpu', 'knife': 'Pisau',
+            'spoon': 'Sendok', 'bowl': 'Mangkuk', 'banana': 'Pisang', 'apple': 'Apel', 'sandwich': 'Roti Lapis',
+            'orange': 'Jeruk', 'broccoli': 'Brokoli', 'carrot': 'Wortel', 'hot dog': 'Hot Dog', 'pizza': 'Pizza',
+            'donut': 'Donat', 'cake': 'Kue', 'chair': 'Kursi', 'couch': 'Sofa', 'potted plant': 'Tanaman Pot',
+            'bed': 'Tempat Tidur', 'dining table': 'Meja Makan', 'toilet': 'Toilet', 'tv': 'TV', 'laptop': 'Laptop',
+            'mouse': 'Mouse', 'remote': 'Remote', 'keyboard': 'Keyboard', 'cell phone': 'Ponsel', 'microwave': 'Microwave',
+            'oven': 'Oven', 'toaster': 'Pemanggang Roti', 'sink': 'Wastafel', 'refrigerator': 'Kulkas', 'book': 'Buku',
+            'clock': 'Jam', 'jam': 'Jam', 'vase': 'Vas', 'scissors': 'Gunting', 'teddy bear': 'Boneka Beruang',
+            'hair drier': 'Pengering Rambut', 'toothbrush': 'Sikat Gigi', 'trash': 'Sampah', 'sampah': 'Sampah',
+            'waste': 'Sampah', 'bag': 'Kantong', 'cardboard': 'Kardus', 'object': 'Objek'
+          };
+          const cleanLabel = labelMap[b.label.toLowerCase()] || b.label;
+          return {
+            label: cleanLabel,
+            confidence: b.confidence,
+            x: b.x,
+            y: b.y,
+            w: b.w,
+            h: b.h
+          };
+        }),
       }, (adminUser as any).id);
 
       if (newReport) {
@@ -204,11 +242,35 @@ export class CctvAutoReportService {
         .sort({ createdAt: 1 }).lean().exec();
       if (!admin) return null;
 
-      const boundingBoxes = detection.detections.map(d => ({
-        label: d.class,
-        confidence: d.confidence,
-        x: d.bbox[0], y: d.bbox[1], w: d.bbox[2], h: d.bbox[3]
-      }));
+      const boundingBoxes = detection.detections.map(d => {
+        const labelMap: Record<string, string> = {
+          'person': 'Orang', 'people': 'Orang', 'sitting': 'Orang', 'standing': 'Orang', 'orang': 'Orang', 'cctv persons': 'Orang',
+          'bicycle': 'Sepeda', 'car': 'Mobil', 'motorcycle': 'Sepeda Motor', 'airplane': 'Pesawat', 'bus': 'Bus', 'train': 'Kereta',
+          'truck': 'Truk', 'boat': 'Perahu', 'perahu': 'Perahu', 'traffic light': 'Lampu Lalu Lintas', 'fire hydrant': 'Hidran Pemadam',
+          'stop sign': 'Rambu Stop', 'parking meter': 'Meteran Parkir', 'bench': 'Bangku', 'bird': 'Burung', 'cat': 'Kucing',
+          'dog': 'Anjing', 'horse': 'Kuda', 'sheep': 'Domba', 'cow': 'Sapi', 'elephant': 'Gajah', 'bear': 'Beruang',
+          'zebra': 'Zebra', 'giraffe': 'Jerapah', 'backpack': 'Ransel', 'umbrella': 'Payung', 'handbag': 'Tas Tangan',
+          'tie': 'Dasi', 'suitcase': 'Koper', 'frisbee': 'Frisbee', 'skis': 'Ski', 'snowboard': 'Papan Seluncur Salju',
+          'sports ball': 'Bola Olahraga', 'kite': 'Layang-layang', 'baseball bat': 'Pemukul Bisbol', 'baseball glove': 'Sarung Tangan Bisbol',
+          'skateboard': 'Papan Seluncur', 'surfboard': 'Papan Selancar', 'tennis racket': 'Raket Tenis', 'bottle': 'Botol',
+          'plastic': 'Plastik', 'wine glass': 'Gelas Anggur', 'cup': 'Cangkir', 'fork': 'Garpu', 'knife': 'Pisau',
+          'spoon': 'Sendok', 'bowl': 'Mangkuk', 'banana': 'Pisang', 'apple': 'Apel', 'sandwich': 'Roti Lapis',
+          'orange': 'Jeruk', 'broccoli': 'Brokoli', 'carrot': 'Wortel', 'hot dog': 'Hot Dog', 'pizza': 'Pizza',
+          'donut': 'Donat', 'cake': 'Kue', 'chair': 'Kursi', 'couch': 'Sofa', 'potted plant': 'Tanaman Pot',
+          'bed': 'Tempat Tidur', 'dining table': 'Meja Makan', 'toilet': 'Toilet', 'tv': 'TV', 'laptop': 'Laptop',
+          'mouse': 'Mouse', 'remote': 'Remote', 'keyboard': 'Keyboard', 'cell phone': 'Ponsel', 'microwave': 'Microwave',
+          'oven': 'Oven', 'toaster': 'Pemanggang Roti', 'sink': 'Wastafel', 'refrigerator': 'Kulkas', 'book': 'Buku',
+          'clock': 'Jam', 'jam': 'Jam', 'vase': 'Vas', 'scissors': 'Gunting', 'teddy bear': 'Boneka Beruang',
+          'hair drier': 'Pengering Rambut', 'toothbrush': 'Sikat Gigi', 'trash': 'Sampah', 'sampah': 'Sampah',
+          'waste': 'Sampah', 'bag': 'Kantong', 'cardboard': 'Kardus', 'object': 'Objek'
+        };
+        const cleanLabel = labelMap[d.class.toLowerCase()] || d.class;
+        return {
+          label: cleanLabel,
+          confidence: d.confidence,
+          x: d.bbox[0], y: d.bbox[1], w: d.bbox[2], h: d.bbox[3]
+        };
+      });
 
       const maxConfidence = Math.max(...detection.detections.map(d => d.confidence), 0);
       
@@ -236,6 +298,27 @@ export class CctvAutoReportService {
         console.error('[CctvAutoReportService] Failed to copy pipeline evidence image:', copyErr);
       }
 
+      const labelMap: Record<string, string> = {
+        'person': 'Orang',
+        'people': 'Orang',
+        'sitting': 'Orang',
+        'standing': 'Orang',
+        'orang': 'Orang',
+        'trash': 'Sampah',
+        'sampah': 'Sampah',
+        'boat': 'Perahu',
+        'perahu': 'Perahu',
+        'clock': 'Jam',
+        'jam': 'Jam',
+        'plastic': 'Plastik',
+        'bottle': 'Botol',
+        'bag': 'Kantong',
+        'waste': 'Sampah',
+        'cardboard': 'Kardus',
+        'object': 'Objek'
+      };
+      const indonesianClasses = detection.detections.map(d => labelMap[d.class.toLowerCase()] || d.class);
+
       const report = await ReportRepository.create({
         location: camera.location,
         aiStatus,
@@ -243,7 +326,7 @@ export class CctvAutoReportService {
         image: uniqueRelativePath,
         identity: `AI Deteksi: ${camera.name}`,
         sourceType: 'AI_CCTV',
-        additionalNotes: `Deteksi otomatis pelanggaran ${aiStatus} dari CCTV ${camera.name} di ${camera.location}. Objek: ${detection.detections.map(d => d.class).join(', ')}.`,
+        additionalNotes: `Deteksi otomatis pelanggaran ${aiStatus} dari CCTV ${camera.name} di ${camera.location}. Objek: ${indonesianClasses.join(', ')}.`,
         boundingBoxes
       }, admin.id);
 

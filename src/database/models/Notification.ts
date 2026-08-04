@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface INotification extends Document {
+  eventKey?: string;
   workspaceId: number;
   recipientId: mongoose.Types.ObjectId;
   reportId: mongoose.Types.ObjectId;
@@ -18,6 +19,7 @@ export interface INotification extends Document {
 }
 
 const NotificationSchema = new Schema<INotification>({
+  eventKey: { type: String, unique: true, sparse: true, index: true },
   workspaceId: { type: Number, index: true },
   recipientId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   reportId: { type: Schema.Types.ObjectId, ref: 'Report', required: true },

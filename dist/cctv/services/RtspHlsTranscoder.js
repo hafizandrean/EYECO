@@ -85,12 +85,12 @@ class RtspHlsTranscoder {
             '-loglevel', 'warning',
             '-rtsp_transport', 'tcp',
             '-i', rtspUrl,
-            '-c:v', 'copy', // Copy video directly, extremely fast and low CPU
-            '-an', // Disable audio since CCTV doesn't need audio and it fails to transcode
+            '-c:v', 'copy', // Copy video directly, extremely fast and zero CPU load
+            '-an', // Disable audio for smooth video performance
             '-f', 'hls',
-            '-hls_time', '2',
-            '-hls_list_size', '10',
-            '-hls_flags', 'delete_segments+append_list+split_by_time',
+            '-hls_time', '1',
+            '-hls_list_size', '15',
+            '-hls_flags', 'delete_segments+append_list+omit_endlist+temp_file',
             '-hls_allow_cache', '0',
             '-hls_segment_filename', segmentFilename,
             m3u8Path

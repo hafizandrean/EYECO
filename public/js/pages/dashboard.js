@@ -29,6 +29,13 @@ export class DashboardPage {
     const user = AppState.get('user');
     const isAdmin = user?.role === 'admin';
 
+    // Pick up camera filter from CCTV Monitoring "Riwayat Deteksi" button
+    const pendingSearch = AppState.get('dashboardSearchQuery');
+    if (pendingSearch) {
+      this.searchQuery = pendingSearch.toLowerCase().trim();
+      AppState.set('dashboardSearchQuery', null);
+    }
+
     container.innerHTML = `
       <!-- 1. Command Center HUD --> 
       <div class="cc-hud glass-card" id="command-center-hud" style="padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
@@ -163,7 +170,7 @@ export class DashboardPage {
           <div class="incident-filter-row">
             <div style="position: relative;">
               <i data-lucide="search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; color: var(--text-secondary);"></i>
-              <input type="text" id="incident-search-input" class="incident-filter-input" placeholder="Cari lokasi, kamera..." style="padding-left: 32px;" />
+              <input type="text" id="incident-search-input" class="incident-filter-input" placeholder="Cari lokasi, kamera..." style="padding-left: 32px;" value="${this.searchQuery}" />
             </div>
             <input type="text" id="incident-filter-id" class="incident-filter-input" placeholder="ID (#0042)" />
             <select id="incident-filter-camera" class="incident-filter-input">
@@ -508,13 +515,13 @@ export class DashboardPage {
     const sysBarEl = document.getElementById('stat-system-health-bar');
     const sysDescEl = document.getElementById('stat-system-health-desc');
 
-    if (sysValEl) sysValEl.innerText = isMon ? 'Active' : 'Standby';
+    if (sysValEl) sysValEl.innerText = isMon ? 'Aktif' : 'Siaga';
     if (sysBarEl) {
       sysBarEl.style.width = isMon ? '100%' : '50%';
       sysBarEl.style.background = isMon ? 'var(--success)' : 'var(--text-muted)';
     }
     if (sysDescEl) {
-      sysDescEl.innerText = isMon ? 'System Online' : 'Monitoring Paused';
+      sysDescEl.innerText = isMon ? 'Sistem Online' : 'Pemantauan Dijeda';
     }
   }
 
@@ -604,7 +611,7 @@ export class DashboardPage {
     const queueReports = this.filterQueueReports(this.latestReports);
 
     if (activeIncidentsBadge) {
-      activeIncidentsBadge.innerText = `${queueReports.length} Queue`;
+      activeIncidentsBadge.innerText = `${queueReports.length} Antrean`;
       activeIncidentsBadge.style.background = queueReports.length > 0 ? 'rgba(239, 68, 68, 0.08)' : 'rgba(34, 197, 94, 0.08)';
       activeIncidentsBadge.style.color = queueReports.length > 0 ? 'var(--danger)' : 'var(--success)';
     }
@@ -627,9 +634,11 @@ export class DashboardPage {
       } else {
         queueReports.forEach(r => {
           const item = document.createElement('div');
-          const isHigh = r.aiStatus === 'TINGGI';
-          const isMed = r.aiStatus === 'SEDANG';
-          const priorityClass = isHigh ? 'incident-priority-high' : (isMed ? 'incident-priority-medium' : 'incident-priority-low');
+          const isProcessing = r.analysisState === 'PROCESSING' || r.aiDataIntegrityStatus === 'PENDING';
+          const isFailed = r.analysisState === 'FAILED';
+          const isHigh = !isProcessing && !isFailed && (r.aiStatus === 'TINGGI' || r.aiStatus === 'Indikasi Tinggi');
+          const isMed = !isProcessing && !isFailed && (r.aiStatus === 'SEDANG' || r.aiStatus === 'Indikasi Sedang');
+          const priorityClass = isProcessing ? 'incident-priority-medium' : (isHigh ? 'incident-priority-high' : (isMed ? 'incident-priority-medium' : 'incident-priority-low'));
           item.className = `incident-queue-item hover-lift ${priorityClass}`;
           
           const rawCategory = r.boundingBoxes && r.boundingBoxes[0] ? r.boundingBoxes[0].label : 'Sampah';
@@ -652,7 +661,7 @@ export class DashboardPage {
             ? `Laporan dari ${cameraSource}`
             : `Laporan dari CCTV ${cameraSource}`;
           
-          const severityText = isHigh ? 'TINGGI' : (isMed ? 'SEDANG' : 'RENDAH');
+          const severityText = isProcessing ? 'SEDANG DIANALISIS' : (isFailed ? 'GAGAL ANALISIS' : (isHigh ? 'TINGGI' : (isMed ? 'SEDANG' : 'RENDAH')));
 
           let workflowState = 'MENUNGGU';
           if (r.adminStatus === 'VALID') {
@@ -706,7 +715,7 @@ export class DashboardPage {
               ${officerHtml}
             </div>
             <button class="btn btn-sm btn-glass btn-open-incident" style="margin-left: auto; padding: 8px 18px; font-size:0.7rem; font-weight:800; flex-shrink:0; white-space:nowrap;">
-              Open Incident
+              Buka Laporan
             </button>
           `;
           
@@ -732,7 +741,7 @@ export class DashboardPage {
     const statInProgress = document.getElementById('stat-in-progress');
     const statResolvedToday = document.getElementById('stat-resolved-today');
 
-    if (statWaiting) statWaiting.innerText = isMon ? this.latestReports.filter(r => r.adminStatus === 'MENUNGGU').length : 0;
+    if (statWaiting) statWaiting.innerText = isMon ? (this.stats.pending !== undefined ? this.stats.pending : this.latestReports.filter(r => r.adminStatus === 'MENUNGGU').length) : 0;
     if (statAssigned) statAssigned.innerText = isMon ? this.latestReports.filter(r => r.adminStatus === 'VALID' && r.assignedOfficer && r.status !== 'PROSES' && r.status !== 'SELESAI').length : 0;
     if (statInProgress) statInProgress.innerText = isMon ? this.latestReports.filter(r => r.status === 'PROSES').length : 0;
     if (statResolvedToday) statResolvedToday.innerText = isMon ? this.latestReports.filter(r => r.status === 'SELESAI' && new Date(r.timestamp) >= todayStart).length : 0;
@@ -867,6 +876,11 @@ export class DashboardPage {
       clearInterval(this.pollingTimer);
       this.pollingTimer = null;
     }
+    this.searchQuery = '';
+    this.filterId = '';
+    this.filterCamera = 'all';
+    this.filterDate = '';
+    this.filterStatus = 'all';
   }
 }
 export const Dashboard = new DashboardPage();

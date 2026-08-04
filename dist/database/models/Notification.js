@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.NotificationModel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 const NotificationSchema = new mongoose_1.Schema({
+    eventKey: { type: String, unique: true, sparse: true, index: true },
     workspaceId: { type: Number, index: true },
     recipientId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     reportId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Report', required: true },

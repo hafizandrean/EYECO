@@ -1,0 +1,19 @@
+{
+  "manifestVersion": "v1.0.0",
+  "items": [
+    {
+      "imagePath": "d:\\Documents\\GitHub\\EYECO\\public\\uploads\\p6cgp_sample.jpg",
+      "annotations": [
+        {
+          "className": "plastic_bag",
+          "bbox": [
+            10,
+            10,
+            90,
+            90
+          ]
+        }
+      ]
+    }
+  ]
+}

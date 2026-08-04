@@ -7,6 +7,26 @@ export class NotificationDispatcher {
    * Background OutboxWorker will consume this asynchronously.
    */
   public static async dispatch(report: IReport): Promise<void> {
+    // Guard: AI CCTV auto-reports MUST be READY with a valid activeSnapshotId and VALID integrity before dispatching
+    if (report.sourceType === 'Otomatis' || (report.identity && report.identity.startsWith('CCTV-CAM-'))) {
+      const integrityStatus = report.aiDataIntegrityStatus;
+      const outcome = report.analysisOutcome;
+      const isCompletedOutcome = outcome === 'COMPLETE' || outcome === 'COMPLETE_WITH_LIMITATIONS';
+      const isScoreValid = Number.isFinite(report.violationScore) && report.violationScore! >= 0 && report.violationScore! <= 100;
+
+      const eligibleForAiAlert =
+        report.analysisState === 'READY' &&
+        isCompletedOutcome &&
+        integrityStatus === 'VALID' &&
+        report.activeSnapshotId != null &&
+        isScoreValid;
+
+      if (!eligibleForAiAlert) {
+        console.log(`[NotificationDispatcher] Suppressing AI outbox event for Report #${report.id}: state=${report.analysisState}, outcome=${outcome}, snapshot=${report.activeSnapshotId}, integrity=${integrityStatus}, score=${report.violationScore}`);
+        return;
+      }
+    }
+
     console.log(`[NotificationDispatcher] Queuing outbox event for Report #${report.id}...`);
     try {
       await OutboxEventModel.create({

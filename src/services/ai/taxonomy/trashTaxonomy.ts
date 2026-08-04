@@ -69,8 +69,6 @@ const SAFE_CLASSES = new Set([
   // Person variants
   'person', 'orang', 'people', 'sitting', 'standing',
   'fall-detected', 'fall detected',
-  // Accessories (not trash themselves)
-  'handbag', 'backpack', 'suitcase',
   // Vehicles
   'bicycle', 'car', 'motorcycle', 'bus', 'truck', 'boat', 'train', 'airplane',
   // Animals

@@ -22,15 +22,19 @@ export class YoloPoseService implements IPoseEstimator {
         const h = box.h;
         const boxDiagonal = Math.sqrt(w * w + h * h) || 1;
 
-        // Estimate keypoint positions relative to person bounding box
-        const leftWristX = x1 + w * 0.15;
-        const leftWristY = y1 + h * 0.65;
-        const rightWristX = x1 + w * 0.85;
-        const rightWristY = y1 + h * 0.65;
+        // Estimate keypoint positions relative to person bounding box (including extended arms)
+        const leftWristX = x1 + w * 0.10;
+        const leftWristY = y1 + h * 0.55;
+        const rightWristX = x1 + w * 0.90;
+        const rightWristY = y1 + h * 0.55;
+        const leftExtendedX = x1 - w * 0.35;
+        const rightExtendedX = x1 + w * 1.35;
 
         const keypoints: PoseKeypoint[] = [
           { part: 'leftWrist', x: leftWristX, y: leftWristY, confidence: 0.88 },
           { part: 'rightWrist', x: rightWristX, y: rightWristY, confidence: 0.90 },
+          { part: 'leftExtendedWrist', x: leftExtendedX, y: leftWristY, confidence: 0.85 },
+          { part: 'rightExtendedWrist', x: rightExtendedX, y: rightWristY, confidence: 0.85 },
           { part: 'leftElbow', x: x1 + w * 0.20, y: y1 + h * 0.45, confidence: 0.85 },
           { part: 'rightElbow', x: x1 + w * 0.80, y: y1 + h * 0.45, confidence: 0.87 },
           { part: 'leftShoulder', x: x1 + w * 0.25, y: y1 + h * 0.25, confidence: 0.92 },
@@ -39,7 +43,7 @@ export class YoloPoseService implements IPoseEstimator {
 
         return {
           personId: `person-${idx + 1}`,
-          bbox: [x1, y1, x1 + w, y1 + h],
+          bbox: [x1 - w * 0.4, y1, x1 + w * 1.4, y1 + h],
           boxDiagonal,
           keypoints,
           leftWristNormalized: { x: leftWristX, y: leftWristY, confidence: 0.88 },

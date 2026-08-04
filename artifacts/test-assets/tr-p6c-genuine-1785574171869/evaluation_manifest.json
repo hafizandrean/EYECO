@@ -1,0 +1,10 @@
+{
+  "manifestVersion": "v1.0.0",
+  "items": [
+    {
+      "imagePath": "d:\\Documents\\GitHub\\EYECO\\public\\uploads\\p6cgp_sample.jpg",
+      "imageHash": "sha256-img-0",
+      "split": "TEST"
+    }
+  ]
+}

@@ -103,42 +103,65 @@ export class NotificationService {
     status: string,
     reportOwnerId: number,
     workspaceId?: number,
+    oldStatus?: string
   ): Promise<NotifyResult> {
     try {
+      const cleanStatus = (status || '').toUpperCase().trim();
+      // Guard: Validation notifications MUST only be created for actual transitions to VALID or DIABAIKAN
+      if (cleanStatus === 'MENUNGGU' || cleanStatus === 'PENDING' || (oldStatus && oldStatus === cleanStatus)) {
+        console.log(`[NotificationService] Suppressing validation notification for report #${reportId} (status: ${cleanStatus}, oldStatus: ${oldStatus})`);
+        return { success: true, count: 0 };
+      }
+
       const owner = await UserModel.findOne({ id: reportOwnerId }).lean().exec();
       if (!owner) {
         return { success: false, count: 0, error: 'Report owner not found' };
       }
 
       const report = await ReportModel.findOne({ id: reportId, deletedAt: null })
-        .select('_id workspaceId')
+        .select('_id workspaceId analysisState activeSnapshotId')
         .lean()
-        .exec();
+        .exec() as any;
       if (!report) {
         return { success: false, count: 0, error: 'Report not found' };
       }
 
-      const statusLabel =
-        status === 'VALID' ? 'Valid' : status === 'DIABAIKAN' ? 'Diabaikan' : status;
+      if (report.analysisState && report.analysisState !== 'READY') {
+        console.log(`[NotificationService] Suppressing validation notification for unready report #${reportId} (analysisState: ${report.analysisState})`);
+        return { success: true, count: 0 };
+      }
 
+      const statusLabel =
+        cleanStatus === 'VALID' ? 'Valid' : cleanStatus === 'DIABAIKAN' ? 'Diabaikan' : cleanStatus;
+
+      const eventKey = `${reportId}:VALIDATION:${oldStatus || 'PENDING'}:${cleanStatus}`;
       const now = new Date();
       const expiresAt = new Date(now.getTime() + this.EXPIRY_DAYS * 24 * 60 * 60 * 1000);
 
-      await NotificationModel.create({
-        workspaceId: workspaceId ?? report.workspaceId,
-        recipientId: owner._id,
-        reportId: report._id,
-        type: 'VALIDATION',
-        title: 'Laporan Telah Divalidasi',
-        message: `Laporan #${reportId} telah divalidasi dengan status: ${statusLabel}.`,
-        actionUrl: `/dashboard/detections/${reportId}`,
-        icon: 'shield-check',
-        priority: 'HIGH' as NotificationPriority,
-        read: false,
-        readAt: null,
-        expiresAt,
-        deletedAt: null,
-      });
+      try {
+        await NotificationModel.create({
+          eventKey,
+          workspaceId: workspaceId ?? report.workspaceId,
+          recipientId: owner._id,
+          reportId: report._id,
+          type: 'VALIDATION',
+          title: 'Laporan Telah Divalidasi',
+          message: `Laporan #${reportId} telah divalidasi dengan status: ${statusLabel}.`,
+          actionUrl: `/dashboard/detections/${reportId}`,
+          icon: 'shield-check',
+          priority: 'HIGH' as NotificationPriority,
+          read: false,
+          readAt: null,
+          expiresAt,
+          deletedAt: null,
+        });
+      } catch (dbErr: any) {
+        if (dbErr.code === 11000 || (dbErr.message && dbErr.message.includes('E11000'))) {
+          console.log(`[NotificationService] Duplicate eventKey suppressed idempotently: ${eventKey}`);
+          return { success: true, count: 0 };
+        }
+        throw dbErr;
+      }
 
       return { success: true, count: 1 };
     } catch (err) {

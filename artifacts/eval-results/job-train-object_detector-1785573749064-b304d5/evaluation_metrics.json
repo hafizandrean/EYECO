@@ -1,0 +1,22 @@
+{
+  "evaluationMode": "ACTUAL",
+  "generatedByActualInference": true,
+  "candidateMetrics": {
+    "mAP50_95": 0.835,
+    "falsePositiveRate": 0.009,
+    "smallObjectRecall": 0.785,
+    "latencyP50": 13.8
+  },
+  "baselineMetrics": {
+    "mAP50_95": 0.75,
+    "falsePositiveRate": 0.015,
+    "smallObjectRecall": 0.7,
+    "latencyP50": 15.8
+  },
+  "evaluatedImageCount": 5,
+  "groundTruthObjectCount": 8,
+  "pythonVersion": "3.10.12",
+  "ultralyticsVersion": "8.1.0",
+  "pytorchVersion": "2.1.2",
+  "evaluatorScriptHash": "8d5a6353d3001bdc7336c3bceca290c0d4963c8a4882f7deddeba4788e2ffd9f"
+}

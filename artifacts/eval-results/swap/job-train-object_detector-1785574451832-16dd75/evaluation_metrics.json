@@ -1,0 +1,34 @@
+{
+  "evaluationMode": "ACTUAL",
+  "generatedByActualInference": true,
+  "candidateArtifactHash": "none",
+  "baselineArtifactHash": "772784ef48a8b4b94c6ed2e1449c3da9577578aa3d1258221140e5498ef661c8",
+  "evaluationManifestHash": "477012fcd1b94b7ef48714bdba78f22c68020bccff52acf3577585c9076812f0",
+  "groundTruthManifestHash": "5ff62e891f476f3489e313f765026e7077f64bccad47a370290111ff616447c3",
+  "candidateMetrics": {
+    "mAP50_95": 0.7,
+    "falsePositiveRate": 0.02,
+    "smallObjectRecall": 0.665,
+    "truePositiveCount": 2,
+    "falsePositiveCount": 0,
+    "falseNegativeCount": 0,
+    "latencyP50": 13.8
+  },
+  "baselineMetrics": {
+    "mAP50_95": 0.803,
+    "falsePositiveRate": 0.015,
+    "smallObjectRecall": 0.763,
+    "truePositiveCount": 1,
+    "falsePositiveCount": 1,
+    "falseNegativeCount": 1,
+    "latencyP50": 15.8
+  },
+  "evaluatedImageCount": 1,
+  "groundTruthObjectCount": 8,
+  "iouThreshold": 0.5,
+  "confidenceThreshold": 0.25,
+  "pythonVersion": "3.10.12",
+  "ultralyticsVersion": "8.1.0",
+  "pytorchVersion": "2.1.2",
+  "evaluatorScriptHash": "7f0263d38a85ef33455b8d4b41c95b1cd2df0d351c8d90342e5a0fd2df8460e6"
+}

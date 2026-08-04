@@ -4,45 +4,45 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TelegramNotificationChannel = void 0;
-const OutboxEvent_1 = require("../database/models/OutboxEvent");
 const SystemSettings_1 = require("../database/models/SystemSettings");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 class TelegramNotificationChannel {
     name = 'Telegram';
     async send(report) {
-        // 1. Simpan Outbox Event berstatus PENDING
-        const outbox = await OutboxEvent_1.OutboxEventModel.create({
-            aggregateType: 'Report',
-            aggregateId: report._id.toString(),
-            eventType: 'IncidentCreated',
-            payload: report.toJSON(),
-            status: 'PENDING'
-        });
         try {
-            // 2. Ambil token bot dan chat ID dari environment / database
+            // 1. Ambil token bot dan chat ID dari environment / database
             const botToken = process.env.TELEGRAM_BOT_TOKEN;
             const isEnabledSetting = await SystemSettings_1.SystemSettingsModel.findOne({ key: 'telegram.enabled' });
             const chatIdSetting = await SystemSettings_1.SystemSettingsModel.findOne({ key: 'telegram.chatId' });
-            const isEnabled = isEnabledSetting ? isEnabledSetting.value === true : true;
-            const chatId = chatIdSetting ? chatIdSetting.value : null;
-            console.log(`[TelegramChannelDebug] isEnabled: ${isEnabled}, botToken: ${botToken ? 'SET' : 'MISSING'}, chatId: ${chatId}`);
-            if (!isEnabled || !botToken || !chatId) {
-                outbox.status = 'PROCESSED';
-                outbox.processedAt = new Date();
-                await outbox.save();
+            // Fix: handle both boolean true and string "true" from Mixed schema type
+            const isEnabled = isEnabledSetting
+                ? (isEnabledSetting.value === true || isEnabledSetting.value === 'true')
+                : true;
+            const chatId = chatIdSetting ? String(chatIdSetting.value) : null;
+            console.log(`[TelegramChannel] isEnabled: ${isEnabled}, botToken: ${botToken ? 'SET' : 'MISSING'}, chatId: ${chatId}`);
+            if (!isEnabled) {
+                console.log('[TelegramChannel] Telegram notifications disabled in settings. Skipping.');
                 return true;
             }
-            // 3. Susun isi pesan HTML gabungan (Perpaduan Format Deteksi & Detail Insiden)
+            if (!botToken) {
+                console.error('[TelegramChannel] TELEGRAM_BOT_TOKEN not set in .env. Cannot send.');
+                return false;
+            }
+            if (!chatId || chatId === 'null' || chatId === 'undefined') {
+                console.error('[TelegramChannel] telegram.chatId not configured in system settings. Cannot send.');
+                return false;
+            }
+            // 2. Susun isi pesan HTML gabungan (Perpaduan Format Deteksi & Detail Insiden)
             const port = process.env.PORT || 8080;
             const reportUrl = `http://localhost:${port}/dashboard/detections/${report.id}`;
             let statusText = 'Tidak Terindikasi';
             if (report.aiStatus === 'TINGGI')
-                statusText = 'TINGGI';
+                statusText = '🔴 TINGGI';
             else if (report.aiStatus === 'SEDANG')
-                statusText = 'SEDANG';
+                statusText = '🟡 SEDANG';
             else if (report.aiStatus === 'RENDAH')
-                statusText = 'RENDAH';
+                statusText = '🟢 RENDAH';
             const pad = (n) => n.toString().padStart(2, '0');
             const date = new Date(report.timestamp);
             const yyyy = date.getFullYear();
@@ -96,18 +96,11 @@ class TelegramNotificationChannel {
                 const errorText = await response.text();
                 throw new Error(`Telegram API responded with status ${response.status}: ${errorText}`);
             }
-            // 4. Perbarui status Outbox Event menjadi PROCESSED jika sukses
-            outbox.status = 'PROCESSED';
-            outbox.processedAt = new Date();
-            await outbox.save();
             console.log(`[TelegramChannel] Telegram notification sent successfully for Report #${report.id}`);
             return true;
         }
         catch (err) {
             console.error(`[TelegramChannel] Failed to send Telegram notification for Report #${report.id}:`, err.message);
-            // Perbarui status menjadi FAILED
-            outbox.status = 'FAILED';
-            await outbox.save();
             return false;
         }
     }
