@@ -67,13 +67,11 @@ class AppInitializer {
     document.body.scrollTop = 0;
     document.documentElement.scrollTop = 0;
 
-    // Sembunyikan navbar utama saat berada di halaman Profile (single page TikTok)
-    const isProfile = path === '/dashboard/profile';
-    const headerEl = document.getElementById('app-header');
-    if (headerEl) {
-      headerEl.style.display = isProfile ? 'none' : 'block';
-      if (isProfile) document.body.classList.add('no-app-header');
-      else document.body.classList.remove('no-app-header');
+    // Navbar tetap tampil di Settings — tapi tab diganti search bar (lihat Header.js)
+    const isSettings = path === '/dashboard/settings' || path === '/dashboard/profile';
+    // Fallback: jika langsung load /dashboard/settings (refresh), default ke /dashboard
+    if (isSettings && !sessionStorage.getItem('eyeco_settings_return')) {
+      sessionStorage.setItem('eyeco_settings_return', '/dashboard');
     }
 
     // Render halaman baru DI BELAKANG LAYER (opacity 0), tanpa nunggu
@@ -115,7 +113,7 @@ class AppInitializer {
         const id = path.split('/').pop();
         this.currentPageInstance = Detail;
         await Detail.render(this.viewport, id);
-      } else if (path === '/dashboard/profile') {
+      } else if (path === '/dashboard/settings' || path === '/dashboard/profile') {
         this.currentPageInstance = Profile;
         await Profile.render(this.viewport);
       } else if (path === '/dashboard/berita') {

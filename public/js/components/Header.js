@@ -50,17 +50,6 @@ export class HeaderComponent {
       }
     });
 
-    // Theme Toggle
-    const themeBtn = document.getElementById('btn-theme');
-    if (themeBtn) {
-      themeBtn.addEventListener('click', () => {
-        const currentTheme = AppState.get('theme');
-        AppState.set('theme', currentTheme === 'dark' ? 'light' : 'dark');
-        this.updateThemeButton();
-      });
-      this.updateThemeButton();
-    }
-
     // Export Button (Conditional)
     const exportBtn = document.getElementById('btn-header-export');
     if (exportBtn) {
@@ -137,6 +126,13 @@ export class HeaderComponent {
       }
     }
 
+    // Settings page: hide nav tabs, show search bar in navbar
+    const isSettings = currentPath === '/dashboard/settings' || currentPath === '/dashboard/profile';
+    const navTabs = document.getElementById('nav-tabs');
+    const navSearch = document.getElementById('nav-search');
+    if (navTabs) navTabs.style.display = isSettings ? 'none' : '';
+    if (navSearch) navSearch.style.display = isSettings ? 'block' : 'none';
+
     let activeKey = null;
     if (currentPath === '/dashboard') activeKey = 'dashboard';
     else if (currentPath === '/dashboard/laporan') activeKey = 'laporan';
@@ -189,14 +185,6 @@ export class HeaderComponent {
     
     if (dropdownName) dropdownName.innerText = user.username;
     if (dropdownRole) dropdownRole.innerText = user.role.toUpperCase();
-  }
-
-  updateThemeButton() {
-    const themeBtn = document.getElementById('btn-theme');
-    if (!themeBtn) return;
-    const theme = AppState.get('theme');
-    themeBtn.innerHTML = theme === 'dark' ? '<i data-lucide="sun"></i>' : '<i data-lucide="moon"></i>';
-    if (window.lucide) window.lucide.createIcons();
   }
 
   // Helper: derive tab name from a URL path

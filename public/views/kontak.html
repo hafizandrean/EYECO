@@ -12,9 +12,13 @@
     html, body { height: 100%; margin: 0; }
     body {
       font-family: 'Inter', sans-serif;
-      background: #F0F4FF;
+      background: #F0F4FF url('/assets/bg-light.jpg') fixed center / cover;
       min-height: 100vh;
       padding: 20px;
+    }
+    html.dark-mode body,
+    body.dark-mode {
+      background: #0B1120 url('/assets/bg-dark.jpg') fixed center / cover;
     }
     .info-wrapper {
       position: relative;

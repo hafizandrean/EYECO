@@ -103,13 +103,8 @@ class FAQPage {
         <div class="landing-bg" id="landing-bg"><!-- Background handled by body CSS --></div>
         <div class="faq-wrapper animate-fade-up">
           <nav class="landing-nav" style="position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(255,255,255,0.8); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,0,0,0.06); padding: 16px 60px;">
-            <a href="/" class="nav-logo-group" style="text-decoration:none;color:inherit;font-weight:800;font-size:1.1rem;"><img src="/uploads/logo-eyeco.png" alt="EYECO" style="height:28px;width:auto;vertical-align:middle;"> EYECO</a>
-            <div class="nav-menu" style="display:flex;align-items:center;gap:24px;margin-left:auto;">
-              <a href="/tentang" style="color:var(--text-secondary);text-decoration:none;font-weight:500;">Tentang</a>
-              <a href="/faq" style="color:var(--primary);text-decoration:none;font-weight:600;">FAQ</a>
-              <a href="/kontak" style="color:var(--text-secondary);text-decoration:none;font-weight:500;">Kontak</a>
-              <a href="/login" class="secondary-cta" style="padding: 8px 20px; font-size: 0.9rem;">Login</a>
-              <a href="/dashboard" class="premium-cta" style="padding: 8px 20px; font-size: 0.9rem;">Dashboard</a>
+            <a href="javascript:void(0)" id="faq-back-btn" style="display:flex;align-items:center;gap:6px;color:var(--text-secondary);text-decoration:none;font-weight:600;font-size:0.95rem;margin-right:auto;"><i data-lucide="arrow-left" style="width:18px;height:18px;"></i> Kembali</a>
+            <div class="nav-menu" style="display:flex;align-items:center;gap:24px;">
               <button class="btn-icon-toggle" id="v2-theme-toggle" aria-label="Toggle Dark Mode"><i data-lucide="moon"></i></button>
             </div>
           </nav>
@@ -147,6 +142,15 @@ class FAQPage {
   }
 
   bindEvents() {
+    // Kembali ke halaman sebelumnya
+    const backBtn = document.getElementById('faq-back-btn');
+    if (backBtn) {
+      backBtn.addEventListener('click', () => {
+        if (history.length > 1) history.back();
+        else window.location.href = '/';
+      });
+    }
+
     const themeBtn = document.getElementById('v2-theme-toggle');
     if (themeBtn) {
       themeBtn.addEventListener('click', () => {

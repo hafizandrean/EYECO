@@ -22,9 +22,23 @@ class ClientRouter {
     this.handleRouteTransition(path);
   }
 
-  // Kembali ke halaman sebelumnya
-  back() {
-    window.history.back();
+  // Navigasi ke path tertentu tanpa pushState (ganti history entry)
+  replace(path) {
+    if (window.location.pathname === path) return;
+    window.history.replaceState({}, '', path);
+    this.handleRouteTransition(path);
+  }
+
+  // Kembali ke halaman terakhir yang dibuka (sebelum masuk Settings)
+  backTo(path) {
+    if (path && window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+      this.handleRouteTransition(path);
+    } else if (path && window.location.pathname === path) {
+      this.handleRouteTransition(path);
+    } else {
+      window.history.back();
+    }
   }
 
   // Mendapatkan path saat ini
@@ -49,6 +63,7 @@ class ClientRouter {
     if (path === '/dashboard/upload') return 'upload';
     if (path.startsWith('/dashboard/detections/')) return 'detail';
     if (path === '/dashboard/cctv-monitoring') return 'cctv-monitoring';
+    if (path === '/dashboard/settings' || path === '/dashboard/profile') return 'settings';
     if (path === '/faq') return 'faq';
     return 'dashboard';
   }

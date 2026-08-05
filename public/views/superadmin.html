@@ -10,8 +10,8 @@
   <style>
     *,*::before,*::after{box-sizing:border-box}
     html{height:100%;margin:0}
-    body{height:100%;margin:0;overflow:hidden;display:flex;font-family:'Inter',sans-serif;color:#1E293B;background:#F0F4FF;position:relative;-webkit-font-smoothing:antialiased}
-    body.dark{background:#0B1120;color:#E2E8F0}
+    body{height:100%;margin:0;overflow:hidden;display:flex;font-family:'Inter',sans-serif;color:#1E293B;background:#F0F4FF url('/assets/bg-light.jpg') fixed center / cover;position:relative;-webkit-font-smoothing:antialiased}
+    body.dark{background:#0B1120 url('/assets/bg-dark.jpg') fixed center / cover;color:#E2E8F0}
     .bg-blobs{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:-1}
     .blob{position:absolute;border-radius:50%;filter:blur(80px)}
     .blob-1{width:560px;height:560px;background:#2563EB;top:-120px;left:-120px;opacity:0.18}
@@ -698,6 +698,7 @@
       localStorage.setItem('sa-dark-mode', enabled ? '1' : '0');
     }
     if (localStorage.getItem('sa-dark-mode') === '1') applyDark(true);
+    else if (localStorage.getItem('eyeco-theme') === 'dark') applyDark(true);
     darkToggle.addEventListener('click', () => applyDark(!document.body.classList.contains('dark')));
 
     function paginate(data, page, perPage) {

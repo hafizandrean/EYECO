@@ -7,7 +7,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>EYECO - Pusat Komando Insiden CCTV AI</title>
-  <link rel="stylesheet" href="/css/style.css?v=1.4.0">
+  <link rel="stylesheet" href="/css/style.css?v=1.8.0">
   <!-- Load Lucide Icons CDN (Fork of Feather Icons) -->
   <script src="https://unpkg.com/lucide@latest"></script>
 <!-- HLS.js for live stream playback (Tuya HLS / m3u8 streams) -->
@@ -20,7 +20,7 @@
     <div class="blob blob-2"></div>
   </div>
   
-  <div class="layout-container">
+  <div class="layout-container" id="app-shell">
     
     <!-- Floating Header Section (Shared across all pages) -->
     <header class="glass-card header-floating" id="app-header">
@@ -33,9 +33,9 @@
 
       </div>
 
-      <!-- Center: Navigation Capsule (Sliding Bubble Tab Bar) -->
-      <nav class="nav-tabs-capsule">
-        <div class="nav-tabs">
+      <!-- Center: Navigation Capsule OR Search (Settings) -->
+      <nav class="nav-tabs-capsule" id="nav-capsule">
+        <div class="nav-tabs" id="nav-tabs">
           <div class="nav-indicator" id="nav-indicator"></div>
           <a href="/dashboard" class="nav-tab active" data-tab="dashboard">
             <i data-lucide="layout-dashboard"></i> <span class="nav-text">Dasbor</span>
@@ -53,6 +53,13 @@
             <i data-lucide="newspaper"></i> <span class="nav-text">Berita</span>
           </a>
         </div>
+        <!-- Search bar (shown on settings page) -->
+        <div class="nav-search" id="nav-search" style="display:none;">
+          <div class="settings-search">
+            <i data-lucide="search" style="width:18px;height:18px;"></i>
+            <input type="text" id="settings-search-input" placeholder="Cari pengaturan..." autocomplete="off">
+          </div>
+        </div>
       </nav>
 
       <!-- Right side: Actions Group (Export, Notifications, Darkmode, Profile) -->
@@ -60,11 +67,6 @@
         <!-- Conditional Export Button (Icon only) -->
         <button class="btn-icon-toggle header-export-btn" id="btn-header-export" title="Export CSV">
           <i data-lucide="download"></i>
-        </button>
-
-        <!-- Theme Toggle Button -->
-        <button class="btn-icon-toggle" id="btn-theme" title="Ubah Tema (Gelar/Terang)">
-          <i data-lucide="moon"></i>
         </button>
 
         <!-- Notification Bell Dropdown -->
@@ -96,8 +98,8 @@
               <div class="user-info-role" id="dropdown-role">ADMIN</div>
             </div>
             <div class="divider-line"></div>
-            <a href="/dashboard/profile" class="dropdown-item-btn" id="btn-dropdown-profile">
-              <i data-lucide="user"></i> Profil Saya
+            <a href="/dashboard/settings" class="dropdown-item-btn" id="btn-dropdown-profile">
+              <i data-lucide="settings"></i> Pengaturan
             </a>
             <div class="divider-line"></div>
             <button class="dropdown-item-btn text-danger" id="btn-dropdown-logout">
@@ -125,6 +127,6 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- Shared Bootstrapper script module -->
-  <script type="module" src="/js/core/app.js?v=1.9.0"></script>
+  <script type="module" src="/js/core/app.js?v=1.12.0"></script>
 </body>
 </html>

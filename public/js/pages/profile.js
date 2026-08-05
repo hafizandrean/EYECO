@@ -34,9 +34,12 @@ const Profile = {
     const isDark = document.body.classList.contains('dark-mode');
 
     this.viewport.innerHTML = `
-      <div class="profile-page-container profile-tiktok">
+      <div class="profile-page-container profile-tiktok settings-fullscreen" id="settings-page">
         <!-- Sidebar Navigasi (single page layout) -->
         <aside class="profile-sidebar glass-card" id="profile-sidebar">
+          <button class="btn btn-glass btn-rounded btn-back-route" id="btn-profile-back" style="padding:10px 14px;font-weight:700;width:100%;margin-bottom:16px;justify-content:center;">
+            <i data-lucide="arrow-left" style="width:16px;height:16px;margin-right:6px;"></i> Kembali
+          </button>
           <div class="profile-sidebar-user">
             <div class="profile-avatar" id="profile-avatar-chip">${initials}</div>
             <div class="profile-sidebar-meta">
@@ -48,6 +51,7 @@ const Profile = {
             <a href="#profile-section-profile" class="profile-menu-item" data-target="profile-section-profile"><i data-lucide="circle-user"></i> Profil</a>
             <a href="#profile-section-account" class="profile-menu-item" data-target="profile-section-account"><i data-lucide="user-round"></i> Informasi Akun</a>
             <a href="#profile-section-security" class="profile-menu-item" data-target="profile-section-security"><i data-lucide="shield"></i> Keamanan</a>
+            <a href="#profile-section-theme" class="profile-menu-item" data-target="profile-section-theme"><i data-lucide="sun"></i> Tampilan</a>
             <a href="#profile-section-language" class="profile-menu-item" data-target="profile-section-language"><i data-lucide="languages"></i> Bahasa</a>
             <a href="#profile-section-sessions" class="profile-menu-item" data-target="profile-section-sessions"><i data-lucide="monitor"></i> Sesi Login</a>
             <a href="#profile-section-audit" class="profile-menu-item" data-target="profile-section-audit"><i data-lucide="activity"></i> Riwayat Aktivitas</a>
@@ -55,13 +59,6 @@ const Profile = {
         </aside>
 
         <main class="profile-main-content">
-        <!-- Tombol Kembali -->
-        <div class="profile-back-link" style="margin-bottom: 20px;">
-          <button class="btn btn-glass btn-rounded btn-back-route" id="btn-profile-back" style="padding: 10px 20px; font-weight:700;">
-            <i data-lucide="arrow-left" style="width:16px;height:16px;margin-right:4px;"></i> Kembali
-          </button>
-        </div>
-
         <!-- Profile Header Card -->
         <div class="glass-card profile-header-card" id="profile-section-profile">
           <div class="profile-avatar-large" id="avatar-upload-trigger" style="cursor:pointer; position:relative;" title="Klik untuk ganti foto profil">
@@ -174,6 +171,20 @@ const Profile = {
             </button>
             <button class="btn-danger" id="btn-logout-profile">
               <i data-lucide="log-out"></i> Keluar
+            </button>
+          </div>
+        </div>
+
+        <!-- Tampilan (Theme) -->
+        <div class="glass-card profile-theme-card" id="profile-section-theme">
+          <h3><i data-lucide="sun"></i> Tampilan</h3>
+          <p style="font-size:0.78rem;color:var(--text-muted);margin:0 0 16px 0;">Pilih mode tampilan aplikasi.</p>
+          <div class="theme-selector-row" style="display:flex;gap:12px;flex-wrap:wrap;">
+            <button class="btn btn-glass btn-rounded theme-option active" data-theme="light" style="flex:1;min-width:140px;">
+              <i data-lucide="sun" style="width:18px;height:18px;margin-right:6px;"></i> Terang
+            </button>
+            <button class="btn btn-glass btn-rounded theme-option" data-theme="dark" style="flex:1;min-width:140px;">
+              <i data-lucide="moon" style="width:18px;height:18px;margin-right:6px;"></i> Gelap
             </button>
           </div>
         </div>
@@ -340,7 +351,7 @@ const Profile = {
       });
 
       // Scrollspy: highlight item sesuai section yang dilihat
-      const sections = ['profile-section-profile','profile-section-account','profile-section-security','profile-section-language','profile-section-sessions','profile-section-audit'];
+      const sections = ['profile-section-profile','profile-section-account','profile-section-security','profile-section-theme','profile-section-language','profile-section-sessions','profile-section-audit'];
       const spyObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
@@ -359,6 +370,33 @@ const Profile = {
       }
     }
 
+    // Pilihan tema (Tampilan)
+    const applyThemeUI = () => {
+      const isDark = document.body.classList.contains('dark-mode');
+      document.querySelectorAll('.theme-option').forEach(b => b.classList.toggle('active', b.getAttribute('data-theme') === (isDark ? 'dark' : 'light')));
+    };
+    document.querySelectorAll('.theme-option').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const theme = btn.getAttribute('data-theme');
+        AppState.set('theme', theme);
+        applyThemeUI();
+        EventBus.emit('toast:show', { message: theme === 'dark' ? 'Mode gelap aktif' : 'Mode terang aktif', type: 'success' });
+      });
+    });
+    applyThemeUI();
+
+    // Search pengaturan — filter cards by text
+    const searchInput = document.getElementById('settings-search-input');
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        const q = searchInput.value.toLowerCase().trim();
+        document.querySelectorAll('.profile-main-content > .glass-card').forEach(card => {
+          const matches = !q || card.textContent.toLowerCase().includes(q);
+          card.style.display = matches ? '' : 'none';
+        });
+      });
+    }
+
     // Pilihan bahasa
     document.querySelectorAll('.language-option').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -371,8 +409,10 @@ const Profile = {
     });
 
     document.getElementById('btn-profile-back')?.addEventListener('click', () => {
-      const user = AppState.get('user');
-      Router.navigate(user?.role === 'admin' ? '/dashboard' : '/dashboard');
+      // Kembali ke halaman terakhir user sebelum masuk Settings
+      const returnPath = sessionStorage.getItem('eyeco_settings_return') || '/dashboard';
+      sessionStorage.removeItem('eyeco_settings_return');
+      Router.backTo(returnPath);
     });
 
     document.getElementById('btn-change-password')?.addEventListener('click', () => {

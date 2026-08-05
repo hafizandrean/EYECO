@@ -525,7 +525,7 @@ app.get('/superadmin/workspaces/:id', authMiddleware, roleGuard(['superadmin']),
 
 // Dashboard — unified for admin AND user
 app.get(
-  ['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/profile', '/dashboard/berita', '/dashboard/users', '/dashboard/cctv', '/dashboard/join-requests', '/dashboard/cctv-monitoring'],
+  ['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/profile', '/dashboard/settings', '/dashboard/berita', '/dashboard/users', '/dashboard/cctv', '/dashboard/join-requests', '/dashboard/cctv-monitoring'],
   authMiddleware,
   roleGuard(['admin', 'user', 'operator', 'supervisor', 'officer']),
   (req, res) => {

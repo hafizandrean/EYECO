@@ -13,8 +13,12 @@
         html, body { height: 100%; margin: 0; }
         body {
             font-family: 'Inter', sans-serif;
-            background: #F0F4FF;
+            background: #F0F4FF url('/assets/bg-light.jpg') fixed center / cover;
             min-height: 100vh;
+        }
+        html.dark-mode body,
+        body.dark-mode {
+            background: #0B1120 url('/assets/bg-dark.jpg') fixed center / cover;
         }
 
         /* ─── Background blobs ─── */
@@ -1106,5 +1110,6 @@
       renderWorkspaces(workspaces);
     })();
   </script>
+  <script>(function(){const t=localStorage.getItem('eyeco-theme');if(t==='dark')document.documentElement.classList.add('dark-mode')})();</script>
 </body>
 </html>
