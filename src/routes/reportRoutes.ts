@@ -449,6 +449,16 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+router.get('/stats/global', async (_req, res) => {
+  try {
+    const stats = await ReportRepository.getGlobalStats();
+    res.json(stats);
+  } catch (err) {
+    console.error('[SERVER ERROR] Get global stats failed:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 router.post('/detections', (req, res, next) => {
   upload.single('file')(req, res, (err) => {
     if (err) {

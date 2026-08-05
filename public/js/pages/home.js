@@ -69,25 +69,27 @@ class HomePage {
                     <div class="illustration-accent accent-3" aria-hidden="true"></div>
                   </div>
                 </div>
-                </div>
+              </div>
               </div>
             </section>
 
-            <!-- ═══ FEATURE MARQUEE (LAYER 2: GLASS) — 3x faster than news ═══ -->
-                        <section class="landing-marquee landing-layer-glass" aria-label="Fitur Unggulan">
-                          <div class="marquee-track" id="feature-marquee-track">
-                            <span class="marquee-item">AI Detection</span>
-                            <span class="marquee-item">Report Transparency</span>
-                            <span class="marquee-item">Realtime CCTV</span>
-                            <span class="marquee-item">Fast Verification</span>
-                            <span class="marquee-item">Open Report</span>
-                            <span class="marquee-item">24/7 Monitoring</span>
-                            <span class="marquee-item">Machine Learning</span>
-                            <span class="marquee-item">Computer Vision</span>
-                          </div>
-                        </section>
+            <!-- ═══ FEATURE MARQUEE (LAYER 2: GLASS) — moving strip ═══ -->
+            <section class="landing-section landing-marquee-section landing-layer-glass" aria-label="Fitur Unggulan">
+              <div class="landing-wrapper">
+              <div class="marquee-track" id="feature-marquee-track">
+                <span class="marquee-item">AI Detection</span>
+                <span class="marquee-item">Report Transparency</span>
+                <span class="marquee-item">Realtime CCTV</span>
+                <span class="marquee-item">Fast Verification</span>
+                <span class="marquee-item">Open Report</span>
+                <span class="marquee-item">24/7 Monitoring</span>
+                <span class="marquee-item">Machine Learning</span>
+                <span class="marquee-item">Computer Vision</span>
+              </div>
+              </div>
+            </section>
 
-            <!-- ═══ CHART STATISTICS (LAYER 3: THIN) ═══ -->
+                        <!-- ═══ CHART STATISTICS (LAYER 3: THIN) ═══ -->
             <section class="landing-section landing-layer-thin" id="chart-section" aria-labelledby="chart-title">
               <div class="section-header">
                 <span class="section-label">Statistik</span>
@@ -175,7 +177,7 @@ class HomePage {
               <div class="section-header is-centered">
                 <span class="section-label">Akurasi Model</span>
                 <h2 id="ai-confidence-title" class="section-title">Seberapa Yakin AI Kami?</h2>
-                <p class="section-desc">Persentase deteksi berdasarkan tingkat keyakinan model. Semakin tinggi, semakin akurat klasifikasinya.</p>
+                <p class="section-desc">Akurasi deteksi AI dari seluruh workspace EYECO. Semakin tinggi, semakin akurat klasifikasinya.</p>
               </div>
               <div class="confidence-split" id="confidence-split"></div>
             </section>
@@ -219,41 +221,36 @@ class HomePage {
                 <h2 id="steps-title" class="section-title">Alur Laporan Terpadu</h2>
                 <p class="section-desc">Dari foto warga hingga tindak lanjut pemerintah, semua terotomatisasi.</p>
               </div>
-              <div class="timeline" id="workflow-timeline">
-                <div class="timeline-item">
-                  <div class="timeline-node"><i data-lucide="camera"></i></div>
-                  <div class="timeline-content">
-                    <h3>Upload</h3>
-                    <p>Warga memotret dan mengunggah bukti pencemaran.</p>
-                  </div>
+              <div class="steps-grid" id="workflow-steps">
+                <div class="step-card">
+                  <div class="step-node"><i data-lucide="camera"></i></div>
+                  <span class="step-num">01</span>
+                  <h3>Upload</h3>
+                  <p>Warga memotret dan mengunggah bukti pencemaran.</p>
                 </div>
-                <div class="timeline-item">
-                  <div class="timeline-node"><i data-lucide="brain-circuit"></i></div>
-                  <div class="timeline-content">
-                    <h3>AI Detection</h3>
-                    <p>Model computer vision menganalisis gambar secara real-time.</p>
-                  </div>
+                <div class="step-card">
+                  <div class="step-node"><i data-lucide="brain-circuit"></i></div>
+                  <span class="step-num">02</span>
+                  <h3>AI Detection</h3>
+                  <p>Model computer vision menganalisis gambar secara real-time.</p>
                 </div>
-                <div class="timeline-item">
-                  <div class="timeline-node"><i data-lucide="clipboard-check"></i></div>
-                  <div class="timeline-content">
-                    <h3>Verification</h3>
-                    <p>Skor keyakinan AI menentukan status awal laporan.</p>
-                  </div>
+                <div class="step-card">
+                  <div class="step-node"><i data-lucide="clipboard-check"></i></div>
+                  <span class="step-num">03</span>
+                  <h3>Verification</h3>
+                  <p>Skor keyakinan AI menentukan status awal laporan.</p>
                 </div>
-                <div class="timeline-item">
-                  <div class="timeline-node"><i data-lucide="file-check"></i></div>
-                  <div class="timeline-content">
-                    <h3>Report</h3>
-                    <p>Laporan tervalidasi masuk ke dashboard dinas terkait.</p>
-                  </div>
+                <div class="step-card">
+                  <div class="step-node"><i data-lucide="file-check"></i></div>
+                  <span class="step-num">04</span>
+                  <h3>Report</h3>
+                  <p>Laporan tervalidasi masuk ke dashboard dinas terkait.</p>
                 </div>
-                <div class="timeline-item">
-                  <div class="timeline-node"><i data-lucide="landmark"></i></div>
-                  <div class="timeline-content">
-                    <h3>Government Follow-up</h3>
-                    <p>Petugas menindaklanjuti dan warga memantau progresnya.</p>
-                  </div>
+                <div class="step-card">
+                  <div class="step-node"><i data-lucide="landmark"></i></div>
+                  <span class="step-num">05</span>
+                  <h3>Follow-up</h3>
+                  <p>Petugas menindaklanjuti dan warga memantau progresnya.</p>
                 </div>
               </div>
             </section>
@@ -267,24 +264,20 @@ class HomePage {
               </div>
               <div class="benefits-grid">
                 <article class="benefit-card">
-                  <i data-lucide="zap" class="benefit-icon" style="color: #F59E0B;"></i>
                   <h3>Cepat & Efisien</h3>
                   <p>Deteksi AI dalam hitungan detik.</p>
                 </article>
                 <article class="benefit-card">
-                  <i data-lucide="shield" class="benefit-icon" style="color: #10B981;"></i>
                   <h3>Transparan</h3>
                   <p>Status laporan terbuka untuk publik.</p>
                 </article>
                 <article class="benefit-card">
-                  <i data-lucide="smartphone" class="benefit-icon" style="color: #2563EB;"></i>
-                  <h3>Mudah Digunakan</h3>
-                  <p>Cukup dari HP, tanpa instalasi.</p>
+                  <h3>Berbasis Web</h3>
+                  <p>Bisa diakses dari browser, tanpa instalasi.</p>
                 </article>
                 <article class="benefit-card">
-                  <i data-lucide="users" class="benefit-icon" style="color: #8B5CF6;"></i>
                   <h3>Kolaborasi</h3>
-                  <p>Warga, pemerintah, dan akademisi.</p>
+                  <p>Warga, kepala desa, dan akademisi.</p>
                 </article>
               </div>
             </section>
@@ -303,8 +296,8 @@ class HomePage {
               </div>
             </section>
 
-                        <!-- ═══ LATEST REPORTS PREVIEW (LAYER 9: THIN) — compact ═══ -->
-                                    <section class="landing-section landing-layer-thin" id="latest-reports" aria-labelledby="reports-title">
+            <!-- ═══ LATEST REPORTS PREVIEW (LAYER 9: THIN) — compact ═══ -->
+            <section class="landing-section landing-layer-thin" id="latest-reports" aria-labelledby="reports-title">
               <div class="section-header section-row-header">
                 <div>
                   <span class="section-label">Laporan Terbaru</span>
@@ -325,7 +318,7 @@ class HomePage {
 
             <!-- ═══ NEWS MARQUEE (LAYER 10: GLASS) ═══ -->
             <section class="landing-section landing-layer-glass" id="news" aria-labelledby="news-title">
-              <div class="section-header">
+              <div class="section-header is-centered">
                 <span class="section-label">Berita & Informasi</span>
                 <h2 id="news-title" class="section-title">Update Lingkungan</h2>
                 <p class="section-desc">Kabar terbaru dari lingkungan sekitar.</p>
@@ -361,7 +354,7 @@ class HomePage {
                     <span class="footer-partner-chip"><img src="/assets/partner-telkom-ind.png" alt="Telkom Indonesia" loading="lazy"> Telkom Indonesia</span>
                     <span class="footer-partner-chip"><img src="/assets/partner-sdgs-center.png" alt="SDGs Center Telkom University" loading="lazy"> SDGs Center Telkom University</span>
                     <span class="footer-partner-chip"><img src="/assets/partner-telkom-univ.png" alt="Telkom University" loading="lazy"> Telkom University</span>
-                    <span class="footer-partner-chip"><img src="/assets/partner-fri.png" alt="Fakultas Rekayasa Industri Telkom University" loading="lazy"> Fakultas Rekayasa Industri Telkom University</span>
+                    
                   </div>
                 </div>
 
@@ -585,6 +578,8 @@ class HomePage {
   }
 
   initMarqueeInfinite(track) {
+    if (track.dataset.marqueeInit) return; // guard: no double-init on re-render
+    track.dataset.marqueeInit = '1';
     // Duplicate all tiles for seamless infinite loop
     const tiles = Array.from(track.children);
     if (tiles.length === 0) return;
@@ -634,8 +629,7 @@ class HomePage {
     // ── Hover pause ──
     track.addEventListener('mouseenter', () => { isPaused = true; });
     track.addEventListener('mouseleave', () => {
-      isPaused = false;
-      isDragging = false;
+      if (!isDragging) isPaused = false;
       track.classList.remove('dragging');
     });
 
@@ -663,28 +657,39 @@ class HomePage {
       track.style.cursor = '';
     };
 
-    // Mouse
-    track.addEventListener('mousedown', (e) => onStart(e.clientX));
+    // ── Manual Drag (Pointer Events: mouse, touch, pen — 1 API, window listeners) ──
+    // Drag target = the visual wrapper (covers full section height), not just track
+    const dragTarget = document.querySelector('.news-marquee');
+    dragTarget.addEventListener('pointerdown', (e) => onStart(e.clientX));
+    window.addEventListener('pointermove', (e) => onMove(e.clientX));
+    window.addEventListener('pointerup', onEnd);
+    window.addEventListener('pointercancel', onEnd);
+
+    // Fallback: plain mouse drag for older engines
+    dragTarget.addEventListener('mousedown', (e) => onStart(e.clientX));
     window.addEventListener('mousemove', (e) => onMove(e.clientX));
     window.addEventListener('mouseup', onEnd);
 
-    // Touch
-    track.addEventListener('touchstart', (e) => {
-      onStart(e.touches[0].clientX);
-    }, { passive: true });
-    window.addEventListener('touchmove', (e) => {
-      onMove(e.touches[0].clientX);
-    }, { passive: true });
-    window.addEventListener('touchend', onEnd, { passive: true });
+    // Trackpad 2-finger horizontal swipe / shift+wheel
+    const onWheel = (e) => {
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return; // let vertical scroll through
+      e.preventDefault();
+      pos -= e.deltaX;
+      track.style.transform = `translateX(${pos}px)`;
+    };
+    track.addEventListener('wheel', onWheel, { passive: false });
+    dragTarget.addEventListener('wheel', onWheel, { passive: false });
 
     // Cleanup on destroy
     this._marqueeCleanup = () => {
       if (rafId) cancelAnimationFrame(rafId);
       window.removeEventListener('resize', resizeHandler);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onEnd);
+      window.removeEventListener('pointercancel', onEnd);
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onEnd);
-      window.removeEventListener('touchmove', onMove);
-      window.removeEventListener('touchend', onEnd);
+      dragTarget.removeEventListener('wheel', onWheel);
     };
   }
 
@@ -734,7 +739,14 @@ class HomePage {
 
       this.chartData = { valid, pending, ignored, total, aiHigh, aiMid, aiLow, aiNone, max, aiMax };
 
-      this._renderConfidenceSplit(aiHigh, aiMid, aiLow, aiNone);
+      // Akurasi Model = data AI dari SELURUH workspace (bukan hanya workspace ini)
+      try {
+        const gRes = await fetch('/api/stats/global', { credentials: 'include' });
+        const gData = await gRes.json();
+        if (gData) {
+          this._renderConfidenceSplit(gData.tinggi || 0, gData.sedang || 0, gData.rendah || 0, gData.tidakTerindikasi || 0);
+        }
+      } catch (_) {}
       const impactReports = document.getElementById('impact-reports');
       if (impactReports) impactReports.textContent = total.toLocaleString('id-ID');
 

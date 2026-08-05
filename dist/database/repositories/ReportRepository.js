@@ -261,6 +261,20 @@ class ReportRepository {
         }
         return { workspaceId: -1 };
     }
+    static async getGlobalStats() {
+        const matchQuery = { deletedAt: null };
+        const [total, valid, cancelled, pending, tinggi, sedang, rendah, tidakTerindikasi] = await Promise.all([
+            Report_1.ReportModel.countDocuments(matchQuery),
+            Report_1.ReportModel.countDocuments({ ...matchQuery, adminStatus: 'VALID' }),
+            Report_1.ReportModel.countDocuments({ ...matchQuery, adminStatus: 'DIABAIKAN' }),
+            Report_1.ReportModel.countDocuments({ ...matchQuery, adminStatus: 'MENUNGGU' }),
+            Report_1.ReportModel.countDocuments({ ...matchQuery, aiStatus: 'TINGGI' }),
+            Report_1.ReportModel.countDocuments({ ...matchQuery, aiStatus: 'SEDANG' }),
+            Report_1.ReportModel.countDocuments({ ...matchQuery, aiStatus: 'RENDAH' }),
+            Report_1.ReportModel.countDocuments({ ...matchQuery, aiStatus: 'Tidak Terindikasi' })
+        ]);
+        return { total, valid, cancelled, pending, tinggi, sedang, rendah, tidakTerindikasi };
+    }
     static async getStats(userContext) {
         try {
             const matchQuery = { deletedAt: null, ...(await this.buildWorkspaceScope(userContext)) };

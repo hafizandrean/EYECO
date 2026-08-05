@@ -20,15 +20,14 @@ export class UploadPage {
         <!-- Left: Upload Form -->
         <main class="upload-card" id="upload-main-card" style="padding: 0; background: transparent; border: none; box-shadow: none;">
           <div class="card-header-clean" style="margin-bottom: var(--space-24); text-align: center; background: transparent;">
-            <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.8rem; font-weight: 800; color: var(--text-primary); margin: 0 0 8px 0;">Lapor Keadaan Lingkungan</h2>
-            <p style="font-size: 0.92rem; color: var(--text-secondary); margin: 0 auto; max-width: 500px;">Seret media foto lingkungan untuk mendeteksi pencemaran sampah otomatis berbasis AI</p>
-            <div style="height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 20px auto 0; width: 100%;"></div>
+            <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.8rem; font-weight: 800; color: var(--text-primary); margin: 0 0 6px 0; white-space: nowrap; text-align: center;">Lapor Keadaan Lingkungan</h2>
+            <p style="font-size: 0.92rem; color: var(--text-secondary); margin: 0 auto; max-width: 560px; text-align: center;">Seret media foto lingkungan untuk mendeteksi pencemaran sampah otomatis berbasis AI</p>
           </div>
 
           <form id="upload-form-element" class="upload-form" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: var(--space-20);">
             <!-- Drag & Drop Area -->
             <div class="form-group">
-              <div class="drag-drop-zone glass-card" id="drop-zone" style="min-height: 560px; border: 2px dashed rgba(47,107,255,0.25); border-radius: var(--radius-card); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; background: rgba(255,255,255,0.45);">
+              <div class="drag-drop-zone glass-card" id="drop-zone" style="border: 2px dashed rgba(47,107,255,0.25); border-radius: var(--radius-card); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; background: rgba(255,255,255,0.45);">
                 <input type="file" id="upload-input-file" accept="image/jpeg,image/jpg,image/png,video/mp4" required style="display: none;">
                 
                 <!-- Initial State -->
@@ -49,11 +48,11 @@ export class UploadPage {
                 </div>
 
                 <!-- Drag Overlay State -->
-                <div class="drag-overlay" id="drag-overlay" style="display: none; position: absolute; inset: 0; background: rgba(47, 107, 255, 0.1); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 10; align-items: center; justify-content: center; flex-direction: column; gap: 16px; transition: all 0.2s;">
+                <div class="drag-overlay" id="drag-overlay" style="display: none; position: absolute; inset: 0; background: rgba(47, 107, 255, 0.1); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 10; align-items: center; justify-content: center; flex-direction: column; gap: 12px; transition: all 0.2s;">
                   <div id="drag-indicator" style="width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; transition: all 0.2s;">
-                    <i data-lucide="plus" style="width: 40px; height: 40px; color: var(--success);"></i>
+                    <i data-lucide="plus" style="width: 40px; height: 40px; color: #10B981;"></i>
                   </div>
-                  <p id="drag-text" style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); margin: 0;">Lepaskan untuk mengunggah</p>
+                  <p id="drag-text" style="font-size: 1rem; font-weight: 700; color: var(--text-primary); margin: 0;">Lepaskan file di sini</p>
                 </div>
 
                 <!-- Preview Area -->
@@ -94,8 +93,8 @@ export class UploadPage {
           </form>
         </main>
 
-        <!-- Right: Upload History Card -->
-        <section class="glass-card history-card" id="upload-history-card" style="padding: var(--space-32);">
+        <!-- Right: Upload History Card (collapsed; full history on Laporan page) -->
+        <section class="glass-card history-card" id="upload-history-card" style="padding: var(--space-32); display: none;">
           <div style="margin-bottom: var(--space-24); display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
             <h3 class="section-title" style="margin: 0; font-size: 1.15rem; font-weight: 800;"><i data-lucide="clock" style="color: var(--primary);"></i> Riwayat Laporan Saya</h3>
             <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0; line-height: 1.4;">Pantau perkembangan penanganan insiden yang Anda laporkan</p>
@@ -186,8 +185,15 @@ export class UploadPage {
           dropZone.style.backdropFilter = 'blur(14px)';
           dropZone.style.webkitBackdropFilter = 'blur(14px)';
           dropZone.style.background = 'rgba(47,107,255,0.08)';
-          if (dragOverlay) {
-            dragOverlay.style.display = 'flex';
+          if (dragOverlay) dragOverlay.style.display = 'flex';
+          if (dragIndicator) {
+            dragIndicator.innerHTML = '<i data-lucide="plus" style="width: 40px; height: 40px; color: #10B981;"></i>';
+            dragIndicator.style.background = 'rgba(16, 185, 129, 0.15)';
+            if (window.lucide) window.lucide.createIcons();
+          }
+          if (dragText) {
+            dragText.textContent = 'Lepaskan file di sini';
+            dragText.style.color = '#10B981';
           }
         }
       });
@@ -196,28 +202,23 @@ export class UploadPage {
         e.preventDefault();
         if (!this.isScanning) {
           dropZone.classList.add('dragover');
-          // Check if file is supported
+          // Validasi format file saat ngedrag: hijau (+) kalo support, merah (-) kalo enggak
           const file = e.dataTransfer.files[0];
-          if (file) {
+          if (file && dragIndicator) {
             const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime'];
             const allowedExts = ['.jpg', '.jpeg', '.png', '.webp', '.mp4', '.mov'];
             const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
             const isSupported = allowedTypes.includes(file.type) || allowedExts.includes(ext);
-
-            if (dragIndicator && dragText) {
-              if (isSupported) {
-                dragIndicator.innerHTML = '<i data-lucide="plus" style="width: 40px; height: 40px; color: #10B981;"></i>';
-                dragIndicator.style.background = 'rgba(16, 185, 129, 0.15)';
-                dragText.textContent = 'Lepaskan untuk mengunggah';
-                dragText.style.color = '#10B981';
-              } else {
-                dragIndicator.innerHTML = '<i data-lucide="minus" style="width: 40px; height: 40px; color: #EF4444;"></i>';
-                dragIndicator.style.background = 'rgba(239, 68, 68, 0.15)';
-                dragText.textContent = 'Format tidak didukung';
-                dragText.style.color = '#EF4444';
-              }
-              if (window.lucide) window.lucide.createIcons();
+            if (isSupported) {
+              dragIndicator.innerHTML = '<i data-lucide="plus" style="width: 40px; height: 40px; color: #10B981;"></i>';
+              dragIndicator.style.background = 'rgba(16, 185, 129, 0.15)';
+              if (dragText) { dragText.textContent = 'Lepaskan file di sini'; dragText.style.color = '#10B981'; }
+            } else {
+              dragIndicator.innerHTML = '<i data-lucide="minus" style="width: 40px; height: 40px; color: #EF4444;"></i>';
+              dragIndicator.style.background = 'rgba(239, 68, 68, 0.15)';
+              if (dragText) { dragText.textContent = 'Format file tidak sesuai'; dragText.style.color = '#EF4444'; }
             }
+            if (window.lucide) window.lucide.createIcons();
           }
         }
       });

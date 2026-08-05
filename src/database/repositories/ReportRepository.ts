@@ -328,6 +328,21 @@ export class ReportRepository {
     return { workspaceId: -1 };
   }
 
+  public static async getGlobalStats() {
+    const matchQuery: any = { deletedAt: null };
+    const [total, valid, cancelled, pending, tinggi, sedang, rendah, tidakTerindikasi] = await Promise.all([
+      ReportModel.countDocuments(matchQuery),
+      ReportModel.countDocuments({ ...matchQuery, adminStatus: 'VALID' }),
+      ReportModel.countDocuments({ ...matchQuery, adminStatus: 'DIABAIKAN' }),
+      ReportModel.countDocuments({ ...matchQuery, adminStatus: 'MENUNGGU' }),
+      ReportModel.countDocuments({ ...matchQuery, aiStatus: 'TINGGI' }),
+      ReportModel.countDocuments({ ...matchQuery, aiStatus: 'SEDANG' }),
+      ReportModel.countDocuments({ ...matchQuery, aiStatus: 'RENDAH' }),
+      ReportModel.countDocuments({ ...matchQuery, aiStatus: 'Tidak Terindikasi' })
+    ]);
+    return { total, valid, cancelled, pending, tinggi, sedang, rendah, tidakTerindikasi };
+  }
+
   public static async getStats(userContext?: { id: number; role: string }) {
     try {
       const matchQuery: any = { deletedAt: null, ...(await this.buildWorkspaceScope(userContext)) };

@@ -38,8 +38,8 @@ export class LaporanPage {
     container.innerHTML = `
       <!-- Page Header -->
       <div class="page-header" style="margin-bottom: var(--space-24);">
-        <div class="section-title" style="font-size: 1.8rem; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
-          <i data-lucide="database" style="color: var(--primary);"></i> Log Aktivitas Lingkungan
+        <div class="section-title" style="font-size: 1.8rem; font-weight: 800; color: var(--text-primary); margin: 0;">
+          Log Aktivitas Lingkungan
         </div>
       </div>
 
