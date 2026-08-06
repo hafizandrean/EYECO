@@ -178,6 +178,27 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .spin { animation: spin 0.8s linear infinite; display: inline-block; }
 
+    /* ── Dark mode (sesuai eyeco-theme) ── */
+    body.dark-mode .auth-card {
+      background: rgba(17,24,39,0.72);
+      border-color: rgba(148,163,184,0.18);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.35);
+    }
+    body.dark-mode .auth-brand h1 { color: #E2E8F0; }
+    body.dark-mode .auth-brand p,
+    body.dark-mode .auth-links,
+    body.dark-mode .auth-options { color: #94A3B8; }
+    body.dark-mode .auth-field label { color: #CBD5E1; }
+    body.dark-mode .auth-input-wrap .auth-input {
+      background: rgba(30,41,59,0.45);
+      border-color: rgba(148,163,184,0.18);
+      color: #F1F5F9;
+    }
+    body.dark-mode .auth-input-wrap .auth-input::placeholder { color: #64748B; }
+    body.dark-mode .auth-options .divider,
+    body.dark-mode .auth-links .divider { background: rgba(148,163,184,0.3); }
+    body.dark-mode .bg-blobs .blob { opacity: 0.25; }
+
     @media (max-width: 480px) {
       .auth-card { padding: 28px 20px 24px; border-radius: 16px; }
       .auth-brand h1 { font-size: 1.6rem; }

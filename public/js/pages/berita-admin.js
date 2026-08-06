@@ -14,10 +14,9 @@ class BeritaAdminPage {
   async render(container) {
     container.innerHTML = `
       <div style="max-width:1000px;margin:0 auto;padding:24px 0;">
-        <div class="section-row-header" style="margin-bottom:24px;">
+        <div class="section-row-header" style="margin-bottom:24px;padding:14px 20px;border-radius:var(--radius-lg);background:rgba(255,255,255,0.55);backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);border:1px solid rgba(255,255,255,0.7);">
           <div>
-            <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;font-weight:800;color:var(--text-dark);margin:0;">
-              <i data-lucide="newspaper" style="width:22px;height:22px;color:var(--primary);vertical-align:middle;margin-right:8px;"></i>
+            <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;font-weight:800;color:var(--text-primary);margin:0;">
               Manajemen Berita
             </h2>
             <p style="font-size:0.88rem;color:var(--text-muted);margin:4px 0 0;">Kelola berita dan informasi untuk landing page.</p>
@@ -280,18 +279,14 @@ class BeritaAdminPage {
         const tr = document.createElement('tr');
         tr.style.transition = 'background 0.15s';
         tr.innerHTML = `
-          <td style="padding:14px 20px;border-bottom:1px solid rgba(0,0,0,0.04);font-weight:600;color:#0F172A;">
+          <td style="padding:14px 20px;border-bottom:1px solid rgba(0,0,0,0.04);font-weight:600;color:var(--text-primary);">
             <span style="display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;">${item.title}</span>
           </td>
           <td style="padding:14px 20px;border-bottom:1px solid rgba(0,0,0,0.04);">
-            <span style="font-size:0.72rem;background:rgba(37,99,235,0.06);color:#2563EB;padding:2px 10px;border-radius:20px;font-weight:600;">${item.category}</span>
+            <span style="font-size:0.72rem;background:rgba(37,99,235,0.06);color:var(--primary);padding:2px 10px;border-radius:20px;font-weight:600;">${item.category}</span>
           </td>
           <td style="padding:14px 20px;border-bottom:1px solid rgba(0,0,0,0.04);">
-            <span style="font-size:0.72rem;font-weight:700;padding:2px 10px;border-radius:20px;${
-              item.status === 'published' 
-                ? 'background:rgba(16,185,129,0.08);color:#10B981;' 
-                : 'background:rgba(245,158,11,0.08);color:#F59E0B;'
-            }">${item.status === 'published' ? 'Published' : 'Draft'}</span>
+            <span style="font-size:0.72rem;font-weight:700;padding:2px 10px;border-radius:20px;${item.status === 'published' ? 'background:rgba(16,185,129,0.15);color:var(--success);' : 'background:rgba(245,158,11,0.15);color:var(--warning);'}">${item.status === 'published' ? 'Published' : 'Draft'}</span>
           </td>
           <td style="padding:14px 20px;border-bottom:1px solid rgba(0,0,0,0.04);">
             <button class="btn-icon btn-news-preview" data-id="${item._id}" title="Preview" style="color:#2563EB;">
@@ -356,7 +351,7 @@ class BeritaAdminPage {
 
     container.innerHTML = `
       <style>
-        .preview-heading { font-family:'Outfit',sans-serif; font-size:1.6rem; font-weight:800; color:#0F172A; margin:20px 0 8px; line-height:1.3; }
+        .preview-heading { font-family:'Outfit',sans-serif; font-size:1.6rem; font-weight:800; color:var(--text-primary); margin:20px 0 8px; line-height:1.3; }
         .preview-meta { display:flex; gap:12px; align-items:center; font-size:0.82rem; color:#64748B; margin-bottom:16px; flex-wrap:wrap; }
         .preview-meta .tag { background:rgba(37,99,235,0.08); color:#2563EB; padding:2px 10px; border-radius:20px; font-weight:600; font-size:0.72rem; }
         .preview-summary { background:#F8FAFC; padding:14px 18px; border-radius:12px; font-size:0.9rem; color:#475569; margin-bottom:16px; border-left:3px solid #2563EB; }

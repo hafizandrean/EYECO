@@ -27,7 +27,7 @@ export class UploadPage {
           <form id="upload-form-element" class="upload-form" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: var(--space-20);">
             <!-- Drag & Drop Area -->
             <div class="form-group">
-              <div class="drag-drop-zone glass-card" id="drop-zone" style="border: 2px dashed rgba(47,107,255,0.25); border-radius: var(--radius-card); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; background: rgba(255,255,255,0.45);">
+              <div class="drag-drop-zone glass-card" id="drop-zone" style="border: 2px dashed rgba(47,107,255,0.25); border-radius: var(--radius-card); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden;">
                 <input type="file" id="upload-input-file" accept="image/jpeg,image/jpg,image/png,video/mp4" required style="display: none;">
                 
                 <!-- Initial State -->

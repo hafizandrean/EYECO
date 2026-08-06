@@ -7,7 +7,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>EYECO - Pusat Komando Insiden CCTV AI</title>
-  <link rel="stylesheet" href="/css/style.css?v=1.8.0">
+  <link rel="stylesheet" href="/css/style.css?v=2.0.0">
   <!-- Load Lucide Icons CDN (Fork of Feather Icons) -->
   <script src="https://unpkg.com/lucide@latest"></script>
 <!-- HLS.js for live stream playback (Tuya HLS / m3u8 streams) -->
@@ -37,20 +37,23 @@
       <nav class="nav-tabs-capsule" id="nav-capsule">
         <div class="nav-tabs" id="nav-tabs">
           <div class="nav-indicator" id="nav-indicator"></div>
+          <a href="/dashboard/beranda" class="nav-tab nav-tab-home" data-tab="beranda" style="display:none;">
+            <span class="nav-text">Beranda</span>
+          </a>
           <a href="/dashboard" class="nav-tab active" data-tab="dashboard">
-            <i data-lucide="layout-dashboard"></i> <span class="nav-text">Dasbor</span>
+            <span class="nav-text">Dasbor</span>
           </a>
           <a href="/dashboard/laporan" class="nav-tab" data-tab="laporan">
-            <i data-lucide="file-text"></i> <span class="nav-text">Daftar Laporan</span>
+            <span class="nav-text">Daftar Laporan</span>
           </a>
           <a href="/dashboard/upload" class="nav-tab" data-tab="upload">
-            <i data-lucide="upload-cloud"></i> <span class="nav-text">Unggah Bukti</span>
+            <span class="nav-text">Unggah Bukti</span>
           </a>
           <a href="/dashboard/cctv-monitoring" class="nav-tab" data-tab="cctv-monitoring" style="display:none;" id="nav-tab-cctv">
-            <i data-lucide="monitor"></i> <span class="nav-text">CCTV</span>
+            <span class="nav-text">CCTV</span>
           </a>
           <a href="/dashboard/berita" class="nav-tab" data-tab="berita" style="display:none;" id="nav-tab-berita">
-            <i data-lucide="newspaper"></i> <span class="nav-text">Berita</span>
+            <span class="nav-text">Berita</span>
           </a>
         </div>
         <!-- Search bar (shown on settings page) -->

@@ -18,6 +18,9 @@
     .blob-2{width:420px;height:420px;background:#7C3AED;bottom:-80px;right:-80px;opacity:0.18}
     body.dark .blob-1{background:#3B82F6;opacity:0.08}
     body.dark .blob-2{background:#8B5CF6;opacity:0.06}
+    /* Layer tampilan utama — tint tipis non-blur supaya textured background tetap keliatan */
+    #sa-page-layer{position:fixed;inset:0;z-index:1;pointer-events:none;background:rgba(255,255,255,0.5)}
+    body.dark #sa-page-layer{background:rgba(11,17,32,0.5)}
     body::after{content:'';position:fixed;inset:0;z-index:-1;opacity:0.018;pointer-events:none;
       background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
     ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}
@@ -39,13 +42,13 @@
 
     /* ── Sidebar ── */
     .sa-sidebar{width:240px;min-width:240px;
-      background:rgba(255,255,255,0.32);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
+      background:rgba(255,255,255,0.72);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
       border-right:1px solid rgba(255,255,255,0.18);
       display:flex;flex-direction:column;
       transition:width 0.28s cubic-bezier(0.4,0,0.2,1),min-width 0.28s cubic-bezier(0.4,0,0.2,1);
       overflow:visible;z-index:60;position:relative;
       box-shadow:4px 0 24px rgba(0,0,0,0.04)}
-    body.dark .sa-sidebar{background:rgba(11,17,32,0.25);backdrop-filter:blur(28px);border-color:rgba(148,163,184,0.06)}
+    body.dark .sa-sidebar{background:rgba(11,17,32,0.72);backdrop-filter:blur(28px);border-color:rgba(148,163,184,0.08)}
     .sa-sidebar.collapsed{width:56px;min-width:56px}
 
     .sa-sidebar-header{display:flex;align-items:center;justify-content:center;padding:14px;height:64px;flex-shrink:0}
@@ -90,19 +93,22 @@
     .sa-sidebar.collapsed .sa-nav-item:hover::after{opacity:1;visibility:visible}
     .sa-nav-spacer{flex:1}
     .sa-nav-item.logout{margin-top:8px;color:#EF4444}
+    .sa-nav-item.logout i{color:#EF4444}
+    body.dark .sa-nav-item.logout{color:#EF4444}
+    body.dark .sa-nav-item.logout i{color:#EF4444}
     .sa-nav-item.logout:hover{background:rgba(239,68,68,0.06)}
 
     /* ── Main area ── */
-    .sa-main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+    .sa-main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;position:relative;z-index:2}
 
     /* ── Navbar (stacked above content, below modal) ── */
     .sa-topnav{display:flex;align-items:center;justify-content:space-between;
       padding:0 28px;height:64px;flex-shrink:0;
-      background:rgba(255,255,255,0.18);backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);
-      border-bottom:1px solid rgba(255,255,255,0.1);
+      background:rgba(255,255,255,0.72);backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);
+      border-bottom:1px solid rgba(255,255,255,0.18);
       box-shadow:0 1px 20px rgba(0,0,0,0.04);
       position:relative;z-index:50}
-    body.dark .sa-topnav{background:rgba(11,17,32,0.15);backdrop-filter:blur(32px);border-color:rgba(148,163,184,0.04)}
+    body.dark .sa-topnav{background:rgba(11,17,32,0.72);backdrop-filter:blur(32px);border-color:rgba(148,163,184,0.08)}
     .sa-topnav-left{display:flex;align-items:center;gap:10px}
     .sa-topnav-brand{font-family:'Outfit',sans-serif;font-weight:800;font-size:1.1rem;color:#2563EB;
       text-shadow:0 1px 2px rgba(255,255,255,0.3);line-height:1}
@@ -127,12 +133,11 @@
     /* ── Dropdown (z-index above navbar) ── */
     .sa-dropdown{position:relative}
     .sa-dropdown-menu{position:absolute;top:calc(100% + 8px);right:0;width:220px;
-      background:rgba(255,255,255,0.7);backdrop-filter:blur(40px);-webkit-backdrop-filter:blur(40px);
-      border:1px solid rgba(255,255,255,0.15);border-radius:14px;
+      background:#FFFFFF;border:1px solid rgba(0,0,0,0.06);border-radius:14px;
       box-shadow:0 16px 48px rgba(0,0,0,0.06);
       opacity:0;visibility:hidden;transform:translateY(-6px) scale(0.98);
       transition:all 0.2s ease;z-index:200;pointer-events:none}
-    body.dark .sa-dropdown-menu{background:rgba(15,23,42,0.7);backdrop-filter:blur(40px);border-color:rgba(148,163,184,0.04)}
+    body.dark .sa-dropdown-menu{background:#1E293B;border-color:rgba(148,163,184,0.1)}
     .sa-dropdown.open .sa-dropdown-menu{opacity:1;visibility:visible;transform:translateY(0) scale(1);pointer-events:auto}
     .sa-dropdown-header{padding:16px 18px;border-bottom:1px solid rgba(255,255,255,0.04)}
     .sa-dropdown-header strong{display:block;font-size:0.88rem;color:#0F172A}
@@ -147,7 +152,7 @@
     body.dark .sa-dropdown-divider{background:rgba(148,163,184,0.04)}
 
     /* ── Content (scrollable) ── */
-    .sa-content{flex:1;overflow-y:auto;overflow-x:hidden;padding:24px 32px;background:transparent}
+    .sa-content{flex:1;overflow-y:auto;overflow-x:hidden;padding:24px 32px;background:transparent;position:relative;z-index:2}
     @media(max-width:1024px){.sa-content{padding:20px 20px}}
     @media(max-width:768px){.sa-content{padding:16px}}
     .sa-section{display:none}.sa-section.active{display:block;animation:pageEnter 0.3s ease forwards}
@@ -163,12 +168,11 @@
     .sa-stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
     @media(max-width:1100px){.sa-stats-grid{grid-template-columns:repeat(2,1fr)}}
     @media(max-width:480px){.sa-stats-grid{grid-template-columns:1fr}}
-    .stat-sa-card{background:rgba(255,255,255,0.28);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-      border:1px solid rgba(255,255,255,0.08);border-radius:14px;
+    .stat-sa-card{background:#FFFFFF;border:1px solid rgba(0,0,0,0.06);border-radius:14px;
       padding:16px 18px;display:flex;align-items:center;gap:14px;
       transition:all 0.2s ease}
     .stat-sa-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.02);border-color:rgba(255,255,255,0.12)}
-    body.dark .stat-sa-card{background:rgba(30,41,59,0.2);backdrop-filter:blur(20px);border-color:rgba(148,163,184,0.04)}
+    body.dark .stat-sa-card{background:#111827;border-color:rgba(148,163,184,0.1)}
     .stat-sa-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
     .stat-sa-icon i{width:18px;height:18px}
     .stat-sa-info{min-width:0}
@@ -201,22 +205,20 @@
     body.dark .sa-section-header h2{color:#F1F5F9}
     .sa-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
     .sa-toolbar .search-box-wrap{position:relative;display:flex;align-items:center;
-      background:rgba(255,255,255,0.25);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-      border:1.5px solid rgba(255,255,255,0.08);border-radius:10px;height:38px;width:200px;transition:all 0.2s;overflow:hidden}
-    body.dark .sa-toolbar .search-box-wrap{background:rgba(30,41,59,0.25);border-color:rgba(148,163,184,0.06)}
+      background:#FFFFFF;border:1.5px solid rgba(0,0,0,0.1);border-radius:10px;height:38px;width:200px;transition:all 0.2s;overflow:hidden}
+    body.dark .sa-toolbar .search-box-wrap{background:#1E293B;border-color:rgba(148,163,184,0.15)}
     .sa-toolbar .search-box-wrap:focus-within{border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,0.06)}
     .sa-toolbar .search-box-wrap i{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:#94A3B8;pointer-events:none}
     .sa-toolbar .search-box-input{width:100%;height:100%;padding:0 10px 0 30px;border:none;background:transparent;font-size:0.8rem;font-family:'Inter',sans-serif;color:#1E293B;outline:none}
     body.dark .sa-toolbar .search-box-input{color:#E2E8F0}
     .sa-toolbar .search-box-input::placeholder{color:#94A3B8}
-    .sa-toolbar .filter-select{height:38px;padding:0 28px 0 10px;border:1.5px solid rgba(255,255,255,0.08);border-radius:10px;
+    .sa-toolbar .filter-select{height:38px;padding:0 28px 0 10px;border:1.5px solid rgba(0,0,0,0.1);border-radius:10px;
       font-size:0.76rem;font-family:'Inter',sans-serif;font-weight:600;
-      background:rgba(255,255,255,0.25);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-      color:#475569;cursor:pointer;outline:none;transition:all 0.2s;
+      background:#FFFFFF;color:#475569;cursor:pointer;outline:none;transition:all 0.2s;
       -webkit-appearance:none;appearance:none;
       background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
       background-repeat:no-repeat;background-position:right 8px center}
-    body.dark .sa-toolbar .filter-select{background:rgba(30,41,59,0.25);border-color:rgba(148,163,184,0.06);color:#94A3B8}
+    body.dark .sa-toolbar .filter-select{background:#1E293B;border-color:rgba(148,163,184,0.15);color:#94A3B8}
     .sa-toolbar .filter-select:focus{border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,0.06)}
     .sa-toolbar .btn-primary.btn-sm{height:38px;padding:0 14px;border:none;border-radius:10px;
       font-size:0.8rem;font-weight:700;font-family:'Inter',sans-serif;
@@ -229,15 +231,16 @@
 
     /* ── Tables ── */
     .sa-table-wrap{border-radius:14px;overflow:hidden;
-      background:rgba(255,255,255,0.28);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-      border:1px solid rgba(255,255,255,0.08)}
-    body.dark .sa-table-wrap{background:rgba(30,41,59,0.18);backdrop-filter:blur(20px);border-color:rgba(148,163,184,0.04)}
+      background:#FFFFFF;border:1px solid rgba(0,0,0,0.06)}
+    body.dark .sa-table-wrap{background:#111827;border-color:rgba(148,163,184,0.1)}
     .sa-table{width:100%;border-collapse:collapse;font-size:0.82rem}
     .sa-table thead{background:rgba(37,99,235,0.02)}
     .sa-table thead th{padding:10px 16px;text-align:left;font-weight:700;color:#64748B;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid rgba(255,255,255,0.04)}
     body.dark .sa-table thead th{color:#94A3B8}
     .sa-table tbody td{padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.03);color:#334155;vertical-align:middle}
     body.dark .sa-table tbody td{color:#CBD5E1}
+    body.dark .sa-table tbody td[style*="0F172A"]{color:#E2E8F0!important}
+    body.dark .sa-table tbody strong[style*="0F172A"]{color:#F1F5F9!important}
     .sa-table tbody tr:last-child td{border-bottom:none}
     .sa-table tbody tr:hover{background:rgba(37,99,235,0.01)}
 
@@ -279,12 +282,10 @@
     .sa-empty p{font-size:0.85rem;margin:0}
 
     /* ── Modal (z-index above everything) ── */
-    .sa-modal{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.15);backdrop-filter:blur(4px)}
+    .sa-modal{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.35)}
     .sa-modal.open{display:flex}
-    .sa-modal-box{background:rgba(255,255,255,0.45);backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);
-      border:1px solid rgba(255,255,255,0.12);border-radius:14px;
-      width:100%;max-width:440px;margin:16px;box-shadow:0 16px 48px rgba(0,0,0,0.04)}
-    body.dark .sa-modal-box{background:rgba(11,17,32,0.45);backdrop-filter:blur(32px);border-color:rgba(148,163,184,0.04)}
+    .sa-modal-box{background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:14px;width:100%;max-width:440px;margin:16px;box-shadow:0 16px 48px rgba(0,0,0,0.15)}
+    body.dark .sa-modal-box{background:#111827;border-color:rgba(148,163,184,0.1)}
     .sa-modal-box.wide{max-width:600px}
     .sa-modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.04)}
     .sa-modal-header h3{font-size:1rem;font-weight:700;margin:0;color:#0F172A;font-family:'Outfit',sans-serif}
@@ -295,18 +296,17 @@
     .sa-modal-footer{padding:8px 20px 16px;display:flex;gap:8px;justify-content:flex-end}
 
     .sa-input{width:100%;padding:9px 14px;
-      border:1.5px solid rgba(255,255,255,0.08);border-radius:10px;
+      border:1.5px solid rgba(0,0,0,0.1);border-radius:10px;
       font-size:0.82rem;font-family:'Inter',sans-serif;
-      background:rgba(255,255,255,0.25);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-      outline:none;transition:all 0.2s;color:#1E293B}
+      background:#FFFFFF;outline:none;transition:all 0.2s;color:#1E293B}
     .sa-input:focus{border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,0.06)}
-    body.dark .sa-input{background:rgba(30,41,59,0.25);border-color:rgba(148,163,184,0.06);color:#E2E8F0}
-    .sa-select{padding:9px 14px;border:1.5px solid rgba(255,255,255,0.08);border-radius:10px;
+    body.dark .sa-input{background:#1E293B;border-color:rgba(148,163,184,0.15);color:#E2E8F0}
+    .sa-select{padding:9px 14px;border:1.5px solid rgba(0,0,0,0.1);border-radius:10px;
       font-size:0.82rem;font-family:'Inter',sans-serif;
-      background:rgba(255,255,255,0.25);backdrop-filter:blur(12px);
+      background:#FFFFFF;
       outline:none;cursor:pointer;transition:all 0.2s;width:100%;color:#1E293B}
     .sa-select:focus{border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,0.06)}
-    body.dark .sa-select{background:rgba(30,41,59,0.25);border-color:rgba(148,163,184,0.06);color:#E2E8F0}
+    body.dark .sa-select{background:#1E293B;border-color:rgba(148,163,184,0.15);color:#E2E8F0}
     .sa-label{display:block;font-size:0.75rem;font-weight:600;color:#475569;margin-bottom:3px}
     body.dark .sa-label{color:#94A3B8}
 
@@ -321,9 +321,8 @@
     .wsd-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
     @media(max-width:1100px){.wsd-grid{grid-template-columns:repeat(2,1fr)}}
     @media(max-width:480px){.wsd-grid{grid-template-columns:1fr}}
-    .wsd-card{background:rgba(255,255,255,0.25);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-      border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px 16px;transition:all 0.2s}
-    body.dark .wsd-card{background:rgba(30,41,59,0.18);backdrop-filter:blur(20px);border-color:rgba(148,163,184,0.04)}
+    .wsd-card{background:#FFFFFF;border:1px solid rgba(0,0,0,0.06);border-radius:14px;padding:14px 16px;transition:all 0.2s}
+    body.dark .wsd-card{background:#111827;border-color:rgba(148,163,184,0.1)}
     .wsd-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.02)}
     .wsd-card-label{font-size:0.62rem;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:0.3px}
     .wsd-card-value{font-family:'Outfit',sans-serif;font-size:1.2rem;font-weight:800;color:#0F172A;margin-top:2px}
@@ -357,6 +356,7 @@
   </style>
 </head>
 <body>
+  <div id="sa-page-layer"></div>
   <div class="bg-blobs"><div class="blob blob-1"></div><div class="blob blob-2"></div></div>
   <div id="sa-toast"><i data-lucide="check-circle"></i><span id="sa-toast-msg">Tersalin</span><i data-lucide="x" class="toast-close" onclick="document.getElementById('sa-toast').classList.remove('show')"></i></div>
 
@@ -374,7 +374,6 @@
       <div class="sa-nav-item active" data-target="dashboard" data-label="Dashboard"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></div>
       <div class="sa-nav-item" data-target="workspaces" data-label="Workspace"><i data-lucide="building-2"></i><span>Workspace</span></div>
       <div class="sa-nav-item" data-target="admins" data-label="Administrator"><i data-lucide="shield-user"></i><span>Administrator</span></div>
-      <div class="sa-nav-item" data-target="audit-logs" data-label="Audit Log"><i data-lucide="activity"></i><span>Audit Log</span></div>
       <div class="sa-nav-spacer"></div>
       <div class="sa-nav-item logout" id="sa-logout-btn" data-label="Keluar"><i data-lucide="log-out"></i><span>Keluar</span></div>
     </nav>
@@ -387,21 +386,12 @@
         <span class="sa-topnav-brand">EYECO</span>
       </div>
       <div class="sa-topnav-right">
-        <button class="sa-btn-nav" id="sa-dark-toggle" aria-label="Toggle dark mode"><i data-lucide="moon"></i></button>
         <div class="sa-dropdown" id="sa-dropdown">
-          <button class="sa-profile-btn" id="sa-profile-btn">
+          <button class="sa-profile-btn" id="sa-profile-btn" style="gap:0;padding:4px;">
             <div class="sa-avatar" id="sa-avatar">S</div>
-            <span id="sa-username">SuperAdmin</span>
-            <i data-lucide="chevron-down"></i>
           </button>
-          <div class="sa-dropdown-menu">
-            <div class="sa-dropdown-header">
-              <strong id="sa-dropdown-name">Loading...</strong>
-              <span id="sa-dropdown-email">-</span>
-              <span class="sa-badge sa-badge-purple" style="margin-top:6px;display:inline-block;">SUPERADMIN</span>
-            </div>
-            <div class="sa-dropdown-item" id="sa-btn-changepw"><i data-lucide="key-round"></i> Ubah Password</div>
-            <div class="sa-dropdown-item" id="sa-btn-sessions"><i data-lucide="monitor-smartphone"></i> Login Sessions</div>
+          <div class="sa-dropdown-menu" style="width:200px;">
+            <div class="sa-dropdown-item" id="sa-btn-settings"><i data-lucide="settings"></i> Pengaturan</div>
             <div class="sa-dropdown-divider"></div>
             <div class="sa-dropdown-item" id="sa-dropdown-logout" style="color:#EF4444;"><i data-lucide="log-out"></i> Keluar</div>
           </div>
@@ -513,27 +503,6 @@
   </div>
 
   </div><!-- .sa-app -->
-
-  <!-- ══ MODALS ══ -->
-
-  <!-- ══ AUDIT LOGS SECTION ══ -->
-  <section id="sec-audit-logs" class="sa-section">
-    <div class="sa-page-header"><h1>Audit Log</h1><p>Riwayat aktivitas sistem (login, perubahan password, hapus data, dll).</p></div>
-    <div class="sa-section-header">
-      <h2>Semua Audit Log</h2>
-      <div class="sa-toolbar">
-        <div class="search-box-wrap"><i data-lucide="search"></i><input type="text" id="audit-search" class="search-box-input" placeholder="Cari aksi, aktor, tenant..."></div>
-        <select id="audit-filter-action" class="filter-select"><option value="all">Semua Aksi</option><option value="User Login">User Login</option><option value="Change Password">Change Password</option><option value="Register Superadmin">Register Superadmin</option><option value="CLEAR_ALL_REPORTS">Hapus Semua Laporan</option><option value="VERIFY_REPORT">Validasi Laporan</option><option value="MANUAL_TELEGRAM_BROADCAST">Broadcast Telegram</option></select>
-        <input type="date" id="audit-from" class="sa-input" style="width:150px;">
-        <input type="date" id="audit-to" class="sa-input" style="width:150px;">
-        <button class="btn-primary btn-sm" id="audit-refresh"><i data-lucide="refresh-cw"></i> Refresh</button>
-      </div>
-    </div>
-    <div class="sa-table-wrap">
-      <table class="sa-table"><thead><tr><th style="width:50px;">#</th><th>Waktu</th><th>Aksi</th><th>Aktor</th><th>Tenant</th><th>IP Address</th><th style="width:300px;">Detail</th></tr></thead><tbody id="audit-table-body"></tbody></table>
-    </div>
-    <div class="sa-pagination" id="audit-pagination" style="display:none;"><div class="sa-pagination-info"></div><div class="sa-pagination-pages"></div></div>
-  </section>
 
   <!-- ══ MODALS ══ -->
 
@@ -690,16 +659,10 @@
       });
     }
 
-    const darkToggle = document.getElementById('sa-dark-toggle');
-    function applyDark(enabled) {
-      document.body.classList.toggle('dark', enabled);
-      darkToggle.querySelector('i').setAttribute('data-lucide', enabled ? 'sun' : 'moon');
-      if (window.lucide) window.lucide.createIcons();
-      localStorage.setItem('sa-dark-mode', enabled ? '1' : '0');
+    // Dark mode diambil dari sesi user (eyeco-theme), tanpa toggle di navbar — konsisten dgn role lain
+    if (localStorage.getItem('eyeco-theme') === 'dark' || localStorage.getItem('sa-dark-mode') === '1') {
+      document.body.classList.add('dark');
     }
-    if (localStorage.getItem('sa-dark-mode') === '1') applyDark(true);
-    else if (localStorage.getItem('eyeco-theme') === 'dark') applyDark(true);
-    darkToggle.addEventListener('click', () => applyDark(!document.body.classList.contains('dark')));
 
     function paginate(data, page, perPage) {
       const total = data.length;
@@ -747,9 +710,6 @@
       const u = state.user;
       const initial = (u.name || u.username)[0].toUpperCase();
       document.getElementById('sa-avatar').textContent = initial;
-      document.getElementById('sa-username').textContent = u.name || u.username;
-      document.getElementById('sa-dropdown-name').textContent = u.name || u.username;
-      document.getElementById('sa-dropdown-email').textContent = u.email || '-';
     }
 
     document.querySelectorAll('.sa-nav-item[data-target]').forEach(item => {
@@ -798,13 +758,8 @@
     document.getElementById('sa-logout-btn').addEventListener('click', doLogout);
     document.getElementById('sa-dropdown-logout').addEventListener('click', doLogout);
 
-    document.getElementById('sa-btn-changepw').addEventListener('click', () => {
-      document.getElementById('sa-dropdown').classList.remove('open');
-      document.getElementById('form-changepw').reset();
-      document.getElementById('pw-error').style.display = 'none';
-      // Reset strength bars
-      document.querySelectorAll('#pw-strength .strength-bar').forEach(bar => bar.style.background = 'rgba(0,0,0,0.1)');
-      document.getElementById('modal-changepw').classList.add('open');
+    document.getElementById('sa-btn-settings').addEventListener('click', () => {
+      window.location.href = '/dashboard/settings';
     });
 
     // Password strength indicator for change password modal
@@ -863,37 +818,6 @@
         else { errEl.textContent = data.error || 'Gagal'; errEl.style.display = 'block'; }
       } catch(_) { errEl.textContent = 'Gagal terhubung'; errEl.style.display = 'block'; }
       finally { btn.disabled = false; btn.innerHTML = '<i data-lucide="save"></i> Simpan'; if(window.lucide)window.lucide.createIcons(); }
-    });
-
-    document.getElementById('sa-btn-sessions').addEventListener('click', async () => {
-      document.getElementById('sa-dropdown').classList.remove('open');
-      document.getElementById('sessions-body').innerHTML = '<p style="color:#94A3B8;font-size:0.82rem;">Memuat...</p>';
-      document.getElementById('modal-sessions').classList.add('open');
-      try {
-        const res = await fetch('/api/superadmin/sessions', { credentials: 'include' });
-        const data = await res.json();
-        const sessions = data.sessions || [];
-        if (sessions.length === 0) {
-          document.getElementById('sessions-body').innerHTML = '<div class="sa-empty"><i data-lucide="monitor-smartphone"></i><p>Belum ada sesi login.</p></div>';
-        } else {
-          document.getElementById('sessions-body').innerHTML = sessions.map(s => {
-            const device = s.deviceInfo || 'Unknown';
-            const ip = s.ipAddress || 'Unknown';
-            const time = s.lastActive ? new Date(s.lastActive).toLocaleString('id-ID') : '-';
-            const isCurrent = s.isCurrent || false;
-            return `<div class="session-item"><div class="session-info"><div class="session-device"><i data-lucide="${device.toLowerCase().includes('mobile')?'smartphone':'monitor'}" style="width:14px;height:14px;"></i> ${device} ${isCurrent?'<span class="session-current">Aktif</span>':''}</div><div class="session-meta">${ip} · Terakhir aktif: ${time}</div></div>${!isCurrent ? `<button class="btn btn-glass sa-btn-session-delete" data-session="${s.id}" style="height:28px;padding:0 10px;font-size:0.7rem;color:#EF4444;"><i data-lucide="trash-2" style="width:11px;height:11px;"></i> Hapus</button>` : ''}</div>`;
-          }).join('');
-          document.querySelectorAll('.sa-btn-session-delete').forEach(b => {
-            b.addEventListener('click', async () => {
-              const sid = b.getAttribute('data-session');
-              await fetch(`/api/superadmin/sessions/${sid}`, { method: 'DELETE', credentials: 'include' });
-              showToast('Session berhasil dihapus');
-              b.closest('.session-item').remove();
-            });
-          });
-        }
-        if (window.lucide) window.lucide.createIcons();
-      } catch(_) { document.getElementById('sessions-body').innerHTML = '<p style="color:#EF4444;font-size:0.82rem;">Gagal memuat sesi.</p>'; }
     });
 
     function openModal(id) { document.getElementById(id).classList.add('open'); }
@@ -1217,104 +1141,6 @@
         try { const res = await fetch(`/api/superadmin/admins/${id}`, { method:'DELETE', credentials:'include' }); const data = await res.json(); if (data.success) { await loadAdmins(); await loadStats(); showToast('Admin berhasil dihapus'); } else { alert(data.error||'Gagal'); } } catch(_) { alert('Gagal'); }
       });
     }
-
-    // ══ AUDIT LOGS ══
-    let auditPage = 1;
-    let auditFilters = { search: '', action: 'all', fromDate: '', toDate: '' };
-
-    async function loadAuditLogs(page = 1) {
-      auditPage = page;
-      const params = new URLSearchParams();
-      params.set('page', String(page));
-      params.set('limit', '50');
-      if (auditFilters.action && auditFilters.action !== 'all') params.set('action', auditFilters.action);
-      if (auditFilters.fromDate) params.set('fromDate', auditFilters.fromDate);
-      if (auditFilters.toDate) params.set('toDate', auditFilters.toDate);
-
-      try {
-        const res = await fetch(`/api/superadmin/audit-logs?${params.toString()}`, { credentials: 'include' });
-        const data = await res.json();
-        if (!data.success) throw new Error(data.error || 'Gagal');
-
-        const tbody = document.getElementById('audit-table-body');
-        const logs = data.logs || [];
-        if (logs.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" class="sa-empty"><i data-lucide="activity"></i><p>Belum ada audit log.</p></td></tr>';
-        } else {
-          tbody.innerHTML = logs.map((log, idx) => {
-            const num = (data.pagination.page - 1) * data.pagination.limit + idx + 1;
-            const time = log.createdAt ? new Date(log.createdAt).toLocaleString('id-ID') : '-';
-            const action = log.action || '-';
-            const actor = log.actorName || '-';
-            const tenant = log.tenantId || '-';
-            const ip = log.ipAddress || '-';
-            let detail = '';
-            if (log.details) {
-              const d = log.details;
-              detail = Object.entries(d).map(([k,v]) => `${k}: ${JSON.stringify(v)}`).join('; ');
-            }
-            return `<tr><td style="font-weight:700;color:#0F172A;">${num}</td><td>${time}</td><td><span class="sa-badge sa-badge-blue">${action}</span></td><td>${actor}</td><td>${tenant}</td><td style="font-family:monospace;font-size:0.7rem;">${ip}</td><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.75rem;color:#64748B;" title="${detail}">${detail || '-'}</td></tr>`;
-          }).join('');
-        }
-
-        // Pagination
-        const pag = data.pagination || { page: 1, pages: 1, total: 0 };
-        const pagEl = document.getElementById('audit-pagination');
-        if (pag.total <= 1) { pagEl.style.display = 'none'; return; }
-        pagEl.style.display = 'flex';
-        const start = (pag.page - 1) * pag.limit + 1;
-        const end = Math.min(pag.page * pag.limit, pag.total);
-        pagEl.querySelector('.sa-pagination-info').textContent = `Showing ${start}–${end} of ${pag.total} entries`;
-        let html = `<button class="sa-page-btn" data-page="${pag.page-1}" ${pag.page<=1?'disabled':''}>Prev</button>`;
-        for (let i = 1; i <= pag.pages; i++) html += `<button class="sa-page-btn ${i===pag.page?'active':''}" data-page="${i}">${i}</button>`;
-        html += `<button class="sa-page-btn" data-page="${pag.page+1}" ${pag.page>=pag.pages?'disabled':''}>Next</button>`;
-        pagEl.querySelector('.sa-pagination-pages').innerHTML = html;
-        pagEl.querySelectorAll('.sa-page-btn').forEach(b => {
-          b.addEventListener('click', () => {
-            const p = parseInt(b.getAttribute('data-page'));
-            if (p >= 1 && p <= pag.pages) loadAuditLogs(p);
-          });
-        });
-
-        if (window.lucide) window.lucide.createIcons();
-      } catch (err) {
-        console.error('[AUDIT LOGS ERROR]', err);
-        document.getElementById('audit-table-body').innerHTML = '<tr><td colspan="7" class="sa-empty"><i data-lucide="alert-circle"></i><p style="color:#EF4444;">Gagal memuat audit log.</p></td></tr>';
-      }
-    }
-
-    document.getElementById('audit-search')?.addEventListener('input', (e) => {
-      auditFilters.search = e.target.value.toLowerCase();
-      // Client-side filter on action column (col 3)
-      const q = auditFilters.search;
-      document.querySelectorAll('#audit-table-body tr').forEach(tr => {
-        tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
-      });
-    });
-
-    document.getElementById('audit-filter-action')?.addEventListener('change', (e) => {
-      auditFilters.action = e.target.value;
-      loadAuditLogs(1);
-    });
-
-    document.getElementById('audit-from')?.addEventListener('change', (e) => {
-      auditFilters.fromDate = e.target.value;
-      loadAuditLogs(1);
-    });
-
-    document.getElementById('audit-to')?.addEventListener('change', (e) => {
-      auditFilters.toDate = e.target.value;
-      loadAuditLogs(1);
-    });
-
-    document.getElementById('audit-refresh')?.addEventListener('click', () => loadAuditLogs(auditPage));
-
-    // Extend showSection to handle audit-logs
-    const originalShowSection = showSection;
-    window.showSection = function(sectionId) {
-      originalShowSection(sectionId);
-      if (sectionId === 'audit-logs') loadAuditLogs(1);
-    };
 
     init();
   </script>

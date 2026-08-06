@@ -529,6 +529,35 @@
         .ws-toast.info    { background: #2563EB; }
         .ws-toast i, .ws-toast svg { width: 16px; height: 16px; flex-shrink: 0; }
 
+        /* ─── Dark mode (sesuai eyeco-theme) ─── */
+        body.dark-mode .ws-navbar {
+            background: rgba(17,24,39,0.72);
+            border-bottom-color: rgba(148,163,184,0.18);
+        }
+        body.dark-mode .ws-brand { color: #E2E8F0; }
+        body.dark-mode .ws-nav-links a { color: #94A3B8; }
+        body.dark-mode .ws-nav-links a.active,
+        body.dark-mode .ws-nav-links a:hover { color: #60A5FA; }
+        body.dark-mode .ws-page-header h1 { color: #F1F5F9; }
+        body.dark-mode .ws-page-header p { color: #94A3B8; }
+        body.dark-mode .ws-card {
+            background: rgba(30,41,59,0.55);
+            border-color: rgba(148,163,184,0.18);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+        body.dark-mode .ws-card:hover {
+            border-color: rgba(59,130,246,0.4);
+        }
+        body.dark-mode .ws-info h3 { color: #F1F5F9; }
+        body.dark-mode .ws-info p { color: #94A3B8; }
+        body.dark-mode .ws-search-input {
+            background: rgba(30,41,59,0.45);
+            border-color: rgba(148,163,184,0.18);
+            color: #F1F5F9;
+        }
+        body.dark-mode .ws-search-input::placeholder { color: #64748B; }
+        body.dark-mode .blob { opacity: 0.2; }
+
         /* ─── Responsive ─── */
         @media (max-width: 580px) {
             .ws-card { flex-direction: column; align-items: flex-start; gap: 14px; }

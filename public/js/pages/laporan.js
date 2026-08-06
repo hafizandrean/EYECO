@@ -37,7 +37,7 @@ export class LaporanPage {
 
     container.innerHTML = `
       <!-- Page Header -->
-      <div class="page-header" style="margin-bottom: var(--space-24);">
+      <div class="page-header" style="margin-bottom: var(--space-24);padding:14px 20px;border-radius:var(--radius-lg);background:rgba(255,255,255,0.55);backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);border:1px solid rgba(255,255,255,0.7);">
         <div class="section-title" style="font-size: 1.8rem; font-weight: 800; color: var(--text-primary); margin: 0;">
           Log Aktivitas Lingkungan
         </div>

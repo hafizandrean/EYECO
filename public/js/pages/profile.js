@@ -410,8 +410,17 @@ const Profile = {
 
     document.getElementById('btn-profile-back')?.addEventListener('click', () => {
       // Kembali ke halaman terakhir user sebelum masuk Settings
-      const returnPath = sessionStorage.getItem('eyeco_settings_return') || '/dashboard';
+      let returnPath = sessionStorage.getItem('eyeco_settings_return');
+      if (!returnPath) {
+        const role = AppState?.get?.('user')?.role;
+        returnPath = role === 'superadmin' ? '/superadmin' : '/dashboard';
+      }
       sessionStorage.removeItem('eyeco_settings_return');
+      // Superadmin: halaman terpisah (bukan SPA) → full page load
+      if (returnPath === '/superadmin') {
+        window.location.href = '/superadmin';
+        return;
+      }
       Router.backTo(returnPath);
     });
 

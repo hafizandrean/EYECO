@@ -21,6 +21,7 @@ export class HeaderComponent {
     if (!this.container) return;
 
     this.tabs = {
+      beranda: this.container.querySelector('[data-tab="beranda"]'),
       dashboard: this.container.querySelector('[data-tab="dashboard"]'),
       laporan: this.container.querySelector('[data-tab="laporan"]'),
       upload: this.container.querySelector('[data-tab="upload"]'),
@@ -96,12 +97,16 @@ export class HeaderComponent {
     const isAdmin = user?.role === 'admin';
     const exportBtn = document.getElementById('btn-header-export');
 
-    // Role Guard Tab: Rename first tab dynamically based on role (Dashboard vs Beranda)
+    // Beranda tab: only admin (non-admin already gets landing at /dashboard)
+    if (this.tabs.beranda) {
+      this.tabs.beranda.style.display = isAdmin ? 'inline-flex' : 'none';
+    }
+    // Dashboard tab: admin sees "Dasbor" command center, non-admin sees "Beranda" landing
     if (this.tabs.dashboard) {
       if (isAdmin) {
-        this.tabs.dashboard.innerHTML = '<i data-lucide="layout-dashboard"></i> <span class="nav-text">Dasbor</span>';
+        this.tabs.dashboard.innerHTML = '<span class="nav-text">Dasbor</span>';
       } else {
-        this.tabs.dashboard.innerHTML = '<i data-lucide="home"></i> <span class="nav-text">Beranda</span>';
+        this.tabs.dashboard.innerHTML = '<span class="nav-text">Beranda</span>';
       }
       this.tabs.dashboard.style.display = 'inline-flex';
     }
@@ -134,7 +139,8 @@ export class HeaderComponent {
     if (navSearch) navSearch.style.display = isSettings ? 'block' : 'none';
 
     let activeKey = null;
-    if (currentPath === '/dashboard') activeKey = 'dashboard';
+    if (currentPath === '/dashboard/beranda') activeKey = 'beranda';
+    else if (currentPath === '/dashboard') activeKey = 'dashboard';
     else if (currentPath === '/dashboard/laporan') activeKey = 'laporan';
     else if (currentPath === '/dashboard/upload') activeKey = 'upload';
     else if (currentPath === '/dashboard/berita') activeKey = 'berita';

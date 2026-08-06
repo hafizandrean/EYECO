@@ -69,9 +69,10 @@ class AppInitializer {
 
     // Navbar tetap tampil di Settings — tapi tab diganti search bar (lihat Header.js)
     const isSettings = path === '/dashboard/settings' || path === '/dashboard/profile';
-    // Fallback: jika langsung load /dashboard/settings (refresh), default ke /dashboard
+    // Fallback: jika langsung load /dashboard/settings (refresh), default sesuai role
     if (isSettings && !sessionStorage.getItem('eyeco_settings_return')) {
-      sessionStorage.setItem('eyeco_settings_return', '/dashboard');
+      const role = AppState.get('user')?.role;
+      sessionStorage.setItem('eyeco_settings_return', role === 'superadmin' ? '/superadmin' : '/dashboard');
     }
 
     // Render halaman baru DI BELAKANG LAYER (opacity 0), tanpa nunggu
@@ -83,7 +84,15 @@ class AppInitializer {
       const user = AppState.get('user');
       const isAdmin = user?.role === 'admin';
 
-      if (path === '/dashboard') {
+      if (path === '/dashboard/beranda') {
+        // Landing page untuk semua role termasuk admin
+        this.currentPageInstance = Home;
+        try {
+          await Home.render(this.viewport);
+        } catch (homeErr) {
+          console.error('[Home Render Error]', homeErr);
+        }
+      } else if (path === '/dashboard') {
         // Non-admin users see the landing page (Beranda)
         if (!isAdmin) {
           this.currentPageInstance = Home;

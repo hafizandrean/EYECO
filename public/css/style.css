@@ -33,6 +33,7 @@
   --text-muted:       #64748B;
   --text-gray:        #94A3B8;
   --text-secondary:   #64748B;
+  --text-primary:     #0F172A;
 
   /* Borders */
   --border:           rgba(0, 0, 0, 0.07);
@@ -122,6 +123,7 @@ body.dark-mode {
   --text-muted:       #94A3B8;
   --text-gray:        #64748B;
   --text-secondary:   #94A3B8;
+  --text-primary:     #F1F5F9;
 
   --border:           rgba(148, 163, 184, 0.1);
   --border-focus:     rgba(96, 165, 250, 0.45);
@@ -1328,6 +1330,22 @@ input:checked + .slider:before { transform: translateX(16px); }
 .filters-section {
   display: flex; flex-direction: column; gap: 14px;
   margin-bottom: 24px;
+  padding: 16px 20px;
+  border-radius: var(--radius-lg);
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  border: 1px solid rgba(255,255,255,0.7);
+}
+body.dark-mode .filters-section {
+  background: rgba(30,41,59,0.45);
+  border-color: rgba(148,163,184,0.15);
+}
+body.dark-mode .cctv-header-clean,
+body.dark-mode .section-row-header,
+body.dark-mode .page-header {
+  background: rgba(30,41,59,0.45) !important;
+  border-color: rgba(148,163,184,0.15) !important;
 }
 .filters-grid {
   display: grid;
@@ -1479,19 +1497,23 @@ h4, .h4, .card-subtitle, .sub-section-title {
   cursor: pointer;
   transition: all var(--anim-base);
   position: relative; overflow: hidden;
-  background: rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
 }
 .drag-drop-zone:hover {
   border-color: var(--primary);
   background: rgba(37,99,235,0.02);
 }
 body.dark-mode .drag-drop-zone {
-  background: rgba(30, 41, 59, 0.3);
-  border-color: rgba(148, 163, 184, 0.15);
+  background: rgba(30, 41, 59, 0.45);
+  border-color: rgba(148, 163, 184, 0.2);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
 }
 body.dark-mode .drag-drop-zone:hover {
   border-color: var(--primary);
-  background: rgba(96,165,250,0.04);
+  background: rgba(96,165,250,0.06);
 }
 
 /* ── History Item ──────────────────────────── */
@@ -2712,12 +2734,9 @@ body.dark-mode .btn-outline:hover {
 /* ── Primary: Incident Queue + Operational Summary ── */
 .command-center-primary {
   display: grid;
-  grid-template-columns: 1fr 280px;
+  grid-template-columns: 1fr;
   gap: var(--space-20);
   margin-bottom: var(--space-20);
-}
-@media (max-width: 900px) {
-  .command-center-primary { grid-template-columns: 1fr; }
 }
 .incident-queue-panel {
   padding: var(--space-20);
@@ -4464,14 +4483,8 @@ body.dark-mode .landing-layer-glass {
   .landing-section { padding: 40px 0 24px; }
 }
 .landing-cta { padding: 48px 0; }
-.landing-footer { padding: 32px 0 24px; margin-bottom: 0; margin-top: auto; }
-/* Footer tampilkan background halaman (texture), bukan glass layer */
-.landing-footer.landing-layer-glass {
-  background: transparent !important;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-body.dark-mode .landing-footer.landing-layer-glass { background: transparent !important; }
+.landing-footer { padding: 0 0 24px; margin-bottom: 0; margin-top: auto; }
+.landing-footer.landing-layer-glass { margin-top: 0; padding: 28px 0 24px; }
 
 /* Hero & first/last sections touch viewport edges */
 .landing-hero {

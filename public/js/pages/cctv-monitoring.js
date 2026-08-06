@@ -214,42 +214,18 @@ export class CctvMonitoringPage {
 
     container.innerHTML = `
       <!-- Control Bar -->
-      <section class="cctv-header-clean" style="margin-bottom:var(--space-24);padding:0;background:transparent;box-shadow:none;">
+      <section class="cctv-header-clean" style="margin-bottom:var(--space-24);padding:14px 20px;background:rgba(255,255,255,0.55);backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);border:1px solid rgba(255,255,255,0.7);border-radius:var(--radius-lg);">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
           <div style="display:flex;align-items:center;gap:12px;">
-            <h2 style="font-family:'Outfit',sans-serif;font-size:1.6rem;font-weight:800;margin:0;display:flex;align-items:center;gap:8px;">
-              <i data-lucide="monitor" style="color:var(--primary);"></i> Pemantauan CCTV
+            <h2 style="font-family:'Outfit',sans-serif;font-size:1.6rem;font-weight:800;margin:0;color:var(--text-primary);">
+              Pemantauan CCTV
             </h2>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            <button id="btn-mon-start" class="btn btn-primary btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;">
-              <i data-lucide="video" style="width:13px;height:13px;"></i> Mulai Monitoring
-            </button>
-            <button id="btn-mon-stop" class="btn btn-danger btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;display:none;">
-              <i data-lucide="video-off" style="width:13px;height:13px;"></i> Hentikan
-            </button>
-            <button id="btn-mon-refresh" class="btn btn-glass btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;">
-              <i data-lucide="refresh-cw" style="width:13px;height:13px;"></i> Refresh
-            </button>
-            <div style="display:flex;align-items:center;gap:4px;border-left:1px solid var(--border);padding-left:10px;">
-              <span style="font-size:0.65rem;font-weight:700;color:var(--text-secondary);">Telegram</span>
-              <label class="switch" style="margin:0;">
-                <input type="checkbox" id="toggle-telegram-alerts" ${AppState.get('telegramAlerts') ? 'checked' : ''}>
-                <span class="slider round" style="width:28px;height:16px;"></span>
-              </label>
-            </div>
-            <button id="btn-connect-cctv" class="btn btn-glass btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;border-color: rgba(47, 107, 255, 0.3); color: var(--primary);">
-              <i data-lucide="plus-circle" style="width:13px;height:13px;"></i> CCTV Baru
-            </button>
-            <button id="btn-clear-all-cctv" class="btn btn-glass btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;border-color: rgba(220, 38, 38, 0.3); color: var(--danger);">
-              <i data-lucide="trash-2" style="width:13px;height:13px;"></i> Hapus Semua
-            </button>
           </div>
         </div>
       </section>
 
-      <!-- Saluran Aktif — tepat di bawah header -->
-      <section class="glass-card cctv-active-channel" style="margin-bottom:var(--space-28);padding:14px 20px;display:flex;align-items:center;gap:12px;">
+      <!-- Saluran Aktif — tepat di bawah header, berisi kontrol aksi -->
+      <section class="glass-card cctv-active-channel" style="margin-bottom:var(--space-28);padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
         <div class="form-group-inline" style="display:flex;align-items:center;gap:6px;margin:0;">
           <label for="cctv-select-camera" class="caption-label" style="margin:0;font-size:0.72rem;font-weight:800;">Saluran Aktif</label>
           <select id="cctv-select-camera" class="filter-control select-rounded" style="height:34px;font-size:0.78rem;width:170px;">
@@ -257,6 +233,30 @@ export class CctvMonitoringPage {
           </select>
         </div>
         <span id="active-channel-badge" style="font-size:0.72rem;font-weight:700;color:var(--success);background:rgba(16,185,129,0.1);padding:4px 12px;border-radius:var(--radius-pill);">0 saluran aktif</span>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-left:auto;">
+          <button id="btn-mon-start" class="btn btn-primary btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;">
+            <i data-lucide="video" style="width:13px;height:13px;"></i> Mulai Monitoring
+          </button>
+          <button id="btn-mon-stop" class="btn btn-danger btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;display:none;">
+            <i data-lucide="video-off" style="width:13px;height:13px;"></i> Hentikan
+          </button>
+          <button id="btn-mon-refresh" class="btn btn-glass btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;">
+            <i data-lucide="refresh-cw" style="width:13px;height:13px;"></i> Refresh
+          </button>
+          <div style="display:flex;align-items:center;gap:4px;border-left:1px solid var(--border);padding-left:10px;">
+            <span style="font-size:0.65rem;font-weight:700;color:var(--text-secondary);">Telegram</span>
+            <label class="switch" style="margin:0;">
+              <input type="checkbox" id="toggle-telegram-alerts" ${AppState.get('telegramAlerts') ? 'checked' : ''}>
+              <span class="slider round" style="width:28px;height:16px;"></span>
+            </label>
+          </div>
+          <button id="btn-connect-cctv" class="btn btn-glass btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;border-color: rgba(47, 107, 255, 0.3); color: var(--primary);">
+            <i data-lucide="plus-circle" style="width:13px;height:13px;"></i> CCTV Baru
+          </button>
+          <button id="btn-clear-all-cctv" class="btn btn-glass btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;border-color: rgba(220, 38, 38, 0.3); color: var(--danger);">
+            <i data-lucide="trash-2" style="width:13px;height:13px;"></i> Hapus Semua
+          </button>
+        </div>
       </section>
 
       <!-- Main Layout: CCTV Grid -->
