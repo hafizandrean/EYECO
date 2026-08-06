@@ -1163,37 +1163,41 @@ input:checked + .slider:before { transform: translateX(16px); }
 /* ── Toast ── */
 .toast-container {
   position: fixed;
-  bottom: 24px; right: 24px;
+  top: 72px; right: 16px;
   z-index: 9999;
   display: flex; flex-direction: column;
   gap: 8px;
 }
 @media (max-width: 480px) {
-  .toast-container { left: 16px; right: 16px; bottom: 16px; }
+  .toast-container { left: 16px; right: 16px; top: 64px; }
 }
 .toast {
   display: flex; align-items: center; gap: 10px;
   padding: 12px 20px;
   border-radius: var(--radius-md);
   font-size: 0.88rem; font-weight: 500;
-  color: #fff;
+  color: #1E293B;
+  background: rgba(255,255,255,0.92);
+  border: 1px solid rgba(0,0,0,0.06);
   box-shadow: var(--shadow-lg);
-  animation: toastIn 0.3s var(--anim-base) forwards;
   min-width: 240px;
+  transform: translateX(110%);
+  transition: transform 0.5s cubic-bezier(0.32,0.72,0,1);
+}
+.toast.visible { transform: translateX(0); }
+body.dark-mode .toast {
+  color: #E2E8F0;
+  background: rgba(30,41,59,0.92);
+  border-color: rgba(148,163,184,0.1);
 }
 @media (max-width: 480px) {
   .toast { min-width: 0; width: 100%; }
 }
-.toast.success { background: var(--success); }
-.toast.error   { background: var(--error); }
-.toast.warning { background: var(--warning); color: #1a1a1a; }
-.toast.info    { background: var(--primary); }
-.toast.danger  { background: var(--danger); }
+.toast.success .toast-icon { color: var(--success); }
+.toast.error .toast-icon, .toast.danger .toast-icon { color: var(--error); }
+.toast.warning .toast-icon { color: var(--warning); }
+.toast.info .toast-icon { color: var(--primary); }
 .toast svg, .toast i { width: 18px; height: 18px; }
-@keyframes toastIn {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
 
 /* ═══════════════════════════════════════════
    TABLE / CARD TABLE
@@ -4293,8 +4297,10 @@ body.dark-mode .secondary-cta {
   min-width: 0;
 }
 .profile-main-content .glass-card { scroll-margin-top: 90px; }
-.language-option.active { background: var(--primary); color: #fff; border-color: var(--primary); }
-.theme-option.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.language-option.active,
+body.dark-mode .language-option.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.theme-option.active,
+body.dark-mode .theme-option.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
 /* ===== Settings: fullscreen layout ===== */
 .settings-fullscreen {

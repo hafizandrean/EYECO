@@ -5,6 +5,7 @@ import { EventBus } from './eventBus.js';
 import { AuthService } from '../services/authService.js';
 import { GlobalHeader } from '../components/Header.js';
 import { NotificationCenter } from '../components/Notification.js';
+import { Toast } from '../components/Toast.js';
 // Page imports
 import { Dashboard } from '../pages/dashboard.js';
 import { Laporan } from '../pages/laporan.js';
@@ -21,6 +22,7 @@ class AppInitializer {
     this.viewport = null;
     this.currentPageInstance = null;
     this.notificationCenter = new NotificationCenter();
+    this.toast = Toast;
 
     // Bind event global
     EventBus.on('routeChanged', (path) => this.handleRouteNavigation(path));

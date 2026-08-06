@@ -161,45 +161,31 @@ const Profile = {
 
         <!-- Keamanan & Tindakan Card -->
         <div class="glass-card profile-security-card" id="profile-section-security">
-          <h3><i data-lucide="shield"></i> Keamanan & Pengaturan</h3>
+          <h3>Keamanan & Pengaturan</h3>
           <div class="profile-security-actions">
-            <button class="btn-outline" id="btn-edit-profile">
-              <i data-lucide="edit"></i> Edit Profil
-            </button>
-            <button class="btn-outline" id="btn-change-password">
-              <i data-lucide="key-round"></i> Ganti Password
-            </button>
-            <button class="btn-danger" id="btn-logout-profile">
-              <i data-lucide="log-out"></i> Keluar
-            </button>
+            <button class="btn-outline" id="btn-edit-profile">Edit Profil</button>
+            <button class="btn-outline" id="btn-change-password">Ganti Password</button>
+            <button class="btn-danger" id="btn-logout-profile">Keluar</button>
           </div>
         </div>
 
         <!-- Tampilan (Theme) -->
         <div class="glass-card profile-theme-card" id="profile-section-theme">
-          <h3><i data-lucide="sun"></i> Tampilan</h3>
+          <h3>Tampilan</h3>
           <p style="font-size:0.78rem;color:var(--text-muted);margin:0 0 16px 0;">Pilih mode tampilan aplikasi.</p>
           <div class="theme-selector-row" style="display:flex;gap:12px;flex-wrap:wrap;">
-            <button class="btn btn-glass btn-rounded theme-option active" data-theme="light" style="flex:1;min-width:140px;">
-              <i data-lucide="sun" style="width:18px;height:18px;margin-right:6px;"></i> Terang
-            </button>
-            <button class="btn btn-glass btn-rounded theme-option" data-theme="dark" style="flex:1;min-width:140px;">
-              <i data-lucide="moon" style="width:18px;height:18px;margin-right:6px;"></i> Gelap
-            </button>
+            <button class="btn btn-glass btn-rounded theme-option active" data-theme="light" style="flex:1;min-width:140px;">Terang</button>
+            <button class="btn btn-glass btn-rounded theme-option" data-theme="dark" style="flex:1;min-width:140px;">Gelap</button>
           </div>
         </div>
 
         <!-- Pengaturan Bahasa -->
         <div class="glass-card profile-language-card" id="profile-section-language">
-          <h3><i data-lucide="languages"></i> Bahasa</h3>
+          <h3>Bahasa</h3>
           <p style="font-size:0.78rem;color:var(--text-muted);margin:0 0 16px 0;">Pilih bahasa tampilan aplikasi.</p>
           <div class="language-selector-row" style="display:flex;gap:12px;flex-wrap:wrap;">
-            <button class="btn btn-glass btn-rounded language-option active" data-lang="id">
-              <i data-lucide="globe"></i> Indonesia
-            </button>
-            <button class="btn btn-glass btn-rounded language-option" data-lang="en">
-              <i data-lucide="flag"></i> English
-            </button>
+            <button class="btn btn-glass btn-rounded language-option active" data-lang="id" style="flex:1;min-width:140px;">Indonesia</button>
+            <button class="btn btn-glass btn-rounded language-option" data-lang="en" style="flex:1;min-width:140px;">English</button>
           </div>
         </div>
 
@@ -398,13 +384,19 @@ const Profile = {
     }
 
     // Pilihan bahasa
+    const lang = localStorage.getItem('eyeco_lang') || 'id';
+    document.querySelectorAll('.language-option').forEach(b => b.classList.toggle('active', b.getAttribute('data-lang') === lang));
     document.querySelectorAll('.language-option').forEach((btn) => {
       btn.addEventListener('click', () => {
+        const lang = btn.getAttribute('data-lang');
+        if (lang === 'en') {
+          EventBus.emit('toast:show', { message: 'Bahasa Inggris akan segera tersedia', type: 'info' });
+          return;
+        }
         document.querySelectorAll('.language-option').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        const lang = btn.getAttribute('data-lang');
         localStorage.setItem('eyeco_lang', lang);
-        EventBus.emit('toast:show', { message: lang === 'en' ? 'Language set to English' : 'Bahasa diatur ke Indonesia', type: 'success' });
+        EventBus.emit('toast:show', { message: 'Bahasa diatur ke Indonesia', type: 'success' });
       });
     });
 
@@ -416,9 +408,9 @@ const Profile = {
         returnPath = role === 'superadmin' ? '/superadmin' : '/dashboard';
       }
       sessionStorage.removeItem('eyeco_settings_return');
-      // Superadmin: halaman terpisah (bukan SPA) → full page load
-      if (returnPath === '/superadmin') {
-        window.location.href = '/superadmin';
+      // Halaman full-page (bukan SPA) → full page load
+      if (returnPath === '/superadmin' || returnPath === '/select-workspace' || returnPath === '/login') {
+        window.location.href = returnPath;
         return;
       }
       Router.backTo(returnPath);

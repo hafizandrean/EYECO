@@ -386,14 +386,24 @@
         <span class="sa-topnav-brand">EYECO</span>
       </div>
       <div class="sa-topnav-right">
-        <div class="sa-dropdown" id="sa-dropdown">
-          <button class="sa-profile-btn" id="sa-profile-btn" style="gap:0;padding:4px;">
-            <div class="sa-avatar" id="sa-avatar">S</div>
+        <div class="profile-dropdown-wrapper">
+          <button class="profile-trigger-btn" id="sa-profile-btn">
+            <div class="profile-avatar" id="sa-avatar">S</div>
+            <i data-lucide="chevron-down" style="width: 14px; height: 14px; color: var(--text-secondary);"></i>
           </button>
-          <div class="sa-dropdown-menu" style="width:200px;">
-            <div class="sa-dropdown-item" id="sa-btn-settings"><i data-lucide="settings"></i> Pengaturan</div>
-            <div class="sa-dropdown-divider"></div>
-            <div class="sa-dropdown-item" id="sa-dropdown-logout" style="color:#EF4444;"><i data-lucide="log-out"></i> Keluar</div>
+          <div class="profile-dropdown-menu glass-card" id="sa-dropdown">
+            <div class="dropdown-user-info">
+              <div class="user-info-name" id="sa-username">SuperAdmin</div>
+              <div class="user-info-role">SUPERADMIN</div>
+            </div>
+            <div class="divider-line"></div>
+            <a href="/dashboard/settings" class="dropdown-item-btn" id="sa-btn-settings">
+              <i data-lucide="settings"></i> Pengaturan
+            </a>
+            <div class="divider-line"></div>
+            <button class="dropdown-item-btn text-danger" id="sa-dropdown-logout">
+              <i data-lucide="log-out"></i> Keluar Sesi
+            </button>
           </div>
         </div>
       </div>
@@ -660,7 +670,7 @@
     }
 
     // Dark mode diambil dari sesi user (eyeco-theme), tanpa toggle di navbar — konsisten dgn role lain
-    if (localStorage.getItem('eyeco-theme') === 'dark' || localStorage.getItem('sa-dark-mode') === '1') {
+    if (localStorage.getItem('eyeco-theme') === 'dark') {
       document.body.classList.add('dark');
     }
 
@@ -710,6 +720,7 @@
       const u = state.user;
       const initial = (u.name || u.username)[0].toUpperCase();
       document.getElementById('sa-avatar').textContent = initial;
+      document.getElementById('sa-username').textContent = u.name || u.username;
     }
 
     document.querySelectorAll('.sa-nav-item[data-target]').forEach(item => {
@@ -750,9 +761,9 @@
 
     document.getElementById('sa-profile-btn').addEventListener('click', (e) => {
       e.stopPropagation();
-      document.getElementById('sa-dropdown').classList.toggle('open');
+      document.getElementById('sa-dropdown').classList.toggle('active');
     });
-    document.addEventListener('click', () => document.getElementById('sa-dropdown').classList.remove('open'));
+    document.addEventListener('click', () => document.getElementById('sa-dropdown').classList.remove('active'));
 
     const doLogout = async () => { await AuthService.logout(); window.location.href = '/login'; };
     document.getElementById('sa-logout-btn').addEventListener('click', doLogout);

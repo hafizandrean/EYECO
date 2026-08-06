@@ -118,17 +118,20 @@
         .profile-btn-ws i, .profile-btn-ws svg { width: 14px; height: 14px; color: #6B7280; }
         .ws-dropdown-menu {
             position: absolute;
-            top: calc(100% + 8px);
+            top: calc(100% + 10px);
             right: 0;
-            min-width: 200px;
+            width: max-content;
+            min-width: 230px;
+            max-width: 280px;
             background: rgba(255,255,255,0.98);
             border: 1px solid rgba(0,0,0,0.08);
             border-radius: 14px;
             box-shadow: 0 8px 30px rgba(0,0,0,0.12);
-            padding: 6px;
+            padding: 10px 8px;
             display: none;
             z-index: 200;
             animation: fadeInDown 0.18s ease;
+            box-sizing: border-box;
         }
         .ws-dropdown-menu.open { display: block; }
         @keyframes fadeInDown {
@@ -147,16 +150,18 @@
             align-items: center;
             gap: 10px;
             width: 100%;
-            padding: 9px 14px;
+            padding: 10px 12px;
             border: none;
             background: none;
             border-radius: 8px;
-            font-size: 0.875rem;
-            font-weight: 500;
+            font-size: 0.9rem;
+            font-weight: 600;
             color: #374151;
             cursor: pointer;
             text-decoration: none;
             transition: background 0.15s;
+            white-space: nowrap;
+            box-sizing: border-box;
         }
         .ws-dropdown-item:hover { background: #F3F4F6; }
         .ws-dropdown-item i, .ws-dropdown-item svg { width: 15px; height: 15px; }
@@ -203,7 +208,7 @@
         }
         .ws-page-header p {
             font-size: 0.95rem;
-            color: #6B7280;
+            color: #111827;
             margin: 0;
         }
 
@@ -539,9 +544,9 @@
         body.dark-mode .ws-nav-links a.active,
         body.dark-mode .ws-nav-links a:hover { color: #60A5FA; }
         body.dark-mode .ws-page-header h1 { color: #F1F5F9; }
-        body.dark-mode .ws-page-header p { color: #94A3B8; }
+        body.dark-mode .ws-page-header p { color: #F1F5F9; }
         body.dark-mode .ws-card {
-            background: rgba(30,41,59,0.55);
+            background: rgba(30,41,59,0.75);
             border-color: rgba(148,163,184,0.18);
             box-shadow: 0 2px 12px rgba(0,0,0,0.25);
         }
@@ -557,6 +562,39 @@
         }
         body.dark-mode .ws-search-input::placeholder { color: #64748B; }
         body.dark-mode .blob { opacity: 0.2; }
+        body.dark-mode .profile-btn-ws span { color: #E2E8F0; }
+        body.dark-mode .profile-btn-ws i, body.dark-mode .profile-btn-ws svg { color: #94A3B8; }
+        body.dark-mode .profile-btn-ws:hover { background: rgba(96,165,250,0.1); }
+        body.dark-mode .ws-dropdown-menu { background: rgba(17,24,39,0.97); border-color: rgba(148,163,184,0.15); }
+        body.dark-mode .ws-dropdown-header { border-bottom-color: rgba(148,163,184,0.1); }
+        body.dark-mode .ws-dropdown-header strong { color: #F1F5F9; }
+        body.dark-mode .ws-dropdown-header span { color: #94A3B8; }
+        body.dark-mode .ws-dropdown-item { color: #CBD5E1; }
+        body.dark-mode .ws-dropdown-item:hover { background: rgba(96,165,250,0.1); }
+        body.dark-mode .ws-dropdown-item.danger { color: #F87171; }
+        body.dark-mode .ws-dropdown-item.danger:hover { background: rgba(239,68,68,0.12); }
+        body.dark-mode .mobile-menu-btn { color: #E2E8F0; }
+        body.dark-mode .ws-status-bar .ws-count { color: #94A3B8; }
+        body.dark-mode .ws-status-bar .ws-my-badge { color: #60A5FA; background: rgba(96,165,250,0.12); }
+        body.dark-mode .ws-btn-pending { color: #F59E0B; background: rgba(217,119,6,0.12); border-color: rgba(217,119,6,0.25); }
+        body.dark-mode .ws-empty { color: #94A3B8; }
+        body.dark-mode .ws-empty h3 { color: #E2E8F0; }
+        body.dark-mode .ws-modal-overlay { background: rgba(0,0,0,0.55); }
+        body.dark-mode .ws-modal-box { background: rgba(17,24,39,0.97); }
+        body.dark-mode .ws-modal-header h3 { color: #F1F5F9; }
+        body.dark-mode .ws-modal-close { color: #94A3B8; }
+        body.dark-mode .ws-modal-close:hover { background: rgba(148,163,184,0.1); color: #E2E8F0; }
+        body.dark-mode .ws-input { background: #1E293B; border-color: rgba(148,163,184,0.2); color: #F1F5F9; }
+        body.dark-mode .ws-input::placeholder { color: #64748B; }
+        body.dark-mode .ws-label { color: #CBD5E1; }
+        body.dark-mode .ws-btn-glass { background: rgba(148,163,184,0.12); color: #E2E8F0; }
+        body.dark-mode .ws-btn-glass:hover { background: rgba(148,163,184,0.2); }
+        body.dark-mode .ws-code-badge { color: #60A5FA; background: rgba(96,165,250,0.12); }
+        body.dark-mode .ws-access-tag { color: #4ADE80; background: rgba(22,163,74,0.12); }
+        body.dark-mode .ws-pending-tag { color: #FBBF24; background: rgba(217,119,6,0.12); }
+        body.dark-mode .ws-btn-join { color: #60A5FA; background: rgba(96,165,250,0.1); border-color: rgba(96,165,250,0.3); }
+        body.dark-mode .ws-btn-join:hover { background: rgba(96,165,250,0.18); }
+        body.dark-mode .ws-search-icon { color: #64748B; }
 
         /* ─── Responsive ─── */
         @media (max-width: 580px) {
@@ -592,7 +630,6 @@
           <span id="ws-avatar-txt">U</span>
           <img id="ws-avatar-img" src="" alt="" style="display:none;width:100%;height:100%;border-radius:50%;object-fit:cover;position:absolute;inset:0;">
         </div>
-        <span id="ws-username-display">Memuat...</span>
         <i data-lucide="chevron-down"></i>
       </button>
       <div class="ws-dropdown-menu" id="ws-dropdown-menu">
@@ -600,8 +637,8 @@
           <strong id="ws-dropdown-name">—</strong>
           <span id="ws-dropdown-role">USER</span>
         </div>
-        <button class="ws-dropdown-item" id="ws-edit-profile-btn">
-          <i data-lucide="user-cog"></i> Edit Profil
+        <button class="ws-dropdown-item" id="ws-settings-btn">
+          <i data-lucide="settings"></i> Pengaturan
         </button>
         <a href="/logout" class="ws-dropdown-item danger" id="ws-logout-btn">
           <i data-lucide="log-out"></i> Keluar Sesi
@@ -645,51 +682,6 @@
     <span id="ws-toast-msg"></span>
   </div>
 
-  <!-- ─── Edit Profile Modal ─── -->
-  <div class="ws-modal" id="ws-modal-profile" style="display:none;">
-    <div class="ws-modal-overlay"></div>
-    <div class="ws-modal-box">
-      <div class="ws-modal-header">
-        <h3><i data-lucide="user-cog" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Edit Profil</h3>
-        <button class="ws-modal-close" id="ws-profile-close"><i data-lucide="x"></i></button>
-      </div>
-      <form id="form-profile-edit">
-        <div class="ws-modal-body" style="display:flex;flex-direction:column;gap:12px;">
-          <!-- Avatar -->
-          <div style="display:flex;align-items:center;gap:14px;">
-            <div id="ws-profile-avatar-preview" style="width:56px;height:56px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#2563EB,#7C3AED);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:1rem;flex-shrink:0;position:relative;">
-              <span id="ws-profile-avatar-init">U</span>
-              <img id="ws-profile-avatar-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;display:none;position:absolute;inset:0;">
-            </div>
-            <div style="flex:1;">
-              <label class="ws-label" for="ws-avatar-file">Foto Profil</label>
-              <input type="file" id="ws-avatar-file" accept="image/jpeg,image/png,image/webp" style="font-size:0.82rem;margin-top:2px;">
-              <button type="button" id="ws-avatar-remove" style="background:none;border:none;color:#EF4444;font-size:0.75rem;cursor:pointer;display:none;padding:2px 0;">Hapus foto</button>
-            </div>
-          </div>
-          <div>
-            <label class="ws-label" for="ws-profile-name">Nama Lengkap</label>
-            <input type="text" id="ws-profile-name" class="ws-input" placeholder="Nama kamu" maxlength="100">
-          </div>
-          <div>
-            <label class="ws-label" for="ws-profile-email">Email</label>
-            <input type="email" id="ws-profile-email" class="ws-input" placeholder="email@contoh.com">
-          </div>
-          <div>
-            <label class="ws-label" for="ws-profile-phone">No. Telepon</label>
-            <input type="tel" id="ws-profile-phone" class="ws-input" placeholder="08xxxxxxxxxx">
-          </div>
-        </div>
-        <div class="ws-modal-footer">
-          <button type="button" class="ws-btn ws-btn-glass" id="ws-profile-cancel">Batal</button>
-          <button type="submit" class="ws-btn ws-btn-primary" id="ws-profile-save">
-            <i data-lucide="save"></i> Simpan
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
   <script>
     // ─── Init icons ───
     lucide.createIcons();
@@ -731,7 +723,6 @@
 
         // Populate profile
         renderUserAvatar(user);
-        document.getElementById('ws-username-display').textContent = user.name || user.username;
         document.getElementById('ws-dropdown-name').textContent = user.name || user.username;
         document.getElementById('ws-dropdown-role').textContent = (user.role || 'USER').toUpperCase();
 
@@ -764,136 +755,10 @@
       }
     }
 
-    // ─── Profile Edit Modal ───
-    const profileModal = document.getElementById('ws-modal-profile');
-
-    document.getElementById('ws-edit-profile-btn')?.addEventListener('click', () => {
-      if (!currentUser) return;
-      document.getElementById('ws-profile-name').value = currentUser.name || '';
-      document.getElementById('ws-profile-email').value = currentUser.email || '';
-      document.getElementById('ws-profile-phone').value = currentUser.phone || '';
-      // Avatar preview
-      const pInit = document.getElementById('ws-profile-avatar-init');
-      const pImg = document.getElementById('ws-profile-avatar-img');
-      if (currentUser.avatar) {
-        pInit.style.display = 'none';
-        pImg.style.display = 'block';
-        pImg.src = currentUser.avatar;
-      } else {
-        pInit.style.display = 'block';
-        pImg.style.display = 'none';
-        pInit.textContent = (currentUser.username || 'U').substring(0, 2).toUpperCase();
-      }
-      document.getElementById('ws-avatar-remove').style.display = currentUser.avatar ? 'block' : 'none';
-      document.getElementById('ws-avatar-file').value = '';
-      profileModal.style.display = 'flex';
-      dropdownMenu.classList.remove('open');
-      lucide.createIcons();
-    });
-
-    function closeProfileModal() {
-      profileModal.style.display = 'none';
-    }
-
-    document.getElementById('ws-profile-close')?.addEventListener('click', closeProfileModal);
-    document.getElementById('ws-profile-cancel')?.addEventListener('click', closeProfileModal);
-    profileModal?.addEventListener('click', (e) => {
-      if (e.target === profileModal || e.target.classList.contains('ws-modal-overlay')) closeProfileModal();
-    });
-
-    // Avatar upload
-    document.getElementById('ws-avatar-file')?.addEventListener('change', async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const formData = new FormData();
-      formData.append('avatar', file);
-      try {
-        const res = await fetch('/api/auth/avatar', {
-          method: 'POST',
-          credentials: 'include',
-          body: formData,
-        });
-        const data = await res.json();
-        if (data.success) {
-          const avatarUrl = data.data.avatar;
-          currentUser.avatar = avatarUrl;
-          // Update preview
-          const pInit = document.getElementById('ws-profile-avatar-init');
-          const pImg = document.getElementById('ws-profile-avatar-img');
-          pInit.style.display = 'none';
-          pImg.style.display = 'block';
-          pImg.src = avatarUrl;
-          document.getElementById('ws-avatar-remove').style.display = 'block';
-          // Update navbar avatar
-          renderUserAvatar(currentUser);
-          showToast('Foto profil berhasil diupload.', 'success');
-        } else {
-          showToast(data.error || 'Gagal upload foto.', 'error');
-        }
-      } catch (_) {
-        showToast('Gagal terhubung ke server.', 'error');
-      }
-    });
-
-    // Remove avatar
-    document.getElementById('ws-avatar-remove')?.addEventListener('click', async () => {
-      try {
-        const res = await fetch('/api/auth/avatar', { method: 'DELETE', credentials: 'include' });
-        const data = await res.json();
-        if (data.success) {
-          currentUser.avatar = '';
-          const pInit = document.getElementById('ws-profile-avatar-init');
-          const pImg = document.getElementById('ws-profile-avatar-img');
-          pInit.style.display = 'block';
-          pImg.style.display = 'none';
-          pInit.textContent = (currentUser.username || 'U').substring(0, 2).toUpperCase();
-          document.getElementById('ws-avatar-remove').style.display = 'none';
-          renderUserAvatar(currentUser);
-          showToast('Foto profil dihapus.', 'success');
-        } else {
-          showToast(data.error || 'Gagal hapus foto.', 'error');
-        }
-      } catch (_) {
-        showToast('Gagal terhubung ke server.', 'error');
-      }
-    });
-
-    // Save profile
-    document.getElementById('form-profile-edit')?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = document.getElementById('ws-profile-save');
-      btn.disabled = true;
-      btn.innerHTML = '<i data-lucide="loader-circle" class="spin"></i> Menyimpan...';
-      if (window.lucide) window.lucide.createIcons();
-      try {
-        const res = await fetch('/api/auth/me', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            name: document.getElementById('ws-profile-name').value,
-            email: document.getElementById('ws-profile-email').value,
-            phone: document.getElementById('ws-profile-phone').value,
-          }),
-        });
-        const data = await res.json();
-        if (data.success) {
-          currentUser.name = document.getElementById('ws-profile-name').value;
-          currentUser.email = document.getElementById('ws-profile-email').value;
-          currentUser.phone = document.getElementById('ws-profile-phone').value;
-          document.getElementById('ws-username-display').textContent = currentUser.name || currentUser.username;
-          document.getElementById('ws-dropdown-name').textContent = currentUser.name || currentUser.username;
-          showToast('Profil berhasil diperbarui.', 'success');
-          closeProfileModal();
-        } else {
-          showToast(data.error || 'Gagal menyimpan.', 'error');
-        }
-      } catch (_) {
-        showToast('Gagal terhubung ke server.', 'error');
-      }
-      btn.disabled = false;
-      btn.innerHTML = '<i data-lucide="save"></i> Simpan';
-      if (window.lucide) window.lucide.createIcons();
+    // ─── Pengaturan (redirect ke halaman settings, balik ke halaman ini) ───
+    document.getElementById('ws-settings-btn')?.addEventListener('click', () => {
+      sessionStorage.setItem('eyeco_settings_return', '/select-workspace');
+      window.location.href = '/dashboard/settings';
     });
 
     // ─── Load pending join requests for this user ───
@@ -1139,6 +1004,6 @@
       renderWorkspaces(workspaces);
     })();
   </script>
-  <script>(function(){const t=localStorage.getItem('eyeco-theme');if(t==='dark')document.documentElement.classList.add('dark-mode')})();</script>
+  <script>(function(){const t=localStorage.getItem('eyeco-theme');if(t==='dark'){document.documentElement.classList.add('dark-mode');document.body.classList.add('dark-mode')}})();</script>
 </body>
 </html>

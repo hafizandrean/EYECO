@@ -61,12 +61,12 @@ class ToastManager {
     if (!toast.parentNode) return;
     toast.classList.remove('visible');
     
-    // Remove from DOM after fade-out transition completes (250ms)
+    // Remove from DOM after slide-out transition completes
     setTimeout(() => {
       if (toast.parentNode) {
         toast.parentNode.removeChild(toast);
       }
-    }, 250);
+    }, 400);
   }
 }
 
