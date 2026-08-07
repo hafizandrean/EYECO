@@ -190,7 +190,10 @@ export class HeaderComponent {
     }
     
     if (dropdownName) dropdownName.innerText = user.username;
-    if (dropdownRole) dropdownRole.innerText = user.role.toUpperCase();
+    if (dropdownRole) {
+      if (user.role === 'user') dropdownRole.style.display = 'none';
+      else dropdownRole.innerText = user.role.toUpperCase();
+    }
   }
 
   // Helper: derive tab name from a URL path

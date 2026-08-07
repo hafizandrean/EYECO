@@ -3,20 +3,112 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FAQ — EYECO</title>
-  <link rel="stylesheet" href="/css/style.css?v=1.2.0">
+  <title>EYECO — FAQ</title>
+  <meta name="description" content="FAQ EYECO - Pertanyaan yang sering diajukan tentang pemantauan kebersihan lingkungan berbasis AI.">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
-  <script type="module">
-    import { FAQ } from '/js/pages/faq.js?v=1.0.2';
-    document.addEventListener('DOMContentLoaded', () => {
-      const container = document.getElementById('app-viewport');
-      if (container) FAQ.render(container);
-    });
-  </script>
+  <link rel="stylesheet" href="/css/info-pages.css">
 </head>
 <body>
-  <main class="viewport-viewport" id="app-viewport" style="max-width: none; padding: 0; margin: 0;">
-    <!-- FAQ page will be rendered here by FAQPage -->
-  </main>
+<script>(function(){const t=localStorage.getItem('eyeco-theme');if(t==='dark'){document.documentElement.classList.add('dark-mode');document.body.classList.add('dark-mode')}})();</script>
+  <div class="bg-blobs">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+  </div>
+
+  <div class="page-wrapper">
+    <section class="section-glass">
+      <div class="section-brand">
+        <img src="/uploads/logo-eyeco.png" alt="EYECO" class="auth-logo-img">
+        <h1>EYECO</h1>
+        <p>Pertanyaan yang Sering Diajukan</p>
+      </div>
+
+      <div class="section-title"><i data-lucide="circle-help"></i>Umum</div>
+      <div class="faq-item">
+        <summary><span>Apa itu EYECO?</span><i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-answer">EYECO (Environmental Yield & Ecology) adalah platform pemantauan kebersihan lingkungan berbasis AI yang memungkinkan warga melaporkan pencemaran sampah, serta membantu pemerintah dalam verifikasi dan penanganan.</div>
+      </div>
+      <div class="faq-item">
+        <summary><span>Siapa yang bisa menggunakan EYECO?</span><i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-answer">Semua warga negara Indonesia dapat menggunakan EYECO untuk melaporkan kondisi lingkungan. Petugas pemerintah dan admin memiliki akses ke dashboard verifikasi dan manajemen kasus.</div>
+      </div>
+      <div class="faq-item">
+        <summary><span>Apakah EYECO gratis?</span><i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-answer">Ya, EYECO gratis digunakan oleh warga untuk melaporkan. Fitur dashboard pemerintah memerlukan akun resmi yang dikelola oleh dinas terkait.</div>
+      </div>
+
+      <div class="section-title"><i data-lucide="file-text"></i>Pelaporan</div>
+      <div class="faq-item">
+        <summary><span>Bagaimana cara melaporkan pencemaran sampah?</span><i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-answer">Buka halaman "Laporkan" di dashboard, unggah foto bukti, isi lokasi dan deskripsi singkat, lalu kirim. AI akan otomatis menganalisis foto dan menentukan tingkat prioritas.</div>
+      </div>
+      <div class="faq-item">
+        <summary><span>Format foto apa yang didukung?</span><i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-answer">Format JPG, PNG, dan WEBP dengan ukuran maksimal 10MB. Pastikan foto jelas, tidak blur, dan menunjukkan kondisi pencemaran serta lokasi sekitarnya.</div>
+      </div>
+      <div class="faq-item">
+        <summary><span>Bisakah saya melaporkan tanpa foto?</span><i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-answer">Tidak. Foto bukti wajib diunggah agar AI dapat mendeteksi objek dan memverifikasi kelayakan laporan. Laporan tanpa foto tidak akan diproses.</div>
+      </div>
+      <div class="faq-item">
+        <summary><span>Berapa lama laporan diproses?</span><i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-answer">Analisis AI instan (< 5 detik). Verifikasi admin biasanya 1-3 hari kerja tergantung volume laporan dan kompleksitas kasus.</div>
+      </div>
+
+      <div class="section-title"><i data-lucide="badge-check"></i>Verifikasi & Status</div>
+      <div class="faq-item">
+        <summary><span>Apa arti status "Menunggu", "Valid", dan "Diabaikan"?</span><i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-answer">"Menunggu" = laporan baru masuk, belum diverifikasi admin. "Valid" = diverifikasi benar oleh admin, diteruskan ke petugas. "Diabaikan" = tidak memenuhi kriteria atau duplikat.</div>
+      </div>
+      <div class="faq-item">
+        <summary><span>Bagaimana cara mengecek status laporan saya?</span><i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-answer">Masuk ke dashboard → menu "Laporan Saya". Di sana terlihat daftar laporan beserta status, tanggal, dan detail verifikasi.</div>
+      </div>
+      <div class="faq-item">
+        <summary><span>Laporan saya ditandai "Diabaikan". Bisa dibanding?</span><i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-answer">Ya. Hubungi admin melalui halaman Kontak dengan menyertakan ID laporan dan alasan keberatan. Tim akan meninjau kembali dalam 2 hari kerja.</div>
+      </div>
+
+      <div class="section-title"><i data-lucide="video"></i>CCTV & Monitoring</div>
+      <div class="faq-item">
+        <summary><span>Apa fungsi fitur CCTV Monitoring?</span><i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-answer">Memantau kamera CCTV terpasang secara real-time. AI mendeteksi aktivitas mencurigakan (pembuangan sampah, orang, kendaraan) dan membuat insiden otomatis.</div>
+      </div>
+      <div class="faq-item">
+        <summary><span>Kamera apa yang didukung?</span><i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-answer">Kamera IP yang kompatibel ONVIF / RTSP, serta kamera Tuya Smart Home yang terintegrasi via Tuya Cloud API. Konfigurasi dilakukan oleh admin di halaman CCTV.</div>
+      </div>
+      <div class="faq-item">
+        <summary><span>Apakah video CCTV disimpan?</span><i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-answer">Video tidak disimpan permanen. Hanya cuplikan (snapshot) saat deteksi AI yang disimpan sebagai bukti laporan. Stream live hanya ditampilkan saat monitoring aktif.</div>
+      </div>
+
+      <div class="section-title"><i data-lucide="shield"></i>Akun & Keamanan</div>
+      <div class="faq-item">
+        <summary><span>Lupa password, bagaimana reset?</span><i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-answer">Klik "Lupa Password" di halaman login. Masukkan email/username → verifikasi nomor HP (OTP) → set password baru. Proses 3 langkah aman dan terenkripsi.</div>
+      </div>
+      <div class="faq-item">
+        <summary><span>Bisa login dari beberapa perangkat?</span><i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-answer">Ya. Satu akun dapat login di beberapa perangkat secara bersamaan tanpa memutus sesi sebelumnya.</div>
+      </div>
+      <div class="faq-item">
+        <summary><span>Bagaimana keamanan data saya?</span><i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-answer">Data terenkripsi (TLS di transit, AES-256 di R2). Password di-hash bcrypt. Akses database dibatasi IP whitelist. Audit log mencatat semua aktivitas sensitif.</div>
+      </div>
+
+      <div class="back-wrap">
+        <a href="/dashboard/beranda" class="back-link">
+          <i data-lucide="arrow-left"></i>
+          Kembali
+        </a>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    lucide.createIcons();
+  </script>
 </body>
 </html>

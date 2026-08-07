@@ -1,7 +1,7 @@
 // home.js — Citizen Landing Page (Masyarakat)
 // Premium, whitespace-rich, mobile-first landing page
 import { AppState } from '../core/state.js';
-import { Router } from '../core/router.js';
+import { Router, ScrollMemory } from '../core/router.js';
 import { ReportService } from '../services/reportService.js';
 import { Formatter } from '../utils/formatter.js';
 import { animateCounter, createScrollObserver } from '../utils/animations.js';
@@ -388,6 +388,9 @@ class HomePage {
         // Animate on scroll
         this.initScrollAnimation();
         this.initMarquee();
+
+        // Restore scroll position bila kembali dari halaman lain (footer/settings)
+        ScrollMemory.restore('/dashboard/beranda');
       }
 
   bindEvents() {
@@ -407,6 +410,13 @@ class HomePage {
     document.getElementById('cta-btn-upload')?.addEventListener('click', (e) => {
       e.preventDefault();
       Router.navigate('/dashboard/upload');
+    });
+
+    // Footer links (full page loads) — simpan posisi scroll sebelum pindah
+    document.querySelectorAll('.footer-links a, .footer-partner-cloud a').forEach((a) => {
+      a.addEventListener('click', () => {
+        ScrollMemory.save('/dashboard/beranda');
+      });
     });
   }
 

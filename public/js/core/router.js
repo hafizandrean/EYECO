@@ -2,11 +2,28 @@
 import { AppState } from './state.js';
 import { EventBus } from './eventBus.js';
 
+// Scroll position memory per path (sessionStorage)
+const ScrollMemory = {
+  save(path) {
+    if (!path) return;
+    const key = 'eyeco_scroll_' + path.replace(/[^a-z0-9]/gi, '_');
+    sessionStorage.setItem(key, String(window.scrollY));
+  },
+  restore(path) {
+    if (!path) return;
+    const key = 'eyeco_scroll_' + path.replace(/[^a-z0-9]/gi, '_');
+    const y = sessionStorage.getItem(key);
+    if (y !== null) {
+      window.scrollTo({ top: parseInt(y, 10), behavior: 'instant' });
+    }
+  }
+};
+
 class ClientRouter {
   constructor() {
     // Listen to browser back/forward buttons
     window.addEventListener('popstate', () => {
-      this.handleRouteTransition(window.location.pathname);
+      this.handleRouteTransition(window.location.pathname, { restoreScroll: true });
     });
   }
 
@@ -14,8 +31,18 @@ class ClientRouter {
   navigate(path) {
     if (window.location.pathname === path) return;
     
+    // Simpan posisi scroll halaman saat ini sebelum pindah
+    ScrollMemory.save(window.location.pathname);
+
+    // Ingat halaman asal saat masuk Settings (untuk tombol kembali)
+    const from = window.location.pathname;
+    const toSettings = path === '/dashboard/settings' || path === '/dashboard/profile';
+    if (toSettings && from !== '/dashboard/settings') {
+      sessionStorage.setItem('eyeco_settings_return', from);
+    }
+
     // Simpan tab sebelumnya untuk transisi bubble navigasi
-    const prevTab = this.getTabNameFromPath(window.location.pathname);
+    const prevTab = this.getTabNameFromPath(from);
     AppState.set('lastActiveTab', prevTab);
     
     window.history.pushState({}, '', path);
@@ -25,6 +52,7 @@ class ClientRouter {
   // Navigasi ke path tertentu tanpa pushState (ganti history entry)
   replace(path) {
     if (window.location.pathname === path) return;
+    ScrollMemory.save(window.location.pathname);
     window.history.replaceState({}, '', path);
     this.handleRouteTransition(path);
   }
@@ -32,10 +60,11 @@ class ClientRouter {
   // Kembali ke halaman terakhir yang dibuka (sebelum masuk Settings)
   backTo(path) {
     if (path && window.location.pathname !== path) {
+      ScrollMemory.save(window.location.pathname);
       window.history.pushState({}, '', path);
-      this.handleRouteTransition(path);
+      this.handleRouteTransition(path, { restoreScroll: true });
     } else if (path && window.location.pathname === path) {
-      this.handleRouteTransition(path);
+      this.handleRouteTransition(path, { restoreScroll: true });
     } else {
       window.history.back();
     }
@@ -47,13 +76,16 @@ class ClientRouter {
   }
 
   // Logika transisi rute
-  handleRouteTransition(path) {
+  handleRouteTransition(path, opts = {}) {
     AppState.set('activePath', path);
-    // Scroll ke atas halaman setiap kali navigasi
-    window.scrollTo({ top: 0, behavior: 'instant' });
-    document.body.scrollTop = 0;
-    document.documentElement.scrollTop = 0;
+    // Scroll ke atas halaman setiap kali navigasi, kecuali meminta restore
+    if (!opts.restoreScroll) {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      document.body.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+    }
     EventBus.emit('routeChanged', path);
+    if (opts.restoreScroll) ScrollMemory.restore(path);
   }
 
   // Helper untuk mengubah path rute menjadi nama tab navigasi
@@ -70,3 +102,4 @@ class ClientRouter {
 }
 
 export const Router = new ClientRouter();
+export { ScrollMemory };

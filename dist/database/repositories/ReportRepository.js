@@ -162,7 +162,6 @@ class ReportRepository {
                 else {
                     query.workspaceId = -1;
                 }
-                query.sourceType = { $ne: 'AI_CCTV' };
             }
             else if (userContext.role === 'superadmin') {
                 const ownedWorkspaces = await Workspace_1.WorkspaceModel.find({ superadminId: userContext.id }).lean().exec();
@@ -245,7 +244,7 @@ class ReportRepository {
     static async buildWorkspaceScope(userContext) {
         if (!userContext)
             return { workspaceId: -1 };
-        if (userContext.role === 'admin' || userContext.role === 'user') {
+        if (userContext.role === 'admin' || userContext.role === 'user' || userContext.role === 'operator') {
             const user = await User_1.UserModel.findOne({ id: userContext.id }).lean().exec();
             if (!user?.workspaceId)
                 return { workspaceId: -1 };

@@ -1,0 +1,211 @@
+/* info-pages.css — shared layout untuk halaman FAQ, Tentang, Kebijakan, Kontak
+   Full textured background + glass section per kategori (gaya landing page) */
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: 'Inter', sans-serif;
+  background: #F0F4FF url('/assets/bg-light.jpg') fixed center / cover;
+  min-height: 100vh;
+}
+html.dark-mode body,
+body.dark-mode {
+  background: #0B1120 url('/assets/bg-dark.jpg') fixed center / cover;
+}
+.bg-blobs {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.18;
+}
+.blob-1 { width: 560px; height: 560px; background: #2563EB; top: -120px; left: -120px; }
+.blob-2 { width: 420px; height: 420px; background: #7C3AED; bottom: -80px; right: -80px; }
+body.dark-mode .blob-1 { background: #3B82F6; }
+body.dark-mode .blob-2 { background: #8B5CF6; }
+
+.page-wrapper {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: 40px 20px 60px;
+}
+.section-glass {
+  background: rgba(255,255,255,0.72);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 24px;
+  padding: 40px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+.section-glass:hover { box-shadow: 0 8px 32px rgba(0,0,0,0.06); }
+body.dark-mode .section-glass {
+  background: rgba(17,24,39,0.7);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  border-color: rgba(255,255,255,0.06);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+}
+body.dark-mode .section-glass:hover { box-shadow: 0 8px 32px rgba(0,0,0,0.25); }
+
+.section-brand { text-align: center; margin-bottom: 32px; }
+.section-brand img { width: auto; max-height: 56px; display: block; margin: 0 auto 10px; }
+.section-brand h1 {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 800;
+  font-size: 2rem;
+  color: #1e3a8a;
+  margin: 0 0 4px;
+}
+.section-brand p { font-size: 1rem; color: #6B7280; font-weight: 500; }
+body.dark-mode .section-brand h1 { color: #E2E8F0; }
+body.dark-mode .section-brand p { color: #94A3B8; }
+
+.section-title {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: #1F2937;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 32px 0 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid rgba(37,99,235,0.2);
+}
+.section-title:first-of-type { margin-top: 0; }
+.section-title i { width: 22px; height: 22px; color: #2563EB; }
+body.dark-mode .section-title { color: #E2E8F0; }
+
+.info-text {
+  font-size: 0.95rem;
+  color: #4B5563;
+  line-height: 1.7;
+  margin: 0 0 8px;
+}
+body.dark-mode .info-text { color: #CBD5E1; }
+.info-list { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 12px; }
+.info-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.93rem;
+  color: #4B5563;
+  line-height: 1.6;
+}
+.info-list li i { width: 18px; height: 18px; color: #2563EB; flex-shrink: 0; margin-top: 3px; }
+body.dark-mode .info-list li { color: #CBD5E1; }
+
+/* FAQ accordion */
+.faq-item {
+  background: rgba(255,255,255,0.5);
+  border: 1.5px solid rgba(0,0,0,0.06);
+  border-radius: 14px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.faq-item summary {
+  padding: 18px 20px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #1F2937;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  list-style: none;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary .chev {
+  width: 20px; height: 20px;
+  color: #2563EB;
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+.faq-item[open] summary .chev { transform: rotate(180deg); }
+.faq-answer { padding: 0 20px 18px; font-size: 0.95rem; color: #4B5563; line-height: 1.7; }
+body.dark-mode .faq-item { background: rgba(148,163,184,0.08); border-color: rgba(148,163,184,0.12); }
+body.dark-mode .faq-item summary { color: #E2E8F0; }
+body.dark-mode .faq-answer { color: #CBD5E1; }
+
+.back-wrap { text-align: center; margin-top: 32px; }
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border: 1.5px solid rgba(37,99,235,0.2);
+  border-radius: 12px;
+  color: #2563EB;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.18s;
+  background: rgba(255,255,255,0.6);
+}
+.back-link:hover { background: #2563EB; color: #fff; border-color: #2563EB; }
+.back-link i { width: 18px; height: 18px; }
+body.dark-mode .back-link {
+  background: rgba(30,41,59,0.8);
+  color: #94A3B8;
+  border-color: rgba(148,163,184,0.1);
+}
+body.dark-mode .back-link:hover { background: #2563EB; color: #fff; }
+
+/* Contact list */
+.contact-list { display: flex; flex-direction: column; gap: 20px; }
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  border: 1.5px solid rgba(37,99,235,0.1);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.6);
+  transition: all 0.2s;
+  text-decoration: none;
+  color: inherit;
+}
+.contact-item:hover {
+  border-color: #2563EB;
+  background: rgba(37,99,235,0.04);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(37,99,235,0.08);
+}
+.contact-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #2563EB 0%, #4F46E5 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.contact-icon i { width: 24px; height: 24px; color: #fff; }
+.contact-info { display: flex; flex-direction: column; gap: 2px; }
+.contact-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #2563EB;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.contact-value { font-size: 0.97rem; font-weight: 700; color: #1F2937; }
+body.dark-mode .contact-item { background: rgba(148,163,184,0.08); border-color: rgba(148,163,184,0.12); }
+body.dark-mode .contact-item:hover { border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+body.dark-mode .contact-value { color: #E2E8F0; }
+
+@media (max-width: 640px) {
+  .page-wrapper { padding: 24px 16px 40px; }
+  .section-glass { padding: 28px 20px; border-radius: 18px; }
+  .section-brand h1 { font-size: 1.5rem; }
+  .section-title { font-size: 1.1rem; }
+}

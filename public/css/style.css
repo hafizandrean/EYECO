@@ -4372,6 +4372,9 @@ body.dark-mode .theme-option.active { background: var(--primary); color: #fff; b
 }
 main { display: flex; flex-direction: column; }
 main > .landing-wrapper { flex: 1; }
+/* Landing = full-bleed page: kill the viewport's bottom padding so the
+   footer is the last element, no gap below it. */
+.viewport-viewport:has(.landing-wrapper) { padding-bottom: 0; }
 .landing-wrapper > section,
 .landing-wrapper > footer,
 .landing-wrapper > .landing-cta {
@@ -4489,8 +4492,10 @@ body.dark-mode .landing-layer-glass {
   .landing-section { padding: 40px 0 24px; }
 }
 .landing-cta { padding: 48px 0; }
+/* Push footer to the very bottom of the flex column */
+.landing-wrapper > footer { margin-top: auto; }
 .landing-footer { padding: 0 0 24px; margin-bottom: 0; margin-top: auto; }
-.landing-footer.landing-layer-glass { margin-top: 0; padding: 28px 0 24px; }
+.landing-footer.landing-layer-glass { padding: 28px 0 24px; }
 
 /* Hero & first/last sections touch viewport edges */
 .landing-hero {

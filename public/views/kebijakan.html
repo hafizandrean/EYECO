@@ -4,180 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>EYECO — Kebijakan Privasi</title>
-  <meta name="description" content="Kebijakan Privasi EYECO - Informasi tentang bagaimana data pribadi Anda dikelola dan dilindungi.">
+  <meta name="description" content="Kebijakan Privasi EYECO - Cara kami mengumpulkan, menggunakan, dan melindungi data pribadi Anda.">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
-  <link rel="stylesheet" href="/css/style.css">
-  <style>
-    html, body { height: 100%; margin: 0; }
-    body {
-      font-family: 'Inter', sans-serif;
-      background: #F0F4FF url('/assets/bg-light.jpg') fixed center / cover;
-      min-height: 100vh;
-      padding: 20px;
-    }
-    html.dark-mode body,
-    body.dark-mode {
-      background: #0B1120 url('/assets/bg-dark.jpg') fixed center / cover;
-    }
-    .info-wrapper {
-      position: relative;
-      z-index: 1;
-      width: 100%;
-      max-width: 700px;
-      margin: 0 auto;
-    }
-    .info-card {
-      background: rgba(255,255,255,0.92);
-      border: 1.5px solid rgba(0,0,0,0.06);
-      border-radius: 20px;
-      padding: 40px 36px 36px;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 12px 48px rgba(37,99,235,0.06);
-      transition: box-shadow 0.2s, border-color 0.2s;
-    }
-    .info-card:hover {
-      box-shadow: 0 8px 32px rgba(0,0,0,0.08), 0 16px 64px rgba(37,99,235,0.08);
-    }
-    .info-brand {
-      text-align: center;
-      margin-bottom: 32px;
-    }
-    .info-brand img {
-      width: auto;
-      max-height: 60px;
-      display: block;
-      margin: 0 auto 10px;
-    }
-    .info-brand h1 {
-      font-family: 'Outfit', sans-serif;
-      font-weight: 800;
-      font-size: 1.8rem;
-      color: #1e3a8a;
-      margin: 0 0 4px;
-    }
-    .info-brand p {
-      font-size: 0.88rem;
-      color: #6B7280;
-      margin-top: 4px;
-      font-weight: 500;
-    }
-    .section-title {
-      font-family: 'Outfit', sans-serif;
-      font-weight: 700;
-      font-size: 1.15rem;
-      color: #1F2937;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin: 28px 0 12px;
-    }
-    .section-title i {
-      width: 20px; height: 20px;
-      color: #2563EB;
-    }
-    .section-title:first-of-type { margin-top: 0; }
-    .info-text {
-      font-size: 0.92rem;
-      color: #4B5563;
-      line-height: 1.7;
-      margin: 0 0 8px;
-    }
-    .info-list {
-      list-style: none;
-      padding: 0;
-      margin: 8px 0 0;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .info-list li {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      font-size: 0.9rem;
-      color: #4B5563;
-      line-height: 1.6;
-    }
-    .info-list li i {
-      width: 18px; height: 18px;
-      color: #2563EB;
-      flex-shrink: 0;
-      margin-top: 3px;
-    }
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      margin-top: 32px;
-      padding: 10px 20px;
-      border: 1.5px solid rgba(37,99,235,0.2);
-      border-radius: 10px;
-      color: #2563EB;
-      font-size: 0.88rem;
-      font-weight: 600;
-      text-decoration: none;
-      transition: all 0.18s;
-      background: rgba(255,255,255,0.6);
-    }
-    .back-link:hover {
-      background: #2563EB;
-      color: #fff;
-      border-color: #2563EB;
-    }
-    .back-link i { width: 16px; height: 16px; }
-    .back-wrap { text-align: center; }
-    hr.divider {
-      border: none;
-      border-top: 1px solid #E5E7EB;
-      margin: 24px 0;
-    }
-    strong { color: #1F2937; }
-
-    /* Dark mode */
-    .dark-mode { background: #0F172A; }
-    .dark-mode .info-card {
-      background: rgba(30,41,59,0.95);
-      border-color: rgba(148,163,184,0.1);
-      box-shadow: 0 4px 24px rgba(0,0,0,0.3);
-    }
-    .dark-mode .info-card:hover {
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-    }
-    .dark-mode .info-brand h1 { color: #E2E8F0 !important; }
-    .dark-mode .info-brand p, .dark-mode p { color: #E2E8F0 !important; }
-    .dark-mode .section-title { color: #E2E8F0 !important; }
-    .dark-mode .info-text { color: #E2E8F0 !important; }
-    .dark-mode .info-list li { color: #E2E8F0 !important; }
-    .dark-mode strong { color: #E2E8F0; }
-    .dark-mode .back-link {
-      background: rgba(30,41,59,0.8);
-      color: #94A3B8;
-      border-color: rgba(148,163,184,0.1);
-    }
-    .dark-mode .back-link:hover {
-      background: #2563EB;
-      color: #fff;
-    }
-    .dark-mode hr.divider { border-color: rgba(148,163,184,0.1); }
-    .dark-mode .tag { background: rgba(148,163,184,0.08); color: #94A3B8; }
-    .dark-mode h1, .dark-mode h2, .dark-mode li { color: #E2E8F0 !important; }
-
-    @media (max-width: 480px) {
-      .info-card { padding: 28px 20px 24px; border-radius: 16px; }
-      .info-brand h1 { font-size: 1.5rem; }
-    }
-  </style>
+  <link rel="stylesheet" href="/css/info-pages.css">
 </head>
 <body>
-<script>(function(){const t=localStorage.getItem('eyeco-theme');if(t==='dark')document.documentElement.classList.add('dark-mode')})();</script>
+<script>(function(){const t=localStorage.getItem('eyeco-theme');if(t==='dark'){document.documentElement.classList.add('dark-mode');document.body.classList.add('dark-mode')}})();</script>
   <div class="bg-blobs">
     <div class="blob blob-1"></div>
     <div class="blob blob-2"></div>
   </div>
 
-  <div class="info-wrapper">
-    <div class="info-card">
-      <div class="info-brand">
+  <div class="page-wrapper">
+    <section class="section-glass">
+      <div class="section-brand">
         <img src="/uploads/logo-eyeco.png" alt="EYECO" class="auth-logo-img">
         <h1>EYECO</h1>
         <p>Kebijakan Privasi</p>
@@ -187,83 +28,44 @@
         Terakhir diperbarui: Juli 2025. EYECO berkomitmen untuk melindungi privasi dan data pribadi pengguna. Kebijakan Privasi ini menjelaskan bagaimana kami mengumpulkan, menggunakan, dan melindungi informasi pribadi Anda.
       </p>
 
-      <hr class="divider">
-
-      <div class="section-title">
-        <i data-lucide="database"></i>
-        Data yang Kami Kumpulkan
-      </div>
+      <div class="section-title"><i data-lucide="database"></i>Data yang Kami Kumpulkan</div>
       <p class="info-text">
         Kami mengumpulkan data yang Anda berikan secara langsung saat mendaftar, melaporkan kondisi lingkungan, atau menggunakan fitur-fitur EYECO, termasuk:
       </p>
       <ul class="info-list">
-        <li>
-          <i data-lucide="user"></i>
-          <span><strong>Informasi Akun</strong> — Nama, alamat email, nomor telepon, dan kata sandi yang dienkripsi.</span>
-        </li>
-        <li>
-          <i data-lucide="map-pin"></i>
-          <span><strong>Data Lokasi</strong> — Lokasi pelaporan kondisi lingkungan yang Anda kirimkan secara sukarela.</span>
-        </li>
-        <li>
-          <i data-lucide="image"></i>
-          <span><strong>Data Visual</strong> — Foto dan video kondisi lingkungan yang Anda unggah sebagai bukti pelaporan.</span>
-        </li>
-        <li>
-          <i data-lucide="activity"></i>
-          <span><strong>Data Penggunaan</strong> — Informasi tentang cara Anda menggunakan platform EYECO untuk meningkatkan layanan.</span>
-        </li>
+        <li><i data-lucide="user"></i><span><strong>Informasi Akun</strong> — Nama, alamat email, nomor telepon, dan kata sandi yang dienkripsi.</span></li>
+        <li><i data-lucide="map-pin"></i><span><strong>Data Lokasi</strong> — Lokasi pelaporan kondisi lingkungan yang Anda kirimkan secara sukarela.</span></li>
+        <li><i data-lucide="image"></i><span><strong>Data Visual</strong> — Foto dan video kondisi lingkungan yang Anda unggah sebagai bukti pelaporan.</span></li>
+        <li><i data-lucide="activity"></i><span><strong>Data Penggunaan</strong> — Informasi tentang cara Anda menggunakan platform EYECO untuk meningkatkan layanan.</span></li>
       </ul>
 
-      <hr class="divider">
-
-      <div class="section-title">
-        <i data-lucide="shield-check"></i>
-        Penggunaan Data
-      </div>
+      <div class="section-title"><i data-lucide="shield-check"></i>Penggunaan Data</div>
       <p class="info-text">
         Data pribadi Anda aman dan hanya digunakan untuk keperluan pelaporan, analisis kondisi lingkungan, notifikasi tindak lanjut, serta pengembangan layanan EYECO. Kami tidak akan membagikan data pribadi Anda kepada pihak ketiga tanpa persetujuan Anda, kecuali diwajibkan oleh hukum.
       </p>
 
-      <hr class="divider">
-
-      <div class="section-title">
-        <i data-lucide="lock"></i>
-        Keamanan Data
-      </div>
+      <div class="section-title"><i data-lucide="lock"></i>Keamanan Data</div>
       <p class="info-text">
         Kami menerapkan langkah-langkah keamanan teknis dan organisasi yang sesuai untuk melindungi data pribadi Anda, termasuk enkripsi data, akses terbatas, dan audit keamanan berkala. Seluruh data disimpan di server yang aman dengan akses terbatas hanya untuk personel yang berwenang.
       </p>
 
-      <hr class="divider">
-
-      <div class="section-title">
-        <i data-lucide="clock"></i>
-        Retensi Data
-      </div>
+      <div class="section-title"><i data-lucide="clock"></i>Retensi Data</div>
       <p class="info-text">
         Kami menyimpan data pribadi Anda selama akun Anda aktif atau selama diperlukan untuk menyediakan layanan. Anda dapat meminta penghapusan data kapan saja dengan menghubungi tim EYECO.
       </p>
 
-      <hr class="divider">
-
-      <div class="section-title">
-        <i data-lucide="mail"></i>
-        Hak Pengguna
-      </div>
+      <div class="section-title"><i data-lucide="mail"></i>Hak Pengguna</div>
       <p class="info-text">
         Anda memiliki hak untuk mengakses, memperbarui, memperbaiki, atau menghapus data pribadi Anda. Anda juga dapat menarik persetujuan pemrosesan data kapan saja dengan menghubungi kami melalui halaman Kontak.
       </p>
 
-      <hr class="divider">
-
       <div class="back-wrap">
-        <a href="#" onclick="history.back(); return false;" class="back-link">
+        <a href="/dashboard/beranda" class="back-link">
           <i data-lucide="arrow-left"></i>
-          Kembali ke Beranda
+          Kembali
         </a>
       </div>
-    </div>
+    </section>
   </div>
 
   <script>

@@ -139,7 +139,7 @@ const Profile = {
               <span class="profile-info-label">Nomor Telepon</span>
               <span class="profile-info-value" id="p-phone">${this.escapeHtml(u.phone || '—')}</span>
             </div>
-            <div class="profile-info-item">
+            <div class="profile-info-item" id="profile-info-role" style="${u.role === 'user' ? 'display:none;' : ''}">
               <span class="profile-info-label">Role</span>
               <span class="profile-info-value"><span class="badge badge-blue">${this.escapeHtml(u.role || '—')}</span></span>
             </div>

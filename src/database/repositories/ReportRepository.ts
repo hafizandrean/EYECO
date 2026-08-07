@@ -223,7 +223,6 @@ export class ReportRepository {
         } else {
           query.workspaceId = -1;
         }
-        query.sourceType = { $ne: 'AI_CCTV' };
       } else if (userContext.role === 'superadmin') {
         const ownedWorkspaces = await WorkspaceModel.find({ superadminId: userContext.id }).lean().exec();
         const wsIds = ownedWorkspaces.map(w => w.id);
@@ -310,7 +309,7 @@ export class ReportRepository {
   private static async buildWorkspaceScope(userContext?: { id: number; role: string }): Promise<Record<string, unknown>> {
     if (!userContext) return { workspaceId: -1 };
 
-    if (userContext.role === 'admin' || userContext.role === 'user') {
+    if (userContext.role === 'admin' || userContext.role === 'user' || userContext.role === 'operator') {
       const user = await UserModel.findOne({ id: userContext.id }).lean().exec();
       if (!user?.workspaceId) return { workspaceId: -1 };
       return { workspaceId: user.workspaceId };
