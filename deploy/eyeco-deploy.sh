@@ -64,12 +64,14 @@ fi
 
 echo "==> [5/7] npm install & build"
 cd "$APP_DIR"
+# Build butuh typescript (devDep) — install penuh, prune dev setelah build
 if [ -f package-lock.json ]; then
-  npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund
+  npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 else
-  npm install --omit=dev --no-audit --no-fund
+  npm install --no-audit --no-fund
 fi
 npm run build
+npm prune --omit=dev --no-audit --no-fund 2>/dev/null || true
 
 echo "==> [6/7] PM2 daemon"
 if ! command -v pm2 >/dev/null 2>&1; then
