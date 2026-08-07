@@ -308,6 +308,10 @@
           successBox.textContent = 'Login berhasil! Mengarahkan...';
           successBox.style.display = 'block';
           setTimeout(() => {
+            // Kembali ke halaman yang dituju user sebelum login (dari landing CTA), jika ada
+            const returnTo = sessionStorage.getItem('eyeco_return_to');
+            sessionStorage.removeItem('eyeco_return_to');
+            if (returnTo) { window.location.href = returnTo; return; }
             if (data.role === 'superadmin') window.location.href = '/superadmin';
             else if (data.role === 'admin') window.location.href = '/dashboard';
             else window.location.href = '/select-workspace';

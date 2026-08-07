@@ -394,23 +394,22 @@ class HomePage {
       }
 
   bindEvents() {
-    // Hero CTA buttons
-    document.getElementById('hero-btn-upload')?.addEventListener('click', (e) => {
+    // Jika belum login (landing publik / user kosong), CTA → /login (redirect balik setelah login)
+    const user = AppState.get('user');
+    const requireAuth = (e, path) => {
       e.preventDefault();
-      Router.navigate('/dashboard/upload');
-    });
-    document.getElementById('hero-btn-reports')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      Router.navigate('/dashboard/laporan');
-    });
-    document.getElementById('hero-btn-all-reports')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      Router.navigate('/dashboard/laporan');
-    });
-    document.getElementById('cta-btn-upload')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      Router.navigate('/dashboard/upload');
-    });
+      if (!user) {
+        sessionStorage.setItem('eyeco_return_to', path);
+        window.location.href = '/login';
+        return;
+      }
+      Router.navigate(path);
+    };
+
+    document.getElementById('hero-btn-upload')?.addEventListener('click', (e) => requireAuth(e, '/dashboard/upload'));
+    document.getElementById('hero-btn-reports')?.addEventListener('click', (e) => requireAuth(e, '/dashboard/laporan'));
+    document.getElementById('hero-btn-all-reports')?.addEventListener('click', (e) => requireAuth(e, '/dashboard/laporan'));
+    document.getElementById('cta-btn-upload')?.addEventListener('click', (e) => requireAuth(e, '/dashboard/upload'));
 
     // Footer links (full page loads) — simpan posisi scroll sebelum pindah
     document.querySelectorAll('.footer-links a, .footer-partner-cloud a').forEach((a) => {
@@ -453,6 +452,8 @@ class HomePage {
   async loadLatestReports() {
     const container = document.getElementById('landing-reports-grid');
     if (!container) return;
+
+    const user = AppState.get('user');
 
     try {
       const response = await ReportService.getFilteredReports({}, 1, 6);
@@ -497,6 +498,11 @@ class HomePage {
           </div>
         `;
         card.addEventListener('click', () => {
+          if (!user) {
+            sessionStorage.setItem('eyeco_return_to', '/dashboard/detections/' + report.id);
+            window.location.href = '/login';
+            return;
+          }
           Router.navigate(`/dashboard/detections/${report.id}`);
         });
         container.appendChild(card);

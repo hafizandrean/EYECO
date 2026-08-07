@@ -611,6 +611,19 @@ body.dark-mode .header-floating {
 }
 .header-floating .brand-logo i { width: 20px; height: 20px; }
 
+/* ── Public landing navbar (no tabs, brand + auth actions) ── */
+.landing-public-nav {
+  justify-content: space-between;
+  gap: 12px;
+}
+.landing-public-nav .header-left-group { flex: 0 0 auto; }
+.landing-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
 /* ── Nav Tabs — Sliding indicator (macOS-style) ── */
 .nav-tabs-capsule {
   flex: 1 1 auto;

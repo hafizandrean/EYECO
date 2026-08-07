@@ -12,3 +12,6 @@ node_modules/
 .env
 .env.*
 !.env.example
+# Runtime-generated files
+public/hls/
+public/uploads/cctv_capture_*
