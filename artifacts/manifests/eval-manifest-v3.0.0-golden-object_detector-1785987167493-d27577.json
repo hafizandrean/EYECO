@@ -1,0 +1,51 @@
+{
+  "goldenDatasetVersion": "v3.0.0-golden-object_detector-1785987167493-d27577",
+  "goldenManifestHash": "219dad1ef03f7e331e806b7dcb51134120cf8413c373707e8897620202a1aeff",
+  "items": [
+    {
+      "goldenItemId": "golden-item-0",
+      "candidateId": "6a74005e3d8a4a42f3923ac8",
+      "snapshotId": "6a74005e3d8a4a42f3923ac7",
+      "imagePath": "/uploads/p6i_golden_img_p6i_1785987127749_0.jpg",
+      "recomputedImageHash": "305b81a04d58d7adbfa6965d7fa844b96d1ae0f92b1af3f1ff21911038bc29a6",
+      "annotationHash": "bf0bcfb254a36abeb329c727958a76e7170e86c28384a09ff00b848e4ba83c3c",
+      "split": "TEST"
+    },
+    {
+      "goldenItemId": "golden-item-1",
+      "candidateId": "6a74005e3d8a4a42f3923acb",
+      "snapshotId": "6a74005e3d8a4a42f3923aca",
+      "imagePath": "/uploads/p6i_golden_img_p6i_1785987127749_1.jpg",
+      "recomputedImageHash": "e0f63a3acc219301585b47fb03fd977cea880617a3c319c6242e5809c9b994d9",
+      "annotationHash": "bf0bcfb254a36abeb329c727958a76e7170e86c28384a09ff00b848e4ba83c3c",
+      "split": "TEST"
+    },
+    {
+      "goldenItemId": "golden-item-2",
+      "candidateId": "6a74005e3d8a4a42f3923ace",
+      "snapshotId": "6a74005e3d8a4a42f3923acd",
+      "imagePath": "/uploads/p6i_golden_img_p6i_1785987127749_2.jpg",
+      "recomputedImageHash": "2c143d66a7b544973ae08495832ef33d4f56ed49153549b357bff09bec68fe2a",
+      "annotationHash": "bf0bcfb254a36abeb329c727958a76e7170e86c28384a09ff00b848e4ba83c3c",
+      "split": "TEST"
+    },
+    {
+      "goldenItemId": "golden-item-3",
+      "candidateId": "6a74005f3d8a4a42f3923ad1",
+      "snapshotId": "6a74005f3d8a4a42f3923ad0",
+      "imagePath": "/uploads/p6i_golden_img_p6i_1785987127749_3.jpg",
+      "recomputedImageHash": "e9366914574e405da3b241ad2356f50c71b7ec01a68ec8f483c2c763e49bd483",
+      "annotationHash": "bf0bcfb254a36abeb329c727958a76e7170e86c28384a09ff00b848e4ba83c3c",
+      "split": "TEST"
+    },
+    {
+      "goldenItemId": "golden-item-4",
+      "candidateId": "6a74005f3d8a4a42f3923ad4",
+      "snapshotId": "6a74005f3d8a4a42f3923ad3",
+      "imagePath": "/uploads/p6i_golden_img_p6i_1785987127749_4.jpg",
+      "recomputedImageHash": "81c916e5efaeec02b09fae2c3b13ae6b70c880a667b2bb97c45228438bc10061",
+      "annotationHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "split": "TEST"
+    }
+  ]
+}

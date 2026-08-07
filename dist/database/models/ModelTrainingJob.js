@@ -104,18 +104,23 @@ const ModelTrainingJobSchema = new mongoose_1.Schema({
 }, { timestamps: true });
 // Pre-save hook blocking manual state mutation without authorized transaction finalizer
 ModelTrainingJobSchema.pre('save', function (next) {
-    if (this.isNew || this.isModified('actualTrainingPerformed') || this.isModified('status')) {
-        if (this.actualTrainingPerformed || this.status === 'COMPLETED') {
-            if (!this.trainingExecutionResultId || !this.outputArtifactHash || !this.outputArtifactPath || this.processExitCode !== 0) {
-                const err = new Error('TRAINING_FINALIZER_REQUIRED: Cannot set status to COMPLETED or actualTrainingPerformed to true without a valid TrainingExecutionResult linked via an authorized transaction finalizer.');
-                err.status = 422;
-                if (typeof next === 'function')
-                    return next(err);
-                throw err;
+    const isTargetState = this.actualTrainingPerformed === true || this.status === 'COMPLETED';
+    if (isTargetState) {
+        const isAuthorized = !!this.trainingExecutionResultId &&
+            !!this.outputArtifactHash &&
+            !!this.outputArtifactPath &&
+            this.processExitCode === 0;
+        if (!isAuthorized) {
+            const err = new Error('TRAINING_FINALIZER_REQUIRED: Cannot set status to COMPLETED or actualTrainingPerformed to true without a valid TrainingExecutionResult linked via an authorized transaction finalizer.');
+            err.status = 422;
+            if (typeof next === 'function') {
+                return next(err);
             }
+            throw err;
         }
     }
-    if (typeof next === 'function')
-        next();
+    if (typeof next === 'function') {
+        return next();
+    }
 });
 exports.ModelTrainingJobModel = mongoose_1.default.model('ModelTrainingJob', ModelTrainingJobSchema);

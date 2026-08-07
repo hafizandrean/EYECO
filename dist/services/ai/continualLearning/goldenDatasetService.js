@@ -109,6 +109,26 @@ class GoldenDatasetService {
                 }
             }
         }
+        // Check for contradictory label classes on items sharing the same inputImageHash
+        const hashToClasses = new Map();
+        for (const item of params.manifestItems) {
+            if (item.inputImageHash) {
+                const classes = new Set((item.annotations || []).map(a => a.className));
+                if (hashToClasses.has(item.inputImageHash)) {
+                    const existing = hashToClasses.get(item.inputImageHash);
+                    for (const cls of classes) {
+                        if (existing.size > 0 && !existing.has(cls)) {
+                            const err = new Error(`GOLDEN_LABEL_CONTRADICTION: Duplicate inputImageHash ${item.inputImageHash} has contradictory label classes.`);
+                            err.status = 422;
+                            throw err;
+                        }
+                    }
+                }
+                else {
+                    hashToClasses.set(item.inputImageHash, classes);
+                }
+            }
+        }
         // 3. Exact Training Overlap Verification across Candidates and Approved Dataset Versions
         const goldenCandIdSet = new Set(params.manifestItems.map(i => i.candidateId ? String(i.candidateId) : ''));
         const approvedCandidates = await AiDatasetCandidate_1.AiDatasetCandidateModel.find({ approvalStatus: 'APPROVED' }).exec();
@@ -219,7 +239,7 @@ class GoldenDatasetService {
         console.log(`[GOLDEN_DATASET] Golden Dataset ${goldenDatasetVersion} APPROVED by admin ${approvedByUserId}`);
         return doc;
     }
-    async materializeEvaluationManifest(goldenDatasetVersion) {
+    async materializeEvaluationManifest(goldenDatasetVersion, targetFilePath) {
         const doc = await AiGoldenDatasetVersion_1.AiGoldenDatasetVersionModel.findOne({ goldenDatasetVersion }).exec();
         if (!doc || doc.status !== 'APPROVED') {
             throw new Error(`GOLDEN_DATASET_NOT_APPROVED: Golden dataset ${goldenDatasetVersion} is missing or not APPROVED.`);
@@ -236,14 +256,21 @@ class GoldenDatasetService {
                 split: item.split || 'TEST'
             };
         });
-        const manifestHash = crypto_1.default.createHash('sha256').update(JSON.stringify(materializedItems)).digest('hex');
+        const manifestFilePath = targetFilePath || path_1.default.join('artifacts/manifests', `eval-manifest-${doc.goldenDatasetVersion}.json`);
+        const manifestContent = JSON.stringify({ goldenDatasetVersion, items: materializedItems }, null, 2);
+        const fileHash = crypto_1.default.createHash('sha256').update(manifestContent).digest('hex');
+        if (!fs_1.default.existsSync(manifestFilePath)) {
+            fs_1.default.mkdirSync(path_1.default.dirname(manifestFilePath), { recursive: true });
+            fs_1.default.writeFileSync(manifestFilePath, manifestContent);
+        }
         return {
             goldenDatasetVersion,
-            goldenManifestHash: manifestHash,
+            goldenManifestHash: fileHash,
+            manifestFilePath,
             items: materializedItems
         };
     }
-    async materializeGroundTruthManifest(goldenDatasetVersion) {
+    async materializeGroundTruthManifest(goldenDatasetVersion, targetFilePath) {
         const doc = await AiGoldenDatasetVersion_1.AiGoldenDatasetVersionModel.findOne({ goldenDatasetVersion }).exec();
         if (!doc || doc.status !== 'APPROVED') {
             throw new Error(`GOLDEN_DATASET_NOT_APPROVED: Golden dataset ${goldenDatasetVersion} is missing or not APPROVED.`);
@@ -259,8 +286,17 @@ class GoldenDatasetService {
                 annotations: item.annotations || []
             };
         });
+        const manifestFilePath = targetFilePath || path_1.default.join('artifacts/manifests', `gt-manifest-${doc.goldenDatasetVersion}.json`);
+        const manifestContent = JSON.stringify({ sourceGoldenDatasetHash: doc.manifestHash, items }, null, 2);
+        const fileHash = crypto_1.default.createHash('sha256').update(manifestContent).digest('hex');
+        if (!fs_1.default.existsSync(manifestFilePath)) {
+            fs_1.default.mkdirSync(path_1.default.dirname(manifestFilePath), { recursive: true });
+            fs_1.default.writeFileSync(manifestFilePath, manifestContent);
+        }
         return {
             sourceGoldenDatasetHash: doc.manifestHash,
+            groundTruthManifestHash: fileHash,
+            manifestFilePath,
             items
         };
     }

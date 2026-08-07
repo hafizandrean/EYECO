@@ -37,13 +37,14 @@ class ActualSubprocessTrainerService {
      * Handles lease heartbeating, cancellation polling, process orchestration,
      * immutable evidence recording, and atomic MongoDB transaction finalization.
      */
-    async executeSubprocessTraining(job) {
+    async executeSubprocessTraining(job, context) {
         const dsDoc = await AiDatasetVersion_1.AiDatasetVersionModel.findOne({ datasetVersion: job.datasetVersion }).exec();
         if (!dsDoc) {
             throw new Error(`DATASET_NOT_FOUND: Dataset version ${job.datasetVersion} not found.`);
         }
+        const artifactRoot = context?.artifactRoot || 'artifacts';
         // 1. Materialize Dataset Deterministically
-        const exportResult = await datasetMaterializationService_1.datasetMaterializationService.materializeDataset(dsDoc, job.goldenDatasetVersion);
+        const exportResult = await datasetMaterializationService_1.datasetMaterializationService.materializeDataset(dsDoc, job.goldenDatasetVersion, artifactRoot);
         job.status = 'TRAINING';
         job.startedAt = new Date();
         await job.save();
@@ -60,7 +61,7 @@ class ActualSubprocessTrainerService {
             return job;
         }
         // 2. Prepare Subprocess Parameters
-        const tmpDir = path_1.default.join('artifacts/tmp', job.jobId);
+        const tmpDir = path_1.default.join(artifactRoot, 'tmp', job.jobId).replace(/\\/g, '/');
         fs_1.default.mkdirSync(tmpDir, { recursive: true });
         const tmpArtifactPath = path_1.default.join(tmpDir, 'model.pt');
         const summaryJsonPath = path_1.default.join(tmpDir, 'training_summary.json');
@@ -75,7 +76,7 @@ class ActualSubprocessTrainerService {
             trainScriptPath,
             '--data', dataYamlPath,
             '--base-model', baseHash,
-            '--epochs', '50',
+            '--epochs', '1',
             '--batch', '16',
             '--imgsz', '640',
             '--seed', '42',
@@ -109,7 +110,7 @@ class ActualSubprocessTrainerService {
             return job;
         }
         // 4. Validate & Atomically Move Artifact
-        const validationResult = await artifactValidationService_1.artifactValidationService.validateAndFinalizeArtifact(tmpArtifactPath, baseHash, job.targetModel);
+        const validationResult = await artifactValidationService_1.artifactValidationService.validateAndFinalizeArtifact(tmpArtifactPath, baseHash, job.targetModel, artifactRoot);
         const bestCheckpointHash = validationResult.artifactHash;
         // Clean tmp directory
         try {

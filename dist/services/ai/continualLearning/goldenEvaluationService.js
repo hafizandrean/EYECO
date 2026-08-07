@@ -165,14 +165,58 @@ class GoldenEvaluationService {
         // Read metrics directly from evaluator JSON file if evalExecResult is available
         let candidateRaw = params.candidateMetrics || {};
         let baselineRaw = params.baselineMetrics || {};
-        if (evalExecResult && fs_1.default.existsSync(evalExecResult.evaluationMetricsFilePath)) {
-            try {
-                const metricsFileContent = JSON.parse(fs_1.default.readFileSync(evalExecResult.evaluationMetricsFilePath, 'utf-8'));
-                candidateRaw = metricsFileContent.candidateMetrics || candidateRaw;
-                baselineRaw = metricsFileContent.baselineMetrics || baselineRaw;
+        // Provenance & Evidence Tampering Check
+        if (evalExecResult) {
+            if (evalExecResult.baselinePredictionManifestPath && evalExecResult.candidatePredictionManifestPath &&
+                evalExecResult.baselinePredictionManifestPath === evalExecResult.candidatePredictionManifestPath) {
+                const err = new Error(`EVALUATION_PROVENANCE_INCONSISTENT: Baseline prediction manifest path cannot be identical to candidate prediction manifest path.`);
+                err.status = 422;
+                throw err;
             }
-            catch (e) {
-                // Fallback to params
+            if (fs_1.default.existsSync(evalExecResult.candidatePredictionManifestPath)) {
+                const candFileBytes = fs_1.default.readFileSync(evalExecResult.candidatePredictionManifestPath);
+                const candDiskHash = crypto_1.default.createHash('sha256').update(candFileBytes).digest('hex');
+                if (candDiskHash !== evalExecResult.candidatePredictionManifestHash) {
+                    const err = new Error(`EVALUATOR_EVIDENCE_HASH_MISMATCH: Candidate prediction manifest on disk (${candDiskHash}) does not match recorded evidence hash (${evalExecResult.candidatePredictionManifestHash}).`);
+                    err.status = 422;
+                    throw err;
+                }
+            }
+            if (fs_1.default.existsSync(evalExecResult.baselinePredictionManifestPath)) {
+                const baseFileBytes = fs_1.default.readFileSync(evalExecResult.baselinePredictionManifestPath);
+                const baseDiskHash = crypto_1.default.createHash('sha256').update(baseFileBytes).digest('hex');
+                if (baseDiskHash !== evalExecResult.baselinePredictionManifestHash) {
+                    const err = new Error(`EVALUATOR_EVIDENCE_HASH_MISMATCH: Baseline prediction manifest on disk (${baseDiskHash}) does not match recorded evidence hash (${evalExecResult.baselinePredictionManifestHash}).`);
+                    err.status = 422;
+                    throw err;
+                }
+            }
+            if (fs_1.default.existsSync(evalExecResult.evaluationMetricsFilePath)) {
+                const metricsBytes = fs_1.default.readFileSync(evalExecResult.evaluationMetricsFilePath);
+                const metricsDiskHash = crypto_1.default.createHash('sha256').update(metricsBytes).digest('hex');
+                if (metricsDiskHash !== evalExecResult.evaluationMetricsFileHash) {
+                    const err = new Error(`EVALUATOR_EVIDENCE_HASH_MISMATCH: Evaluation metrics file on disk (${metricsDiskHash}) does not match recorded evidence hash (${evalExecResult.evaluationMetricsFileHash}).`);
+                    err.status = 422;
+                    throw err;
+                }
+                try {
+                    const metricsFileContent = JSON.parse(metricsBytes.toString('utf-8'));
+                    candidateRaw = metricsFileContent.candidateMetrics || candidateRaw;
+                    baselineRaw = metricsFileContent.baselineMetrics || baselineRaw;
+                    const candManifestHash = evalExecResult.candidatePredictionManifestHash;
+                    const baseManifestHash = evalExecResult.baselinePredictionManifestHash;
+                    const candMapVal = candidateRaw.mAP50_95 ?? candidateRaw.map50_95 ?? candidateRaw['mAP50-95'] ?? 0;
+                    const baseMapVal = baselineRaw.mAP50_95 ?? baselineRaw.map50_95 ?? baselineRaw['mAP50-95'] ?? 0;
+                    if (candManifestHash && baseManifestHash && candManifestHash === baseManifestHash && Math.abs(candMapVal - baseMapVal) > 0.001) {
+                        const err = new Error(`EVALUATION_PROVENANCE_INCONSISTENT: Candidate and baseline prediction manifest hashes are identical (${candManifestHash}), but primary metrics differ (Candidate mAP: ${candMapVal}, Baseline mAP: ${baseMapVal}).`);
+                        err.status = 422;
+                        throw err;
+                    }
+                }
+                catch (e) {
+                    if (e.message && (e.message.includes('EVALUATION_PROVENANCE_INCONSISTENT') || e.message.includes('EVALUATOR_EVIDENCE_HASH_MISMATCH')))
+                        throw e;
+                }
             }
         }
         const baselineMap = getVal(baselineRaw, ['mAP50_95', 'mAP50-95', 'map'], 0.750);

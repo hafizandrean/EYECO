@@ -1,0 +1,8 @@
+path: artifacts/exports/e823a8ab14be27b990b03e8c4ea4ed732481512492fd0bea3113dc729d020724
+train: images/train
+val: images/val
+test: images/test
+names:
+  0: plastic_bag
+  1: trash_pile
+  2: unsegregated_garbage

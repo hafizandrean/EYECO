@@ -1,0 +1,51 @@
+{
+  "goldenDatasetVersion": "v3.0.0-golden-object_detector-1786008429678-a2d726",
+  "goldenManifestHash": "3e05908f84dc083bde36dc4712f6f8e243c1506109141ae31557d0bb953212c2",
+  "items": [
+    {
+      "goldenItemId": "golden-item-0",
+      "candidateId": "6a74536d3d6a6bb9aabf5be6",
+      "snapshotId": "6a74536d3d6a6bb9aabf5be5",
+      "imagePath": "D:/Documents/GitHub/EYECO/artifacts/integration-tests/p6i_1786008424472/images/golden_img_1.jpg",
+      "recomputedImageHash": "e155f256d67b9760cb23fd3345443e5f17eb40c836c50214389d584798aac2e2",
+      "annotationHash": "3ae4fd174c00c5990fc43a593ef0498b03fc58308d7dc6f139a95dc71abfb486",
+      "split": "TEST"
+    },
+    {
+      "goldenItemId": "golden-item-1",
+      "candidateId": "6a74536d3d6a6bb9aabf5be8",
+      "snapshotId": "6a74536d3d6a6bb9aabf5be7",
+      "imagePath": "D:/Documents/GitHub/EYECO/artifacts/integration-tests/p6i_1786008424472/images/golden_img_2.jpg",
+      "recomputedImageHash": "0d2af3c7bc6c10dd5284bcd0ab03d51b1d583a6cf8a33c2b3c78d4664c486d44",
+      "annotationHash": "3ae4fd174c00c5990fc43a593ef0498b03fc58308d7dc6f139a95dc71abfb486",
+      "split": "TEST"
+    },
+    {
+      "goldenItemId": "golden-item-2",
+      "candidateId": "6a74536d3d6a6bb9aabf5bea",
+      "snapshotId": "6a74536d3d6a6bb9aabf5be9",
+      "imagePath": "D:/Documents/GitHub/EYECO/artifacts/integration-tests/p6i_1786008424472/images/golden_img_3.jpg",
+      "recomputedImageHash": "a54db08f289c5beb07e0b39bfae5969364c34d13d4f02aa9e1ef02a1cf4da2e7",
+      "annotationHash": "3ae4fd174c00c5990fc43a593ef0498b03fc58308d7dc6f139a95dc71abfb486",
+      "split": "TEST"
+    },
+    {
+      "goldenItemId": "golden-item-3",
+      "candidateId": "6a74536d3d6a6bb9aabf5bec",
+      "snapshotId": "6a74536d3d6a6bb9aabf5beb",
+      "imagePath": "D:/Documents/GitHub/EYECO/artifacts/integration-tests/p6i_1786008424472/images/golden_img_4.jpg",
+      "recomputedImageHash": "e4e9220b9e862e5134128468ed5c6c6057cb86e22c90c88ab3acbae05f288053",
+      "annotationHash": "3ae4fd174c00c5990fc43a593ef0498b03fc58308d7dc6f139a95dc71abfb486",
+      "split": "TEST"
+    },
+    {
+      "goldenItemId": "golden-item-4",
+      "candidateId": "6a74536d3d6a6bb9aabf5bee",
+      "snapshotId": "6a74536d3d6a6bb9aabf5bed",
+      "imagePath": "D:/Documents/GitHub/EYECO/artifacts/integration-tests/p6i_1786008424472/images/golden_img_5.jpg",
+      "recomputedImageHash": "5f8a15c617070b9ad705bca96b835df69b070777fc77539bb834f3d6790feff2",
+      "annotationHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "split": "TEST"
+    }
+  ]
+}

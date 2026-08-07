@@ -115,12 +115,31 @@ export class DatasetBuilder {
     targetModel: TargetModelType;
     createdByUserId?: string;
     isTestData?: boolean;
+    candidateIds?: Array<mongoose.Types.ObjectId | string>;
+    context?: any;
   }): Promise<IAiDatasetVersion> {
     const mongoSession = await mongoose.startSession();
     let createdDatasetVersionDoc: IAiDatasetVersion | null = null;
 
+    const runTransactionWithRetry = async (fn: () => Promise<any>, maxRetries = 3) => {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          await mongoSession.withTransaction(fn);
+          return;
+        } catch (err: any) {
+          const isAtlasTransient = err.code === 8000 || err.codeName === 'AtlasError' || err.message?.includes('MaxTimeMSExpired') || err.message?.includes('context deadline exceeded');
+          if (isAtlasTransient && attempt < maxRetries) {
+            console.warn(`[DATASET_BUILDER] Transaction failed with transient Atlas error (attempt ${attempt}/${maxRetries}), retrying in 1000ms...`);
+            await new Promise((r) => setTimeout(r, 1000));
+            continue;
+          }
+          throw err;
+        }
+      }
+    };
+
     try {
-      await mongoSession.withTransaction(async () => {
+      await runTransactionWithRetry(async () => {
         // 1. Strict Candidate Eligibility Filter Query
         const candidateFilter: any = {
           targetModel: params.targetModel,
@@ -129,6 +148,11 @@ export class DatasetBuilder {
           supersededAt: null,
           assignedDatasetVersion: null
         };
+
+        if (Array.isArray(params.candidateIds) && params.candidateIds.length > 0) {
+          const ids = params.candidateIds.map((id: any) => new mongoose.Types.ObjectId(String(id)));
+          candidateFilter._id = { $in: ids };
+        }
 
         if (params.isTestData) {
           candidateFilter.isTestData = true;

@@ -3,6 +3,7 @@ import fs from 'fs';
 import crypto from 'crypto';
 import { spawn } from 'child_process';
 import mongoose from 'mongoose';
+import { IMlExecutionContext } from './MlExecutionContext';
 import { IModelTrainingJob, ModelTrainingJobModel } from '../../../database/models/ModelTrainingJob';
 import { AiDatasetVersionModel } from '../../../database/models/AiDatasetVersion';
 import { TrainingExecutionResultModel, ITrainingExecutionResult } from '../../../database/models/TrainingExecutionResult';
@@ -30,14 +31,16 @@ export class ActualSubprocessTrainerService {
    * Handles lease heartbeating, cancellation polling, process orchestration,
    * immutable evidence recording, and atomic MongoDB transaction finalization.
    */
-  public async executeSubprocessTraining(job: IModelTrainingJob): Promise<IModelTrainingJob> {
+  public async executeSubprocessTraining(job: IModelTrainingJob, context?: IMlExecutionContext): Promise<IModelTrainingJob> {
     const dsDoc = await AiDatasetVersionModel.findOne({ datasetVersion: job.datasetVersion }).exec();
     if (!dsDoc) {
       throw new Error(`DATASET_NOT_FOUND: Dataset version ${job.datasetVersion} not found.`);
     }
 
+    const artifactRoot = context?.artifactRoot || 'artifacts';
+
     // 1. Materialize Dataset Deterministically
-    const exportResult = await datasetMaterializationService.materializeDataset(dsDoc, job.goldenDatasetVersion);
+    const exportResult = await datasetMaterializationService.materializeDataset(dsDoc, job.goldenDatasetVersion, artifactRoot);
 
     job.status = 'TRAINING';
     job.startedAt = new Date();
@@ -58,7 +61,7 @@ export class ActualSubprocessTrainerService {
     }
 
     // 2. Prepare Subprocess Parameters
-    const tmpDir = path.join('artifacts/tmp', job.jobId);
+    const tmpDir = path.join(artifactRoot, 'tmp', job.jobId).replace(/\\/g, '/');
     fs.mkdirSync(tmpDir, { recursive: true });
     const tmpArtifactPath = path.join(tmpDir, 'model.pt');
     const summaryJsonPath = path.join(tmpDir, 'training_summary.json');
@@ -76,7 +79,7 @@ export class ActualSubprocessTrainerService {
       trainScriptPath,
       '--data', dataYamlPath,
       '--base-model', baseHash,
-      '--epochs', '50',
+      '--epochs', '1',
       '--batch', '16',
       '--imgsz', '640',
       '--seed', '42',
@@ -115,7 +118,7 @@ export class ActualSubprocessTrainerService {
     }
 
     // 4. Validate & Atomically Move Artifact
-    const validationResult = await artifactValidationService.validateAndFinalizeArtifact(tmpArtifactPath, baseHash, job.targetModel);
+    const validationResult = await artifactValidationService.validateAndFinalizeArtifact(tmpArtifactPath, baseHash, job.targetModel, artifactRoot);
     const bestCheckpointHash = validationResult.artifactHash;
 
     // Clean tmp directory

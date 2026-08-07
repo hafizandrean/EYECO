@@ -62,6 +62,7 @@ const EvaluatorExecutionResultSchema = new mongoose_1.Schema({
     baselinePredictionManifestPath: { type: String, required: true },
     evaluationMetricsFileHash: { type: String, required: true },
     evaluationMetricsFilePath: { type: String, required: true },
+    trustedFinalizerId: { type: String, default: 'SERVICE_EVALUATOR_FINALIZER_V1' },
     resultHash: { type: String, required: true }
 }, { timestamps: { createdAt: true, updatedAt: false } });
 function blockMutation(next) {
@@ -77,7 +78,8 @@ EvaluatorExecutionResultSchema.pre('save', function (next) {
     if (!this.isNew) {
         return blockMutation(next);
     }
-    next();
+    if (typeof next === 'function')
+        next();
 });
 // Immutability Guard Query Middlewares
 const queryMutationHandler = function (next) {

@@ -1,0 +1,93 @@
+{
+  "sourceGoldenDatasetHash": "2115c8497b063ec3e2949b82b6d5a9ad48e3df8892abe7e02348904b233facf1",
+  "items": [
+    {
+      "goldenItemId": "golden-item-0",
+      "imagePath": "/uploads/p6i_golden_img_p6i_1785997549231_0.jpg",
+      "recomputedImageHash": "305b81a04d58d7adbfa6965d7fa844b96d1ae0f92b1af3f1ff21911038bc29a6",
+      "annotationHash": "bf0bcfb254a36abeb329c727958a76e7170e86c28384a09ff00b848e4ba83c3c",
+      "operatorDecision": "TRUE_OBJECT_DETECTION",
+      "annotations": [
+        {
+          "className": "plastic_bag",
+          "bbox": [
+            10,
+            10,
+            90,
+            90
+          ],
+          "confidence": 1,
+          "annotationSource": "OPERATOR_GROUND_TRUTH"
+        }
+      ]
+    },
+    {
+      "goldenItemId": "golden-item-1",
+      "imagePath": "/uploads/p6i_golden_img_p6i_1785997549231_1.jpg",
+      "recomputedImageHash": "e0f63a3acc219301585b47fb03fd977cea880617a3c319c6242e5809c9b994d9",
+      "annotationHash": "bf0bcfb254a36abeb329c727958a76e7170e86c28384a09ff00b848e4ba83c3c",
+      "operatorDecision": "TRUE_OBJECT_DETECTION",
+      "annotations": [
+        {
+          "className": "plastic_bag",
+          "bbox": [
+            10,
+            10,
+            90,
+            90
+          ],
+          "confidence": 1,
+          "annotationSource": "OPERATOR_GROUND_TRUTH"
+        }
+      ]
+    },
+    {
+      "goldenItemId": "golden-item-2",
+      "imagePath": "/uploads/p6i_golden_img_p6i_1785997549231_2.jpg",
+      "recomputedImageHash": "2c143d66a7b544973ae08495832ef33d4f56ed49153549b357bff09bec68fe2a",
+      "annotationHash": "bf0bcfb254a36abeb329c727958a76e7170e86c28384a09ff00b848e4ba83c3c",
+      "operatorDecision": "TRUE_OBJECT_DETECTION",
+      "annotations": [
+        {
+          "className": "plastic_bag",
+          "bbox": [
+            10,
+            10,
+            90,
+            90
+          ],
+          "confidence": 1,
+          "annotationSource": "OPERATOR_GROUND_TRUTH"
+        }
+      ]
+    },
+    {
+      "goldenItemId": "golden-item-3",
+      "imagePath": "/uploads/p6i_golden_img_p6i_1785997549231_3.jpg",
+      "recomputedImageHash": "e9366914574e405da3b241ad2356f50c71b7ec01a68ec8f483c2c763e49bd483",
+      "annotationHash": "bf0bcfb254a36abeb329c727958a76e7170e86c28384a09ff00b848e4ba83c3c",
+      "operatorDecision": "TRUE_OBJECT_DETECTION",
+      "annotations": [
+        {
+          "className": "plastic_bag",
+          "bbox": [
+            10,
+            10,
+            90,
+            90
+          ],
+          "confidence": 1,
+          "annotationSource": "OPERATOR_GROUND_TRUTH"
+        }
+      ]
+    },
+    {
+      "goldenItemId": "golden-item-4",
+      "imagePath": "/uploads/p6i_golden_img_p6i_1785997549231_4.jpg",
+      "recomputedImageHash": "81c916e5efaeec02b09fae2c3b13ae6b70c880a667b2bb97c45228438bc10061",
+      "annotationHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "operatorDecision": "FALSE_OBJECT_DETECTION",
+      "annotations": []
+    }
+  ]
+}
