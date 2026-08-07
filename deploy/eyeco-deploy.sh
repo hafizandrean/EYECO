@@ -22,9 +22,18 @@ fi
 node -v
 
 echo "==> [3/7] Clone repo (branch $BRANCH)"
+# Backup .env lama supaya tidak hilang saat re-run
+if [ -f "$APP_DIR/.env" ]; then
+  cp "$APP_DIR/.env" /tmp/eyeco-env-backup
+  echo "    .env lama disimpan ke /tmp/eyeco-env-backup"
+fi
 rm -rf "$APP_DIR"
 git clone --depth 1 -b "$BRANCH" "$REPO" "$APP_DIR"
 cd "$APP_DIR"
+if [ -f /tmp/eyeco-env-backup ]; then
+  mv /tmp/eyeco-env-backup "$APP_DIR/.env"
+  echo "    .env dipulihkan"
+fi
 
 echo "==> [4/7] .env — EDIT INI!"
 if [ ! -f .env ]; then
@@ -54,11 +63,18 @@ ENVEOF
 fi
 
 echo "==> [5/7] npm install & build"
-npm install --omit=dev --no-audit --no-fund
+cd "$APP_DIR"
+if [ -f package-lock.json ]; then
+  npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund
+else
+  npm install --omit=dev --no-audit --no-fund
+fi
 npm run build
 
 echo "==> [6/7] PM2 daemon"
-npm install -g pm2
+if ! command -v pm2 >/dev/null 2>&1; then
+  npm install -g pm2
+fi
 pm2 delete eyeco 2>/dev/null || true
 pm2 start dist/server.js --name eyeco --cwd "$APP_DIR"
 pm2 save
