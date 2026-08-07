@@ -30,6 +30,8 @@ fi
 rm -rf "$APP_DIR"
 git clone --depth 1 -b "$BRANCH" "$REPO" "$APP_DIR"
 cd "$APP_DIR"
+# Repo has tracked node_modules/.bin/tsx (broken) — hapus sebelum npm install
+rm -rf node_modules
 if [ -f /tmp/eyeco-env-backup ]; then
   mv /tmp/eyeco-env-backup "$APP_DIR/.env"
   echo "    .env dipulihkan"
