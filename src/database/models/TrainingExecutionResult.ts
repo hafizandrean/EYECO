@@ -117,6 +117,7 @@ TrainingExecutionResultSchema.pre('replaceOne', queryBlocker);
 TrainingExecutionResultSchema.pre('deleteOne', queryBlocker);
 TrainingExecutionResultSchema.pre('deleteMany', queryBlocker);
 TrainingExecutionResultSchema.pre('findOneAndDelete', queryBlocker);
+TrainingExecutionResultSchema.pre('bulkWrite', queryBlocker);
 
 export const TrainingExecutionResultModel = mongoose.model<ITrainingExecutionResult>(
   'TrainingExecutionResult',

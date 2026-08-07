@@ -11,7 +11,7 @@ const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 class DatasetMaterializationService {
     static EXPORTER_VERSION = 'v1.0.0-yolo-exporter';
-    async materializeDataset(datasetVersionDoc, goldenDatasetVersionStr) {
+    async materializeDataset(datasetVersionDoc, goldenDatasetVersionStr, artifactRoot = 'artifacts') {
         // 1. Audit Zero Golden Overlap before export
         const goldenDataset = await AiGoldenDatasetVersion_1.AiGoldenDatasetVersionModel.findOne({ goldenDatasetVersion: goldenDatasetVersionStr }).exec();
         if (!goldenDataset || goldenDataset.status !== 'APPROVED') {
@@ -33,7 +33,7 @@ class DatasetMaterializationService {
             manifestItems: datasetVersionDoc.manifestItems
         };
         const datasetExportHash = crypto_1.default.createHash('sha256').update(JSON.stringify(exportPayload)).digest('hex');
-        const exportPath = `artifacts/exports/${datasetExportHash}`;
+        const exportPath = path_1.default.join(artifactRoot, 'exports', datasetExportHash).replace(/\\/g, '/');
         const dataYamlContent = `path: ${exportPath}\ntrain: images/train\nval: images/val\ntest: images/test\nnames:\n  0: plastic_bag\n  1: trash_pile\n  2: unsegregated_garbage\n`;
         const dataYamlHash = crypto_1.default.createHash('sha256').update(dataYamlContent).digest('hex');
         fs_1.default.mkdirSync(exportPath, { recursive: true });

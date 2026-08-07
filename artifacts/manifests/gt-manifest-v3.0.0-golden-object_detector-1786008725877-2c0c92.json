@@ -1,0 +1,85 @@
+{
+  "sourceGoldenDatasetHash": "7b416e76e51b219f53d42009a9d28081d6a11adb74bb4e273f3833b74e652267",
+  "items": [
+    {
+      "goldenItemId": "golden-item-0",
+      "imagePath": "D:/Documents/GitHub/EYECO/artifacts/integration-tests/p6i_1786008721129/images/golden_img_1.jpg",
+      "recomputedImageHash": "097c5e9a141bc5a48e46ce79bcc679b5b29e9c91e7c6f30d5ebdf8db59ec72d8",
+      "annotationHash": "3ae4fd174c00c5990fc43a593ef0498b03fc58308d7dc6f139a95dc71abfb486",
+      "operatorDecision": "TRUE_OBJECT_DETECTION",
+      "annotations": [
+        {
+          "className": "plastic_bag",
+          "bbox": [
+            10,
+            10,
+            100,
+            100
+          ]
+        }
+      ]
+    },
+    {
+      "goldenItemId": "golden-item-1",
+      "imagePath": "D:/Documents/GitHub/EYECO/artifacts/integration-tests/p6i_1786008721129/images/golden_img_2.jpg",
+      "recomputedImageHash": "66242961cb9eebce041d3ed940c2d9201571ebbd77a8779f96c1f8f12983105b",
+      "annotationHash": "3ae4fd174c00c5990fc43a593ef0498b03fc58308d7dc6f139a95dc71abfb486",
+      "operatorDecision": "TRUE_OBJECT_DETECTION",
+      "annotations": [
+        {
+          "className": "plastic_bag",
+          "bbox": [
+            10,
+            10,
+            100,
+            100
+          ]
+        }
+      ]
+    },
+    {
+      "goldenItemId": "golden-item-2",
+      "imagePath": "D:/Documents/GitHub/EYECO/artifacts/integration-tests/p6i_1786008721129/images/golden_img_3.jpg",
+      "recomputedImageHash": "21ac2449ed9163b580a466a558451155684aa9f8652608dc862be74456e88c09",
+      "annotationHash": "3ae4fd174c00c5990fc43a593ef0498b03fc58308d7dc6f139a95dc71abfb486",
+      "operatorDecision": "TRUE_OBJECT_DETECTION",
+      "annotations": [
+        {
+          "className": "plastic_bag",
+          "bbox": [
+            10,
+            10,
+            100,
+            100
+          ]
+        }
+      ]
+    },
+    {
+      "goldenItemId": "golden-item-3",
+      "imagePath": "D:/Documents/GitHub/EYECO/artifacts/integration-tests/p6i_1786008721129/images/golden_img_4.jpg",
+      "recomputedImageHash": "19a918f199f9655773f6ab0e81e12c3459fa731967f8f3d665b944690486962a",
+      "annotationHash": "3ae4fd174c00c5990fc43a593ef0498b03fc58308d7dc6f139a95dc71abfb486",
+      "operatorDecision": "TRUE_OBJECT_DETECTION",
+      "annotations": [
+        {
+          "className": "plastic_bag",
+          "bbox": [
+            10,
+            10,
+            100,
+            100
+          ]
+        }
+      ]
+    },
+    {
+      "goldenItemId": "golden-item-4",
+      "imagePath": "D:/Documents/GitHub/EYECO/artifacts/integration-tests/p6i_1786008721129/images/golden_img_5.jpg",
+      "recomputedImageHash": "ba0cc5158b58e9e91c6ec3c676f2b638e758d60099471f501c944308bc553779",
+      "annotationHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "operatorDecision": "FALSE_OBJECT_DETECTION",
+      "annotations": []
+    }
+  ]
+}

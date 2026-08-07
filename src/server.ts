@@ -22,6 +22,7 @@ import reportRouter from './routes/reportRoutes';
 import cctvRouter from './routes/cctvRoutes';
 import newsRouter from './routes/newsRoutes';
 import videoAnalysisRouter from './routes/videoAnalysisRoutes';
+import continualLearningRouter from './routes/continualLearningRoutes';
 import { CctvHealthEngine } from './cctv/CctvHealthEngine';
 import { CctvScanner } from './cctv/CctvScanner';
 import { CctvAdapter } from './cctv/CctvAdapter';
@@ -165,6 +166,7 @@ app.use('/api/cctv', cctvRouter);
 app.use('/api/news', newsRouter);
 app.use('/api', reportRouter);
 app.use('/api/video-analysis', videoAnalysisRouter);
+app.use('/api/continual-learning', continualLearningRouter);
 
 // --- HEALTH CHECK ENDPOINTS ---
 app.get('/health/live', (req, res) => {

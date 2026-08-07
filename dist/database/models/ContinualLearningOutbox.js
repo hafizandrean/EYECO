@@ -37,6 +37,7 @@ exports.ContinualLearningOutboxModel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 const ContinualLearningOutboxSchema = new mongoose_1.Schema({
     eventId: { type: String, required: true, unique: true, index: true },
+    sourceEventId: { type: String, default: null, index: true },
     eventType: { type: String, required: true, enum: ['AI_FEEDBACK_RECORDED'], index: true },
     validationLogId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'AiValidationLog', required: true, index: true },
     snapshotId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'AiSnapshot', required: true, index: true },
@@ -55,6 +56,7 @@ const ContinualLearningOutboxSchema = new mongoose_1.Schema({
     nextRetryAt: { type: Date, default: null },
     errorCode: { type: String, default: null }
 }, { timestamps: true });
-// Compound Index for Worker Polling
+// Compound Index for Worker Polling and Idempotency
 ContinualLearningOutboxSchema.index({ status: 1, nextRetryAt: 1, createdAt: 1 });
+ContinualLearningOutboxSchema.index({ sourceEventId: 1, eventType: 1 }, { unique: true, sparse: true });
 exports.ContinualLearningOutboxModel = mongoose_1.default.model('ContinualLearningOutbox', ContinualLearningOutboxSchema);

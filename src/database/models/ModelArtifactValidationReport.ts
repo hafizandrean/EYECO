@@ -93,6 +93,7 @@ ModelArtifactValidationReportSchema.pre('replaceOne', queryBlocker);
 ModelArtifactValidationReportSchema.pre('deleteOne', queryBlocker);
 ModelArtifactValidationReportSchema.pre('deleteMany', queryBlocker);
 ModelArtifactValidationReportSchema.pre('findOneAndDelete', queryBlocker);
+ModelArtifactValidationReportSchema.pre('bulkWrite', queryBlocker);
 
 export const ModelArtifactValidationReportModel = mongoose.model<IModelArtifactValidationReport>(
   'ModelArtifactValidationReport',

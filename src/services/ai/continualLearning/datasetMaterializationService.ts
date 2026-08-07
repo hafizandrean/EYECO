@@ -23,7 +23,11 @@ export interface IDatasetExportResult {
 export class DatasetMaterializationService {
   public static readonly EXPORTER_VERSION = 'v1.0.0-yolo-exporter';
 
-  public async materializeDataset(datasetVersionDoc: IAiDatasetVersion, goldenDatasetVersionStr: string): Promise<IDatasetExportResult> {
+  public async materializeDataset(
+    datasetVersionDoc: IAiDatasetVersion,
+    goldenDatasetVersionStr: string,
+    artifactRoot: string = 'artifacts'
+  ): Promise<IDatasetExportResult> {
     // 1. Audit Zero Golden Overlap before export
     const goldenDataset = await AiGoldenDatasetVersionModel.findOne({ goldenDatasetVersion: goldenDatasetVersionStr }).exec();
     if (!goldenDataset || goldenDataset.status !== 'APPROVED') {
@@ -49,7 +53,7 @@ export class DatasetMaterializationService {
     };
 
     const datasetExportHash = crypto.createHash('sha256').update(JSON.stringify(exportPayload)).digest('hex');
-    const exportPath = `artifacts/exports/${datasetExportHash}`;
+    const exportPath = path.join(artifactRoot, 'exports', datasetExportHash).replace(/\\/g, '/');
     const dataYamlContent = `path: ${exportPath}\ntrain: images/train\nval: images/val\ntest: images/test\nnames:\n  0: plastic_bag\n  1: trash_pile\n  2: unsegregated_garbage\n`;
     const dataYamlHash = crypto.createHash('sha256').update(dataYamlContent).digest('hex');
 

@@ -1,0 +1,100 @@
+{
+  "sourceGoldenDatasetHash": "b18b6354d53546546c76226e15eb3363dc9a6c70fb6cd16d5db4b44a7ca1cbbd",
+  "items": [
+    {
+      "goldenItemId": "golden-item-0",
+      "imagePath": "artifacts/golden/image-0.jpg",
+      "recomputedImageHash": "c88dcf749fbf1ca63f597ff886803d822a94398486a56dc90bfdd6bc245befbb",
+      "annotationHash": "d1e92d8b3b9f01dc1bcddf1ed815f82253c63505f91aa40b166d7fea69e9b8f4",
+      "operatorDecision": "TRUE_OBJECT_DETECTION",
+      "annotations": [
+        {
+          "label": "trash",
+          "bbox": [
+            0.1,
+            0.1,
+            0.5,
+            0.5
+          ],
+          "confidence": 1
+        }
+      ]
+    },
+    {
+      "goldenItemId": "golden-item-1",
+      "imagePath": "artifacts/golden/image-1.jpg",
+      "recomputedImageHash": "81c8b3d21596f267caf94670af498b6522361ab61c657c712a548350681382cb",
+      "annotationHash": "d1e92d8b3b9f01dc1bcddf1ed815f82253c63505f91aa40b166d7fea69e9b8f4",
+      "operatorDecision": "TRUE_OBJECT_DETECTION",
+      "annotations": [
+        {
+          "label": "trash",
+          "bbox": [
+            0.1,
+            0.1,
+            0.5,
+            0.5
+          ],
+          "confidence": 1
+        }
+      ]
+    },
+    {
+      "goldenItemId": "golden-item-2",
+      "imagePath": "artifacts/golden/image-2.jpg",
+      "recomputedImageHash": "483bf6704431000545a9d29f085d8c47301bf937b9284412efd54c5be9d7a163",
+      "annotationHash": "d1e92d8b3b9f01dc1bcddf1ed815f82253c63505f91aa40b166d7fea69e9b8f4",
+      "operatorDecision": "TRUE_OBJECT_DETECTION",
+      "annotations": [
+        {
+          "label": "trash",
+          "bbox": [
+            0.1,
+            0.1,
+            0.5,
+            0.5
+          ],
+          "confidence": 1
+        }
+      ]
+    },
+    {
+      "goldenItemId": "golden-item-3",
+      "imagePath": "artifacts/golden/image-3.jpg",
+      "recomputedImageHash": "5ed44e5507802d3f94fd9ef11ffb52edd80ff4c14a19a39c0e4c44d7510cee70",
+      "annotationHash": "d1e92d8b3b9f01dc1bcddf1ed815f82253c63505f91aa40b166d7fea69e9b8f4",
+      "operatorDecision": "TRUE_OBJECT_DETECTION",
+      "annotations": [
+        {
+          "label": "trash",
+          "bbox": [
+            0.1,
+            0.1,
+            0.5,
+            0.5
+          ],
+          "confidence": 1
+        }
+      ]
+    },
+    {
+      "goldenItemId": "golden-item-4",
+      "imagePath": "artifacts/golden/image-4.jpg",
+      "recomputedImageHash": "6e6e1b3102f1bcff883181f742496f4806465e862065a0d6485738a478128d31",
+      "annotationHash": "d1e92d8b3b9f01dc1bcddf1ed815f82253c63505f91aa40b166d7fea69e9b8f4",
+      "operatorDecision": "TRUE_OBJECT_DETECTION",
+      "annotations": [
+        {
+          "label": "trash",
+          "bbox": [
+            0.1,
+            0.1,
+            0.5,
+            0.5
+          ],
+          "confidence": 1
+        }
+      ]
+    }
+  ]
+}

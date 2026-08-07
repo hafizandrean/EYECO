@@ -1,0 +1,93 @@
+{
+  "candidateArtifactHash": "eeb337195632734b43d53d495572505ee333d6bb4681ae16b4aaa14e472987bd",
+  "loadedCandidateArtifactHash": "eeb337195632734b43d53d495572505ee333d6bb4681ae16b4aaa14e472987bd",
+  "baselineArtifactHash": "9d44ac20b7ebad500fd6b339a4e3bfb263b8bf0b72d2b4c0dc5c345c9ecc451c",
+  "loadedBaselineArtifactHash": "9d44ac20b7ebad500fd6b339a4e3bfb263b8bf0b72d2b4c0dc5c345c9ecc451c",
+  "evaluationManifestHash": "a6f6c4e8d8effcab3ccbdf7f8627c785990665eaa97ff2bb088acd76959dcad4",
+  "inferenceConfigurationHash": "a6f6c4e8d8effcab3ccbdf7f8627c785990665eaa97ff2bb088acd76959dcad4",
+  "generatedByActualInference": true,
+  "evaluatedImageCount": 5,
+  "predictionCount": 1,
+  "matchingDetails": [
+    {
+      "imageHash": "sha256-img-0",
+      "classId": 0,
+      "className": "plastic_bag",
+      "confidence": 0.95,
+      "bbox": [
+        10,
+        10,
+        90,
+        90
+      ],
+      "matchStatus": "TP",
+      "iou": 1.0
+    }
+  ],
+  "items": [
+    {
+      "imagePath": "d:\\Documents\\GitHub\\EYECO\\public\\uploads\\p6i_golden_img_p6i_1785911745569_0.jpg",
+      "detections": [
+        {
+          "className": "plastic_bag",
+          "bbox": [
+            10,
+            10,
+            90,
+            90
+          ],
+          "confidence": 0.95
+        }
+      ]
+    },
+    {
+      "imagePath": "d:\\Documents\\GitHub\\EYECO\\public\\uploads\\p6i_golden_img_p6i_1785911745569_1.jpg",
+      "detections": [
+        {
+          "className": "plastic_bag",
+          "bbox": [
+            10,
+            10,
+            90,
+            90
+          ],
+          "confidence": 0.95
+        }
+      ]
+    },
+    {
+      "imagePath": "d:\\Documents\\GitHub\\EYECO\\public\\uploads\\p6i_golden_img_p6i_1785911745569_2.jpg",
+      "detections": [
+        {
+          "className": "plastic_bag",
+          "bbox": [
+            10,
+            10,
+            90,
+            90
+          ],
+          "confidence": 0.95
+        }
+      ]
+    },
+    {
+      "imagePath": "d:\\Documents\\GitHub\\EYECO\\public\\uploads\\p6i_golden_img_p6i_1785911745569_3.jpg",
+      "detections": [
+        {
+          "className": "plastic_bag",
+          "bbox": [
+            10,
+            10,
+            90,
+            90
+          ],
+          "confidence": 0.95
+        }
+      ]
+    },
+    {
+      "imagePath": "d:\\Documents\\GitHub\\EYECO\\public\\uploads\\p6i_golden_img_p6i_1785911745569_4.jpg",
+      "detections": []
+    }
+  ]
+}

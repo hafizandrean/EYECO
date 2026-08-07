@@ -85,4 +85,5 @@ MetricVerificationResultSchema.pre('replaceOne', queryBlocker);
 MetricVerificationResultSchema.pre('deleteOne', queryBlocker);
 MetricVerificationResultSchema.pre('deleteMany', queryBlocker);
 MetricVerificationResultSchema.pre('findOneAndDelete', queryBlocker);
+MetricVerificationResultSchema.pre('bulkWrite', queryBlocker);
 exports.MetricVerificationResultModel = mongoose_1.default.model('MetricVerificationResult', MetricVerificationResultSchema);

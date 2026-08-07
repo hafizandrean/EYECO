@@ -11,6 +11,7 @@ import crypto from 'crypto';
 export interface IEvaluationManifestMaterialization {
   goldenDatasetVersion: string;
   goldenManifestHash: string;
+  manifestFilePath: string;
   items: Array<{
     goldenItemId: string;
     candidateId: string;
@@ -24,6 +25,8 @@ export interface IEvaluationManifestMaterialization {
 
 export interface IGroundTruthManifestMaterialization {
   sourceGoldenDatasetHash: string;
+  groundTruthManifestHash: string;
+  manifestFilePath: string;
   items: Array<{
     goldenItemId: string;
     imagePath: string;
@@ -133,6 +136,26 @@ export class GoldenDatasetService {
         if (fs.existsSync(fullPath)) {
           const fileBytes = fs.readFileSync(fullPath);
           item.inputImageHash = crypto.createHash('sha256').update(fileBytes).digest('hex');
+        }
+      }
+    }
+
+    // Check for contradictory label classes on items sharing the same inputImageHash
+    const hashToClasses = new Map<string, Set<string>>();
+    for (const item of params.manifestItems) {
+      if (item.inputImageHash) {
+        const classes = new Set((item.annotations || []).map(a => a.className));
+        if (hashToClasses.has(item.inputImageHash)) {
+          const existing = hashToClasses.get(item.inputImageHash)!;
+          for (const cls of classes) {
+            if (existing.size > 0 && !existing.has(cls)) {
+              const err: any = new Error(`GOLDEN_LABEL_CONTRADICTION: Duplicate inputImageHash ${item.inputImageHash} has contradictory label classes.`);
+              err.status = 422;
+              throw err;
+            }
+          }
+        } else {
+          hashToClasses.set(item.inputImageHash, classes);
         }
       }
     }
@@ -266,7 +289,7 @@ export class GoldenDatasetService {
     return doc;
   }
 
-  public async materializeEvaluationManifest(goldenDatasetVersion: string): Promise<IEvaluationManifestMaterialization> {
+  public async materializeEvaluationManifest(goldenDatasetVersion: string, targetFilePath?: string): Promise<IEvaluationManifestMaterialization> {
     const doc = await AiGoldenDatasetVersionModel.findOne({ goldenDatasetVersion }).exec();
     if (!doc || doc.status !== 'APPROVED') {
       throw new Error(`GOLDEN_DATASET_NOT_APPROVED: Golden dataset ${goldenDatasetVersion} is missing or not APPROVED.`);
@@ -285,16 +308,24 @@ export class GoldenDatasetService {
       };
     });
 
-    const manifestHash = crypto.createHash('sha256').update(JSON.stringify(materializedItems)).digest('hex');
+    const manifestFilePath = targetFilePath || path.join('artifacts/manifests', `eval-manifest-${doc.goldenDatasetVersion}.json`);
+    const manifestContent = JSON.stringify({ goldenDatasetVersion, items: materializedItems }, null, 2);
+    const fileHash = crypto.createHash('sha256').update(manifestContent).digest('hex');
+
+    if (!fs.existsSync(manifestFilePath)) {
+      fs.mkdirSync(path.dirname(manifestFilePath), { recursive: true });
+      fs.writeFileSync(manifestFilePath, manifestContent);
+    }
 
     return {
       goldenDatasetVersion,
-      goldenManifestHash: manifestHash,
+      goldenManifestHash: fileHash,
+      manifestFilePath,
       items: materializedItems
     };
   }
 
-  public async materializeGroundTruthManifest(goldenDatasetVersion: string): Promise<IGroundTruthManifestMaterialization> {
+  public async materializeGroundTruthManifest(goldenDatasetVersion: string, targetFilePath?: string): Promise<IGroundTruthManifestMaterialization> {
     const doc = await AiGoldenDatasetVersionModel.findOne({ goldenDatasetVersion }).exec();
     if (!doc || doc.status !== 'APPROVED') {
       throw new Error(`GOLDEN_DATASET_NOT_APPROVED: Golden dataset ${goldenDatasetVersion} is missing or not APPROVED.`);
@@ -312,8 +343,19 @@ export class GoldenDatasetService {
       };
     });
 
+    const manifestFilePath = targetFilePath || path.join('artifacts/manifests', `gt-manifest-${doc.goldenDatasetVersion}.json`);
+    const manifestContent = JSON.stringify({ sourceGoldenDatasetHash: doc.manifestHash, items }, null, 2);
+    const fileHash = crypto.createHash('sha256').update(manifestContent).digest('hex');
+
+    if (!fs.existsSync(manifestFilePath)) {
+      fs.mkdirSync(path.dirname(manifestFilePath), { recursive: true });
+      fs.writeFileSync(manifestFilePath, manifestContent);
+    }
+
     return {
       sourceGoldenDatasetHash: doc.manifestHash,
+      groundTruthManifestHash: fileHash,
+      manifestFilePath,
       items
     };
   }

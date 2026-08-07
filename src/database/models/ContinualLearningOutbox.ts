@@ -15,6 +15,7 @@ export interface IContinualLearningOutbox extends Document {
   leaseExpiresAt?: Date | null;
   nextRetryAt?: Date | null;
   errorCode?: string | null;
+  sourceEventId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,6 +23,7 @@ export interface IContinualLearningOutbox extends Document {
 const ContinualLearningOutboxSchema = new Schema<IContinualLearningOutbox>(
   {
     eventId: { type: String, required: true, unique: true, index: true },
+    sourceEventId: { type: String, default: null, index: true },
     eventType: { type: String, required: true, enum: ['AI_FEEDBACK_RECORDED'], index: true },
     validationLogId: { type: Schema.Types.ObjectId, ref: 'AiValidationLog', required: true, index: true },
     snapshotId: { type: Schema.Types.ObjectId, ref: 'AiSnapshot', required: true, index: true },
@@ -43,8 +45,9 @@ const ContinualLearningOutboxSchema = new Schema<IContinualLearningOutbox>(
   { timestamps: true }
 );
 
-// Compound Index for Worker Polling
+// Compound Index for Worker Polling and Idempotency
 ContinualLearningOutboxSchema.index({ status: 1, nextRetryAt: 1, createdAt: 1 });
+ContinualLearningOutboxSchema.index({ sourceEventId: 1, eventType: 1 }, { unique: true, sparse: true });
 
 export const ContinualLearningOutboxModel = mongoose.model<IContinualLearningOutbox>(
   'ContinualLearningOutbox',

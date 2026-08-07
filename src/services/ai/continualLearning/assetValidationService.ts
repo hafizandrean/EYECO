@@ -140,6 +140,20 @@ export class AssetValidationService {
     console.log(`[ASSET_VALIDATION] Created Asset Validation Report for ${datasetVersionStr} (Passed: ${passed}, Valid: ${validItemCount}/${checkedItemCount})`);
     return reportDoc;
   }
+  public validateDatasetAsset(params: { assetPath: string; storedSha256: string }): void {
+    if (!fs.existsSync(params.assetPath)) {
+      const err: any = new Error(`ASSET_NOT_FOUND: Asset file not found at ${params.assetPath}`);
+      err.status = 404;
+      throw err;
+    }
+    const bytes = fs.readFileSync(params.assetPath);
+    const actualHash = crypto.createHash('sha256').update(bytes).digest('hex');
+    if (actualHash !== params.storedSha256) {
+      const err: any = new Error(`ASSET_CONTENT_HASH_MISMATCH: Stored hash ${params.storedSha256} does not match file bytes hash ${actualHash}`);
+      err.status = 422;
+      throw err;
+    }
+  }
 }
 
 export const assetValidationService = new AssetValidationService();

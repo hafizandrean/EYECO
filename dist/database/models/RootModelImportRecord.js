@@ -82,4 +82,5 @@ RootModelImportRecordSchema.pre('replaceOne', queryBlocker);
 RootModelImportRecordSchema.pre('deleteOne', queryBlocker);
 RootModelImportRecordSchema.pre('deleteMany', queryBlocker);
 RootModelImportRecordSchema.pre('findOneAndDelete', queryBlocker);
+RootModelImportRecordSchema.pre('bulkWrite', queryBlocker);
 exports.RootModelImportRecordModel = mongoose_1.default.model('RootModelImportRecord', RootModelImportRecordSchema);

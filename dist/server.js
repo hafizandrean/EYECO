@@ -26,6 +26,7 @@ const reportRoutes_1 = __importDefault(require("./routes/reportRoutes"));
 const cctvRoutes_1 = __importDefault(require("./routes/cctvRoutes"));
 const newsRoutes_1 = __importDefault(require("./routes/newsRoutes"));
 const videoAnalysisRoutes_1 = __importDefault(require("./routes/videoAnalysisRoutes"));
+const continualLearningRoutes_1 = __importDefault(require("./routes/continualLearningRoutes"));
 const CctvHealthEngine_1 = require("./cctv/CctvHealthEngine");
 const CctvScanner_1 = require("./cctv/CctvScanner");
 const CctvAdapter_1 = require("./cctv/CctvAdapter");
@@ -157,6 +158,7 @@ app.use('/api/cctv', cctvRoutes_1.default);
 app.use('/api/news', newsRoutes_1.default);
 app.use('/api', reportRoutes_1.default);
 app.use('/api/video-analysis', videoAnalysisRoutes_1.default);
+app.use('/api/continual-learning', continualLearningRoutes_1.default);
 // --- HEALTH CHECK ENDPOINTS ---
 app.get('/health/live', (req, res) => {
     res.json({ status: 'UP' });
