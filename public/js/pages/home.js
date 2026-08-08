@@ -352,8 +352,8 @@ class HomePage {
                   <span class="footer-partners-label">Dipercaya oleh</span>
                   <div class="footer-partner-cloud">
                     <span class="footer-partner-chip"><img src="/assets/partner-telkom-ind.png" alt="Telkom Indonesia" loading="lazy"> Telkom Indonesia</span>
-                    <span class="footer-partner-chip"><img src="/assets/partner-sdgs-center.png" alt="SDGs Center Telkom University" loading="lazy"> SDGs Center Telkom University</span>
-                    <span class="footer-partner-chip"><img src="/assets/partner-telkom-univ.png" alt="Telkom University" loading="lazy"> Telkom University</span>
+                                        <span class="footer-partner-chip"><img src="/assets/partner-sdgs-center.png" alt="SDGs Center Telkom University" loading="lazy"> SDGs Center Telkom University</span>
+                                        <span class="footer-partner-chip"><img src="/assets/partner-telkom-univ.png" alt="Telkom University" loading="lazy"> Telkom University</span>
                     
                   </div>
                 </div>
