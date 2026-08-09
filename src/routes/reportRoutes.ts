@@ -595,13 +595,21 @@ router.post('/detections', (req, res, next) => {
     ).exec();
 
     // ==============================
-    // STEP 3.5: Upload file ke R2 + update URL di MongoDB
+    // STEP 3.5: Move file to report-specific subdir, then upload to R2 + update MongoDB
     // ==============================
+    const reportUploadDir = path.join(uploadDir, 'reports', String(newReport.id));
+    if (!fs.existsSync(reportUploadDir)) {
+      fs.mkdirSync(reportUploadDir, { recursive: true });
+    }
+    const finalFilePath = path.join(reportUploadDir, req.file.filename);
+    // Move file from temp location to report-specific subdir
+    fs.renameSync(uploadedFilePath, finalFilePath);
+
     const r2Key = `reports/${newReport.id}/${req.file.filename}`;
     const contentType = req.file.mimetype || 'application/octet-stream';
 
     try {
-      await R2StorageService.uploadFile(uploadedFilePath, r2Key, contentType, true);
+      await R2StorageService.uploadFile(finalFilePath, r2Key, contentType, true);
 
       const r2Url = await R2StorageService.getPublicUrl(r2Key);
 
@@ -640,17 +648,17 @@ router.post('/detections', (req, res, next) => {
       // Copy last_capture.jpg SEBELUM hapus file lokal
       try {
         const destPath = path.join(uploadDir, 'last_capture.jpg');
-        fs.copyFileSync(uploadedFilePath, destPath);
+        fs.copyFileSync(finalFilePath, destPath);
       } catch (lastErr) {
         console.warn('[UPLOAD] last_capture copy skipped:', (lastErr as Error).message);
       }
 
-      // Hapus file lokal setelah berhasil upload ke R2
-      try { fs.unlinkSync(uploadedFilePath); } catch { /* ignore */ }
+      // Hapus file lokal setelah berhasil upload ke R2 (optional — keep for local fallback)
+      // try { fs.unlinkSync(finalFilePath); } catch { /* ignore */ }
 
       console.log(`[R2] File uploaded: ${r2Key} → ${r2Url}`);
     } catch (r2Err) {
-      // Non-fatal: kalo R2 gagal, file tetap di lokal
+      // Non-fatal: kalo R2 gagal, file tetap di lokal di path yang benar
       console.warn('[R2] Upload skipped (local fallback):', (r2Err as Error).message);
     }
 

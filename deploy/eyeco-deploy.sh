@@ -79,6 +79,7 @@ echo "==> [6/7] PM2 daemon"
 if ! command -v pm2 >/dev/null 2>&1; then
   npm install -g pm2
 fi
+mkdir -p "$APP_DIR/public/hls"  # folder HLS untuk CCTV streaming
 pm2 delete eyeco 2>/dev/null || true
 pm2 start dist/server.js --name eyeco --cwd "$APP_DIR"
 pm2 save
