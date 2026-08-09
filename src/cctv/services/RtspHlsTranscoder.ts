@@ -98,8 +98,9 @@ export class RtspHlsTranscoder {
       deviceId,
     });
 
-    // Wait up to 5 seconds for the first segment to appear
-    await this.waitForPlaylist(deviceId, 5000);
+    // Wait until the playlist actually has at least one segment (default 30s)
+    // so the browser's first GET of /hls/:id/stream.m3u8 doesn't 404 (no file yet).
+    const ready = await this.waitForFirstSegment(deviceId, 30000);
 
     return this.getPublicUrl(deviceId);
   }
@@ -112,6 +113,25 @@ export class RtspHlsTranscoder {
         if (fs.existsSync(playlistPath)) return resolve();
         if (Date.now() - start > timeoutMs) return resolve(); // Timeout — proceed anyway
         setTimeout(check, 250);
+      };
+      check();
+    });
+  }
+
+  // Waits until stream.m3u8 exists AND contains at least one .ts segment.
+  // ffmpeg writes the playlist header before the first segment is ready,
+  // so "file exists" alone is not enough — the browser would 404 on .ts chunks.
+  private static waitForFirstSegment(deviceId: string, timeoutMs: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      const playlistPath = this.getPlaylistPath(deviceId);
+      const start = Date.now();
+      const check = () => {
+        try {
+          const content = fs.readFileSync(playlistPath, 'utf8');
+          if (/\.ts/.test(content)) return resolve(true);
+        } catch { /* playlist not written yet */ }
+        if (Date.now() - start > timeoutMs) return resolve(false); // Timeout — proceed anyway
+        setTimeout(check, 500);
       };
       check();
     });
