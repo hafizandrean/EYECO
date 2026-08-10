@@ -239,7 +239,7 @@ router.post('/upload-images', authMiddleware, roleGuard(['admin', 'superadmin'])
   // Upload semua gambar ke R2 di background (jangan blok response)
   for (const localUrl of urls) {
     const localPath = path.join(__dirname, '../../public', localUrl);
-    const r2Key = `news/${path.basename(localUrl)}`;
+    const r2Key = `berita/${path.basename(localUrl)}`;
     try {
       if (fs.existsSync(localPath)) {
         await R2StorageService.uploadFile(localPath, r2Key, 'image/jpeg', true);

@@ -125,7 +125,7 @@ app.use('/uploads', (req, res, next) => {
     else {
         // File gak ada di lokal — proxy dari R2 langsung (gak pake redirect)
         // Strip /uploads/ prefix since R2 keys don't include it
-        const r2Key = req.path.replace(/^\/uploads\//, '');
+        const r2Key = req.path.replace(/^\/uploads\//, '').replace(/^reports\//, 'laporan_manual/').replace(/^cctv-evidence\//, 'laporan_auto/');
         R2StorageService_1.R2StorageService.getSignedUrl(r2Key, 900) // 15 menit cukup buat proxy
             .then(async (signedUrl) => {
             try {

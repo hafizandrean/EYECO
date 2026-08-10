@@ -9,6 +9,39 @@
  * Dual-mode: dipanggil dari AiPipelineScheduler.processDetection()
  * atau dijalankan standalone via start()/stop().
  */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -190,6 +223,26 @@ class CctvAutoReportService {
                 }),
             }, adminUser.id);
             if (newReport) {
+                // Upload evidence ke R2 (laporan_auto) + update image/r2Key
+                const { R2StorageService } = await Promise.resolve().then(() => __importStar(require('../../services/R2StorageService')));
+                try {
+                    if (fs_1.default.existsSync(uniqueAbsolutePath)) {
+                        const r2Key = `laporan_auto/${newReport.id}/${uniqueFilename}`;
+                        await R2StorageService.uploadFile(uniqueAbsolutePath, r2Key, 'image/jpeg', true);
+                        const r2Url = await R2StorageService.getPublicUrl(r2Key);
+                        const imagePath = `/uploads/laporan_auto/${newReport.id}/${uniqueFilename}`;
+                        await Report_1.ReportModel.updateOne({ _id: newReport._id }, { $set: { image: imagePath, r2Key, r2Url } }).exec();
+                        // Hapus file lokal setelah upload (tidak persisten di VPS)
+                        try {
+                            fs_1.default.unlinkSync(uniqueAbsolutePath);
+                        }
+                        catch { /* ignore */ }
+                        console.log(`[CctvAutoReportService] Evidence #${newReport.id} uploaded to R2: ${r2Key}`);
+                    }
+                }
+                catch (r2Err) {
+                    console.warn('[CctvAutoReportService] R2 auto-report evidence upload failed (local fallback):', r2Err.message);
+                }
                 await Report_1.ReportModel.updateOne({ _id: newReport._id }, { $set: {
                         violationScore,
                         objectConfidence: Math.round(Math.max(...detectionResult.boxes.map(b => b.confidence)) * 100),
