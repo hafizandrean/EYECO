@@ -104,6 +104,10 @@ class RtspHlsTranscoder {
                 console.log(`[RTSP→HLS][${deviceId}] ${msg}`);
             }
         });
+        proc.on('error', (err) => {
+            console.error(`[RTSP→HLS] Spawn error for ${deviceId}: ${err.message}`);
+            sessions.delete(deviceId);
+        });
         proc.on('exit', (code, signal) => {
             console.log(`[RTSP→HLS] Transcoder for ${deviceId} exited (code=${code}, signal=${signal})`);
             sessions.delete(deviceId);
@@ -117,21 +121,11 @@ class RtspHlsTranscoder {
         // Wait until the playlist actually has at least one segment (default 30s)
         // so the browser's first GET of /hls/:id/stream.m3u8 doesn't 404 (no file yet).
         const ready = await this.waitForFirstSegment(deviceId, 30000);
+        if (!ready) {
+            this.stop(deviceId);
+            throw new Error('Transcoder gagal menghasilkan segmen HLS (device offline?)');
+        }
         return this.getPublicUrl(deviceId);
-    }
-    static waitForPlaylist(deviceId, timeoutMs) {
-        return new Promise((resolve) => {
-            const playlistPath = this.getPlaylistPath(deviceId);
-            const start = Date.now();
-            const check = () => {
-                if (fs.existsSync(playlistPath))
-                    return resolve();
-                if (Date.now() - start > timeoutMs)
-                    return resolve(); // Timeout — proceed anyway
-                setTimeout(check, 250);
-            };
-            check();
-        });
     }
     // Waits until stream.m3u8 exists AND contains at least one .ts segment.
     // ffmpeg writes the playlist header before the first segment is ready,
