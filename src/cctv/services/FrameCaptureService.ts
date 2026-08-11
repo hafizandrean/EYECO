@@ -10,6 +10,11 @@ export interface ICapturedFrame {
   imagePath: string;
 }
 
+// ponytail: cooldown allocate Tuya per device — pipeline tiap 20s bakar kuota stream
+// (error 28841002 "IoT Core expired" padahal subscription aktif). Naikkan/turunkan di sini.
+const TUYA_ALLOC_COOLDOWN_MS = 120 * 1000;
+const lastAllocAt = new Map<string, number>();
+
 function extractFfmpegFrame(input: string, output: string): Promise<boolean> {
   return new Promise((resolve) => {
     const ffmpegPath = require('ffmpeg-static') as string;
@@ -102,6 +107,7 @@ export class FrameCaptureService {
         console.log(`[FrameCapture] Extracting frame from local Tuya HLS playlist: ${hlsPlaylist}`);
         const success = await extractFfmpegFrame(hlsPlaylist, outputAbsolutePath);
         if (success) {
+          lastAllocAt.set(deviceId, Date.now()); // segment lokal ada → skip alloc berikutnya
           return {
             cameraId: camera.id,
             location: camera.location,
@@ -110,6 +116,15 @@ export class FrameCaptureService {
           };
         }
       }
+    }
+
+    // Tuya: jangan re-allocate kalau udah allocate < cooldown lalu gagal — hemat kuota stream
+    if (deviceId && (camera.playUrl?.includes('/hls-proxy/') || camera.description?.includes('Tuya Device ID:'))) {
+      const last = lastAllocAt.get(deviceId) || 0;
+      if (Date.now() - last < TUYA_ALLOC_COOLDOWN_MS) {
+        throw new Error(`Kamera #${camera.id} stream allocate dalam cooldown (${Math.ceil((TUYA_ALLOC_COOLDOWN_MS - (Date.now() - last)) / 1000)}s) — skip`);
+      }
+      lastAllocAt.set(deviceId, Date.now());
     }
 
     // Generic RTSP/HLS stream URL capture fallback
