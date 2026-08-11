@@ -64,8 +64,11 @@ export class RtspHlsTranscoder {
       '-loglevel', 'warning',
       '-rtsp_transport', 'tcp',
       '-i', rtspUrl,
-      '-c:v', 'copy', // Copy video directly, extremely fast and zero CPU load
-      '-an',           // Disable audio for smooth video performance
+      '-c:v', 'libx264', // re-encode H265/HEVC → H264 (copy crash SIGSEGV)
+      '-preset', 'veryfast',
+      '-tune', 'zerolatency',
+      '-pix_fmt', 'yuv420p',
+      '-an',
       '-f', 'hls',
       '-hls_time', '1',
       '-hls_list_size', '15',
