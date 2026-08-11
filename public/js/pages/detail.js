@@ -223,8 +223,11 @@ export class DetailPage {
 
         const confVal = typeof box.confidence === 'number' ? (box.confidence > 1 ? (box.confidence / 100).toFixed(2) : box.confidence.toFixed(2)) : '0.92';
 
+        // Normalisasi koordinat ke persen (0-100) — YOLO asli kadang 0-1
+        let bx = box.x, by = box.y, bw = box.w, bh = box.h;
+        if (bw <= 1 && bh <= 1) { bx *= 100; by *= 100; bw *= 100; bh *= 100; }
         initialBoxesHtml += `
-          <div class="yolo-preview-box ${boxColorClass}" style="position: absolute; top: ${box.y}%; left: ${box.x}%; width: ${box.w}%; height: ${box.h}%;">
+          <div class="yolo-preview-box ${boxColorClass}" style="position: absolute; top: ${by}%; left: ${bx}%; width: ${bw}%; height: ${bh}%;">
             <span class="yolo-preview-label">${box.label.toUpperCase()} ${confVal}</span>
           </div>
         `;
@@ -790,12 +793,16 @@ export class DetailPage {
           if (lbl.includes('trash') || lbl.includes('sampah')) boxColorClass = 'yolo-trash';
           if (lbl.includes('boat') || lbl.includes('perahu')) boxColorClass = 'yolo-boat';
 
+          // Normalisasi koordinat ke persen (0-100) — YOLO asli kadang 0-1
+          let bx = box.x, by = box.y, bw = box.w, bh = box.h;
+          if (bw <= 1 && bh <= 1) { bx *= 100; by *= 100; bw *= 100; bh *= 100; }
+
           const confVal = typeof box.confidence === 'number' ? (box.confidence > 1 ? (box.confidence / 100).toFixed(2) : box.confidence.toFixed(2)) : '0.92';
 
-          const leftPx = offsetX + (box.x / 100) * rw;
-          const topPx = offsetY + (box.y / 100) * rh;
-          const widthPx = (box.w / 100) * rw;
-          const heightPx = (box.h / 100) * rh;
+          const leftPx = offsetX + (bx / 100) * rw;
+          const topPx = offsetY + (by / 100) * rh;
+          const widthPx = (bw / 100) * rw;
+          const heightPx = (bh / 100) * rh;
 
           const indonesianLabel = labelMap[lbl] || box.label;
 
