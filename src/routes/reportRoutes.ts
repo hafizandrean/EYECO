@@ -605,7 +605,7 @@ router.post('/detections', (req, res, next) => {
     // Move file from temp location to report-specific subdir
     fs.renameSync(uploadedFilePath, finalFilePath);
 
-    const r2Key = `laporan_manual/${newReport.id}/${req.file.filename}`;
+    const r2Key = `eyecofiles/laporan_manual/${newReport.id}/${req.file.filename}`;
     const contentType = req.file.mimetype || 'application/octet-stream';
 
     try {
@@ -623,7 +623,7 @@ router.post('/detections', (req, res, next) => {
         r2Updates.videoPath = imagePath;
         if (aiAnalysis.extractedFramePath) {
           // Upload extracted frame juga
-          const frameKey = `laporan_manual/${newReport.id}/frame.jpg`;
+          const frameKey = `eyecofiles/laporan_manual/${newReport.id}/frame.jpg`;
           try {
             const absFramePath = path.isAbsolute(aiAnalysis.extractedFramePath)
               ? aiAnalysis.extractedFramePath

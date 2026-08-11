@@ -108,7 +108,7 @@ router.post(
       );
 
       // Upload video ke R2 di background
-      const r2Key = `laporan_auto/${job._id}/${file.filename}`;
+      const r2Key = `eyecofiles/laporan_auto/${job._id}/${file.filename}`;
       try {
         if (fs.existsSync(sourceStorageKey)) {
           await R2StorageService.uploadFile(sourceStorageKey, r2Key, file.mimetype, true);

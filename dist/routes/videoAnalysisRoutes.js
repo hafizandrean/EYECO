@@ -91,7 +91,7 @@ router.post('/upload', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.rol
         });
         const job = await VideoAnalysisJobRepository_1.VideoAnalysisJobRepository.createFromUpload(initialReport._id, sourceVideoHash, sourceStorageKey);
         // Upload video ke R2 di background
-        const r2Key = `laporan_auto/${job._id}/${file.filename}`;
+        const r2Key = `eyecofiles/laporan_auto/${job._id}/${file.filename}`;
         try {
             if (fs_1.default.existsSync(sourceStorageKey)) {
                 await R2StorageService_1.R2StorageService.uploadFile(sourceStorageKey, r2Key, file.mimetype, true);

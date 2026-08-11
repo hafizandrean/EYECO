@@ -49,7 +49,7 @@ class EvidenceService {
             try {
                 const absolutePath = path_1.default.join(process.cwd(), 'public', imagePath);
                 if (fs_1.default.existsSync(absolutePath)) {
-                    const r2Key = `laporan_auto/${nextEvidenceId}/${path_1.default.basename(imagePath)}`;
+                    const r2Key = `eyecofiles/laporan_auto/${nextEvidenceId}/${path_1.default.basename(imagePath)}`;
                     await R2StorageService_1.R2StorageService.uploadFile(absolutePath, r2Key, 'image/jpeg', true);
                     const r2Url = R2StorageService_1.R2StorageService.getPublicUrl(r2Key);
                     // Update MongoDB dengan R2 key & URL

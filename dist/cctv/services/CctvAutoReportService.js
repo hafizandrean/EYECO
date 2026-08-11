@@ -227,7 +227,7 @@ class CctvAutoReportService {
                 const { R2StorageService } = await Promise.resolve().then(() => __importStar(require('../../services/R2StorageService')));
                 try {
                     if (fs_1.default.existsSync(uniqueAbsolutePath)) {
-                        const r2Key = `laporan_auto/${newReport.id}/${uniqueFilename}`;
+                        const r2Key = `eyecofiles/laporan_auto/${newReport.id}/${uniqueFilename}`;
                         await R2StorageService.uploadFile(uniqueAbsolutePath, r2Key, 'image/jpeg', true);
                         const r2Url = await R2StorageService.getPublicUrl(r2Key);
                         const imagePath = `/uploads/laporan_auto/${newReport.id}/${uniqueFilename}`;
