@@ -498,7 +498,7 @@ router.post('/detections', (req, res, next) => {
       location: location || 'Lokasi tidak diketahui',
       aiStatus: 'Tidak Terindikasi',
       aiConfidence: null,
-      image: `/uploads/${req.file.filename}`,
+      image: `/uploads/laporan_manual/${req.file.filename}`,
       identity: identity || 'Belum diketahui',
       sourceType: sourceType || 'Gambar',
       additionalNotes: additionalNotes || 'Tidak ada catatan tambahan.',
@@ -613,8 +613,8 @@ router.post('/detections', (req, res, next) => {
 
       const r2Url = await R2StorageService.getPublicUrl(r2Key);
 
-      // Update image & videoPath di MongoDB — pake path yg match R2 key
-      const imagePath = `/uploads/reports/${newReport.id}/${req.file.filename}`;
+      // Update image & videoPath di MongoDB — pake path yg match R2 key (proxy /uploads map ke eyecofiles/)
+      const imagePath = `/uploads/laporan_manual/${newReport.id}/${req.file.filename}`;
       const r2Updates: Record<string, string> = { r2Key };
       if (!isVideo) {
         r2Updates.image = imagePath;

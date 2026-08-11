@@ -132,13 +132,16 @@ app.use('/uploads', (req, res, next) => {
     express.static(uploadsDir)(req, res, next);
   } else {
     // File gak ada di lokal — proxy dari R2 langsung (gak pake redirect)
-    // Strip /uploads/ prefix + map prefix lama (reports/, cctv-evidence/) ke struktur baru (laporan_manual/, laporan_auto/)
+    // Strip /uploads/ prefix + map prefix lama (reports/, cctv-evidence/, laporan_*) ke struktur eyecofiles/
     const r2Key = req.path.replace(/^\/uploads\//, '')
-      .replace(/^reports\//, 'laporan_manual/')
-      .replace(/^cctv-evidence\//, 'laporan_auto/')
-      .replace(/^evidence_/, 'laporan_auto/evidence_')
-      .replace(/^cctv_capture_/, 'laporan_auto/cctv_capture_')
-      .replace(/^upload_/, 'laporan_manual/upload_');
+      .replace(/^reports\//, 'eyecofiles/laporan_manual/')
+      .replace(/^cctv-evidence\//, 'eyecofiles/laporan_auto/')
+      .replace(/^laporan_manual\//, 'eyecofiles/laporan_manual/')
+      .replace(/^laporan_auto\//, 'eyecofiles/laporan_auto/')
+      .replace(/^evidence_/, 'eyecofiles/laporan_auto/evidence_')
+      .replace(/^cctv_capture_/, 'eyecofiles/laporan_auto/cctv_capture_')
+      .replace(/^upload_/, 'eyecofiles/laporan_manual/upload_')
+      .replace(/^berita\//, 'eyecofiles/berita/');
     R2StorageService.getSignedUrl(r2Key, 900) // 15 menit cukup buat proxy
       .then(async (signedUrl) => {
         try {
