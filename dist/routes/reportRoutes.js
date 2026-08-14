@@ -462,7 +462,7 @@ router.post('/detections', (req, res, next) => {
         // ==============================
         console.log('[AI_ENGINE] Running AI Pipeline Orchestrator for report #' + newReport.id);
         const { aiEngine } = require('../services/ai/aiEngine');
-        const aiAnalysis = await aiEngine.analyze(uploadedFilePath, { reportId: newReport.id });
+        const aiAnalysis = await aiEngine.analyze(uploadedFilePath, { reportId: newReport.id, forceReanalysis: true });
         // ==============================
         // STEP 3: Update MongoDB dengan hasil AI v3.0 & snapshot
         // ==============================
@@ -491,7 +491,7 @@ router.post('/detections', (req, res, next) => {
             priority: aiAnalysis.decision.priority,
             recommendedAction: aiAnalysis.decision.recommendedAction,
             activeSnapshotId: aiAnalysis.snapshot._id,
-            boundingBoxes: aiAnalysis.objects.map((o) => {
+            boundingBoxes: (aiAnalysis.objects || []).map((o) => {
                 const labelMap = {
                     'person': 'Orang', 'people': 'Orang', 'sitting': 'Orang', 'standing': 'Orang', 'orang': 'Orang', 'cctv persons': 'Orang',
                     'bicycle': 'Sepeda', 'car': 'Mobil', 'motorcycle': 'Sepeda Motor', 'airplane': 'Pesawat', 'bus': 'Bus', 'train': 'Kereta',
@@ -513,14 +513,25 @@ router.post('/detections', (req, res, next) => {
                     'hair drier': 'Pengering Rambut', 'toothbrush': 'Sikat Gigi', 'trash': 'Sampah', 'sampah': 'Sampah',
                     'waste': 'Sampah', 'bag': 'Kantong', 'cardboard': 'Kardus', 'object': 'Objek'
                 };
-                const cleanLabel = labelMap[o.class.toLowerCase()] || o.class;
+                const cleanLabel = labelMap[(o.class || '').toLowerCase()] || o.class || 'Objek';
+                let bx = typeof o.x === 'number' ? o.x : 0;
+                let by = typeof o.y === 'number' ? o.y : 0;
+                let bw = typeof o.w === 'number' ? o.w : 0;
+                let bh = typeof o.h === 'number' ? o.h : 0;
+                if (Array.isArray(o.bbox) && o.bbox.length === 4 && (!bw || !bh)) {
+                    const [x1, y1, x2, y2] = o.bbox;
+                    bx = x1;
+                    by = y1;
+                    bw = Math.max(0, x2 - x1);
+                    bh = Math.max(0, y2 - y1);
+                }
                 return {
                     label: cleanLabel,
-                    confidence: o.confidence,
-                    x: o.x,
-                    y: o.y,
-                    w: o.w,
-                    h: o.h
+                    confidence: typeof o.confidence === 'number' ? Math.round(o.confidence * 100) / 100 : 0.5,
+                    x: Math.min(Math.max(0, Math.round(bx * 10) / 10), 100),
+                    y: Math.min(Math.max(0, Math.round(by * 10) / 10), 100),
+                    w: Math.min(Math.max(0, Math.round(bw * 10) / 10), 100),
+                    h: Math.min(Math.max(0, Math.round(bh * 10) / 10), 100)
                 };
             }),
         };

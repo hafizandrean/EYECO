@@ -135,15 +135,18 @@ app.use('/hls', (req, res, next) => {
 
 
 // Uploads: local dulu, fallback ke R2 (proxy, bukan redirect)
+// Uploads: local dulu, fallback ke R2 (proxy, bukan redirect)
 const uploadsDir = path.join(__dirname, '../public/uploads');
 app.use('/uploads', (req, res, next) => {
-  const localPath = path.join(uploadsDir, req.path);
+  const relPath = req.path.replace(/^\/+/, '');
+  const localPath = path.join(uploadsDir, relPath);
+  
   if (fs.existsSync(localPath) && fs.statSync(localPath).isFile()) {
-    return express.static(uploadsDir)(req, res, next);
+    return res.sendFile(localPath);
   }
 
   // File tidak ada di persis localPath — Cari di lokasi fallback disk lokal
-  const filename = path.basename(req.path);
+  const filename = path.basename(relPath);
   let foundLocalPath: string | null = null;
 
   // 1. Cek langsung di uploads/<filename>
@@ -151,48 +154,51 @@ app.use('/uploads', (req, res, next) => {
   if (fs.existsSync(directPath) && fs.statSync(directPath).isFile()) {
     foundLocalPath = directPath;
   } else {
-    // 2. Cek di uploads/reports/*/<filename>
-    const reportsDir = path.join(uploadsDir, 'reports');
-    if (fs.existsSync(reportsDir)) {
+    // 2. Cek pencarian rekursif di folder public/uploads
+    const findRecursive = (dir: string): string | null => {
       try {
-        const subdirs = fs.readdirSync(reportsDir);
-        for (const sub of subdirs) {
-          const candidate = path.join(reportsDir, sub, filename);
-          if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
-            foundLocalPath = candidate;
-            break;
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          const full = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            const match = findRecursive(full);
+            if (match) return match;
+          } else if (entry.isFile() && entry.name === filename) {
+            return full;
           }
         }
       } catch (_) {}
-    }
-  }
-
-  // 3. Cek di uploads/laporan_manual/<filename> dan uploads/laporan_auto/<filename>
-  if (!foundLocalPath) {
-    const manualDir = path.join(uploadsDir, 'laporan_manual', filename);
-    const autoDir = path.join(uploadsDir, 'laporan_auto', filename);
-    if (fs.existsSync(manualDir) && fs.statSync(manualDir).isFile()) foundLocalPath = manualDir;
-    else if (fs.existsSync(autoDir) && fs.statSync(autoDir).isFile()) foundLocalPath = autoDir;
+      return null;
+    };
+    foundLocalPath = findRecursive(uploadsDir);
   }
 
   if (foundLocalPath) {
     return res.sendFile(foundLocalPath);
   }
 
-  // 4. File tidak ada di lokal — proxy dari R2 jika R2 terkonfigurasi
+  // 3. File tidak ada di lokal — proxy dari R2 jika R2 terkonfigurasi
   if (!R2StorageService.isConfigured()) {
     return res.status(404).send('File tidak ditemukan.');
   }
 
-  const r2Key = req.path.replace(/^\/uploads\//, '')
-    .replace(/^reports\//, 'eyecofiles/laporan_manual/')
-    .replace(/^cctv-evidence\//, 'eyecofiles/laporan_auto/')
-    .replace(/^laporan_manual\//, 'eyecofiles/laporan_manual/')
-    .replace(/^laporan_auto\//, 'eyecofiles/laporan_auto/')
-    .replace(/^evidence_/, 'eyecofiles/laporan_auto/evidence_')
-    .replace(/^cctv_capture_/, 'eyecofiles/laporan_auto/cctv_capture_')
-    .replace(/^upload_/, 'eyecofiles/laporan_manual/upload_')
-    .replace(/^berita\//, 'eyecofiles/berita/');
+  // Transform relPath (tanpa leading slash) ke R2 Key
+  let r2Key = relPath;
+  if (r2Key.startsWith('laporan_manual/')) {
+    r2Key = `eyecofiles/laporan_manual/${r2Key.replace(/^laporan_manual\//, '')}`;
+  } else if (r2Key.startsWith('laporan_auto/')) {
+    r2Key = `eyecofiles/laporan_auto/${r2Key.replace(/^laporan_auto\//, '')}`;
+  } else if (r2Key.startsWith('reports/')) {
+    r2Key = `eyecofiles/laporan_manual/${r2Key.replace(/^reports\//, '')}`;
+  } else if (r2Key.startsWith('cctv-evidence/')) {
+    r2Key = `eyecofiles/laporan_auto/${r2Key.replace(/^cctv-evidence\//, '')}`;
+  } else if (r2Key.startsWith('berita/')) {
+    r2Key = `eyecofiles/berita/${r2Key.replace(/^berita\//, '')}`;
+  } else if (r2Key.startsWith('evidence_') || r2Key.startsWith('cctv_capture_')) {
+    r2Key = `eyecofiles/laporan_auto/${r2Key}`;
+  } else if (r2Key.startsWith('upload_')) {
+    r2Key = `eyecofiles/laporan_manual/${r2Key}`;
+  }
 
   R2StorageService.getSignedUrl(r2Key, 900)
     .then(async (signedUrl) => {

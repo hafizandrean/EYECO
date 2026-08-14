@@ -72,7 +72,25 @@ const AI_DIR = path.resolve(__dirname, '../../ai');
 const DETECT_SCRIPT = path.join(AI_DIR, 'detect.py');
 const DEFAULT_MODEL = path.join(AI_DIR, 'models', 'best.pt');
 const FALLBACK_MODEL = 'yolov8n.pt';
-const PYTHON_CMD = process.platform === 'win32' ? 'python' : 'python3';
+function getPythonCmd(): string {
+  if (process.env.PYTHON_PATH && fs.existsSync(process.env.PYTHON_PATH)) {
+    return process.env.PYTHON_PATH;
+  }
+  const venvPythonLinux = path.join(AI_DIR, '.venv', 'bin', 'python3');
+  const venvPythonLinuxAlt = path.join(AI_DIR, '.venv', 'bin', 'python');
+  const venvPythonWin = path.join(AI_DIR, '.venv', 'Scripts', 'python.exe');
+  
+  if (process.platform !== 'win32') {
+    if (fs.existsSync(venvPythonLinux)) return venvPythonLinux;
+    if (fs.existsSync(venvPythonLinuxAlt)) return venvPythonLinuxAlt;
+    return 'python3';
+  } else {
+    if (fs.existsSync(venvPythonWin)) return venvPythonWin;
+    return 'python';
+  }
+}
+
+const PYTHON_CMD = getPythonCmd();
 
 // Warmup state — model dimuat sekali saat server start
 let _warmupDone = false;

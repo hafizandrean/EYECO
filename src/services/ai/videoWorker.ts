@@ -336,8 +336,14 @@ async function runWorker() {
           '--analysis-run-id', job.analysisRunId
         ];
 
-        console.log(`[WORKER] Spawning python: python ${pythonArgs.join(' ')}`);
-        const pythonProc = spawn('python', pythonArgs, { shell: false, windowsHide: true });
+        const getPyExecutable = (): string => {
+          const venvPy = path.join(process.cwd(), 'ai', '.venv', 'bin', 'python3');
+          if (process.platform !== 'win32' && fs.existsSync(venvPy)) return venvPy;
+          return process.platform === 'win32' ? 'python' : 'python3';
+        };
+        const pythonCmd = getPyExecutable();
+        console.log(`[WORKER] Spawning python: ${pythonCmd} ${pythonArgs.join(' ')}`);
+        const pythonProc = spawn(pythonCmd, pythonArgs, { shell: false, windowsHide: true });
 
         let pyStdout = '';
         let pyStderr = '';
