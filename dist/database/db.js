@@ -621,9 +621,6 @@ class DatabaseManager {
             if (!cctv) {
                 throw new Error('CCTV tidak ditemukan.');
             }
-            if (cctv.isDefault) {
-                throw new Error('Kamera bawaan sistem tidak boleh dihapus.');
-            }
             await Cctv_1.CctvModel.deleteOne({ id });
             return true;
         }
