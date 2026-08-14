@@ -465,7 +465,7 @@ export async function detectFile(
     model?: string;
     conf?: number;
     iou?: number;
-  } = {}
+  } = { conf: 0.20 }
 ): Promise<AiStatusResult> {
   // Validasi file exist
   if (!fs.existsSync(filePath)) {

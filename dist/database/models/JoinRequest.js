@@ -38,7 +38,11 @@ const mongoose_1 = __importStar(require("mongoose"));
 const JoinRequestSchema = new mongoose_1.Schema({
     userId: { type: Number, required: true, index: true },
     workspaceId: { type: Number, required: true, index: true },
-    status: { type: String, enum: ['PENDING', 'APPROVED', 'REJECTED'], default: 'PENDING' }
+    status: { type: String, enum: ['PENDING', 'APPROVED', 'REJECTED'], default: 'PENDING', index: true },
+    decidedBy: { type: Number, default: null },
+    decidedAt: { type: Date, default: null },
+    rejectionReasonCode: { type: String, default: null },
+    rejectionNote: { type: String, default: null }
 }, {
     timestamps: true
 });

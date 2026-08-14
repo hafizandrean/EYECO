@@ -115,12 +115,12 @@ class ReportRepository {
                 if (status === 'VALID') {
                     updateFields.status = 'VALIDATED';
                 }
-                else if (status === 'DIABAIKAN') {
+                else if (status === 'TIDAK_VALID') {
                     updateFields.status = 'REJECTED';
                 }
             }
-            // Auto-delete 40 days after validation: set scheduledDeletionAt when VALID or DIABAIKAN
-            if (status === 'VALID' || status === 'DIABAIKAN') {
+            // Auto-delete 40 days after validation: set scheduledDeletionAt when VALID or TIDAK_VALID
+            if (status === 'VALID' || status === 'TIDAK_VALID') {
                 updateFields.scheduledDeletionAt = new Date(Date.now() + 40 * 24 * 60 * 60 * 1000);
                 // Catat waktu verifikasi (untuk review duration)
                 updateFields.verifiedAt = new Date();
@@ -265,7 +265,7 @@ class ReportRepository {
         const [total, valid, cancelled, pending, tinggi, sedang, rendah, tidakTerindikasi] = await Promise.all([
             Report_1.ReportModel.countDocuments(matchQuery),
             Report_1.ReportModel.countDocuments({ ...matchQuery, adminStatus: 'VALID' }),
-            Report_1.ReportModel.countDocuments({ ...matchQuery, adminStatus: 'DIABAIKAN' }),
+            Report_1.ReportModel.countDocuments({ ...matchQuery, adminStatus: 'TIDAK_VALID' }),
             Report_1.ReportModel.countDocuments({ ...matchQuery, adminStatus: 'MENUNGGU' }),
             Report_1.ReportModel.countDocuments({ ...matchQuery, aiStatus: 'TINGGI' }),
             Report_1.ReportModel.countDocuments({ ...matchQuery, aiStatus: 'SEDANG' }),
@@ -280,7 +280,7 @@ class ReportRepository {
             const [total, valid, cancelled, pending] = await Promise.all([
                 Report_1.ReportModel.countDocuments(matchQuery),
                 Report_1.ReportModel.countDocuments({ ...matchQuery, adminStatus: 'VALID' }),
-                Report_1.ReportModel.countDocuments({ ...matchQuery, adminStatus: 'DIABAIKAN' }),
+                Report_1.ReportModel.countDocuments({ ...matchQuery, adminStatus: 'TIDAK_VALID' }),
                 Report_1.ReportModel.countDocuments({ ...matchQuery, adminStatus: 'MENUNGGU' })
             ]);
             // Fallback: jika superadmin hasil 0, coba tanpa filter workspace
@@ -289,7 +289,7 @@ class ReportRepository {
                 const [total2, valid2, cancelled2, pending2] = await Promise.all([
                     Report_1.ReportModel.countDocuments(fallbackQuery),
                     Report_1.ReportModel.countDocuments({ ...fallbackQuery, adminStatus: 'VALID' }),
-                    Report_1.ReportModel.countDocuments({ ...fallbackQuery, adminStatus: 'DIABAIKAN' }),
+                    Report_1.ReportModel.countDocuments({ ...fallbackQuery, adminStatus: 'TIDAK_VALID' }),
                     Report_1.ReportModel.countDocuments({ ...fallbackQuery, adminStatus: 'MENUNGGU' })
                 ]);
                 if (total2 > 0) {

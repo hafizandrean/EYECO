@@ -74,7 +74,7 @@ export class LaporanPage {
               <option value="semua" ${this.filters.adminStatus === 'semua' ? 'selected' : ''}>Semua Status</option>
               <option value="MENUNGGU" ${this.filters.adminStatus === 'MENUNGGU' ? 'selected' : ''}>Menunggu</option>
               <option value="VALID" ${this.filters.adminStatus === 'VALID' ? 'selected' : ''}>Valid</option>
-              <option value="DIABAIKAN" ${this.filters.adminStatus === 'DIABAIKAN' ? 'selected' : ''}>Diabaikan</option>
+              <option value="TIDAK_VALID" ${this.filters.adminStatus === 'TIDAK_VALID' ? 'selected' : ''}>Tidak Valid</option>
             </select>
           </div>
           <div class="filter-item-compact search-item-compact">
@@ -345,16 +345,16 @@ export class LaporanPage {
 
       // Threat Badge
       let aiBadgeClass = 'badge-none';
-      const s = (report.aiStatus || '').toUpperCase().replace('INDIKASI ', '');
+      const s = (report.aiStatus || '').toUpperCase().replace('INDIKASI ', '').trim();
       let aiLabel = 'Tidak Terindikasi';
-      if (s === 'TINGGI') { aiBadgeClass = 'badge-high'; aiLabel = 'Tinggi'; }
-      else if (s === 'SEDANG') { aiBadgeClass = 'badge-medium'; aiLabel = 'Sedang'; }
-      else if (s === 'RENDAH') { aiBadgeClass = 'badge-low'; aiLabel = 'Rendah'; }
+      if (s === 'TINGGI' || s === 'HIGH') { aiBadgeClass = 'badge-high'; aiLabel = 'Tinggi'; }
+      else if (s === 'SEDANG' || s === 'MEDIUM') { aiBadgeClass = 'badge-medium'; aiLabel = 'Sedang'; }
+      else if (s === 'RENDAH' || s === 'LOW') { aiBadgeClass = 'badge-low'; aiLabel = 'Rendah'; }
 
       // Admin Status Badge
       let adminBadgeClass = 'status-pending';
       if (report.adminStatus === 'VALID') adminBadgeClass = 'status-valid';
-      else if (report.adminStatus === 'DIABAIKAN') adminBadgeClass = 'status-ignored';
+      else if (report.adminStatus === 'TIDAK_VALID' || report.adminStatus === 'DIABAIKAN') adminBadgeClass = 'status-ignored';
 
       // Quick admin verification actions (Only for admin)
       let actionButtons = '';
@@ -363,7 +363,7 @@ export class LaporanPage {
       if (isAdmin && report.adminStatus === 'MENUNGGU') {
         actionButtons = `
           <button class="btn btn-soft btn-sm btn-quick-verify" data-id="${report.id}" data-action="VALID" style="color: var(--success); background: var(--success-bg); border: 1px solid rgba(16,185,129,0.2); font-weight: 700;">Valid</button>
-          <button class="btn btn-soft btn-sm btn-quick-verify" data-id="${report.id}" data-action="DIABAIKAN" style="color: var(--danger); background: var(--danger-bg); border: 1px solid rgba(239,68,68,0.2); font-weight: 700;">Abaikan</button>
+          <button class="btn btn-soft btn-sm btn-quick-verify" data-id="${report.id}" data-action="TIDAK_VALID" style="color: var(--danger); background: var(--danger-bg); border: 1px solid rgba(239,68,68,0.2); font-weight: 700;">Tidak Valid</button>
         `;
       }
 
@@ -417,7 +417,10 @@ export class LaporanPage {
           </div>
         </div>
         <div class="col-details">
-          <div class="row-location-title"><i data-lucide="map-pin" style="color: var(--primary);"></i> ${report.location}</div>
+          <div class="row-location-title" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <span style="font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px; background:rgba(37,99,235,0.12); color:var(--primary); border: 1px solid rgba(37,99,235,0.25); font-family: monospace;">#${report.id}</span>
+            <span><i data-lucide="map-pin" style="color: var(--primary);"></i> ${report.location}</span>
+          </div>
           <div class="row-timestamp-subtitle">${Formatter.formatDate(report.timestamp)}</div>
           ${report.uploaderInfo ? `<div class="row-reporter" style="font-size:0.72rem; color:var(--text-muted); margin-top:3px; display:flex; align-items:center; gap:4px;"><i data-lucide="user" style="width:10px;height:10px;"></i> ${report.uploaderInfo.name || report.uploaderInfo.username}</div>` : ''}
         </div>
@@ -441,7 +444,7 @@ export class LaporanPage {
           }
         </div>
         <div class="col-badge">
-          <span class="status-badge ${adminBadgeClass}">${report.adminStatus}</span>
+          <span class="status-badge ${adminBadgeClass}">${report.adminStatus === 'TIDAK_VALID' ? 'TIDAK VALID' : report.adminStatus}</span>
         </div>
         <div class="col-actions">
           <div class="action-group">
@@ -464,11 +467,12 @@ export class LaporanPage {
           e.stopPropagation();
           const id = btn.getAttribute('data-id');
           const action = btn.getAttribute('data-action');
-          const actionLabel = action === 'VALID' ? 'Valid' : 'Abaikan';
+          const isVal = action === 'VALID';
+          const actionLabel = isVal ? 'Valid' : 'Tidak Valid';
           const confirmed = await MacModal.confirm(
-            `${actionLabel} Laporan #${id}?`,
-            `Laporan ini akan ditandai sebagai <strong>${actionLabel}</strong>. ${action === 'DIABAIKAN' ? 'Laporan akan diarsipkan.' : 'Status akan dikonfirmasi sebagai valid.'}`,
-            { iconType: action === 'VALID' ? 'success' : 'warning', confirmText: 'Ya, ' + actionLabel, cancelText: 'Batal', confirmStyle: 'primary' }
+            `Tandai Laporan #${id} sebagai ${actionLabel}?`,
+            `Laporan ini akan ditandai sebagai <strong>${actionLabel}</strong>. Pastikan bukti telah ditinjau sebelum melanjutkan.`,
+            { iconType: isVal ? 'success' : 'warning', confirmText: 'Ya, ' + actionLabel, cancelText: 'Batal', confirmStyle: isVal ? 'primary' : 'danger' }
           );
           if (!confirmed) return;
           await ReportService.verifyReport(id, action, 'Verifikasi cepat dari Laporan logs.');

@@ -28,7 +28,8 @@ class ApiService {
     this.isOffline = false;
 
     try {
-      const response = await fetch(url, options);
+      // credentials: 'include' memastikan cookie session_token selalu dikirim
+      const response = await fetch(url, { credentials: 'include', ...options });
       console.log(`[API] ${options.method || 'GET'} ${url} → ${response.status} ${response.statusText}`);
 
       // Tangani status otentikasi (401)
@@ -44,6 +45,15 @@ class ApiService {
 
       // Check if CSV or JSON
       const contentType = response.headers.get('content-type');
+
+      // Guard: Jika API mengembalikan HTML (misalnya sesi redirect ke /login yang diikuti fetch),
+      // treat sebagai unauthorized agar tidak crash di JSON.parse()
+      if (contentType && contentType.includes('text/html') && url.startsWith('/api/')) {
+        console.warn('[API] Got HTML response for API URL — likely session redirect:', url);
+        EventBus.emit('auth:unauthorized');
+        throw new Error('UNAUTHORIZED');
+      }
+
       if (contentType && contentType.includes('text/csv')) {
         return response.blob();
       }

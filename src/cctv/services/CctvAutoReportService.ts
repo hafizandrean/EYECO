@@ -211,8 +211,9 @@ export class CctvAutoReportService {
               { _id: newReport._id },
               { $set: { image: imagePath, r2Key, r2Url } }
             ).exec();
-            // Hapus file lokal setelah upload (tidak persisten di VPS)
-            try { fs.unlinkSync(uniqueAbsolutePath); } catch { /* ignore */ }
+            // Keep local file for fallback serving & continuous AI pipeline
+            // try { fs.unlinkSync(uniqueAbsolutePath); } catch { /* ignore */ }
+
             console.log(`[CctvAutoReportService] Evidence #${newReport.id} uploaded to R2: ${r2Key}`);
           }
         } catch (r2Err) {

@@ -145,7 +145,7 @@ export class ReportRepository {
 
   public static async updateVerification(
     id: number,
-    status: 'VALID' | 'DIABAIKAN' | 'MENUNGGU',
+    status: 'VALID' | 'TIDAK_VALID' | 'MENUNGGU',
     notes: string,
     assignedOfficer?: string,
     progressStatus?: 'NEW' | 'UNDER_REVIEW' | 'VALIDATED' | 'ASSIGNED' | 'ON_SITE' | 'IN_PROGRESS' | 'RESOLVED' | 'WAITING_APPROVAL' | 'CLOSED' | 'REJECTED',
@@ -161,13 +161,13 @@ export class ReportRepository {
       } else {
         if (status === 'VALID') {
           updateFields.status = 'VALIDATED';
-        } else if (status === 'DIABAIKAN') {
+        } else if (status === 'TIDAK_VALID') {
           updateFields.status = 'REJECTED';
         }
       }
 
-      // Auto-delete 40 days after validation: set scheduledDeletionAt when VALID or DIABAIKAN
-      if (status === 'VALID' || status === 'DIABAIKAN') {
+      // Auto-delete 40 days after validation: set scheduledDeletionAt when VALID or TIDAK_VALID
+      if (status === 'VALID' || status === 'TIDAK_VALID') {
         updateFields.scheduledDeletionAt = new Date(Date.now() + 40 * 24 * 60 * 60 * 1000);
         // Catat waktu verifikasi (untuk review duration)
         updateFields.verifiedAt = new Date();
@@ -332,7 +332,7 @@ export class ReportRepository {
     const [total, valid, cancelled, pending, tinggi, sedang, rendah, tidakTerindikasi] = await Promise.all([
       ReportModel.countDocuments(matchQuery),
       ReportModel.countDocuments({ ...matchQuery, adminStatus: 'VALID' }),
-      ReportModel.countDocuments({ ...matchQuery, adminStatus: 'DIABAIKAN' }),
+      ReportModel.countDocuments({ ...matchQuery, adminStatus: 'TIDAK_VALID' }),
       ReportModel.countDocuments({ ...matchQuery, adminStatus: 'MENUNGGU' }),
       ReportModel.countDocuments({ ...matchQuery, aiStatus: 'TINGGI' }),
       ReportModel.countDocuments({ ...matchQuery, aiStatus: 'SEDANG' }),
@@ -349,7 +349,7 @@ export class ReportRepository {
       const [total, valid, cancelled, pending] = await Promise.all([
         ReportModel.countDocuments(matchQuery),
         ReportModel.countDocuments({ ...matchQuery, adminStatus: 'VALID' }),
-        ReportModel.countDocuments({ ...matchQuery, adminStatus: 'DIABAIKAN' }),
+        ReportModel.countDocuments({ ...matchQuery, adminStatus: 'TIDAK_VALID' }),
         ReportModel.countDocuments({ ...matchQuery, adminStatus: 'MENUNGGU' })
       ]);
 
@@ -359,7 +359,7 @@ export class ReportRepository {
         const [total2, valid2, cancelled2, pending2] = await Promise.all([
           ReportModel.countDocuments(fallbackQuery),
           ReportModel.countDocuments({ ...fallbackQuery, adminStatus: 'VALID' }),
-          ReportModel.countDocuments({ ...fallbackQuery, adminStatus: 'DIABAIKAN' }),
+          ReportModel.countDocuments({ ...fallbackQuery, adminStatus: 'TIDAK_VALID' }),
           ReportModel.countDocuments({ ...fallbackQuery, adminStatus: 'MENUNGGU' })
         ]);
         if (total2 > 0) {

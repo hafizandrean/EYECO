@@ -132,7 +132,7 @@ export class NotificationService {
       }
 
       const statusLabel =
-        cleanStatus === 'VALID' ? 'Valid' : cleanStatus === 'DIABAIKAN' ? 'Diabaikan' : cleanStatus;
+        cleanStatus === 'VALID' ? 'Valid' : cleanStatus === 'TIDAK_VALID' ? 'Tidak Valid' : cleanStatus;
 
       const eventKey = `${reportId}:VALIDATION:${oldStatus || 'PENDING'}:${cleanStatus}`;
       const now = new Date();

@@ -3331,6 +3331,43 @@ body.dark-mode .news-mcard-body p {
   background: #64748b;
 }
 
+/* ── Premium CCTV Stream Loading Overlay ── */
+.cctv-loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 12, 20, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 4;
+  transition: opacity 0.3s ease;
+}
+
+.cctv-loading-spinner {
+  width: 44px;
+  height: 44px;
+  border: 3px solid rgba(255, 255, 255, 0.12);
+  border-top-color: var(--primary, #2f6bff);
+  border-right-color: var(--primary, #2f6bff);
+  border-radius: 50%;
+  animation: spin 0.75s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  margin-bottom: 12px;
+  box-shadow: 0 0 16px rgba(47, 107, 255, 0.25);
+}
+
+.cctv-loading-text {
+  font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
 /* Fullscreen VMS Command Center Container (Images 2 & 3) */
 .vms-fullscreen-view {
   position: fixed;

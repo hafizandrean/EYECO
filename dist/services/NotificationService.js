@@ -106,7 +106,7 @@ class NotificationService {
                 console.log(`[NotificationService] Suppressing validation notification for unready report #${reportId} (analysisState: ${report.analysisState})`);
                 return { success: true, count: 0 };
             }
-            const statusLabel = cleanStatus === 'VALID' ? 'Valid' : cleanStatus === 'DIABAIKAN' ? 'Diabaikan' : cleanStatus;
+            const statusLabel = cleanStatus === 'VALID' ? 'Valid' : cleanStatus === 'TIDAK_VALID' ? 'Tidak Valid' : cleanStatus;
             const eventKey = `${reportId}:VALIDATION:${oldStatus || 'PENDING'}:${cleanStatus}`;
             const now = new Date();
             const expiresAt = new Date(now.getTime() + this.EXPIRY_DAYS * 24 * 60 * 60 * 1000);

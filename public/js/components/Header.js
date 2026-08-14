@@ -92,9 +92,10 @@ export class HeaderComponent {
   // Menyelaraskan active tab dengan bubble penanda geser
   syncNavbarState(initial = false) {
     // Use the real browser URL as the source of truth (full-page Express routing)
-    const currentPath = window.location.pathname || AppState.get('activePath');
+    const rawPath = window.location.pathname || AppState.get('activePath');
+    const currentPath = (rawPath && rawPath.length > 1 && rawPath.endsWith('/')) ? rawPath.slice(0, -1) : rawPath;
     const user = AppState.get('user');
-    const isAdmin = user?.role === 'admin';
+    const isAdmin = user?.role && ['admin', 'superadmin', 'operator', 'supervisor', 'officer'].includes(user.role);
     const exportBtn = document.getElementById('btn-header-export');
 
     // Beranda tab: only admin (non-admin already gets landing at /dashboard)

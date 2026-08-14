@@ -4,12 +4,22 @@ export interface IJoinRequest extends Document {
   userId: number;
   workspaceId: number;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  decidedBy?: number | null;
+  decidedAt?: Date | null;
+  rejectionReasonCode?: 'Tidak dikenal' | 'Luar wilayah' | 'Data tidak sesuai' | 'Duplikat' | 'Lainnya' | string | null;
+  rejectionNote?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const JoinRequestSchema = new Schema<IJoinRequest>({
   userId: { type: Number, required: true, index: true },
   workspaceId: { type: Number, required: true, index: true },
-  status: { type: String, enum: ['PENDING', 'APPROVED', 'REJECTED'], default: 'PENDING' }
+  status: { type: String, enum: ['PENDING', 'APPROVED', 'REJECTED'], default: 'PENDING', index: true },
+  decidedBy: { type: Number, default: null },
+  decidedAt: { type: Date, default: null },
+  rejectionReasonCode: { type: String, default: null },
+  rejectionNote: { type: String, default: null }
 }, {
   timestamps: true
 });

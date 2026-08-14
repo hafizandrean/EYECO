@@ -279,36 +279,87 @@ export class DatabaseManager {
 
   public static async updateVerification(
     id: number, 
-    status: 'VALID' | 'DIABAIKAN' | 'MENUNGGU', 
+    status: 'VALID' | 'TIDAK_VALID' | 'MENUNGGU', 
     notes: string,
     assignedOfficer?: string,
     progressStatus?: 'PENDING' | 'PROSES' | 'SELESAI' | 'CLOSED' | 'DITOLAK'
   ): Promise<IReport | null> {
-    try {
-      const updateFields: any = { adminStatus: status, adminNotes: notes };
-      if (assignedOfficer !== undefined) {
-        updateFields.assignedOfficer = assignedOfficer;
-      }
-      if (progressStatus !== undefined) {
-        updateFields.status = progressStatus;
-      } else {
-        if (status === 'VALID') {
-          updateFields.status = 'PROSES';
-        } else if (status === 'DIABAIKAN') {
-          updateFields.status = 'DITOLAK';
-        }
-      }
+    const existingReport = await ReportModel.findOne({ id }).exec();
+    if (!existingReport) return null;
 
-      const updated = await ReportModel.findOneAndUpdate(
-        { id }, 
-        updateFields, 
-        { new: true }
-      ).lean();
-      return updated;
-    } catch (err) {
-      console.error('[DATABASE ERROR] updateVerification failed:', err);
+    // GUARD 4: State Transition Lock — Decisions once finalized (VALID / TIDAK_VALID) cannot be altered
+    if (existingReport.adminStatus !== 'MENUNGGU') {
+      const err: any = new Error(`VALIDATION_DECISION_LOCKED: Status validasi (${existingReport.adminStatus}) sudah final (${existingReport.adminStatus}) dan tidak dapat diubah.`);
+      err.code = 'VALIDATION_DECISION_LOCKED';
       throw err;
     }
+
+    const verifiedAt = new Date();
+    const updateFields: any = { adminStatus: status, adminNotes: notes, verifiedAt };
+    if (assignedOfficer !== undefined) {
+      updateFields.assignedOfficer = assignedOfficer;
+    }
+    if (progressStatus !== undefined) {
+      updateFields.status = progressStatus;
+    } else if (existingReport.status === 'NEW') {
+      updateFields.status = 'PENDING';
+    }
+
+    const idempotencyKey = `REPORT_VALIDATED_TELEGRAM:${id}:v1`;
+
+    if (status === 'VALID') {
+      updateFields.telegramStatus = 'QUEUED';
+    } else if (status === 'TIDAK_VALID') {
+      updateFields.telegramStatus = 'NOT_ELIGIBLE';
+    }
+
+    const { OutboxEventModel } = require('./models/OutboxEvent');
+    let session: mongoose.ClientSession | null = null;
+    let updatedReport: IReport | null = null;
+
+    try {
+      session = await mongoose.startSession();
+      await session.withTransaction(async () => {
+        updatedReport = await ReportModel.findOneAndUpdate(
+          { id },
+          updateFields,
+          { new: true, session }
+        ).lean();
+        if (status === 'VALID') {
+
+          // Idempotency check inside transaction
+          const existingOutbox = await OutboxEventModel.findOne({ idempotencyKey }).session(session).exec();
+          if (!existingOutbox) {
+            await OutboxEventModel.create([{
+              aggregateType: 'Report',
+              aggregateId: String(id),
+              eventType: 'REPORT_VALIDATED_TELEGRAM',
+              idempotencyKey,
+              payload: { reportId: id, location: existingReport.location },
+              status: 'PENDING',
+              retryCount: 0
+            }], { session });
+          }
+        }
+      });
+    } catch (sessionErr: any) {
+      console.error('[DATABASE TRANSACTION ERROR] updateVerification transaction failed:', sessionErr.message);
+      const err: any = new Error(`TRANSACTION_REQUIRED_FOR_VALIDATION: Transaction failed or MongoDB Replica Set is required for validation outbox. (${sessionErr.message})`);
+      err.code = 'TRANSACTION_REQUIRED_FOR_VALIDATION';
+      throw err;
+    } finally {
+      if (session) {
+        try { await session.endSession(); } catch (_) {}
+      }
+    }
+
+    // Trigger OutboxWorker processing immediately (durable worker processes queue)
+    if (status === 'VALID') {
+      const { OutboxWorker } = require('../notifications/OutboxWorker');
+      setImmediate(() => OutboxWorker.processQueue().catch(() => {}));
+    }
+
+    return updatedReport;
   }
 
   // Flexible database-level pagination, sorting, and filtering
@@ -393,7 +444,7 @@ export class DatabaseManager {
       const [total, valid, cancelled, pending] = await Promise.all([
         ReportModel.countDocuments(matchQuery),
         ReportModel.countDocuments({ ...matchQuery, adminStatus: 'VALID' }),
-        ReportModel.countDocuments({ ...matchQuery, adminStatus: 'DIABAIKAN' }),
+        ReportModel.countDocuments({ ...matchQuery, adminStatus: 'TIDAK_VALID' }),
         ReportModel.countDocuments({ ...matchQuery, adminStatus: 'MENUNGGU' })
       ]);
 

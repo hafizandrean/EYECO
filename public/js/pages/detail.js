@@ -99,11 +99,14 @@ export class DetailPage {
         }
       </style>
 
-      <!-- Back navigation bar -->
-      <section class="detail-nav-row" style="margin-bottom: var(--space-20); animation: pageFadeIn var(--motion-open);">
+      <!-- Back navigation bar with Report ID -->
+      <section class="detail-nav-row" style="margin-bottom: var(--space-20); animation: pageFadeIn var(--motion-open); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
         <button class="btn btn-glass btn-rounded btn-back-route" id="btn-detail-back" style="padding: 10px 20px; font-weight:700;">
           <i data-lucide="arrow-left" style="width: 16px; height: 16px; margin-right: 4px;"></i> Kembali ke Daftar
         </button>
+        <div id="detail-header-id-badge" style="font-size: 1.05rem; font-weight: 800; color: var(--primary); background: rgba(37,99,235,0.12); border: 1px solid rgba(37,99,235,0.25); padding: 8px 18px; border-radius: 20px; display: inline-flex; align-items: center; gap: 8px; font-family: monospace;">
+          <i data-lucide="file-text" style="width:18px; height:18px;"></i> Identitas Laporan #${this.reportId}
+        </div>
       </section>
 
       <!-- Main Detail layout -->
@@ -241,20 +244,20 @@ export class DetailPage {
 
       if (isVideo) {
         if (report.videoPath) {
-          mediaHtml = `<video id="detail-evidence-video" src="${report.videoPath}" poster="${report.image}" controls style="display: block; max-width: 100%; max-height: 520px; width: auto; height: auto; border-radius: 8px;"></video>`;
+          mediaHtml = `<video id="detail-evidence-video" src="${report.videoPath}" poster="${report.image}" controls style="display: block; width: 100%; max-height: 650px; height: auto; object-fit: contain; border-radius: 8px;"></video>`;
           downloadUrl = report.videoPath;
           downloadExt = 'mp4';
         } else if (report.videoAnalysisJobId && report.shortIncidentKey) {
           const videoSrc = `/api/video-analysis/${report.videoAnalysisJobId}/incidents/${report.shortIncidentKey}/evidence?type=clip`;
           const posterSrc = `/api/video-analysis/${report.videoAnalysisJobId}/incidents/${report.shortIncidentKey}/evidence?type=raw`;
-          mediaHtml = `<video id="detail-evidence-video" src="${videoSrc}" poster="${posterSrc}" controls style="display: block; max-width: 100%; max-height: 520px; width: auto; height: auto; border-radius: 8px;"></video>`;
+          mediaHtml = `<video id="detail-evidence-video" src="${videoSrc}" poster="${posterSrc}" controls style="display: block; width: 100%; max-height: 650px; height: auto; object-fit: contain; border-radius: 8px;"></video>`;
           downloadUrl = videoSrc;
           downloadExt = 'mp4';
         } else {
-          mediaHtml = `<img id="detail-evidence-image" src="${report.image}" alt="Laporan Foto" style="display: block; max-width: 100%; max-height: 520px; width: auto; height: auto; transition: transform 0.25s ease;">`;
+          mediaHtml = `<img id="detail-evidence-image" src="${report.image}" alt="Laporan Foto" style="display: block; width: 100%; max-height: 650px; height: auto; object-fit: contain; border-radius: 8px; transition: transform 0.25s ease;">`;
         }
       } else {
-        mediaHtml = `<img id="detail-evidence-image" src="${report.image}" alt="Laporan Foto" style="display: block; max-width: 100%; max-height: 520px; width: auto; height: auto; transition: transform 0.25s ease;">`;
+        mediaHtml = `<img id="detail-evidence-image" src="${report.image}" alt="Laporan Foto" style="display: block; width: 100%; max-height: 650px; height: auto; object-fit: contain; border-radius: 8px; transition: transform 0.25s ease;">`;
       }
 
       // Setup dynamic panels
@@ -264,8 +267,8 @@ export class DetailPage {
           
           <!-- Image Bounding Box Canvas -->
           <div class="glass-card" style="padding: var(--space-16); border-radius: var(--radius-card); position: relative; display:flex; flex-direction:column; align-items:center;">
-            <div class="image-canvas-container" style="position: relative; width: 100%; min-height: 350px; max-height: 540px; overflow: hidden; border-radius: 12px; background: rgba(15, 23, 42, 0.95); display:flex; align-items:center; justify-content:center;">
-              <div id="image-box-wrapper" style="position: relative; display: inline-block; max-width: 100%; max-height: 100%;">
+            <div class="image-canvas-container" style="position: relative; width: 100%; border-radius: 12px; background: rgba(15, 23, 42, 0.4); overflow: hidden; display:flex; align-items:center; justify-content:center; padding: 4px;">
+              <div id="image-box-wrapper" style="position: relative; width: 100%; display: flex; justify-content: center; align-items: center;">
                 ${mediaHtml}
                 <div id="yolo-boxes-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
                   ${initialBoxesHtml}
@@ -308,9 +311,10 @@ export class DetailPage {
               const badgeClass = isHigh ? 'high' : (isMed ? 'medium' : (isLow ? 'low' : 'none'));
               const badgeText = isHigh ? 'Tinggi' : (isMed ? 'Sedang' : (isLow ? 'Rendah' : 'Tidak Terindikasi'));
               return `
-                <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
                   <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin: 0; display:flex; align-items:center; gap:8px;">
                     ${headerTitle}
+                    <span style="font-size:0.8rem; font-weight:800; font-family:monospace; padding:3px 10px; border-radius:12px; background:rgba(37,99,235,0.1); color:var(--primary); border:1px solid rgba(37,99,235,0.2);">#${report.id}</span>
                   </h3>
                   <span class="badge badge-${badgeClass}" style="font-size:0.85rem; font-weight:800; padding:6px 14px;">
                     ${badgeText}
@@ -652,66 +656,142 @@ export class DetailPage {
               </h3>
 
               ${report.adminStatus === 'MENUNGGU' ? `
-              <form id="detail-verify-form" class="detail-verify-form" style="display:flex; flex-direction:column; gap:12px;">
-                <!-- Validate/Reject status -->
-                <div class="form-group">
-                  <label class="form-label" style="font-size:0.75rem;" for="verify-status-select">Status Validasi</label>
-                  <select class="form-control select-rounded" id="verify-status-select" style="font-size:0.8rem; background:#ffffff; height:34px; margin-top:4px;" required>
-                    <option value="MENUNGGU" ${report.adminStatus === 'MENUNGGU' ? 'selected' : ''}>Menunggu (Belum Diverifikasi)</option>
-                    <option value="VALID" ${report.adminStatus === 'VALID' ? 'selected' : ''}>Valid (Kirim Tindak Lanjut)</option>
-                    <option value="DIABAIKAN" ${report.adminStatus === 'DIABAIKAN' ? 'selected' : ''}>Abaikan (Bukan Ancaman/Salah AI)</option>
-                  </select>
+                <!-- STATE 1: PENDING VALIDATION -->
+                <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 12px; padding: 12px 16px;">
+                  <span style="font-size:0.82rem; font-weight:700; color: #d97706; display:flex; align-items:center; gap:6px;">
+                    <i data-lucide="clock" style="width:14px; height:14px;"></i> Status: MENUNGGU VALIDASI
+                  </span>
+                  <p style="font-size:0.75rem; color: var(--text-secondary); margin:4px 0 0 0;">Laporan belum divalidasi operator. Pilih keputusan di bawah ini.</p>
                 </div>
 
-                <!-- Incident Assignment -->
-                <div class="form-group">
-                  <label class="form-label" style="font-size:0.75rem;" for="verify-assignment-select">Tugaskan Instansi</label>
-                  <select class="form-control select-rounded" id="verify-assignment-select" style="font-size:0.8rem; background:#ffffff; height:34px; margin-top:4px;">
-                    <option value="" ${!report.assignedOfficer ? 'selected' : ''}>-- Belum Ditunjuk --</option>
-                    <option value="BBWS" ${report.assignedOfficer === 'BBWS' ? 'selected' : ''}>BBWS (River Authority)</option>
-                    <option value="DLH" ${report.assignedOfficer === 'DLH' ? 'selected' : ''}>DLH (Dinas Lingkungan Hidup)</option>
-                    <option value="Relawan" ${report.assignedOfficer === 'Relawan' ? 'selected' : ''}>Relawan Lingkungan Lokal</option>
-                  </select>
+                <form id="detail-verify-form" class="detail-verify-form" style="display:flex; flex-direction:column; gap:12px;">
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.75rem;" for="verify-status-select">Keputusan Validasi Operator</label>
+                    <select class="form-control select-rounded" id="verify-status-select" style="font-size:0.8rem; background:#ffffff; height:34px; margin-top:4px;" required>
+                      <option value="VALID" selected>✓ Valid (Sahkan & Otomatis Antrekan Telegram)</option>
+                      <option value="TIDAK_VALID">✗ Tidak Valid (Bukan Insiden / Salah AI)</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.75rem;" for="verify-assignment-select">Tugaskan Instansi</label>
+                    <select class="form-control select-rounded" id="verify-assignment-select" style="font-size:0.8rem; background:#ffffff; height:34px; margin-top:4px;">
+                      <option value="">-- Belum Ditunjuk --</option>
+                      <option value="BBWS">BBWS (River Authority)</option>
+                      <option value="DLH">DLH (Dinas Lingkungan Hidup)</option>
+                      <option value="Relawan">Relawan Lingkungan Lokal</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.75rem;" for="verify-notes-input">Catatan Validasi & Instruksi</label>
+                    <textarea class="form-control textarea-rounded" id="verify-notes-input" style="font-size:0.8rem; background:#ffffff; padding: 10px; margin-top:4px;" placeholder="Instruksi rujukan dinas sosial atau petugas RT setempat..." rows="2"></textarea>
+                  </div>
+
+                  <button type="submit" class="btn btn-primary btn-rounded" style="width: 100%; font-weight: 700; height: 38px; font-size: 0.8rem; margin-top: 4px;">
+                    <i data-lucide="check-circle" style="width:14px; height:14px; margin-right:4px;"></i> Simpan & Sahkan Laporan
+                  </button>
+                </form>
+              ` : (report.adminStatus === 'VALID' ? `
+                <!-- STATE 2: VALID / DIVALIDASI (LOCKED DECISION + EDITABLE WORKFLOW + TELEGRAM STATUS) -->
+                <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px; padding: 12px 16px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:0.85rem; font-weight:800; color: var(--success); display:flex; align-items:center; gap:6px;">
+                      <i data-lucide="check-circle-2" style="width:16px; height:16px;"></i> Laporan Divalidasi
+                    </span>
+                    <span style="font-size:0.7rem; color: var(--text-muted);">${report.verifiedAt ? new Date(report.verifiedAt).toLocaleDateString('id-ID', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : ''}</span>
+                  </div>
+                  ${report.adminNotes ? `<p style="font-size:0.78rem; color: var(--text-secondary); margin:6px 0 0 0;">Catatan: ${report.adminNotes}</p>` : ''}
                 </div>
 
-                <!-- Workflow / Progress status -->
-                <div class="form-group">
-                  <label class="form-label" style="font-size:0.75rem;" for="verify-progress-select">Alur Operasional / Progress</label>
-                  <select class="form-control select-rounded" id="verify-progress-select" style="font-size:0.8rem; background:#ffffff; height:34px; margin-top:4px;">
-                    <option value="PENDING" ${report.status === 'PENDING' ? 'selected' : ''}>Menunggu Aksi (Pending)</option>
-                    <option value="PROSES" ${report.status === 'PROSES' ? 'selected' : ''}>Dalam Penanganan (In Progress)</option>
-                    <option value="SELESAI" ${report.status === 'SELESAI' ? 'selected' : ''}>Lokasi Pulih (Resolved)</option>
-                    <option value="CLOSED" ${report.status === 'CLOSED' ? 'selected' : ''}>Arsip Kasus Ditutup (Closed)</option>
-                  </select>
+                <!-- Telegram Broadcast Status Section -->
+                <div style="background: #ffffff; border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; align-items:center; justify-content:space-between;">
+                    <span style="font-size:0.75rem; font-weight:700; color: var(--text-muted); text-transform:uppercase;">Telegram Broadcast</span>
+                    ${report.telegramStatus === 'SENT' ? `
+                      <span style="font-size:0.75rem; font-weight:700; color: var(--success); display:flex; align-items:center; gap:4px;">
+                        <i data-lucide="check" style="width:13px; height:13px;"></i> Terkirim
+                      </span>
+                    ` : (report.telegramStatus === 'SENDING' ? `
+                      <span style="font-size:0.75rem; font-weight:700; color: var(--primary); display:flex; align-items:center; gap:4px;">
+                        <i data-lucide="clock" style="width:13px; height:13px;"></i> Mengirim...
+                      </span>
+                    ` : ((report.telegramStatus === 'FAILED' || report.telegramStatus === 'NOT_ELIGIBLE') ? `
+                      <span style="font-size:0.75rem; font-weight:700; color: var(--danger); display:flex; align-items:center; gap:4px;">
+                        <i data-lucide="alert-triangle" style="width:13px; height:13px;"></i> ${report.telegramStatus === 'NOT_ELIGIBLE' ? 'Tidak Terkirim' : 'Gagal'}
+                      </span>
+                    ` : `
+                      <span style="font-size:0.75rem; font-weight:700; color: var(--warning); display:flex; align-items:center; gap:4px;">
+                        <i data-lucide="clock" style="width:13px; height:13px;"></i> Antrean
+                      </span>
+                    `))}
+                  </div>
+
+                  ${report.telegramStatus === 'SENT' ? `
+                    <span style="font-size:0.75rem; color: var(--text-secondary);">Disiarkan ke Telegram channel pada ${report.telegramSentAt ? new Date(report.telegramSentAt).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }) : 'sekarang'}.</span>
+                  ` : (report.telegramStatus === 'SENDING' ? `
+                    <span style="font-size:0.75rem; color: var(--text-secondary);">Pesan sedang diproses dan dikirim oleh worker Telegram...</span>
+                  ` : ((report.telegramStatus === 'FAILED' || report.telegramStatus === 'NOT_ELIGIBLE') ? `
+                    <span style="font-size:0.75rem; color: var(--danger);">${report.telegramError || (report.telegramStatus === 'NOT_ELIGIBLE' ? 'Laporan belum dikirimkan ke Telegram channel.' : 'Gagal menyiarkan pesan ke Telegram channel.')}</span>
+                    <button class="btn btn-soft btn-sm btn-rounded" id="btn-telegram-dispatch" style="font-size:0.75rem; color: var(--primary); margin-top:4px;">
+                      <i data-lucide="rotate-cw" style="width:13px; height:13px; margin-right:4px;"></i> Coba Kirim Ulang ke Telegram
+                    </button>
+                  ` : `
+                    <span style="font-size:0.75rem; color: var(--text-secondary);">Menunggu dikirim otomatis oleh sistem ke Telegram channel...</span>
+                  `))}
                 </div>
 
-                <div class="form-group">
-                  <label class="form-label" style="font-size:0.75rem;" for="verify-notes-input">Catatan Petugas (BBWS)</label>
-                  <textarea class="form-control textarea-rounded" id="verify-notes-input" style="font-size:0.8rem; background:#ffffff; padding: 10px; margin-top:4px;" placeholder="Instruksi rujukan dinas sosial atau petugas RT setempat..." rows="2">${report.adminNotes || ''}</textarea>
+                <!-- Active Operational Workflow Controls -->
+                <form id="detail-verify-form" class="detail-verify-form" style="display:flex; flex-direction:column; gap:12px; margin-top:4px;">
+                  <input type="hidden" id="verify-status-select" value="VALID" />
+                  
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.75rem;" for="verify-assignment-select">Tugaskan Instansi / Petugas</label>
+                    <select class="form-control select-rounded" id="verify-assignment-select" style="font-size:0.8rem; background:#ffffff; height:34px; margin-top:4px;">
+                      <option value="" ${!report.assignedOfficer ? 'selected' : ''}>-- Belum Ditunjuk --</option>
+                      <option value="BBWS" ${report.assignedOfficer === 'BBWS' ? 'selected' : ''}>BBWS (River Authority)</option>
+                      <option value="DLH" ${report.assignedOfficer === 'DLH' ? 'selected' : ''}>DLH (Dinas Lingkungan Hidup)</option>
+                      <option value="Relawan" ${report.assignedOfficer === 'Relawan' ? 'selected' : ''}>Relawan Lingkungan Lokal</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.75rem;" for="verify-progress-select">Alur Penanganan / Status Operasional</label>
+                    <select class="form-control select-rounded" id="verify-progress-select" style="font-size:0.8rem; background:#ffffff; height:34px; margin-top:4px;">
+                      <option value="PENDING" ${report.status === 'PENDING' ? 'selected' : ''}>Menunggu Aksi (Pending)</option>
+                      <option value="PROSES" ${report.status === 'PROSES' ? 'selected' : ''}>Dalam Penanganan (In Progress)</option>
+                      <option value="SELESAI" ${report.status === 'SELESAI' ? 'selected' : ''}>Lokasi Pulih (Resolved)</option>
+                      <option value="CLOSED" ${report.status === 'CLOSED' ? 'selected' : ''}>Arsip Kasus Ditutup (Closed)</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.75rem;" for="verify-notes-input">Update Catatan Operasional</label>
+                    <textarea class="form-control textarea-rounded" id="verify-notes-input" style="font-size:0.8rem; background:#ffffff; padding: 10px; margin-top:4px;" placeholder="Update perkembangan penanganan lokasi..." rows="2">${report.adminNotes || ''}</textarea>
+                  </div>
+
+                  <button type="submit" class="btn btn-primary btn-rounded" style="width: 100%; font-weight: 700; height: 38px; font-size: 0.8rem;">
+                    <i data-lucide="save" style="width:14px; height:14px; margin-right:4px;"></i> Simpan Progress Operasional
+                  </button>
+                </form>
+              ` : `
+                <!-- STATE 3: TIDAK VALID / INVALID (LOCKED DECISION) -->
+                <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px; padding: 12px 16px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:0.85rem; font-weight:800; color: var(--danger); display:flex; align-items:center; gap:6px;">
+                      <i data-lucide="x-circle" style="width:16px; height:16px;"></i> Laporan Tidak Valid
+                    </span>
+                    <span style="font-size:0.7rem; color: var(--text-muted);">${report.verifiedAt ? new Date(report.verifiedAt).toLocaleDateString('id-ID', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : ''}</span>
+                  </div>
+                  ${report.adminNotes ? `<p style="font-size:0.78rem; color: var(--text-secondary); margin:6px 0 0 0;">Alasan: ${report.adminNotes}</p>` : ''}
                 </div>
+              `)}
 
-                <button type="submit" class="btn btn-primary btn-rounded" style="width: 100%; font-weight: 700; height: 38px; font-size: 0.8rem; margin-top: 4px;">
-                  <i data-lucide="save" style="width:14px; height:14px; margin-right:4px;"></i> Simpan Keputusan
-                </button>
-              </form>
-
-              <!-- Telegram Dispatch -->
-              <button class="btn btn-glass btn-rounded" id="btn-telegram-dispatch" style="width: 100%; color: var(--primary); border-color: rgba(47, 107, 255, 0.2); font-size: 0.8rem; font-weight: 700; height: 38px;">
-                <i data-lucide="send" style="width:14px; height:14px; margin-right:4px;"></i> Siarkan Telegram Respon
-              </button>
-
-              <!-- Tombol Validasi Umpan Balik AI (Ground Truth) -->
+              <!-- Ground Truth AI Feedback Modal Button -->
               <button class="btn btn-glass btn-rounded" id="btn-ai-feedback-modal" style="width: 100%; color: var(--success); border-color: rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.04); font-size: 0.8rem; font-weight: 700; height: 38px; display:flex; align-items:center; justify-content:center; gap:6px; margin-top:4px;">
                 <i data-lucide="brain-circuit" style="width:14px; height:14px; color: var(--success);"></i> Catat Umpan Balik AI (Ground Truth)
               </button>
-              ` : `
-              <div style="display:flex; flex-direction:column; gap:8px; padding: var(--space-16) 0;">
-                <span style="font-size:0.85rem; color: var(--text-primary); font-weight:600;">
-                  Status Laporan: <span style="color: ${report.adminStatus === 'VALID' ? 'var(--success)' : 'var(--warning)'};">${report.adminStatus === 'VALID' ? '✓ DIVALIDASI' : '✗ DIABAIKAN'}</span>
-                </span>
-                ${report.adminNotes ? `<p style="font-size:0.8rem; color: var(--text-secondary); margin:4px 0 0 0;">Catatan: ${report.adminNotes}</p>` : ''}
-              </div>
-              `}
+            </div>
             </div>
           ` : ''}
 
@@ -927,8 +1007,8 @@ export class DetailPage {
         statusText = 'DITUTUP';
         badgeClass = 'bg-secondary text-white';
       }
-    } else if (this.report.adminStatus === 'DIABAIKAN') {
-      statusText = 'DIABAIKAN';
+    } else if (this.report.adminStatus === 'TIDAK_VALID') {
+      statusText = 'TIDAK VALID';
       badgeClass = 'bg-danger text-white';
     }
 
@@ -1425,7 +1505,7 @@ export class DetailPage {
         telegramBtn.disabled = true;
         telegramBtn.innerHTML = '<span class="status-pulse-dot" style="width:8px; height:8px; background:white; border-radius:50%; display:inline-block; margin-right:6px;"></span> Mengirim...';
 
-        const telegramUrl = `/api/v1/detections/${this.reportId}/telegram`;
+        const telegramUrl = `/api/detections/${this.reportId}/telegram`;
         console.log('[DETAIL_FRONTEND] Telegram dispatch to:', telegramUrl);
 
         try {
@@ -1439,15 +1519,20 @@ export class DetailPage {
           const data = await res.json();
           console.log('[DETAIL_FRONTEND] Telegram response body:', JSON.stringify(data));
           if (res.ok && data.success) {
-            EventBus.emit('toast:show', { message: 'Disiarkan ke Telegram Respon Cepat!', type: 'success' });
+            EventBus.emit('toast:show', { message: 'Retry penyiaran Telegram berhasil diantrekan!', type: 'success' });
+            await this.loadData();
           } else {
-            throw new Error(data.error || 'Gagal mengirim Telegram');
+            let msg = data.message || data.error || 'Gagal mengirim Telegram';
+            if (data.error === 'RETRY_NOT_ALLOWED') {
+              msg = 'Telegram sudah berada dalam antrean atau telah berhasil disiarkan.';
+            }
+            throw new Error(msg);
           }
         } catch (err) {
           EventBus.emit('toast:show', { message: err.message || 'Gagal mengirim Telegram.', type: 'danger' });
+          await this.loadData();
         } finally {
           telegramBtn.disabled = false;
-          telegramBtn.innerHTML = '<i data-lucide="send" style="width:14px; height:14px; margin-right:4px;"></i> Siarkan Telegram Respon';
           if (window.lucide) window.lucide.createIcons();
         }
       });

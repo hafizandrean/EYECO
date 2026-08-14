@@ -46,7 +46,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     }
 
     if (!token) {
-      if (req.path.startsWith('/api/')) {
+      if (req.originalUrl.startsWith('/api/')) {
         res.status(401).json({ error: 'Unauthorized: Belum masuk' });
         return;
       }
@@ -56,7 +56,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
     const payload = verifyToken(token);
     if (!payload) {
-      if (req.path.startsWith('/api/')) {
+      if (req.originalUrl.startsWith('/api/')) {
         res.status(401).json({ error: 'Unauthorized: Sesi tidak valid' });
         return;
       }
@@ -72,7 +72,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     // Auto-restore would recreate a new record, defeating the purpose.
     if (!session) {
       res.clearCookie('session_token');
-      if (req.path.startsWith('/api/')) {
+      if (req.originalUrl.startsWith('/api/')) {
         res.status(401).json({ error: 'Unauthorized: Sesi telah kedaluwarsa atau dicabut' });
         return;
       }
@@ -89,7 +89,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     next();
   } catch (err) {
     console.error('[AUTH ERROR] Middleware failed:', err);
-    if (req.path.startsWith('/api/')) {
+    if (req.originalUrl.startsWith('/api/')) {
       res.status(500).json({ error: 'Internal Server Error' });
       return;
     }

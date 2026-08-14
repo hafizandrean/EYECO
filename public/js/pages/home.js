@@ -118,7 +118,7 @@ class HomePage {
                       <span class="chart-bar-value" id="chart-val-pending">0</span>
                     </div>
                     <div class="chart-bar-row">
-                      <span class="chart-bar-label">Diabaikan</span>
+                      <span class="chart-bar-label">Tidak Valid</span>
                       <div class="chart-bar-track">
                         <div class="chart-bar-fill" id="chart-bar-ignored" style="width:0%;"></div>
                       </div>
@@ -175,9 +175,9 @@ class HomePage {
             <!-- ═══ AI CONFIDENCE SPLIT (LAYER 4: GLASS) ═══ -->
             <section class="landing-section landing-layer-glass" id="ai-confidence" aria-labelledby="ai-confidence-title">
               <div class="section-header is-centered">
-                <span class="section-label">Akurasi Model</span>
+                <span class="section-label">Distribusi Status Indikasi AI</span>
                 <h2 id="ai-confidence-title" class="section-title">Seberapa Yakin AI Kami?</h2>
-                <p class="section-desc">Akurasi deteksi AI dari seluruh workspace EYECO. Semakin tinggi, semakin akurat klasifikasinya.</p>
+                <p class="section-desc">AI menganalisis bukti dan memberikan indikasi awal. Laporan ditinjau dan divalidasi oleh operator sebelum ditindaklanjuti.</p>
               </div>
               <div class="confidence-split" id="confidence-split"></div>
             </section>

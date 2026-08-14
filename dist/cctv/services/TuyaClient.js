@@ -104,6 +104,9 @@ class TuyaClient {
         // 1. Try associated-users devices (Smart Home Basic Service API)
         try {
             const data = await this.request('GET', '/v1.0/iot-01/associated-users/devices?page_no=1&page_size=100');
+            if (!data.success && (data.code === 28841002 || (data.msg && data.msg.includes('expired')))) {
+                throw new Error('IoT Core service subscription has expired (code 28841002)');
+            }
             const list = data.result?.list || data.result?.devices || (Array.isArray(data.result) ? data.result : []);
             if (data.success && Array.isArray(list)) {
                 console.log(`[TUYA] Found ${list.length} devices via associated-users API`);
@@ -119,12 +122,17 @@ class TuyaClient {
             }
         }
         catch (err) {
+            if (err.message.includes('expired'))
+                throw err;
             console.warn('[TUYA] associated-users devices query failed:', err.message);
         }
-        // 3. Legacy query fallback if still empty
+        // 2. Legacy query fallback if still empty
         if (devices.length === 0) {
             try {
                 const data = await this.request('GET', '/v1.0/devices?page_no=1&page_size=100');
+                if (!data.success && (data.code === 28841002 || (data.msg && data.msg.includes('expired')))) {
+                    throw new Error('IoT Core service subscription has expired (code 28841002)');
+                }
                 const list = data.result?.list || data.result?.devices || (Array.isArray(data.result) ? data.result : []);
                 if (data.success && Array.isArray(list)) {
                     for (const item of list) {
@@ -136,18 +144,33 @@ class TuyaClient {
                 }
             }
             catch (err) {
+                if (err.message.includes('expired'))
+                    throw err;
                 console.warn('[TUYA] Legacy list devices failed:', err.message);
             }
         }
         return devices;
     }
-    async getStreamUrl(deviceId, protocol = 'RTSP') {
-        console.log(`[TUYA] Allocating RTSP stream for real device ${deviceId}...`);
+    static streamCache = new Map();
+    static clearStreamCache(deviceId) {
+        console.log(`[TUYA CACHE] Invalidating cached stream for device ${deviceId}`);
+        TuyaClient.streamCache.delete(deviceId);
+    }
+    async getStreamUrl(deviceId, protocol = 'HLS', forceFresh = false) {
+        if (forceFresh) {
+            TuyaClient.streamCache.delete(deviceId);
+        }
+        const cached = TuyaClient.streamCache.get(deviceId);
+        if (cached && Date.now() < cached.expiresAt) {
+            console.log(`[TUYA CACHE] Returning active cached stream URL for ${deviceId}`);
+            return cached.url;
+        }
+        console.log(`[TUYA] Allocating fresh stream for device ${deviceId}...`);
         const endpoints = [
-            { method: 'POST', path: `/v1.0/devices/${deviceId}/stream/actions/allocate`, body: { type: 'RTSP' } },
-            { method: 'POST', path: `/v1.0/devices/${deviceId}/stream/actions/allocate`, body: { type: 'rtsp' } },
             { method: 'POST', path: `/v1.0/devices/${deviceId}/stream/actions/allocate`, body: { type: 'hls' } },
-            { method: 'POST', path: `/v1.0/devices/${deviceId}/stream/actions/allocate`, body: { type: 'HLS' } }
+            { method: 'POST', path: `/v1.0/devices/${deviceId}/stream/actions/allocate`, body: { type: 'HLS' } },
+            { method: 'POST', path: `/v1.0/devices/${deviceId}/stream/actions/allocate`, body: { type: 'rtsp' } },
+            { method: 'POST', path: `/v1.0/devices/${deviceId}/stream/actions/allocate`, body: { type: 'RTSP' } }
         ];
         let lastError = '';
         for (const ep of endpoints) {
@@ -155,7 +178,9 @@ class TuyaClient {
                 const data = await this.request(ep.method, ep.path, ep.body || null);
                 console.log(`[TUYA STREAM LOG] ${ep.method} ${ep.path} -> success: ${data.success}, code: ${data.code}`);
                 if (data.success && data.result?.url) {
-                    console.log(`[TUYA SUCCESS] Real RTSP stream allocated for ${deviceId}: ${data.result.url.slice(0, 40)}...`);
+                    console.log(`[TUYA SUCCESS] Real stream allocated for ${deviceId}: ${data.result.url.slice(0, 60)}...`);
+                    // Cache stream URL for 25 seconds to prevent rate limit while keeping session fresh
+                    TuyaClient.streamCache.set(deviceId, { url: data.result.url, expiresAt: Date.now() + 25000 });
                     return data.result.url;
                 }
                 lastError = data.msg || JSON.stringify(data);
@@ -164,6 +189,11 @@ class TuyaClient {
                 console.warn(`[TUYA WARN] Endpoint ${ep.path} failed: ${err.message}`);
                 lastError = err.message;
             }
+        }
+        // If frequency limit (100003), but we have an old cached URL, fallback to cached URL instead of throwing
+        if (cached && cached.url) {
+            console.warn(`[TUYA CACHE FALLBACK] Frequency limit hit for ${deviceId}, falling back to existing stream URL`);
+            return cached.url;
         }
         throw new Error(`Tuya Cloud Stream Allocation Error (${deviceId}): ${lastError}`);
     }

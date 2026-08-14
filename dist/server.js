@@ -15,6 +15,7 @@ const express_rate_limit_1 = require("express-rate-limit");
 const authMiddleware_1 = require("./auth/authMiddleware");
 const db_1 = require("./database/db");
 const Report_1 = require("./database/models/Report");
+const OutboxEvent_1 = require("./database/models/OutboxEvent");
 const User_1 = require("./database/models/User");
 const authMiddleware_2 = require("./auth/authMiddleware");
 const RoleMiddleware_1 = require("./auth/RoleMiddleware");
@@ -34,7 +35,6 @@ const AiPipelineScheduler_1 = require("./cctv/services/AiPipelineScheduler");
 const AiEngineHealthMonitor_1 = require("./cctv/services/AiEngineHealthMonitor");
 const OutboxWorker_1 = require("./notifications/OutboxWorker");
 const Notification_1 = require("./database/models/Notification");
-const TelegramNotificationChannel_1 = require("./notifications/TelegramNotificationChannel");
 const aiDetection_service_1 = require("./services/aiDetection.service");
 const R2StorageService_1 = require("./services/R2StorageService");
 const ReportAiProjectionService_1 = require("./services/ai/ReportAiProjectionService");
@@ -88,8 +88,12 @@ const staticNoCacheOptions = {
 // Serve static CSS and JS files directly
 app.use('/css', express_1.default.static(path_1.default.join(__dirname, '../public/css'), staticNoCacheOptions));
 app.use('/js', express_1.default.static(path_1.default.join(__dirname, '../public/js'), staticNoCacheOptions));
-app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../public/uploads')));
-app.use('/hls', express_1.default.static(path_1.default.join(__dirname, '../public/hls')));
+app.use('/hls', (req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', '*');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    express_1.default.static(path_1.default.join(process.cwd(), 'public', 'hls'))(req, res, next);
+});
 app.use('/assets', express_1.default.static(path_1.default.join(__dirname, '../public/assets')));
 // Global middleware to populate req.userContext from cookie/header
 app.use((req, res, next) => {
@@ -112,53 +116,97 @@ app.use((req, res, next) => {
 });
 // --- STATIC FILES ---
 app.use('/css', express_1.default.static(path_1.default.join(__dirname, '../public/css'), staticNoCacheOptions));
-app.use('/js', express_1.default.static(path_1.default.join(__dirname, '../public/js'), staticNoCacheOptions));
-app.use('/hls', express_1.default.static(path_1.default.join(__dirname, '../public/hls')));
-app.use('/assets', express_1.default.static(path_1.default.join(__dirname, '../public/assets')));
+app.use('/hls', (req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', '*');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    express_1.default.static(path_1.default.join(process.cwd(), 'public', 'hls'))(req, res, next);
+});
 // Uploads: local dulu, fallback ke R2 (proxy, bukan redirect)
 const uploadsDir = path_1.default.join(__dirname, '../public/uploads');
 app.use('/uploads', (req, res, next) => {
     const localPath = path_1.default.join(uploadsDir, req.path);
-    if (fs_1.default.existsSync(localPath)) {
-        express_1.default.static(uploadsDir)(req, res, next);
+    if (fs_1.default.existsSync(localPath) && fs_1.default.statSync(localPath).isFile()) {
+        return express_1.default.static(uploadsDir)(req, res, next);
+    }
+    // File tidak ada di persis localPath — Cari di lokasi fallback disk lokal
+    const filename = path_1.default.basename(req.path);
+    let foundLocalPath = null;
+    // 1. Cek langsung di uploads/<filename>
+    const directPath = path_1.default.join(uploadsDir, filename);
+    if (fs_1.default.existsSync(directPath) && fs_1.default.statSync(directPath).isFile()) {
+        foundLocalPath = directPath;
     }
     else {
-        // File gak ada di lokal — proxy dari R2 langsung (gak pake redirect)
-        // Strip /uploads/ prefix + map prefix lama (reports/, cctv-evidence/) ke struktur baru (laporan_manual/, laporan_auto/)
-        const r2Key = req.path.replace(/^\/uploads\//, '')
-            .replace(/^reports\//, 'laporan_manual/')
-            .replace(/^cctv-evidence\//, 'laporan_auto/')
-            .replace(/^evidence_/, 'laporan_auto/evidence_')
-            .replace(/^cctv_capture_/, 'laporan_auto/cctv_capture_')
-            .replace(/^upload_/, 'laporan_manual/upload_');
-        R2StorageService_1.R2StorageService.getSignedUrl(r2Key, 900) // 15 menit cukup buat proxy
-            .then(async (signedUrl) => {
+        // 2. Cek di uploads/reports/*/<filename>
+        const reportsDir = path_1.default.join(uploadsDir, 'reports');
+        if (fs_1.default.existsSync(reportsDir)) {
             try {
-                const response = await fetch(signedUrl);
-                if (!response.ok) {
-                    return res.status(response.status).send('Gagal mengambil file dari penyimpanan.');
+                const subdirs = fs_1.default.readdirSync(reportsDir);
+                for (const sub of subdirs) {
+                    const candidate = path_1.default.join(reportsDir, sub, filename);
+                    if (fs_1.default.existsSync(candidate) && fs_1.default.statSync(candidate).isFile()) {
+                        foundLocalPath = candidate;
+                        break;
+                    }
                 }
-                const contentType = response.headers.get('content-type') || 'application/octet-stream';
-                res.setHeader('Content-Type', contentType);
-                res.setHeader('Cache-Control', 'public, max-age=86400'); // cache 1 hari
-                const buffer = Buffer.from(await response.arrayBuffer());
-                res.send(buffer);
             }
-            catch (proxyErr) {
-                console.error('[R2 Proxy] Fetch error for', r2Key, proxyErr.message);
-                res.status(502).send('Gagal memproses file dari penyimpanan.');
-            }
-        })
-            .catch(r2Err => {
-            console.warn('[R2 Proxy] Fallback for', r2Key, r2Err.message);
-            express_1.default.static(uploadsDir)(req, res, next);
-        });
+            catch (_) { }
+        }
     }
+    // 3. Cek di uploads/laporan_manual/<filename> dan uploads/laporan_auto/<filename>
+    if (!foundLocalPath) {
+        const manualDir = path_1.default.join(uploadsDir, 'laporan_manual', filename);
+        const autoDir = path_1.default.join(uploadsDir, 'laporan_auto', filename);
+        if (fs_1.default.existsSync(manualDir) && fs_1.default.statSync(manualDir).isFile())
+            foundLocalPath = manualDir;
+        else if (fs_1.default.existsSync(autoDir) && fs_1.default.statSync(autoDir).isFile())
+            foundLocalPath = autoDir;
+    }
+    if (foundLocalPath) {
+        return res.sendFile(foundLocalPath);
+    }
+    // 4. File tidak ada di lokal — proxy dari R2 jika R2 terkonfigurasi
+    if (!R2StorageService_1.R2StorageService.isConfigured()) {
+        return res.status(404).send('File tidak ditemukan.');
+    }
+    const r2Key = req.path.replace(/^\/uploads\//, '')
+        .replace(/^reports\//, 'eyecofiles/laporan_manual/')
+        .replace(/^cctv-evidence\//, 'eyecofiles/laporan_auto/')
+        .replace(/^laporan_manual\//, 'eyecofiles/laporan_manual/')
+        .replace(/^laporan_auto\//, 'eyecofiles/laporan_auto/')
+        .replace(/^evidence_/, 'eyecofiles/laporan_auto/evidence_')
+        .replace(/^cctv_capture_/, 'eyecofiles/laporan_auto/cctv_capture_')
+        .replace(/^upload_/, 'eyecofiles/laporan_manual/upload_')
+        .replace(/^berita\//, 'eyecofiles/berita/');
+    R2StorageService_1.R2StorageService.getSignedUrl(r2Key, 900)
+        .then(async (signedUrl) => {
+        try {
+            const response = await fetch(signedUrl);
+            if (!response.ok) {
+                return res.status(response.status).send('Gagal mengambil file dari penyimpanan cloud.');
+            }
+            const contentType = response.headers.get('content-type') || 'application/octet-stream';
+            res.setHeader('Content-Type', contentType);
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            const buffer = Buffer.from(await response.arrayBuffer());
+            res.send(buffer);
+        }
+        catch (proxyErr) {
+            console.error('[R2 Proxy] Fetch error for', r2Key, proxyErr.message);
+            res.status(502).send('Gagal memproses file dari penyimpanan cloud.');
+        }
+    })
+        .catch(r2Err => {
+        console.warn('[R2 Proxy] Fallback failed for', r2Key, r2Err.message);
+        res.status(404).send('File tidak ditemukan.');
+    });
 });
 // --- MODULAR ROUTES ---
 app.use('/api/auth', authRoutes_1.default);
 app.use('/api/superadmin', superadminRoutes_1.default);
 app.use('/api/workspaces', workspaceRoutes_1.default);
+app.use('/api/workspace', workspaceRoutes_1.default);
 app.use('/admin', adminRoutes_1.default);
 app.use('/api/cctv', cctvRoutes_1.default);
 app.use('/api/news', newsRoutes_1.default);
@@ -359,7 +407,7 @@ app.post('/api/detections/:id/verify', async (req, res) => {
         }
         const id = parseInt(req.params.id);
         const { status, notes, assignedOfficer, progressStatus } = req.body;
-        if (!status || !['VALID', 'DIABAIKAN', 'MENUNGGU'].includes(status)) {
+        if (!status || !['VALID', 'TIDAK_VALID', 'MENUNGGU'].includes(status)) {
             return res.status(400).json({ error: 'Status tidak valid' });
         }
         const updatedReport = await db_1.DatabaseManager.updateVerification(id, status, notes || '', assignedOfficer, progressStatus);
@@ -401,27 +449,114 @@ app.post('/api/detections/:id/telegram', async (req, res) => {
         if (!report) {
             return res.status(404).json({ error: 'Laporan tidak ditemukan' });
         }
-        const channel = new TelegramNotificationChannel_1.TelegramNotificationChannel();
-        const success = await channel.send(report);
-        if (success) {
-            // Rekam audit log aksi penyiaran manual
-            await db_1.SystemAuditLogModel.create({
-                tenantId: 'BBWS',
-                actorId: user._id,
-                actorName: user.username,
-                action: 'MANUAL_TELEGRAM_BROADCAST',
-                ipAddress: req.ip || '',
-                userAgent: req.headers['user-agent'] || '',
-                details: { reportId: id }
+        // Workspace Access Guard
+        if (user.role !== 'superadmin' && user.workspaceId && report.workspaceId && report.workspaceId !== user.workspaceId) {
+            return res.status(403).json({ error: 'Akses ditolak: Laporan milik workspace lain.' });
+        }
+        // RETRY GUARD: Allow retry for VALID reports with FAILED or NOT_ELIGIBLE telegram status
+        // NOT_ELIGIBLE can happen due to data migration or validation bypass edge cases
+        const retryableStatuses = ['FAILED', 'NOT_ELIGIBLE'];
+        if (report.adminStatus !== 'VALID' || !retryableStatuses.includes(report.telegramStatus)) {
+            return res.status(409).json({
+                error: 'RETRY_NOT_ALLOWED',
+                message: 'Retry Telegram hanya diizinkan untuk laporan VALID dengan status pengiriman FAILED atau NOT_ELIGIBLE.'
             });
-            return res.json({ success: true, message: 'Notifikasi berhasil dikirim ke Telegram.' });
+        }
+        // Re-activate existing FAILED OutboxEvent without creating duplicate idempotency key
+        const idempotencyKey = `REPORT_VALIDATED_TELEGRAM:${id}:v1`;
+        let outboxEvent = await OutboxEvent_1.OutboxEventModel.findOne({ idempotencyKey }).exec();
+        if (outboxEvent) {
+            outboxEvent.status = 'PENDING';
+            outboxEvent.retryCount = 0;
+            outboxEvent.processedAt = null;
+            await outboxEvent.save();
         }
         else {
-            return res.status(500).json({ error: 'Gagal mengirim notifikasi Telegram. Periksa status keaktifan Telegram dan ID chat di konfigurasi.' });
+            await OutboxEvent_1.OutboxEventModel.create({
+                aggregateType: 'Report',
+                aggregateId: String(id),
+                eventType: 'REPORT_VALIDATED_TELEGRAM',
+                idempotencyKey,
+                payload: { reportId: id, location: report.location },
+                status: 'PENDING',
+                retryCount: 0
+            });
         }
+        await Report_1.ReportModel.updateOne({ id }, { $set: { telegramStatus: 'QUEUED', telegramError: null } });
+        // Trigger OutboxWorker to process queue
+        setImmediate(() => OutboxWorker_1.OutboxWorker.processQueue().catch(() => { }));
+        await db_1.SystemAuditLogModel.create({
+            tenantId: 'BBWS',
+            actorId: user._id,
+            actorName: user.username,
+            action: 'RETRY_TELEGRAM_BROADCAST',
+            ipAddress: req.ip || '',
+            userAgent: req.headers['user-agent'] || '',
+            details: { reportId: id }
+        });
+        return res.json({
+            success: true,
+            message: 'Retry penyiaran Telegram berhasil diantrekan ulang ke OutboxWorker.',
+            telegramStatus: 'QUEUED'
+        });
     }
     catch (err) {
         console.error('[SERVER ERROR] Telegram manual broadcast failed:', err);
+        res.status(500).json({ error: err.message || 'Internal Server Error' });
+    }
+});
+// POST /api/admin/telegram-backfill — Admin: perbaiki laporan VALID yang belum terkirim ke Telegram
+app.post('/api/admin/telegram-backfill', async (req, res) => {
+    try {
+        const user = await (0, authMiddleware_1.getLoggedInUser)(req);
+        if (!user || !['admin', 'superadmin'].includes(user.role)) {
+            return res.status(403).json({ error: 'Akses ditolak' });
+        }
+        // Cari semua laporan VALID yang telegramStatus bukan SENT dan bukan QUEUED/SENDING
+        const stuckReports = await Report_1.ReportModel.find({
+            adminStatus: 'VALID',
+            telegramStatus: { $nin: ['SENT', 'QUEUED', 'SENDING'] },
+            deletedAt: null
+        }).lean().exec();
+        let queued = 0;
+        let skipped = 0;
+        for (const report of stuckReports) {
+            const idempotencyKey = `REPORT_VALIDATED_TELEGRAM:${report.id}:v1`;
+            const existing = await OutboxEvent_1.OutboxEventModel.findOne({ idempotencyKey }).exec();
+            if (existing && existing.status === 'PROCESSED') {
+                // Sudah terkirim sebelumnya — sync status saja
+                await Report_1.ReportModel.updateOne({ id: report.id }, { telegramStatus: 'SENT' });
+                skipped++;
+                continue;
+            }
+            if (existing) {
+                // Reset event yang ada
+                existing.status = 'PENDING';
+                existing.retryCount = 0;
+                existing.processedAt = null;
+                await existing.save();
+            }
+            else {
+                await OutboxEvent_1.OutboxEventModel.create({
+                    aggregateType: 'Report',
+                    aggregateId: String(report.id),
+                    eventType: 'REPORT_VALIDATED_TELEGRAM',
+                    idempotencyKey,
+                    payload: { reportId: report.id, location: report.location },
+                    status: 'PENDING',
+                    retryCount: 0
+                });
+            }
+            await Report_1.ReportModel.updateOne({ id: report.id }, { telegramStatus: 'QUEUED', telegramError: null });
+            queued++;
+        }
+        // Trigger OutboxWorker
+        setImmediate(() => OutboxWorker_1.OutboxWorker.processQueue().catch(() => { }));
+        console.log(`[Backfill] Queued ${queued} reports, synced ${skipped} already-sent reports.`);
+        return res.json({ success: true, queued, skipped, total: stuckReports.length });
+    }
+    catch (err) {
+        console.error('[SERVER ERROR] Telegram backfill failed:', err);
         res.status(500).json({ error: err.message || 'Internal Server Error' });
     }
 });
@@ -485,7 +620,19 @@ app.get('/superadmin/workspaces/:id', authMiddleware_2.authMiddleware, (0, RoleM
     res.sendFile(path_1.default.join(__dirname, '../public/views/workspace-detail.html'));
 });
 // Dashboard — unified for admin AND user
-app.get(['/dashboard', '/dashboard/laporan', '/dashboard/upload', '/dashboard/profile', '/dashboard/settings', '/dashboard/berita', '/dashboard/users', '/dashboard/cctv', '/dashboard/join-requests', '/dashboard/cctv-monitoring', '/dashboard/beranda'], authMiddleware_2.authMiddleware, (0, RoleMiddleware_1.roleGuard)(['admin', 'user', 'operator', 'supervisor', 'officer', 'superadmin']), (req, res) => {
+app.get([
+    '/dashboard', '/dashboard/',
+    '/dashboard/laporan', '/dashboard/laporan/',
+    '/dashboard/upload', '/dashboard/upload/',
+    '/dashboard/profile', '/dashboard/profile/',
+    '/dashboard/settings', '/dashboard/settings/',
+    '/dashboard/berita', '/dashboard/berita/',
+    '/dashboard/users', '/dashboard/users/',
+    '/dashboard/cctv', '/dashboard/cctv/',
+    '/dashboard/join-requests', '/dashboard/join-requests/',
+    '/dashboard/cctv-monitoring', '/dashboard/cctv-monitoring/',
+    '/dashboard/beranda', '/dashboard/beranda/'
+], authMiddleware_2.authMiddleware, (0, RoleMiddleware_1.roleGuard)(['admin', 'user', 'operator', 'supervisor', 'officer', 'superadmin']), (req, res) => {
     res.sendFile(path_1.default.join(__dirname, '../public/views/dashboard.html'));
 });
 // Single report detail page

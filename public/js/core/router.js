@@ -89,12 +89,14 @@ class ClientRouter {
   }
 
   // Helper untuk mengubah path rute menjadi nama tab navigasi
-  getTabNameFromPath(path) {
+  getTabNameFromPath(rawPath) {
+    const path = (rawPath && rawPath.length > 1 && rawPath.endsWith('/')) ? rawPath.slice(0, -1) : rawPath;
     if (path === '/dashboard') return 'dashboard';
     if (path === '/dashboard/laporan') return 'laporan';
     if (path === '/dashboard/upload') return 'upload';
     if (path.startsWith('/dashboard/detections/')) return 'detail';
     if (path === '/dashboard/cctv-monitoring') return 'cctv-monitoring';
+    if (path === '/dashboard/workspace-requests') return 'workspace-requests';
     if (path === '/dashboard/settings' || path === '/dashboard/profile') return 'settings';
     if (path === '/faq') return 'faq';
     return 'dashboard';

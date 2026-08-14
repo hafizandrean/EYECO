@@ -104,6 +104,32 @@ export class CctvRepository {
             updatePayload.playUrl = payload.playUrl || payload.streamUrl;
           }
 
+          if (payload.protocol) {
+            updatePayload.protocol = payload.protocol;
+            if (payload.protocol === 'HLS' || payload.protocol === 'RTSP_TUYA') {
+              updatePayload.mediaType = 'HLS';
+            } else if (payload.protocol === 'HTTP Image' || payload.protocol === 'Snapshot') {
+              updatePayload.mediaType = 'Image';
+            } else if (payload.protocol === 'CLOUD_VIEWER' || payload.protocol === 'Cloud') {
+              updatePayload.mediaType = 'Cloud';
+            } else {
+              updatePayload.mediaType = 'Video';
+            }
+          }
+
+          if (payload.health) {
+            delete updatePayload.health;
+            if (payload.health.resolution) {
+              updatePayload['health.resolution'] = payload.health.resolution;
+            }
+            if (payload.health.latency !== undefined) {
+              updatePayload['health.latency'] = payload.health.latency;
+            }
+            if (payload.health.fps !== undefined) {
+              updatePayload['health.fps'] = payload.health.fps;
+            }
+          }
+
           const updated = await CctvModel.findOneAndUpdate(
             workspaceId !== undefined ? { id, workspaceId } : { id },
             { $set: updatePayload },

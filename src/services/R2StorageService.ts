@@ -1,27 +1,28 @@
 // R2StorageService.ts — Cloudflare R2 (S3-compatible) upload wrapper
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import path from 'path';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID || '';
-const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY || '';
-const R2_ENDPOINT = process.env.R2_ENDPOINT || '';
-const R2_BUCKET = process.env.R2_BUCKET || 'eyeco';
-const R2_PUBLIC_URL = (process.env.R2_PUBLIC_URL || '').replace(/^"|"$/g, '');
-
 let s3Client: S3Client | null = null;
 
 function getClient(): S3Client {
+  const endpoint = process.env.R2_ENDPOINT || '';
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID || '';
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY || '';
+
+  if (!endpoint || !accessKeyId || !secretAccessKey) {
+    throw new Error('[R2StorageService] Cloudflare R2 is not fully configured (missing R2_ENDPOINT, R2_ACCESS_KEY_ID, or R2_SECRET_ACCESS_KEY).');
+  }
+
   if (!s3Client) {
     s3Client = new S3Client({
       region: 'auto',
-      endpoint: R2_ENDPOINT,
+      endpoint,
       credentials: {
-        accessKeyId: R2_ACCESS_KEY_ID,
-        secretAccessKey: R2_SECRET_ACCESS_KEY,
+        accessKeyId,
+        secretAccessKey,
       },
       forcePathStyle: true,
     });
@@ -30,6 +31,20 @@ function getClient(): S3Client {
 }
 
 export class R2StorageService {
+  /**
+   * Check whether Cloudflare R2 is fully configured with credentials.
+   */
+  static isConfigured(): boolean {
+    const endpoint = process.env.R2_ENDPOINT || '';
+    const accessKeyId = process.env.R2_ACCESS_KEY_ID || '';
+    const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY || '';
+    return Boolean(endpoint && accessKeyId && secretAccessKey);
+  }
+
+  static getBucket(): string {
+    return process.env.R2_BUCKET || 'eyeco';
+  }
+
   /**
    * Upload buffer/stream ke R2.
    * Returns public URL or presigned URL.
@@ -40,9 +55,13 @@ export class R2StorageService {
     contentType?: string,
     makePublic = false,
   ): Promise<string> {
+    if (!this.isConfigured()) {
+      console.warn('[R2StorageService] R2 credentials not configured. Skipping upload for key:', key);
+      return key;
+    }
     const client = getClient();
     const command = new PutObjectCommand({
-      Bucket: R2_BUCKET,
+      Bucket: this.getBucket(),
       Key: key,
       Body: body,
       ContentType: contentType || 'application/octet-stream',
@@ -50,10 +69,11 @@ export class R2StorageService {
 
     await client.send(command);
 
-    if (makePublic && R2_PUBLIC_URL) {
-      return `${R2_PUBLIC_URL}/${key}`;
+    const publicUrl = (process.env.R2_PUBLIC_URL || '').replace(/^"|"$/g, '');
+    if (makePublic && publicUrl) {
+      return `${publicUrl.replace(/\/$/, '')}/${key.replace(/^\//, '')}`;
     }
-    return key; // Return key — caller builds URL
+    return key;
   }
 
   /**
@@ -65,7 +85,14 @@ export class R2StorageService {
     contentType?: string,
     makePublic = false,
   ): Promise<string> {
+    if (!this.isConfigured()) {
+      console.warn('[R2StorageService] R2 not configured, uploadFile skipped for:', key);
+      return key;
+    }
     const fs = await import('fs');
+    if (!fs.existsSync(localPath)) {
+      throw new Error(`[R2StorageService] File not found at path: ${localPath}`);
+    }
     const body = fs.readFileSync(localPath);
     return this.upload(key, body, contentType, makePublic);
   }
@@ -74,9 +101,12 @@ export class R2StorageService {
    * Generate presigned URL for temporary access (default 1 hour).
    */
   static async getSignedUrl(key: string, expiresIn = 3600): Promise<string> {
+    if (!this.isConfigured()) {
+      throw new Error('[R2StorageService] Cannot generate signed URL because R2 is not configured.');
+    }
     const client = getClient();
     const command = new GetObjectCommand({
-      Bucket: R2_BUCKET,
+      Bucket: this.getBucket(),
       Key: key,
     });
     return getSignedUrl(client, command, { expiresIn });
@@ -97,9 +127,10 @@ export class R2StorageService {
    * Delete object from R2.
    */
   static async delete(key: string): Promise<void> {
+    if (!this.isConfigured()) return;
     const client = getClient();
     const command = new DeleteObjectCommand({
-      Bucket: R2_BUCKET,
+      Bucket: this.getBucket(),
       Key: key,
     });
     await client.send(command);
@@ -109,9 +140,10 @@ export class R2StorageService {
    * List objects with a prefix (like ls).
    */
   static async list(prefix: string): Promise<string[]> {
+    if (!this.isConfigured()) return [];
     const client = getClient();
     const command = new ListObjectsV2Command({
-      Bucket: R2_BUCKET,
+      Bucket: this.getBucket(),
       Prefix: prefix,
     });
     const result = await client.send(command);
@@ -123,17 +155,21 @@ export class R2StorageService {
    * Falls back to signed URL if public access not enabled.
    */
   static async getPublicUrl(key: string): Promise<string> {
-    if (R2_PUBLIC_URL) {
-      return `${R2_PUBLIC_URL}/${key}`;
+    const publicUrl = (process.env.R2_PUBLIC_URL || '').replace(/^"|"$/g, '');
+    if (publicUrl) {
+      return `${publicUrl.replace(/\/$/, '')}/${key.replace(/^\//, '')}`;
     }
-    // Signed URL 7 hari — cukup untuk akses file
-    return this.getSignedUrl(key, 604800);
+    if (this.isConfigured()) {
+      return this.getSignedUrl(key, 604800);
+    }
+    return `/uploads/${key}`;
   }
 
   /**
    * Get the full R2 URL via endpoint.
    */
   static getR2Url(key: string): string {
-    return `${R2_ENDPOINT}/${R2_BUCKET}/${key}`;
+    const endpoint = (process.env.R2_ENDPOINT || '').replace(/\/$/, '');
+    return `${endpoint}/${this.getBucket()}/${key.replace(/^\//, '')}`;
   }
-}
+}

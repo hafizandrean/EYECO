@@ -128,11 +128,18 @@ export class TuyaCloudService {
     return data.result?.url || '';
   }
 
-  static async validateCredentials(accessId: string, accessSecret: string, region = 'US'): Promise<{ ok: boolean; msg: string; devices?: any[] }> {
+  static async validateCredentials(accessId: string, accessSecret: string, region = 'SG'): Promise<{ ok: boolean; msg: string; devices?: any[] }> {
     try {
-      const devices = await this.listDevices(accessId, accessSecret, region);
-      return { ok: true, msg: `Found ${devices.length} device(s)`, devices };
+      const reg = (region || 'SG').toUpperCase().includes('SINGAPORE') ? 'SG' : region;
+      const devices = await this.listDevices(accessId, accessSecret, reg);
+      if (devices.length === 0) {
+        return { ok: true, msg: 'Kredensial valid, namun belum ada device terhubung di akun Tuya ini.', devices: [] };
+      }
+      return { ok: true, msg: `Berhasil menemukan ${devices.length} perangkat Tuya`, devices };
     } catch (err: any) {
+      if (err.message && err.message.includes('expired')) {
+        return { ok: false, msg: 'Langganan API "IoT Core" / "Smart Home Basic Service" di Tuya Console Anda telah kadaluwarsa (code 28841002). Silakan buka Tuya Developer Platform > Service API lalu klik Renew / Extend.' };
+      }
       return { ok: false, msg: err.message };
     }
   }

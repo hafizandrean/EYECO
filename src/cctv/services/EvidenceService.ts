@@ -63,8 +63,9 @@ export class EvidenceService {
             { $set: { r2Key, r2Url } }
           ).exec();
 
-          // Hapus file lokal
-          try { fs.unlinkSync(absolutePath); } catch { /* ignore */ }
+          // Keep local capture file for continuous AI inference & local fallback serving
+          // try { fs.unlinkSync(absolutePath); } catch { /* ignore */ }
+
 
           console.log(`[EvidenceService] Evidence #${nextEvidenceId} uploaded to R2: ${r2Url}`);
         }

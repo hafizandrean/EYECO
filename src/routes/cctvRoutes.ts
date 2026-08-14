@@ -8,7 +8,9 @@ import { AiDetectionModel } from '../database/models/AiDetection';
 import { authMiddleware, getLoggedInUser } from '../auth/authMiddleware';
 import { roleGuard } from '../auth/RoleMiddleware';
 import { RtspHlsTranscoder } from '../cctv/services/RtspHlsTranscoder';
+import { TuyaClient } from '../cctv/services/TuyaClient';
 const router = Router();
+
 
 // ── RTSP→HLS Transcoder endpoint ─────────────────────────────────────────────
 // Browser calls GET /api/cctv/hls-proxy/:cameraId/stream.m3u8
@@ -26,20 +28,95 @@ router.get('/hls-proxy/:cameraId/stream.m3u8', async (req, res) => {
 
   try {
     const { TuyaClient } = require('../cctv/services/TuyaClient');
+    const { CctvModel } = require('../database/models/Cctv');
+    const camDoc = await CctvModel.findOne({
+      $or: [
+        { id: isNaN(Number(cameraId)) ? -999 : Number(cameraId) },
+        { username: cameraId },
+        { description: { $regex: cameraId } }
+      ]
+    }).lean();
+
+    const accessId = camDoc?.tuyaAccessId || camDoc?.username || process.env.TUYA_CLIENT_ID || 'vqy8kv443e5ef3vrxce8';
+    const accessSecret = camDoc?.tuyaAccessSecret || camDoc?.password || process.env.TUYA_CLIENT_SECRET || 'd6a294ee060747049fd683be64854c5c';
+
     const client = new TuyaClient(
-      process.env.TUYA_CLIENT_ID || 'r5vap3snnr339dyeua5j',
-      process.env.TUYA_CLIENT_SECRET || '5a93707b474b41b9b888b1e2a12ed1c9',
+
+      accessId,
+      accessSecret,
       'https://openapi-sg.iotbing.com'
     );
     await client.getAccessToken();
-    const rtspUrl = await client.getStreamUrl(cameraId, 'rtsp');
+    const streamUrl = await client.getStreamUrl(cameraId, 'HLS');
 
-    // Start or restart ffmpeg transcoder
+    if (streamUrl.startsWith('http://') || streamUrl.startsWith('https://')) {
+      console.log(`[TUYA HLS PROXY] Proxying Tuya Native Cloud HLS URL for device ${cameraId}: ${streamUrl.slice(0, 60)}...`);
+      const hlsRes = await fetch(streamUrl);
+      const playlistText = await hlsRes.text();
+
+      if (hlsRes.ok && playlistText.includes('#EXT') && !playlistText.includes('session not found')) {
+        const baseUrl = new URL(streamUrl);
+        const lines = playlistText.split('\n');
+        const rewrittenLines: string[] = [];
+
+        for (let i = 0; i < lines.length; i++) {
+          let line = lines[i].trim();
+          if (line.startsWith('#EXT-X-KEY:')) {
+            const idx = line.indexOf('URI="');
+            if (idx !== -1) {
+              const endIdx = line.indexOf('"', idx + 5);
+              if (endIdx !== -1) {
+                const origUri = line.substring(idx + 5, endIdx);
+                const absUri = new URL(origUri, baseUrl).toString();
+                const proxied = `/api/cctv/hls-proxy/subresource?url=${encodeURIComponent(absUri)}`;
+                line = line.substring(0, idx + 5) + proxied + line.substring(endIdx);
+              }
+            }
+          } else if (line.length > 0 && !line.startsWith('#')) {
+            const absUri = new URL(line, baseUrl).toString();
+            line = `/api/cctv/hls-proxy/subresource?url=${encodeURIComponent(absUri)}`;
+          }
+          rewrittenLines.push(line);
+        }
+
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+        res.setHeader('Cache-Control', 'no-cache');
+        return res.send(rewrittenLines.join('\n'));
+      }
+      console.warn(`[TUYA HLS PROXY] Native HLS session expired or invalid, clearing cache and falling back to RTSP transcoder...`);
+      TuyaClient.clearStreamCache(cameraId);
+    }
+
+    // Allocate fresh RTSP stream as robust fallback
+    const rtspUrl = await client.getStreamUrl(cameraId, 'RTSP', true);
     const publicUrl = await RtspHlsTranscoder.start(cameraId, rtspUrl);
     res.redirect(publicUrl);
   } catch (err: any) {
+    TuyaClient.clearStreamCache(cameraId);
     console.error(`[HLS Proxy Error] Device ${cameraId}:`, err.message);
     res.status(502).json({ error: `Tuya Real Stream Allocation Failed: ${err.message}` });
+  }
+});
+
+// Proxy for subresources (.ts segment chunks and AES key files)
+router.get('/hls-proxy/subresource', async (req, res) => {
+  try {
+    const targetUrl = req.query.url as string;
+    if (!targetUrl) return res.status(400).send('Missing url parameter');
+
+    const response = await fetch(targetUrl);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    if (response.headers.get('content-type')) {
+      res.setHeader('Content-Type', response.headers.get('content-type')!);
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    res.send(buffer);
+  } catch (err: any) {
+    console.error('[HLS Subresource Proxy Error]:', err.message);
+    res.status(502).send(err.message);
   }
 });
 
@@ -62,7 +139,7 @@ async function refreshTuyaStreamUrl(cctv: any): Promise<string> {
   const { CctvModel } = require('../database/models/Cctv');
   await CctvModel.updateOne(
     { _id: (cctv as any)._id },
-    { $set: { streamUrl: proxyUrl, playUrl: proxyUrl, protocol: 'HLS', mediaType: 'HLS' } }
+    { $set: { streamUrl: proxyUrl, playUrl: proxyUrl } }
   );
   console.log(`[TUYA] HLS proxy URL set for ${cctv.name}: ${proxyUrl}`);
   return proxyUrl;
@@ -108,6 +185,41 @@ router.get('/', async (req, res) => {
   }
 });
 
+// ─── GET /api/cctv/stats ─────────────────────────────────────────────────────
+// Centralized workspace-scoped CCTV statistics endpoint
+router.get('/stats', async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+    let workspaceId: number | undefined = undefined;
+    if (user && user.role !== 'superadmin' && user.workspaceId && user.workspaceId !== -1) {
+      workspaceId = user.workspaceId;
+    }
+
+    const { CctvModel } = require('../database/models/Cctv');
+    const query: Record<string, unknown> = {};
+    if (workspaceId !== undefined) {
+      query.workspaceId = workspaceId;
+    }
+
+    const cameras = await CctvModel.find(query).lean().exec();
+    const registeredTotal = cameras.length;
+    const onlineTotal = cameras.filter((c: any) => c.status === 'ONLINE').length;
+    const offlineTotal = registeredTotal - onlineTotal;
+    const activeStreamTotal = onlineTotal > 0 ? 1 : 0;
+
+    res.json({
+      success: true,
+      registeredTotal,
+      onlineTotal,
+      offlineTotal,
+      activeStreamTotal,
+      workspaceId: workspaceId ?? 'GLOBAL'
+    });
+  } catch (err: any) {
+    console.error('[SERVER ERROR] GET /api/cctv/stats failed:', err);
+    res.status(500).json({ error: 'Gagal mengambil statistik CCTV' });
+  }
+});
 
 router.get('/:id', async (req, res) => {
   try {
@@ -227,6 +339,33 @@ router.post('/', async (req, res) => {
     if (user.role !== 'admin') return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
     if (!user.workspaceId) return res.status(403).json({ error: 'Admin belum diassign ke workspace' });
 
+    if (req.body.vendor === 'KRISBOW') {
+      let deviceId = (req.body.tuyaDeviceId || req.body.virtualId || req.body.deviceId || '').trim();
+      const ip = (req.body.ip || req.body.host || '38.52.195.243').trim();
+      if (!deviceId && req.body.description) {
+        const match = req.body.description.match(/Virtual ID:\s*([a-zA-Z0-9_-]+)/) || req.body.description.match(/Tuya Device ID:\s*([a-zA-Z0-9_-]+)/);
+        if (match) deviceId = match[1];
+      }
+
+      if (!deviceId) {
+        return res.status(400).json({ error: 'Virtual ID / Device ID Krisbow Sync wajib diisi.' });
+      }
+
+      const proxyUrl = `/api/cctv/hls-proxy/${deviceId}/stream.m3u8`;
+      req.body.tuyaDeviceId = deviceId;
+      req.body.streamUrl = proxyUrl;
+      req.body.playUrl = proxyUrl;
+      req.body.mediaType = 'HLS';
+      req.body.protocol = 'HLS';
+      if (!req.body.description || !req.body.description.includes('Virtual ID')) {
+        req.body.description = req.body.description ? `${req.body.description} | Virtual ID: ${deviceId} | IP: ${ip}` : `Virtual ID: ${deviceId} | IP: ${ip} | Tuya Device ID: ${deviceId}`;
+      }
+
+      const newCctv = await CctvRepository.add({ ...req.body, workspaceId: user.workspaceId }, user.id);
+      CctvHealthEngine.checkCameraHealth(newCctv.id);
+      return res.json({ success: true, data: newCctv });
+    }
+
     if (req.body.vendor === 'TUYA') {
       const accessId = (req.body.tuyaAccessId || req.body.username || '').trim();
       const accessSecret = (req.body.tuyaAccessSecret || req.body.password || '').trim();
@@ -273,16 +412,19 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
-    const workspaceId = user ? (user.workspaceId || -1) : -1;
+    const workspaceId = (user && user.workspaceId && user.workspaceId !== -1) ? user.workspaceId : undefined;
 
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: 'ID tidak valid' });
 
-    const camera = await CctvRepository.getById(id, workspaceId);
+    const camera = await CctvRepository.getById(id);
     if (!camera) return res.status(404).json({ error: 'CCTV tidak ditemukan' });
 
-    const vendor = req.body.vendor !== undefined ? req.body.vendor : camera.vendor;
-    if (vendor === 'TUYA') {
+    const isCredentialsChanged = (req.body.username !== undefined && req.body.username !== camera.username) ||
+                                 (req.body.password !== undefined && req.body.password !== camera.password) ||
+                                 (req.body.vendor !== undefined && req.body.vendor !== camera.vendor);
+
+    if (req.body.vendor === 'TUYA' && isCredentialsChanged) {
       const accessId = req.body.username !== undefined ? req.body.username : camera.username;
       const accessSecret = req.body.password !== undefined ? req.body.password : (camera.password ? CctvRepository.decryptCctvPassword(camera.password) : '');
       const description = req.body.description !== undefined ? req.body.description : camera.description;
@@ -324,8 +466,8 @@ router.put('/:id', async (req, res) => {
       }
     }
 
-    const updated = await CctvRepository.update(id, req.body, workspaceId);
-    CctvHealthEngine.checkCameraHealth(id);
+    const updated = await CctvRepository.update(id, req.body);
+    CctvHealthEngine.checkCameraHealth(id).catch(e => console.warn('[HEALTH ENGINE BACKGROUND CHECK ERROR]', e));
     res.json({ success: true, data: updated });
   } catch (err: unknown) {
     console.error('[SERVER ERROR] PUT /api/cctv/:id failed:', err);
@@ -353,7 +495,7 @@ router.delete('/clear-all', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
-    const workspaceId = user ? (user.workspaceId || -1) : -1;
+    const workspaceId = (user && user.workspaceId && user.workspaceId !== -1) ? user.workspaceId : undefined;
 
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: 'ID tidak valid' });
@@ -511,8 +653,9 @@ router.post('/tuya-sync', async (req, res) => {
     if (user.role !== 'admin') return res.status(403).json({ error: 'Akses ditolak: Khusus Admin' });
     if (!user.workspaceId) return res.status(403).json({ error: 'Admin belum diassign ke workspace' });
 
-    const clientId = req.body.clientId || process.env.TUYA_CLIENT_ID || 'r5vap3snnr339dyeua5j';
-    const clientSecret = req.body.clientSecret || process.env.TUYA_CLIENT_SECRET || '5a93707b474b41b9b888b1e2a12ed1c9';
+    const clientId = req.body.clientId || process.env.TUYA_CLIENT_ID || 'vqy8kv443e5ef3vrxce8';
+    const clientSecret = req.body.clientSecret || process.env.TUYA_CLIENT_SECRET || 'd6a294ee060747049fd683be64854c5c';
+
     const region = req.body.region || 'https://openapi-sg.iotbing.com';
 
     const { TuyaClient } = require('../cctv/services/TuyaClient');

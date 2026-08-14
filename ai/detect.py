@@ -532,9 +532,12 @@ def infer_image(
             final = filtered_upper
 
         # ── STEP 3: Non-Person NMS ──
-        # Merge duplicate non-person (car double, dll) — IOU > 0.4
+        # Merge duplicate non-person (car double, dll) — IOU > 0.4 ONLY between non-person objects
+        current_persons = [d for d in final if is_person(d["class"])]
+        current_non_persons = [d for d in final if not is_person(d["class"])]
+
         non_person_nms = []
-        for d in final:
+        for d in current_non_persons:
             is_dup = False
             for m in non_person_nms:
                 if bbox_iou(d["bbox"], m["bbox"]) > 0.4:
@@ -546,7 +549,7 @@ def infer_image(
                     break
             if not is_dup:
                 non_person_nms.append(d)
-        final = non_person_nms
+        final = current_persons + non_person_nms
 
         # ── STEP 4: Trash Pile False Positive Filter ──
         # Custom model best.pt punya class 'Trash pile' yang sering FP ke mobil/pohon
@@ -618,13 +621,12 @@ def infer_image(
         final = [d for d in final if d.get("class") != "__skip__"]
 
         # ── STEP 6: Minimum Confidence Floor & Size Filter ──
-        # Person: skip yang terlalu noise (< 0.35) kecuali di scene crowded (>6 person)
-        # Non-person: minimum 0.40 untuk kurangi false alarm pada baju/background
-        PERSON_MIN_CONF = 0.35
-        NON_PERSON_MIN_CONF = 0.40
+        # Person: skip yang terlalu noise (< 0.20)
+        # Non-person: minimum 0.20 agar bounding box visualisasi tidak dibuang sebelum dibaca frontend
+        PERSON_MIN_CONF = 0.20
+        NON_PERSON_MIN_CONF = 0.20
         person_count = len([d for d in final if is_person(d["class"])])
-        # Kalo scene crowded (>6 person), turunin threshold biar gak kehilangan real person
-        person_conf_threshold = PERSON_MIN_CONF if person_count <= 6 else 0.30
+        person_conf_threshold = PERSON_MIN_CONF if person_count <= 6 else 0.20
         
         filtered_final = []
         for d in final:
@@ -633,8 +635,7 @@ def infer_image(
             bh_pct = (y2 - y1) / proc_h * 100
             
             if is_person(d["class"]):
-                # Filter person: minimal threshold confidence DAN ukuran w >= 4%, h >= 8%
-                if d["confidence"] >= person_conf_threshold and bw_pct >= 4.0 and bh_pct >= 8.0:
+                if d["confidence"] >= person_conf_threshold and bw_pct >= 3.0 and bh_pct >= 6.0:
                     filtered_final.append(d)
             else:
                 if d["confidence"] >= NON_PERSON_MIN_CONF:

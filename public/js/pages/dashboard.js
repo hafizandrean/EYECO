@@ -77,7 +77,7 @@ export class DashboardPage {
         <div class="glass-card dash-kpi glow-red">
           <div class="dash-kpi-icon red"><i data-lucide="x-circle"></i></div>
           <div class="dash-kpi-body">
-            <span class="dash-kpi-label">Dibatalkan</span>
+            <span class="dash-kpi-label">Tidak Valid</span>
             <span class="dash-kpi-value tabular-nums" id="dashboard-stat-cancelled">0</span>
           </div>
         </div>
@@ -103,7 +103,7 @@ export class DashboardPage {
             <div class="chart-bar-wrapper">
               <span class="chart-value tabular-nums" id="dashboard-val-ignored-count" style="font-size: 1.9rem; font-weight: 800;">0</span>
               <div class="chart-bar ignored" id="dashboard-bar-ignored" style="height: 0%;"></div>
-              <span class="chart-label" style="font-size: 0.85rem; font-weight: 700;">Dibatalkan</span>
+              <span class="chart-label" style="font-size: 0.85rem; font-weight: 700;">Tidak Valid</span>
             </div>
           </div>
         </div>
@@ -191,12 +191,10 @@ export class DashboardPage {
     // Skeleton loading simulation
     this.renderSkeletons();
     
-    // Load initial data safely
-    try {
-      await this.loadData();
-    } catch (err) {
+    // Load initial data safely (non-blocking)
+    this.loadData().catch(err => {
       console.warn('[Dashboard] loadData inside render failed:', err);
-    }
+    });
 
     // Start polling
     this.startPolling();
@@ -325,15 +323,15 @@ export class DashboardPage {
         title = `Laporan #${r.id} Diabaikan`;
         message = `Ditandai DIABAIKAN di ${r.location}`;
         level = 'warning';
-      } else if (r.aiStatus === 'TINGGI') {
+      } else if (r.aiStatus === 'TINGGI' || r.aiStatus === 'HIGH') {
         title = `Ancaman TINGGI di ${r.location}`;
         message = r.additionalNotes || 'Aktivitas sangat mencurigakan terdeteksi AI.';
         level = 'high';
-      } else if (r.aiStatus === 'SEDANG') {
+      } else if (r.aiStatus === 'SEDANG' || r.aiStatus === 'MEDIUM') {
         title = `Ancaman SEDANG di ${r.location}`;
         message = r.additionalNotes || 'Aktivitas mencurigakan terdeteksi AI.';
         level = 'medium';
-      } else if (r.aiStatus === 'RENDAH') {
+      } else if (r.aiStatus === 'RENDAH' || r.aiStatus === 'LOW') {
         title = `Objek Terdeteksi di ${r.location}`;
         message = r.additionalNotes || 'Kamera mendeteksi objek dengan keyakinan rendah.';
         level = 'low';
@@ -574,18 +572,23 @@ export class DashboardPage {
   // 4. Populate Camera Online Status in sidebar
   async populateCameraStatus() {
     try {
+      const statsRes = await fetch('/api/cctv/stats', { credentials: 'include' });
+      const stats = await statsRes.json();
+
       const cctvList = await CctvService.getCctvList();
       const onlineCameras = cctvList.filter(c => c.enabled && c.online);
-      const totalCameras = cctvList.filter(c => c.enabled).length;
+
+      const registeredTotal = stats.success ? stats.registeredTotal : cctvList.filter(c => c.enabled).length;
+      const onlineTotal = stats.success ? stats.onlineTotal : onlineCameras.length;
 
       const onlineEl = document.getElementById('stat-online-cameras');
       const totalEl = document.getElementById('stat-total-cameras');
       const badgeEl = document.getElementById('camera-online-badge');
       const listEl = document.getElementById('online-camera-list');
 
-      if (onlineEl) onlineEl.innerText = onlineCameras.length;
-      if (totalEl) totalEl.innerText = totalCameras;
-      if (badgeEl) badgeEl.innerText = `${onlineCameras.length} / ${totalCameras} Kamera Online`;
+      if (onlineEl) onlineEl.innerText = onlineTotal;
+      if (totalEl) totalEl.innerText = registeredTotal;
+      if (badgeEl) badgeEl.innerText = `${onlineTotal} / ${registeredTotal} Kamera Online`;
 
       if (listEl) {
         if (onlineCameras.length === 0) {

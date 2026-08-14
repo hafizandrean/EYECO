@@ -2,16 +2,23 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ReportAiProjectionService = void 0;
 class ReportAiProjectionService {
+    /**
+     * Derive AI status strictly from a valid indication score (0-100).
+     * Note: 0 is a valid score (Tidak Terindikasi).
+     * null / undefined / NaN / non-finite / out-of-bound values (<0 or >100) return 'NONE'.
+     */
     static deriveAiStatusFromScore(score) {
-        if (score === null || score === undefined || typeof score !== 'number' || isNaN(score)) {
+        if (score === null || score === undefined || typeof score !== 'number' || !Number.isFinite(score)) {
             return 'NONE';
         }
-        const safeScore = Math.max(0, Math.min(100, score));
-        if (safeScore >= 75)
+        if (score < 0 || score > 100) {
+            return 'NONE';
+        }
+        if (score >= 75)
             return 'HIGH';
-        if (safeScore >= 50)
+        if (score >= 50)
             return 'MEDIUM';
-        if (safeScore >= 25)
+        if (score >= 25)
             return 'LOW';
         return 'NONE';
     }
@@ -49,8 +56,8 @@ class ReportAiProjectionService {
             if (!snapshot)
                 return 'SNAPSHOT_MISSING';
             const decision = (snapshot.decision || {});
-            const snapshotScore = typeof decision.violationScore === 'number' ? decision.violationScore : null;
-            const reportScore = typeof report.violationScore === 'number' ? report.violationScore : null;
+            const snapshotScore = typeof decision.violationScore === 'number' && Number.isFinite(decision.violationScore) ? decision.violationScore : null;
+            const reportScore = typeof report.violationScore === 'number' && Number.isFinite(report.violationScore) ? report.violationScore : null;
             const snapshotStatus = this.normalizeAiStatus(decision.status || decision.aiStatus);
             const reportStatus = this.normalizeAiStatus(report.aiStatus);
             if (snapshotScore !== reportScore || snapshotStatus !== reportStatus) {
@@ -83,8 +90,10 @@ class ReportAiProjectionService {
         }
         if (integrityStatus === 'VALID' && snapshot) {
             const decision = snapshot.decision || {};
-            const isOutcomeIncomplete = decision.analysisOutcome === 'INCOMPLETE' || decision.violationScore === null;
-            const score = typeof decision.violationScore === 'number' ? decision.violationScore : null;
+            const rawScore = decision.violationScore;
+            const isValidScore = typeof rawScore === 'number' && Number.isFinite(rawScore) && rawScore >= 0 && rawScore <= 100;
+            const score = isValidScore ? rawScore : null;
+            const isOutcomeIncomplete = decision.analysisOutcome === 'INCOMPLETE' || score === null;
             const derivedStatus = isOutcomeIncomplete ? 'NONE' : this.deriveAiStatusFromScore(score);
             const statusLabels = {
                 'HIGH': 'Indikasi Tinggi',
@@ -110,7 +119,7 @@ class ReportAiProjectionService {
         if (integrityStatus === 'SNAPSHOT_MISSING') {
             return {
                 aiStatus: this.normalizeAiStatus(report.aiStatus),
-                aiStatusLabel: report.aiStatus || 'Data Tidak Lengkap',
+                aiStatusLabel: report.aiStatus || 'Tidak Tersedia',
                 violationScore: null,
                 decisionConfidence: null,
                 objectConfidence: null,
@@ -123,10 +132,12 @@ class ReportAiProjectionService {
             };
         }
         if (integrityStatus === 'INCONSISTENT') {
+            const rawScore = report.violationScore;
+            const isValidScore = typeof rawScore === 'number' && Number.isFinite(rawScore) && rawScore >= 0 && rawScore <= 100;
             return {
                 aiStatus: this.normalizeAiStatus(report.aiStatus),
                 aiStatusLabel: 'Inkonsisten',
-                violationScore: typeof report.violationScore === 'number' ? report.violationScore : null,
+                violationScore: isValidScore ? rawScore : null,
                 decisionConfidence: typeof report.decisionConfidence === 'number' ? report.decisionConfidence : null,
                 objectConfidence: typeof report.objectConfidence === 'number' ? report.objectConfidence : null,
                 sceneConfidence: typeof report.sceneConfidence === 'number' ? report.sceneConfidence : null,
@@ -138,11 +149,13 @@ class ReportAiProjectionService {
             };
         }
         // LEGACY report
-        const validScore = typeof report.violationScore === 'number' && report.violationScore > 0 ? report.violationScore : null;
+        const rawScore = report.violationScore;
+        const isValidScore = typeof rawScore === 'number' && Number.isFinite(rawScore) && rawScore >= 0 && rawScore <= 100;
+        const validScore = isValidScore ? rawScore : null;
         const derivedStatus = validScore !== null ? this.deriveAiStatusFromScore(validScore) : this.normalizeAiStatus(report.aiStatus);
         return {
             aiStatus: derivedStatus,
-            aiStatusLabel: report.aiStatus || 'Tidak Terindikasi',
+            aiStatusLabel: validScore === null ? 'Tidak Tersedia' : (derivedStatus === 'NONE' ? 'Tidak Terindikasi' : (derivedStatus === 'HIGH' ? 'Indikasi Tinggi' : (derivedStatus === 'MEDIUM' ? 'Indikasi Sedang' : 'Indikasi Rendah'))),
             violationScore: validScore,
             decisionConfidence: null,
             objectConfidence: null,
@@ -158,38 +171,39 @@ class ReportAiProjectionService {
         if (!email || !email.includes('@'))
             return '***@***';
         const [name, domain] = email.split('@');
-        const maskedName = name.length <= 2 ? name + '***' : name.slice(0, 2) + '***';
-        return `${maskedName}@${domain}`;
+        if (name.length <= 2)
+            return `${name.charAt(0)}***@${domain}`;
+        return `${name.slice(0, 2)}***@${domain}`;
     }
     static maskPhone(phone) {
         if (!phone)
-            return '08**********';
-        const clean = phone.replace(/\D/g, '');
+            return '08***';
+        const clean = phone.replace(/[^0-9+]/g, '');
         if (clean.length <= 4)
-            return '08**********';
-        return clean.slice(0, 4) + '****' + clean.slice(-2);
+            return '08***';
+        return `${clean.slice(0, 3)}***${clean.slice(-3)}`;
     }
-    static projectReporterForViewer(userDoc, reportUserId, viewerId, viewerRole) {
-        const isOwner = Boolean(viewerId && String(viewerId) === String(reportUserId));
-        const isAdmin = Boolean(viewerRole === 'admin' || viewerRole === 'superadmin');
-        const name = userDoc?.name || userDoc?.username || 'Pelapor Anonim';
-        const email = userDoc?.email || '';
-        const phone = userDoc?.phone || '';
-        if (isAdmin || isOwner) {
+    static projectReporterForViewer(uploaderDoc, uploaderUserId, viewerUserId, viewerRole) {
+        const isSelf = uploaderUserId === viewerUserId;
+        const isAdmin = viewerRole === 'admin' || viewerRole === 'superadmin';
+        const rawName = uploaderDoc?.name || uploaderDoc?.username || `User #${uploaderUserId}`;
+        const rawEmail = uploaderDoc?.email || '';
+        const rawPhone = uploaderDoc?.phone || '';
+        if (isAdmin || isSelf) {
             return {
-                name,
-                email,
-                phone,
-                maskedEmail: this.maskEmail(email),
-                maskedPhone: this.maskPhone(phone),
-                isSelf: isOwner,
+                name: rawName,
+                email: rawEmail,
+                phone: rawPhone,
+                maskedEmail: this.maskEmail(rawEmail),
+                maskedPhone: this.maskPhone(rawPhone),
+                isSelf
             };
         }
         return {
-            name,
-            maskedEmail: this.maskEmail(email),
-            maskedPhone: this.maskPhone(phone),
-            isSelf: false,
+            name: isSelf ? rawName : (uploaderDoc?.username ? `@${uploaderDoc.username}` : 'Pelapor Terverifikasi'),
+            maskedEmail: this.maskEmail(rawEmail),
+            maskedPhone: this.maskPhone(rawPhone),
+            isSelf
         };
     }
 }

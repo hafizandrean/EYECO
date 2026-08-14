@@ -173,7 +173,7 @@ router.get('/detections/:id', async (req, res) => {
         Object.assign(responseReport, aiProjection);
         // Reporter privacy projection (Backend-enforced, NO raw email/phone sent to unauthorized users)
         const uploaderDoc = report.userId ? await User_1.UserModel.findById(report.userId).select('username name avatar email phone id').lean().exec() : null;
-        const reporterProj = ReportAiProjectionService_1.ReportAiProjectionService.projectReporterForViewer(uploaderDoc, uploaderDoc?.id, user?.id, user?.role);
+        const reporterProj = ReportAiProjectionService_1.ReportAiProjectionService.projectReporterForViewer(uploaderDoc, uploaderDoc?.id || 0, user?.id || 0, user?.role || 'user');
         responseReport.reporterInfo = reporterProj;
         if (responseReport.image && typeof responseReport.image === 'string') {
             let img = responseReport.image;
@@ -220,7 +220,7 @@ router.post('/detections/:id/verify', async (req, res) => {
             return res.status(403).json({ error: 'Admin belum memiliki workspace aktif' });
         const id = parseInt(req.params.id);
         const { status, notes, assignedOfficer, progressStatus } = req.body;
-        if (!status || !['VALID', 'DIABAIKAN', 'MENUNGGU'].includes(status)) {
+        if (!status || !['VALID', 'TIDAK_VALID', 'MENUNGGU'].includes(status)) {
             return res.status(400).json({ error: 'Status tidak valid' });
         }
         const updatedReport = await ReportRepository_1.ReportRepository.updateVerification(id, status, notes || '', assignedOfficer, progressStatus, user.workspaceId);
@@ -450,7 +450,7 @@ router.post('/detections', (req, res, next) => {
             location: location || 'Lokasi tidak diketahui',
             aiStatus: 'Tidak Terindikasi',
             aiConfidence: null,
-            image: `/uploads/${req.file.filename}`,
+            image: `/uploads/laporan_manual/${req.file.filename}`,
             identity: identity || 'Belum diketahui',
             sourceType: sourceType || 'Gambar',
             additionalNotes: additionalNotes || 'Tidak ada catatan tambahan.',
@@ -551,8 +551,8 @@ router.post('/detections', (req, res, next) => {
         try {
             await R2StorageService_1.R2StorageService.uploadFile(finalFilePath, r2Key, contentType, true);
             const r2Url = await R2StorageService_1.R2StorageService.getPublicUrl(r2Key);
-            // Update image & videoPath di MongoDB — pake path yg match R2 key
-            const imagePath = `/uploads/reports/${newReport.id}/${req.file.filename}`;
+            // Update image & videoPath di MongoDB — pake path yg match R2 key (proxy /uploads map ke eyecofiles/)
+            const imagePath = `/uploads/laporan_manual/${newReport.id}/${req.file.filename}`;
             const r2Updates = { r2Key };
             if (!isVideo) {
                 r2Updates.image = imagePath;

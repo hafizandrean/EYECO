@@ -193,9 +193,9 @@ router.get('/detections/:id', async (req, res) => {
     const uploaderDoc = report.userId ? await UserModel.findById(report.userId as any).select('username name avatar email phone id').lean().exec() : null;
     const reporterProj = ReportAiProjectionService.projectReporterForViewer(
       uploaderDoc,
-      uploaderDoc?.id,
-      user?.id,
-      user?.role
+      uploaderDoc?.id || 0,
+      user?.id || 0,
+      user?.role || 'user'
     );
     responseReport.reporterInfo = reporterProj;
 
@@ -246,7 +246,7 @@ router.post('/detections/:id/verify', async (req, res) => {
     const id = parseInt(req.params.id);
     const { status, notes, assignedOfficer, progressStatus } = req.body;
 
-    if (!status || !['VALID', 'DIABAIKAN', 'MENUNGGU'].includes(status)) {
+    if (!status || !['VALID', 'TIDAK_VALID', 'MENUNGGU'].includes(status)) {
       return res.status(400).json({ error: 'Status tidak valid' });
     }
 

@@ -65,19 +65,77 @@ export class TelegramNotificationChannel implements INotificationChannel {
         `<b>Keterangan:</b> ${report.additionalNotes}\n\n` +
         `<a href="${reportUrl}">Buka Laporan di Dashboard</a>`;
 
-      // Baca file gambar bukti visual dari disk
-      const imageRelativePath = report.image.startsWith('/') ? report.image : `/${report.image}`;
-      const imagePath = path.join(process.cwd(), 'public', imageRelativePath);
+      // 3. Resolve file gambar bukti visual dari disk lokal (dengan multi-folder fallback)
+      let fileBuffer: Buffer | null = null;
+      let filename = 'evidence.jpg';
+
+      // Direct path check
+      const defaultPath = path.join(process.cwd(), 'public', report.image.startsWith('/') ? report.image : `/${report.image}`);
+      if (fs.existsSync(defaultPath) && fs.statSync(defaultPath).isFile()) {
+        fileBuffer = fs.readFileSync(defaultPath);
+        filename = path.basename(defaultPath);
+      } else {
+        // Multi-location search in uploads/
+        const baseName = path.basename(report.image);
+        const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+        const candidates = [
+          path.join(uploadsDir, baseName),
+          path.join(uploadsDir, 'reports', String(report.id), baseName),
+          path.join(uploadsDir, 'laporan_manual', baseName),
+          path.join(uploadsDir, 'laporan_auto', baseName)
+        ];
+
+        for (const cand of candidates) {
+          if (fs.existsSync(cand) && fs.statSync(cand).isFile()) {
+            fileBuffer = fs.readFileSync(cand);
+            filename = baseName;
+            break;
+          }
+        }
+
+        // Subdirectories search under uploads/reports/
+        if (!fileBuffer) {
+          const reportsDir = path.join(uploadsDir, 'reports');
+          if (fs.existsSync(reportsDir)) {
+            try {
+              const subdirs = fs.readdirSync(reportsDir);
+              for (const sub of subdirs) {
+                const cand = path.join(reportsDir, sub, baseName);
+                if (fs.existsSync(cand) && fs.statSync(cand).isFile()) {
+                  fileBuffer = fs.readFileSync(cand);
+                  filename = baseName;
+                  break;
+                }
+              }
+            } catch (_) {}
+          }
+        }
+      }
+
+      // If still not found locally, fetch via HTTP internal proxy
+      if (!fileBuffer) {
+        try {
+          const baseName = path.basename(report.image);
+          const fetchUrl = `http://localhost:${port}/uploads/${baseName}`;
+          console.log(`[TelegramChannel] Local file not found on disk, fetching from ${fetchUrl}...`);
+          const imgRes = await fetch(fetchUrl);
+          if (imgRes.ok) {
+            fileBuffer = Buffer.from(await imgRes.arrayBuffer());
+            filename = baseName;
+          }
+        } catch (fetchErr: any) {
+          console.warn('[TelegramChannel] Could not fetch image via HTTP:', fetchErr.message);
+        }
+      }
 
       let response;
-      if (fs.existsSync(imagePath)) {
-        console.log(`[TelegramChannel] Uploading visual evidence: ${imagePath}`);
-        const fileBuffer = fs.readFileSync(imagePath);
-        const fileBlob = new Blob([fileBuffer], { type: 'image/jpeg' });
+      if (fileBuffer && fileBuffer.length > 0) {
+        console.log(`[TelegramChannel] Sending photo evidence to Telegram (${filename}, ${fileBuffer.length} bytes)...`);
+        const fileBlob = new Blob([new Uint8Array(fileBuffer)], { type: 'image/jpeg' });
 
         const formData = new FormData();
         formData.append('chat_id', chatId);
-        formData.append('photo', fileBlob, path.basename(imagePath));
+        formData.append('photo', fileBlob, filename);
         formData.append('caption', messageText);
         formData.append('parse_mode', 'HTML');
 
@@ -87,7 +145,7 @@ export class TelegramNotificationChannel implements INotificationChannel {
           body: formData
         });
       } else {
-        console.log(`[TelegramChannel] Evidence file not found at ${imagePath}, falling back to sendMessage`);
+        console.warn(`[TelegramChannel] Evidence photo unavailable for Report #${report.id}, sending text-only message.`);
         const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
         response = await fetch(url, {
           method: 'POST',
@@ -115,3 +173,4 @@ export class TelegramNotificationChannel implements INotificationChannel {
     }
   }
 }
+

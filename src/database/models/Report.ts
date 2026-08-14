@@ -61,7 +61,13 @@ export interface IReport extends Document {
   analysisErrorCode?: string | null;
   analysisClaimToken?: string | null;
   analysisNextRetryAt?: Date | null;
-  adminStatus: 'MENUNGGU' | 'VALID' | 'DIABAIKAN';
+  adminStatus: 'MENUNGGU' | 'VALID' | 'TIDAK_VALID';
+  telegramStatus?: 'NOT_ELIGIBLE' | 'QUEUED' | 'SENDING' | 'SENT' | 'FAILED';
+  telegramSentAt?: Date | null;
+  telegramError?: string | null;
+  telegramAttemptCount?: number;
+  telegramLastAttemptAt?: Date | null;
+  telegramMessageId?: string | null;
   image: string;
   identity: string;
   sourceType: string;
@@ -197,11 +203,22 @@ const ReportSchema = new Schema<IReport>({
   analysisNextRetryAt: { type: Date, default: null, index: true },
   adminStatus: { 
     type: String, 
-    enum: ['MENUNGGU', 'VALID', 'DIABAIKAN'], 
+    enum: ['MENUNGGU', 'VALID', 'TIDAK_VALID'], 
     required: true, 
     default: 'MENUNGGU', 
     index: true 
   },
+  telegramStatus: {
+    type: String,
+    enum: ['NOT_ELIGIBLE', 'QUEUED', 'SENDING', 'SENT', 'FAILED'],
+    default: 'NOT_ELIGIBLE',
+    index: true
+  },
+  telegramSentAt: { type: Date, default: null },
+  telegramError: { type: String, default: null },
+  telegramAttemptCount: { type: Number, default: 0 },
+  telegramLastAttemptAt: { type: Date, default: null },
+  telegramMessageId: { type: String, default: null },
   image: { type: String, required: true },
   identity: { type: String, default: 'Belum diketahui', trim: true },
   sourceType: { type: String, required: true, trim: true },
@@ -212,7 +229,7 @@ const ReportSchema = new Schema<IReport>({
   assignedOfficer: { type: String, default: '' },
   status: { 
     type: String, 
-    enum: ['NEW', 'UNDER_REVIEW', 'VALIDATED', 'ASSIGNED', 'ON_SITE', 'IN_PROGRESS', 'RESOLVED', 'WAITING_APPROVAL', 'CLOSED', 'REJECTED'], 
+    enum: ['NEW', 'PENDING', 'UNDER_REVIEW', 'VALIDATED', 'ASSIGNED', 'ON_SITE', 'IN_PROGRESS', 'PROSES', 'RESOLVED', 'SELESAI', 'WAITING_APPROVAL', 'CLOSED', 'REJECTED', 'DITOLAK'], 
     default: 'NEW', 
     index: true 
   },

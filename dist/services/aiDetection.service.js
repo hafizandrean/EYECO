@@ -336,7 +336,7 @@ function extractFrame(inputPath, outputPath, timestampSec) {
         });
     });
 }
-async function detectFile(filePath, options = {}) {
+async function detectFile(filePath, options = { conf: 0.20 }) {
     // Validasi file exist
     if (!fs_1.default.existsSync(filePath)) {
         console.error('[AI] File not found:', filePath);

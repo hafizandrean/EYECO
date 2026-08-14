@@ -56,27 +56,36 @@ export class RtspHlsTranscoder {
     const m3u8Path = path.join(outputDir, 'stream.m3u8').replace(/\\/g, '/');
     const segmentFilename = path.join(outputDir, 'seg%03d.ts').replace(/\\/g, '/');
 
+    // Create placeholder m3u8 file immediately so GET /hls/:id/stream.m3u8 never returns 404
+    const initPlaylist = '#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:2\n#EXT-X-MEDIA-SEQUENCE:0\n';
+    try { fs.writeFileSync(m3u8Path, initPlaylist); } catch {}
+
     console.log(`[RTSP→HLS] Starting transcoder for device ${deviceId}`);
     console.log(`[RTSP→HLS] Input: ${rtspUrl.slice(0, 60)}...`);
     console.log(`[RTSP→HLS] Output: ${m3u8Path}`);
 
     const args = [
-      '-loglevel', 'warning',
-      '-rtsp_transport', 'tcp',
+      '-loglevel', 'warning'
+    ];
+
+    if (rtspUrl.startsWith('rtsp://')) {
+      args.push('-rtsp_transport', 'tcp');
+    }
+
+    args.push(
       '-i', rtspUrl,
-      '-c:v', 'libx264', // re-encode H265/HEVC → H264 (copy crash SIGSEGV)
-      '-preset', 'veryfast',
+      '-c:v', 'libx264',
+      '-preset', 'ultrafast',
       '-tune', 'zerolatency',
       '-pix_fmt', 'yuv420p',
       '-an',
       '-f', 'hls',
       '-hls_time', '1',
-      '-hls_list_size', '15',
+      '-hls_list_size', '10',
       '-hls_flags', 'delete_segments+append_list+omit_endlist+temp_file',
-      '-hls_allow_cache', '0',
       '-hls_segment_filename', segmentFilename,
       m3u8Path
-    ];
+    );
 
     const proc = spawn(ffmpegPath, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -106,15 +115,14 @@ export class RtspHlsTranscoder {
       deviceId,
     });
 
-    // Wait until the playlist actually has at least one segment (default 30s)
-    // so the browser's first GET of /hls/:id/stream.m3u8 doesn't 404 (no file yet).
-    const ready = await this.waitForFirstSegment(deviceId, 30000);
-    if (!ready) {
-      this.stop(deviceId);
-      throw new Error('Transcoder gagal menghasilkan segmen HLS (device offline?)');
+    // Wait for initial segment generation (up to 45s)
+    await this.waitForFirstSegment(deviceId, 45000);
+
+    if (this.isRunning(deviceId)) {
+      return this.getPublicUrl(deviceId);
     }
 
-    return this.getPublicUrl(deviceId);
+    throw new Error('Transcoder FFmpeg exited prematurely (device offline or stream error)');
   }
 
   // Waits until stream.m3u8 exists AND contains at least one .ts segment.
@@ -123,14 +131,30 @@ export class RtspHlsTranscoder {
   private static waitForFirstSegment(deviceId: string, timeoutMs: number): Promise<boolean> {
     return new Promise((resolve) => {
       const playlistPath = this.getPlaylistPath(deviceId);
+      const outputDir = this.getOutputDir(deviceId);
       const start = Date.now();
+
       const check = () => {
         try {
-          const content = fs.readFileSync(playlistPath, 'utf8');
-          if (/\.ts/.test(content)) return resolve(true);
-        } catch { /* playlist not written yet */ }
-        if (Date.now() - start > timeoutMs) return resolve(false); // Timeout — proceed anyway
-        setTimeout(check, 500);
+          if (fs.existsSync(playlistPath)) {
+            const content = fs.readFileSync(playlistPath, 'utf8');
+            if (/\.ts/.test(content)) return resolve(true);
+          }
+          if (fs.existsSync(outputDir)) {
+            const files = fs.readdirSync(outputDir);
+            if (files.some(f => f.endsWith('.ts'))) return resolve(true);
+          }
+        } catch { /* checking */ }
+
+        const session = sessions.get(deviceId);
+        if (!session || session.process.exitCode !== null) {
+          return resolve(false);
+        }
+
+        if (Date.now() - start > timeoutMs) {
+          return resolve(this.isRunning(deviceId));
+        }
+        setTimeout(check, 400);
       };
       check();
     });

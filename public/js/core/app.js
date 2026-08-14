@@ -14,7 +14,8 @@ import { Detail } from '../pages/detail.js';
 import { Home } from '../pages/home.js';
 import { Profile } from '../pages/profile.js';
 import { BeritaAdmin } from '../pages/berita-admin.js';
-import { CctvMonitoring } from '../pages/cctv-monitoring.js?v=1.9.0';
+import { CctvMonitoring } from '../pages/cctv-monitoring.js';
+import { WorkspaceRequestsPage } from '../pages/workspace-requests.js';
 import { FAQ } from '../pages/faq.js';
 
 class AppInitializer {
@@ -58,84 +59,80 @@ class AppInitializer {
   }
 
   // Melakukan rendering halaman dinamis ke viewport utama
-  async handleRouteNavigation(path) {
+  async handleRouteNavigation(rawPath) {
+    const path = (rawPath && rawPath.length > 1 && rawPath.endsWith('/')) ? rawPath.slice(0, -1) : rawPath;
+
     // Bersihkan timers/polling pada halaman sebelumnya
     if (this.currentPageInstance && typeof this.currentPageInstance.destroy === 'function') {
       this.currentPageInstance.destroy();
     }
 
-    // Scroll ke atas mkomen
+    // Scroll ke atas
     window.scrollTo(0, 0);
     document.body.scrollTop = 0;
     document.documentElement.scrollTop = 0;
 
     // Navbar tetap tampil di Settings — tapi tab diganti search bar (lihat Header.js)
     const isSettings = path === '/dashboard/settings' || path === '/dashboard/profile';
-    // Fallback: jika langsung load /dashboard/settings (refresh), default sesuai role
     if (isSettings && !sessionStorage.getItem('eyeco_settings_return')) {
       const role = AppState.get('user')?.role;
       sessionStorage.setItem('eyeco_settings_return', role === 'superadmin' ? '/superadmin' : '/dashboard');
     }
 
-    // Render halaman baru DI BELAKANG LAYER (opacity 0), tanpa nunggu
-    // Dengan begini pas indicator slider sampe, konten udah siap
-    this.viewport.style.opacity = '0';
+    this.viewport.style.opacity = '1';
     this.viewport.style.transition = 'none';
 
     try {
       const user = AppState.get('user');
-      const isAdmin = user?.role === 'admin';
+      const isAdmin = user?.role && ['admin', 'superadmin', 'operator', 'supervisor', 'officer'].includes(user.role);
 
       if (path === '/dashboard/beranda') {
-        // Landing page untuk semua role termasuk admin
         this.currentPageInstance = Home;
-        try {
-          await Home.render(this.viewport);
-        } catch (homeErr) {
-          console.error('[Home Render Error]', homeErr);
-        }
+        try { await Home.render(this.viewport); } catch (e) { console.error('[Home Render Error]', e); }
+
       } else if (path === '/dashboard') {
-        // Non-admin users see the landing page (Beranda)
         if (!isAdmin) {
           this.currentPageInstance = Home;
-          try {
-            await Home.render(this.viewport);
-          } catch (homeErr) {
-            console.error('[Home Render Error]', homeErr);
-          }
+          try { await Home.render(this.viewport); } catch (e) { console.error('[Home Render Error]', e); }
         } else {
           this.currentPageInstance = Dashboard;
-          try {
-            await Dashboard.render(this.viewport);
-          } catch (dashErr) {
-            console.error('[Dashboard Render Error]', dashErr);
-          }
+          try { await Dashboard.render(this.viewport); } catch (e) { console.error('[Dashboard Render Error]', e); }
         }
+
       } else if (path === '/dashboard/cctv-monitoring') {
         this.currentPageInstance = CctvMonitoring;
         await CctvMonitoring.render(this.viewport);
+
+      } else if (path === '/dashboard/workspace-requests') {
+        const page = new WorkspaceRequestsPage();
+        this.currentPageInstance = page;
+        await page.render(this.viewport);
+
       } else if (path === '/dashboard/laporan') {
         this.currentPageInstance = Laporan;
         await Laporan.render(this.viewport);
+
       } else if (path === '/dashboard/upload') {
         this.currentPageInstance = Upload;
         await Upload.render(this.viewport);
+
       } else if (path.startsWith('/dashboard/detections/')) {
         const id = path.split('/').pop();
         this.currentPageInstance = Detail;
         await Detail.render(this.viewport, id);
+
       } else if (path === '/dashboard/settings' || path === '/dashboard/profile') {
         this.currentPageInstance = Profile;
         await Profile.render(this.viewport);
+
       } else if (path === '/dashboard/berita') {
         this.currentPageInstance = BeritaAdmin;
         await BeritaAdmin.render(this.viewport);
-      } else if (path === '/dashboard/cctv-monitoring') {
-        this.currentPageInstance = CctvMonitoring;
-        await CctvMonitoring.render(this.viewport);
+
       } else if (path === '/faq') {
         this.currentPageInstance = FAQ;
         await FAQ.render(this.viewport);
+
       } else {
         Router.navigate('/dashboard');
       }
@@ -145,15 +142,15 @@ class AppInitializer {
         window.lucide.createIcons();
       }
 
-      // Force reflow, lalu fade-in — timing-nya bareng sama slide indicator
+      // Force reflow, lalu fade-in
       void this.viewport.offsetHeight;
       this.viewport.style.transition = 'opacity 350ms cubic-bezier(0.22, 1, 0.36, 1)';
       this.viewport.style.opacity = '1';
 
-      // Bersihkan inline style
       setTimeout(() => {
         this.viewport.style.transition = '';
       }, 400);
+
     } catch (err) {
       console.error('[Router Error] Gagal memuat halaman:', err);
       this.viewport.style.opacity = '1';
@@ -161,11 +158,7 @@ class AppInitializer {
     }
   }
 
-  renderPageSkeleton() {
-    // Tidak pakai skeleton — konten lama tetap terlihat sampai fade-out selesai
-    // Lalu langsung render konten baru yang langsung fade-in
-    // Ini bikin transisi mulus kayak macOS
-  }
+  renderPageSkeleton() {}
 
   renderRouterError() {
     this.viewport.innerHTML = `
@@ -184,5 +177,9 @@ class AppInitializer {
 
 // Bootstrapping
 const app = new AppInitializer();
-document.addEventListener('DOMContentLoaded', () => app.start());
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => app.start());
+} else {
+  app.start();
+}
 export default app;
