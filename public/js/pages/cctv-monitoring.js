@@ -1120,6 +1120,17 @@ export class CctvMonitoringPage {
     } else if (isMp4) {
       const videoEl = cardEntry.rootElement.querySelector(`video.cctv-feed-img`);
       if (videoEl) {
+        const hideOverlay = () => {
+          const overlay = videoEl.parentElement?.querySelector('.cctv-loading-overlay');
+          if (overlay && overlay.style.display !== 'none') {
+            overlay.style.opacity = '0';
+            setTimeout(() => { overlay.style.display = 'none'; }, 200);
+          }
+        };
+        videoEl.addEventListener('playing', hideOverlay);
+        videoEl.addEventListener('canplay', hideOverlay);
+        videoEl.addEventListener('timeupdate', hideOverlay);
+
         if (videoEl.dataset.currentSrc !== ch.playUrl) {
           videoEl.dataset.currentSrc = ch.playUrl;
           videoEl.src = ch.playUrl;
@@ -1137,6 +1148,19 @@ export class CctvMonitoringPage {
           suspensionReasons: new Set(),
         });
       }
+    }
+
+    const imgEl = cardEntry.rootElement.querySelector('img.cctv-feed-img');
+    if (imgEl) {
+      const hideOverlay = () => {
+        const overlay = imgEl.parentElement?.querySelector('.cctv-loading-overlay');
+        if (overlay && overlay.style.display !== 'none') {
+          overlay.style.opacity = '0';
+          setTimeout(() => { overlay.style.display = 'none'; }, 200);
+        }
+      };
+      if (imgEl.complete && imgEl.naturalWidth > 0) hideOverlay();
+      imgEl.addEventListener('load', hideOverlay);
     }
   }
 
@@ -1161,10 +1185,24 @@ export class CctvMonitoringPage {
         suspensionReasons: new Set(),
       };
 
+      const hideLoadingOverlay = () => {
+        const overlay = videoEl.parentElement?.querySelector('.cctv-loading-overlay');
+        if (overlay && overlay.style.display !== 'none') {
+          overlay.style.opacity = '0';
+          setTimeout(() => { overlay.style.display = 'none'; }, 200);
+        }
+      };
+
+      videoEl.addEventListener('playing', hideLoadingOverlay);
+      videoEl.addEventListener('canplay', hideLoadingOverlay);
+      videoEl.addEventListener('timeupdate', hideLoadingOverlay);
+      videoEl.addEventListener('loadeddata', hideLoadingOverlay);
+
       const onManifestParsed = () => {
         playerEntry.status = 'playing';
         playerEntry.reconnectAttempts = 0;
-        videoEl.play().catch(() => {});
+        hideLoadingOverlay();
+        videoEl.play().then(hideLoadingOverlay).catch(() => {});
       };
 
       const onError = (event, data) => {
@@ -1197,6 +1235,7 @@ export class CctvMonitoringPage {
       };
 
       hls.on(window.Hls.Events.MANIFEST_PARSED, onManifestParsed);
+      hls.on(window.Hls.Events.FRAG_LOADED, hideLoadingOverlay);
       hls.on(window.Hls.Events.ERROR, onError);
 
       playerEntry.listeners.push(
