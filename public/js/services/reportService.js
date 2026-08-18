@@ -180,12 +180,18 @@ class ReportServiceClass {
     }
   }
 
-  // Tambah komentar diskusi (dengan dukungan FormData untuk lampiran foto)
-  async addComment(id, textOrFormData) {
+  // Tambah komentar diskusi (dengan dukungan FormData & parentCommentId untuk balasan/reply)
+  async addComment(id, textOrFormData, parentCommentId = null) {
     if (textOrFormData instanceof FormData) {
+      if (parentCommentId && !textOrFormData.has('parentCommentId')) {
+        textOrFormData.append('parentCommentId', parentCommentId);
+      }
       return await API.post(`/api/detections/${id}/comments`, textOrFormData);
     } else {
-      return await API.post(`/api/detections/${id}/comments`, { text: textOrFormData });
+      return await API.post(`/api/detections/${id}/comments`, {
+        text: textOrFormData,
+        parentCommentId: parentCommentId || null
+      });
     }
   }
 
