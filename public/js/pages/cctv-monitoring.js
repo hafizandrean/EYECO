@@ -1475,10 +1475,6 @@ export class CctvMonitoringPage {
       } else if (ch.mediaType === 'HLS' || ch.mediaType === 'RTSP_TUYA' || (ch.playUrl && ch.playUrl.includes('.m3u8'))) {
         mediaHtml = `
           <video id="${hlsVideoId}" class="cctv-feed-img" autoplay muted playsinline crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;background:#000;display:block;"></video>
-          <div class="cctv-card-loading-overlay cctv-loading-overlay">
-            <div class="cctv-loading-spinner"></div>
-            <div class="cctv-loading-text">Memuat Stream...</div>
-          </div>
           <div class="cctv-overlay-gradient"></div>
           <div class="cctv-bbox-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></div>`;
       } else if (ch.mediaType === 'Cloud') {
@@ -1494,20 +1490,12 @@ export class CctvMonitoringPage {
       } else if (ch.mediaType === 'Video' && ch.playUrl && ch.playUrl.endsWith('.mp4')) {
         mediaHtml = `
           <video src="${ch.playUrl}" data-current-src="${ch.playUrl}" autoplay loop muted playsinline crossorigin="anonymous" class="cctv-feed-img"></video>
-          <div class="cctv-card-loading-overlay cctv-loading-overlay">
-            <div class="cctv-loading-spinner"></div>
-            <div class="cctv-loading-text">Memuat Video...</div>
-          </div>
           <div class="cctv-overlay-gradient"></div>
           <div class="cctv-bbox-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></div>
         `;
       } else {
         mediaHtml = `
           <img src="${imageSrc}" data-current-src="${imageSrc}" alt="" class="cctv-feed-img" loading="lazy" decoding="async" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-          <div class="cctv-card-loading-overlay cctv-loading-overlay">
-            <div class="cctv-loading-spinner"></div>
-            <div class="cctv-loading-text">Memuat Kamera...</div>
-          </div>
           <div class="cctv-static-screen" style="display:none; height:100%; width:100%; flex-direction:column; justify-content:center; align-items:center; background:#111827;">
             <i data-lucide="video-off" style="width:24px; height:24px; color:rgba(255,255,255,0.4); margin-bottom:8px;"></i>
             <span style="font-size:0.65rem; color:rgba(255,255,255,0.4); font-weight:700; text-transform:uppercase;">Stream Terputus</span>
@@ -2020,10 +2008,6 @@ export class CctvMonitoringPage {
       playerHtml = `
         <div id="vms-fs-media-wrapper" style="position:relative; width:100%; height:100%; display:flex; justify-content:center; align-items:center; overflow:hidden;">
           <video id="vms-fs-media-element" autoplay loop ${isMuted ? 'muted' : ''} playsinline crossorigin="anonymous" style="width:100%; height:100%; object-fit:contain; transform-origin:center center; pointer-events:auto;"></video>
-          <div id="vms-fs-loading-overlay" class="cctv-loading-overlay">
-            <div class="cctv-loading-spinner"></div>
-            <div class="cctv-loading-text">Memuat Sinyal Stream CCTV...</div>
-          </div>
           <div id="vms-fs-yolo-overlay" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index: 5;"></div>
         </div>
       `;
@@ -2031,10 +2015,6 @@ export class CctvMonitoringPage {
       playerHtml = `
         <div id="vms-fs-media-wrapper" style="position:relative; width:100%; height:100%; display:flex; justify-content:center; align-items:center; overflow:hidden;">
           <img src="${imageSrc}" id="vms-fs-media-element" style="width:100%; height:100%; object-fit:contain;">
-          <div id="vms-fs-loading-overlay" class="cctv-loading-overlay">
-            <div class="cctv-loading-spinner"></div>
-            <div class="cctv-loading-text">Memuat Sinyal CCTV...</div>
-          </div>
           <div id="vms-fs-yolo-overlay" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index: 5;"></div>
         </div>
       `;
@@ -2085,20 +2065,6 @@ export class CctvMonitoringPage {
       this.fsAbortController = new AbortController();
 
       const fsMedia = document.getElementById('vms-fs-media-element');
-      const isMediaActive = this.isMediaReady(fsMedia);
-      const loadingOverlay = document.getElementById('vms-fs-loading-overlay');
-
-      if (loadingOverlay) {
-        if (isMediaActive) {
-          loadingOverlay.style.opacity = '0';
-          loadingOverlay.style.pointerEvents = 'none';
-          setTimeout(() => { if (loadingOverlay) loadingOverlay.style.display = 'none'; }, 250);
-        } else {
-          loadingOverlay.style.display = 'flex';
-          loadingOverlay.style.opacity = '1';
-          loadingOverlay.style.pointerEvents = 'auto';
-        }
-      }
 
       // Realtime Dynamic Metrics Update
       const statProtocol = document.getElementById('vms-stat-protocol');
