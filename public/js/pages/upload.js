@@ -294,17 +294,22 @@ export class UploadPage {
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);backdrop-filter:blur(12px);z-index:10000;display:flex;align-items:center;justify-content:center;';
     overlay.innerHTML = `
       <div style="background:var(--surface);border-radius:var(--radius-xl);padding:24px;max-width:720px;width:95%;text-align:center;box-shadow:var(--shadow-xl);">
-        <h3 style="font-family:'Outfit',sans-serif;font-weight:800;margin:0 0 12px;display:flex;align-items:center;gap:8px;justify-content:center;">
-          <i data-lucide="scan" style="width:20px;height:20px;color:var(--primary);"></i> Live AI Detection
-        </h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <h3 style="font-family:'Outfit',sans-serif;font-weight:800;margin:0;display:flex;align-items:center;gap:8px;">
+            <i data-lucide="scan" style="width:20px;height:20px;color:var(--primary);"></i> Live AI Detection
+          </h3>
+          <button type="button" class="btn btn-glass btn-sm btn-rounded" id="btn-cam-mirror-toggle" title="Balik Kamera (Mirror)" style="font-size:0.72rem;padding:4px 10px;font-weight:700;">
+            <i data-lucide="flip-horizontal" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Balik Kamera
+          </button>
+        </div>
         <div style="position:relative;background:#000;border-radius:var(--radius-lg);overflow:hidden;min-height:340px;display:flex;align-items:center;justify-content:center;">
-          <video id="camera-feed" autoplay playsinline style="width:100%;max-height:440px;object-fit:contain;display:block;"></video>
-          <div id="camera-detection-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></div>
+          <video id="camera-feed" autoplay playsinline style="width:100%;max-height:440px;object-fit:contain;display:block;transform:none;"></video>
+          <div id="camera-detection-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;transform:none;"></div>
         </div>
         <div style="display:flex;gap:10px;justify-content:center;align-items:center;margin-top:12px;">
           <span id="cam-live-status" style="font-size:0.75rem;font-weight:700;color:var(--success);display:flex;align-items:center;gap:6px;">
             <span id="cam-live-dot" style="width:8px;height:8px;border-radius:50%;background:#10B981;display:inline-block;"></span>
-            Live Detection Aktif
+            Live Scan Cepat (0.6s)
           </span>
           <span id="cam-detect-count" style="font-size:0.75rem;color:var(--text-secondary);font-weight:600;">0 detected</span>
           <button type="button" class="btn btn-secondary-sheet" id="btn-cam-close" style="padding:8px 20px;font-weight:700;">
@@ -319,6 +324,7 @@ export class UploadPage {
 
     const video = document.getElementById('camera-feed');
     const closeBtn = document.getElementById('btn-cam-close');
+    const mirrorToggleBtn = document.getElementById('btn-cam-mirror-toggle');
     const overlayBoxes = document.getElementById('camera-detection-overlay');
     const detectCount = document.getElementById('cam-detect-count');
     const liveDot = document.getElementById('cam-live-dot');
@@ -328,6 +334,16 @@ export class UploadPage {
     let frameTimer = null;
     let totalDetected = 0;
     let lastAutoUpload = 0;
+    let isMirrored = false;
+
+    if (mirrorToggleBtn && video && overlayBoxes) {
+      mirrorToggleBtn.addEventListener('click', () => {
+        isMirrored = !isMirrored;
+        const transformValue = isMirrored ? 'scaleX(-1)' : 'none';
+        video.style.transform = transformValue;
+        overlayBoxes.style.transform = transformValue;
+      });
+    }
 
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } });
@@ -342,81 +358,88 @@ export class UploadPage {
     // Tunggu video benar-benar siap
     await new Promise(r => { if (video.videoWidth) r(); else video.onloadedmetadata = r; });
 
-    // ── Live continuous detection ──
+    // ── Optimized Live continuous detection (downscaled to 640px for ultra-fast scanning) ──
     const processFrame = async () => {
       if (detecting || !stream || !video.videoWidth) return;
       detecting = true;
 
+      const targetWidth = Math.min(640, video.videoWidth);
+      const targetHeight = Math.round(video.videoHeight * (targetWidth / video.videoWidth));
+
       const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-      const blob = await (await fetch(dataUrl)).blob();
-      const formData = new FormData();
-      formData.append('file', blob, 'frame.jpg');
+      ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
 
-      try {
-        const res = await fetch('/api/detect-preview', { method: 'POST', body: formData, credentials: 'include' });
-        const data = await res.json();
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          detecting = false;
+          return;
+        }
 
-        if (data.success) {
-          if (data.boxes?.length > 0) {
-            // Render bounding boxes langsung di video
-            overlayBoxes.innerHTML = data.boxes.map(b => `
-              <div style="position:absolute;top:${b.y}%;left:${b.x}%;width:${b.w}%;height:${b.h}%;border:2px solid ${b.label === 'person' ? '#10B981' : '#EF4444'};background:${b.label === 'person' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)'};border-radius:4px;display:flex;align-items:flex-end;justify-content:flex-start;">
-                <span style="background:${b.label === 'person' ? '#10B981' : '#EF4444'};color:white;font-size:9px;font-weight:800;padding:1px 5px;border-radius:0 4px 0 0;">${b.label} ${b.confidence}%</span>
-              </div>`).join('');
+        const formData = new FormData();
+        formData.append('file', blob, 'frame.jpg');
 
-            const hasPerson = data.boxes.some(b => b.label === 'person');
-            if (hasPerson) {
-              totalDetected++;
-              detectCount.textContent = `${totalDetected} person detected`;
-              liveDot.style.background = '#EF4444';
-              liveDot.style.animation = 'pulse-dot 0.6s ease-in-out infinite';
+        try {
+          const res = await fetch('/api/detect-preview', { method: 'POST', body: formData, credentials: 'include' });
+          const data = await res.json();
 
-              // Auto-upload setiap 10 detik (kalo masih ada person)
-              const now = Date.now();
-              if (now - lastAutoUpload > 10_000) {
-                lastAutoUpload = now;
-                const formData2 = new FormData();
-                formData2.append('file', blob, `auto_${Date.now()}.jpg`);
-                formData2.append('location', 'Lokasi tidak diketahui');
-                formData2.append('sourceType', 'AI_CCTV');
-                formData2.append('additionalNotes', 'Auto-capture dari live AI detection');
-                try {
-                  const uploadRes = await fetch('/api/detections', { method: 'POST', body: formData2, credentials: 'include' });
-                  if (uploadRes.ok) {
-                    const newReport = await uploadRes.json();
-                    // Matiin kamera + stop semua track + redirect
-                    if (frameTimer) clearInterval(frameTimer);
-                    detecting = false;
-                    if (stream) stream.getTracks().forEach(t => t.stop());
-                    overlay.remove();
-                    window.location.href = `/dashboard/detections/${newReport.id}`;
-                  }
-                } catch (_) {}
+          if (data.success) {
+            if (data.boxes?.length > 0) {
+              // Render bounding boxes langsung di video overlay
+              overlayBoxes.innerHTML = data.boxes.map(b => `
+                <div style="position:absolute;top:${b.y}%;left:${b.x}%;width:${b.w}%;height:${b.h}%;border:2px solid ${b.label === 'person' ? '#10B981' : '#EF4444'};background:${b.label === 'person' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)'};border-radius:4px;display:flex;align-items:flex-end;justify-content:flex-start;">
+                  <span style="background:${b.label === 'person' ? '#10B981' : '#EF4444'};color:white;font-size:9px;font-weight:800;padding:1px 5px;border-radius:0 4px 0 0;">${b.label} ${b.confidence}%</span>
+                </div>`).join('');
+
+              const hasPerson = data.boxes.some(b => b.label === 'person');
+              if (hasPerson) {
+                totalDetected++;
+                detectCount.textContent = `${totalDetected} detected`;
+                liveDot.style.background = '#EF4444';
+                liveDot.style.animation = 'pulse-dot 0.6s ease-in-out infinite';
+
+                // Auto-upload setiap 5 detik jika terdeteksi
+                const now = Date.now();
+                if (now - lastAutoUpload > 5_000) {
+                  lastAutoUpload = now;
+                  const formData2 = new FormData();
+                  formData2.append('file', blob, `auto_${Date.now()}.jpg`);
+                  formData2.append('location', 'Lokasi tidak diketahui');
+                  formData2.append('sourceType', 'AI_CCTV');
+                  formData2.append('additionalNotes', 'Auto-capture dari live AI detection');
+                  try {
+                    const uploadRes = await fetch('/api/detections', { method: 'POST', body: formData2, credentials: 'include' });
+                    if (uploadRes.ok) {
+                      const newReport = await uploadRes.json();
+                      if (frameTimer) clearInterval(frameTimer);
+                      detecting = false;
+                      if (stream) stream.getTracks().forEach(t => t.stop());
+                      overlay.remove();
+                      window.location.href = `/dashboard/detections/${newReport.id}`;
+                    }
+                  } catch (_) {}
+                }
+              } else {
+                liveDot.style.background = '#10B981';
+                liveDot.style.animation = 'pulse-dot 0.8s ease-in-out infinite';
               }
             } else {
+              overlayBoxes.innerHTML = '';
               liveDot.style.background = '#10B981';
               liveDot.style.animation = 'pulse-dot 0.8s ease-in-out infinite';
             }
-          } else {
-            overlayBoxes.innerHTML = '';
-            liveDot.style.background = '#10B981';
-            liveDot.style.animation = 'pulse-dot 0.8s ease-in-out infinite';
           }
-        }
-      } catch (_) { /* skip frame on error */ }
+        } catch (_) { /* skip frame on error */ }
 
-      detecting = false;
+        detecting = false;
+      }, 'image/jpeg', 0.6);
     };
 
-    // Mulai continuous detection setiap 3 detik
-    frameTimer = setInterval(processFrame, 3000);
-    // Langsung jalanin sekali pas buka
-    setTimeout(processFrame, 500);
+    // Continuous detection setiap 600ms (0.6s) untuk pemindaian yang sangat cepat & responsif!
+    frameTimer = setInterval(processFrame, 600);
+    setTimeout(processFrame, 150);
 
     // Stop
     const doClose = () => {
