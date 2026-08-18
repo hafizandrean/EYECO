@@ -102,6 +102,16 @@ app.use('/hls', (req, res, next) => {
 });
 app.use('/assets', express.static(path.join(__dirname, '../public/assets')));
 
+// Serve Favicon (browser tab logo)
+app.get(['/favicon.ico', '/favicon.png'], (req, res) => {
+  const icoPath = path.join(__dirname, '../public/favicon.ico');
+  const uploadPath = path.join(__dirname, '../public/uploads/logo-eyeco.png');
+  if (fs.existsSync(icoPath)) {
+    return res.sendFile(icoPath);
+  }
+  return res.sendFile(uploadPath);
+});
+
 // Global middleware to populate req.userContext from cookie/header
 app.use((req, res, next) => {
   const { verifyToken } = require('./auth/auth.service');
