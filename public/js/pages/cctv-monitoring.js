@@ -1474,7 +1474,7 @@ export class CctvMonitoringPage {
         mediaHtml = `<div class="cctv-static-screen"><div class="static-noise"></div><div class="static-label text-danger">${ch.status}</div></div>`;
       } else if (ch.mediaType === 'HLS' || ch.mediaType === 'RTSP_TUYA' || (ch.playUrl && ch.playUrl.includes('.m3u8'))) {
         mediaHtml = `
-          <video id="${hlsVideoId}" class="cctv-feed-img" autoplay muted playsinline crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;background:#000;display:block;"></video>
+          <video id="${hlsVideoId}" class="cctv-feed-img" poster="${imageSrc}" autoplay muted playsinline crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;background:#000;display:block;"></video>
           <div class="cctv-overlay-gradient"></div>
           <div class="cctv-bbox-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></div>`;
       } else if (ch.mediaType === 'Cloud') {
@@ -2007,7 +2007,7 @@ export class CctvMonitoringPage {
     } else if (isVideo) {
       playerHtml = `
         <div id="vms-fs-media-wrapper" style="position:relative; width:100%; height:100%; display:flex; justify-content:center; align-items:center; overflow:hidden;">
-          <video id="vms-fs-media-element" autoplay loop ${isMuted ? 'muted' : ''} playsinline crossorigin="anonymous" style="width:100%; height:100%; object-fit:contain; transform-origin:center center; pointer-events:auto;"></video>
+          <video id="vms-fs-media-element" poster="${imageSrc}" autoplay loop ${isMuted ? 'muted' : ''} playsinline crossorigin="anonymous" style="width:100%; height:100%; object-fit:contain; transform-origin:center center; pointer-events:auto;"></video>
           <div id="vms-fs-yolo-overlay" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index: 5;"></div>
         </div>
       `;
