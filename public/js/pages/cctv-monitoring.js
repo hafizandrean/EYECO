@@ -549,6 +549,9 @@ export class CctvMonitoringPage {
             <div class="vms-fs-sidebar-section">
               <h4 class="vms-fs-sidebar-title">AKSI OPERATOR</h4>
               <div class="vms-fs-actions-grid">
+                <button class="vms-action-tile" id="vms-fs-action-create-report" style="background:var(--primary);color:white;font-weight:700;">
+                  <i data-lucide="file-plus"></i> Buat Laporan
+                </button>
                 <button class="vms-action-tile" id="vms-fs-action-snapshot">
                   <i data-lucide="camera"></i> Ambil Foto
                 </button>
@@ -2264,6 +2267,53 @@ export class CctvMonitoringPage {
     }
 
     // ── Sidebar Action Tile Handlers ──
+    const actCreateReport = document.getElementById('vms-fs-action-create-report');
+    if (actCreateReport) {
+      actCreateReport.onclick = async () => {
+        const mediaEl = document.getElementById('vms-fs-media-element');
+        if (!mediaEl) return;
+        actCreateReport.disabled = true;
+        actCreateReport.innerHTML = '<span class="status-pulse-dot" style="width:8px;height:8px;background:white;border-radius:50%;display:inline-block;margin-right:4px;"></span> Mengirim...';
+
+        const canvas = document.createElement('canvas');
+        canvas.width = mediaEl.videoWidth || mediaEl.naturalWidth || 1280;
+        canvas.height = mediaEl.videoHeight || mediaEl.naturalHeight || 720;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(mediaEl, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(async (blob) => {
+          if (!blob) {
+            actCreateReport.disabled = false;
+            actCreateReport.innerHTML = '<i data-lucide="file-plus"></i> Buat Laporan';
+            if (window.lucide) window.lucide.createIcons();
+            return;
+          }
+          const formData = new FormData();
+          formData.append('file', blob, `cctv_capture_${ch.id}_${Date.now()}.jpg`);
+          formData.append('location', ch.location || 'Lokasi tidak diketahui');
+          formData.append('sourceType', 'AI_CCTV');
+          formData.append('identity', `Deteksi CCTV Operator: ${ch.name}`);
+          formData.append('additionalNotes', `Laporan manual dibuat dari tayangan langsung CCTV ${ch.name} (${ch.location}).`);
+
+          try {
+            const res = await fetch('/api/detections', { method: 'POST', body: formData, credentials: 'include' });
+            if (res.ok) {
+              const newReport = await res.json();
+              EventBus.emit('toast:show', { message: `Laporan #${newReport.id} berhasil dibuat dari CCTV!`, type: 'success' });
+              window.location.href = `/dashboard/detections/${newReport.id}`;
+            } else {
+              throw new Error('Gagal mengirim laporan CCTV');
+            }
+          } catch (err) {
+            EventBus.emit('toast:show', { message: 'Gagal membuat laporan dari CCTV.', type: 'danger' });
+            actCreateReport.disabled = false;
+            actCreateReport.innerHTML = '<i data-lucide="file-plus"></i> Buat Laporan';
+            if (window.lucide) window.lucide.createIcons();
+          }
+        }, 'image/jpeg', 0.85);
+      };
+    }
+
     const actSnapshot = document.getElementById('vms-fs-action-snapshot');
     if (actSnapshot) {
       actSnapshot.onclick = () => {

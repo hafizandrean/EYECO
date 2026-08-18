@@ -185,6 +185,14 @@ app.use('/uploads', (req, res, next) => {
 
   // 3. File tidak ada di lokal — proxy dari R2 jika R2 terkonfigurasi
   if (!R2StorageService.isConfigured()) {
+    const lastCap = path.join(uploadsDir, 'last_capture.jpg');
+    if (fs.existsSync(lastCap) && !relPath.startsWith('avatars/')) {
+      return res.sendFile(lastCap);
+    }
+    const logoCap = path.join(uploadsDir, 'logo-eyeco.png');
+    if (fs.existsSync(logoCap)) {
+      return res.sendFile(logoCap);
+    }
     return res.status(404).send('File tidak ditemukan.');
   }
 
@@ -217,6 +225,12 @@ app.use('/uploads', (req, res, next) => {
       try {
         const response = await fetch(signedUrl);
         if (!response.ok) {
+          const lastCap = path.join(uploadsDir, 'last_capture.jpg');
+          if (fs.existsSync(lastCap) && !relPath.startsWith('avatars/')) {
+            return res.sendFile(lastCap);
+          }
+          const logoCap = path.join(uploadsDir, 'logo-eyeco.png');
+          if (fs.existsSync(logoCap)) return res.sendFile(logoCap);
           return res.status(response.status).send('Gagal mengambil file dari penyimpanan cloud.');
         }
         const contentType = response.headers.get('content-type') || 'application/octet-stream';
@@ -225,12 +239,22 @@ app.use('/uploads', (req, res, next) => {
         const buffer = Buffer.from(await response.arrayBuffer());
         res.send(buffer);
       } catch (proxyErr) {
-        console.error('[R2 Proxy] Fetch error for', r2Key, (proxyErr as Error).message);
+        const lastCap = path.join(uploadsDir, 'last_capture.jpg');
+        if (fs.existsSync(lastCap) && !relPath.startsWith('avatars/')) {
+          return res.sendFile(lastCap);
+        }
+        const logoCap = path.join(uploadsDir, 'logo-eyeco.png');
+        if (fs.existsSync(logoCap)) return res.sendFile(logoCap);
         res.status(502).send('Gagal memproses file dari penyimpanan cloud.');
       }
     })
     .catch(r2Err => {
-      console.warn('[R2 Proxy] Fallback failed for', r2Key, (r2Err as Error).message);
+      const lastCap = path.join(uploadsDir, 'last_capture.jpg');
+      if (fs.existsSync(lastCap) && !relPath.startsWith('avatars/')) {
+        return res.sendFile(lastCap);
+      }
+      const logoCap = path.join(uploadsDir, 'logo-eyeco.png');
+      if (fs.existsSync(logoCap)) return res.sendFile(logoCap);
       res.status(404).send('File tidak ditemukan.');
     });
 });

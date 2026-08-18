@@ -271,10 +271,12 @@ class CctvAutoReportService {
             if (!camera)
                 return null;
             const workspaceId = camera.workspaceId;
-            const admin = await User_1.UserModel.findOne({ workspaceId, role: 'admin' })
+            let admin = await User_1.UserModel.findOne({ workspaceId, role: 'admin' })
                 .sort({ createdAt: 1 }).lean().exec();
-            if (!admin)
-                return null;
+            if (!admin) {
+                admin = await User_1.UserModel.findOne({ role: 'admin' }).sort({ createdAt: 1 }).lean().exec();
+            }
+            const uploaderId = admin ? admin.id : 1;
             const boundingBoxes = detection.detections.map(d => {
                 const labelMap = {
                     'person': 'Orang', 'people': 'Orang', 'sitting': 'Orang', 'standing': 'Orang', 'orang': 'Orang', 'cctv persons': 'Orang',
@@ -358,7 +360,7 @@ class CctvAutoReportService {
                 sourceType: 'AI_CCTV',
                 additionalNotes: `Deteksi otomatis pelanggaran ${aiStatus} dari CCTV ${camera.name} di ${camera.location}. Objek: ${indonesianClasses.join(', ')}.`,
                 boundingBoxes
-            }, admin.id);
+            }, uploaderId);
             this.setCooldown(frame.cameraId);
             await AiDetection_1.AiDetectionModel.updateOne({ id: detection.id }, { $set: { status: 'PROMOTED', promotedReportId: report.id } }).exec();
             console.log(`[CctvAutoReportService] Auto-report #${report.id} for camera #${frame.cameraId}`);

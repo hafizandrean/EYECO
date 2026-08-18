@@ -34,14 +34,16 @@ export class InferenceService {
       const trackedDetections = this.tracker.track(rawResults);
 
       // Tentukan tingkat bahaya (Severity) berdasarkan kelas deteksi
-      const hasTrash = trackedDetections.some(d => d.class === 'trash');
-      const hasPerson = trackedDetections.some(d => d.class === 'person');
-      const hasBoat = trackedDetections.some(d => d.class === 'boat');
+      const hasTrash = trackedDetections.some(d => ['trash', 'sampah', 'waste', 'plastic', 'bottle', 'bag', 'cardboard'].includes(d.class.toLowerCase()));
+      const hasPerson = trackedDetections.some(d => ['person', 'people', 'orang', 'cctv persons'].includes(d.class.toLowerCase()));
+      const hasBoat = trackedDetections.some(d => ['boat', 'perahu'].includes(d.class.toLowerCase()));
 
       let severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' = 'LOW';
       if (hasTrash) {
         severity = 'HIGH';
         if (hasPerson) severity = 'CRITICAL'; // Orang membuang sampah
+      } else if (hasPerson) {
+        severity = 'MEDIUM'; // Aktivitas manusia terdeteksi di area CCTV
       } else if (hasBoat) {
         severity = 'MEDIUM';
       }

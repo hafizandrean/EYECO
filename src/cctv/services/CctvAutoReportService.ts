@@ -259,9 +259,12 @@ export class CctvAutoReportService {
       if (!camera) return null;
 
       const workspaceId = camera.workspaceId;
-      const admin = await UserModel.findOne({ workspaceId, role: 'admin' })
+      let admin = await UserModel.findOne({ workspaceId, role: 'admin' })
         .sort({ createdAt: 1 }).lean().exec();
-      if (!admin) return null;
+      if (!admin) {
+        admin = await UserModel.findOne({ role: 'admin' }).sort({ createdAt: 1 }).lean().exec();
+      }
+      const uploaderId = admin ? admin.id : 1;
 
       const boundingBoxes = detection.detections.map(d => {
         const labelMap: Record<string, string> = {
@@ -349,7 +352,7 @@ export class CctvAutoReportService {
         sourceType: 'AI_CCTV',
         additionalNotes: `Deteksi otomatis pelanggaran ${aiStatus} dari CCTV ${camera.name} di ${camera.location}. Objek: ${indonesianClasses.join(', ')}.`,
         boundingBoxes
-      }, admin.id);
+      }, uploaderId);
 
       this.setCooldown(frame.cameraId);
 
