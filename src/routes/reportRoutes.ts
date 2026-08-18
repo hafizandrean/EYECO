@@ -640,59 +640,25 @@ router.post('/detections', (req, res, next) => {
     const r2Key = `eyecofiles/laporan_manual/${newReport.id}/${req.file.filename}`;
     const contentType = req.file.mimetype || 'application/octet-stream';
 
-    try {
-      await R2StorageService.uploadFile(finalFilePath, r2Key, contentType, true);
-
-      const r2Url = await R2StorageService.getPublicUrl(r2Key);
-
-      // Update image & videoPath di MongoDB — pake path yg match R2 key (proxy /uploads map ke eyecofiles/)
-      const imagePath = `/uploads/laporan_manual/${newReport.id}/${req.file.filename}`;
-      const r2Updates: Record<string, string> = { r2Key };
-      if (!isVideo) {
-        r2Updates.image = imagePath;
-      }
-      if (isVideo) {
-        r2Updates.videoPath = imagePath;
-        if (aiAnalysis.extractedFramePath) {
-          // Upload extracted frame juga
-          const frameKey = `eyecofiles/laporan_manual/${newReport.id}/frame.jpg`;
-          try {
-            const absFramePath = path.isAbsolute(aiAnalysis.extractedFramePath)
-              ? aiAnalysis.extractedFramePath
-              : path.join(__dirname, '../../', aiAnalysis.extractedFramePath);
-            if (fs.existsSync(absFramePath)) {
-              await R2StorageService.uploadFile(absFramePath, frameKey, 'image/jpeg', true);
-              // extracted frame path sementara sama aja
-              try { fs.unlinkSync(absFramePath); } catch { /* ignore */ }
-            }
-          } catch (frameErr) {
-            console.warn('[R2] Frame upload skipped:', (frameErr as Error).message);
-          }
-        }
-      }
-
-      // Update MongoDB dengan R2 URL
-      await ReportModel.updateOne(
-        { _id: newReport._id },
-        { $set: r2Updates }
-      ).exec();
-
-      // Copy last_capture.jpg SEBELUM hapus file lokal
+    // Background upload to Cloudflare R2 without blocking HTTP response
+    const filename = req.file!.filename;
+    (async () => {
       try {
-        const destPath = path.join(uploadDir, 'last_capture.jpg');
-        fs.copyFileSync(finalFilePath, destPath);
-      } catch (lastErr) {
-        console.warn('[UPLOAD] last_capture copy skipped:', (lastErr as Error).message);
+        await R2StorageService.uploadFile(finalFilePath, r2Key, contentType, true);
+        const imagePath = `/uploads/laporan_manual/${newReport.id}/${filename}`;
+        const r2Updates: Record<string, string> = { r2Key };
+        if (!isVideo) r2Updates.image = imagePath;
+        if (isVideo) r2Updates.videoPath = imagePath;
+        await ReportModel.updateOne({ _id: newReport._id }, { $set: r2Updates }).exec();
+        try {
+          const destPath = path.join(uploadDir, 'last_capture.jpg');
+          fs.copyFileSync(finalFilePath, destPath);
+        } catch (_) {}
+        console.log(`[R2] Background upload complete: ${r2Key}`);
+      } catch (r2Err) {
+        console.warn('[R2] Upload skipped (local fallback):', (r2Err as Error).message);
       }
-
-      // Hapus file lokal setelah berhasil upload ke R2 (optional — keep for local fallback)
-      // try { fs.unlinkSync(finalFilePath); } catch { /* ignore */ }
-
-      console.log(`[R2] File uploaded: ${r2Key} → ${r2Url}`);
-    } catch (r2Err) {
-      // Non-fatal: kalo R2 gagal, file tetap di lokal di path yang benar
-      console.warn('[R2] Upload skipped (local fallback):', (r2Err as Error).message);
-    }
+    })();
 
     // ==============================
     // STEP 4: Ambil data terbaru dari DB untuk response

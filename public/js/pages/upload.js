@@ -306,14 +306,19 @@ export class UploadPage {
           <video id="camera-feed" autoplay playsinline style="width:100%;max-height:440px;object-fit:contain;display:block;transform:none;"></video>
           <div id="camera-detection-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;transform:none;"></div>
         </div>
-        <div style="display:flex;gap:10px;justify-content:center;align-items:center;margin-top:12px;">
+        <div style="display:flex;gap:10px;justify-content:center;align-items:center;margin-top:14px;flex-wrap:wrap;">
           <span id="cam-live-status" style="font-size:0.75rem;font-weight:700;color:var(--success);display:flex;align-items:center;gap:6px;">
             <span id="cam-live-dot" style="width:8px;height:8px;border-radius:50%;background:#10B981;display:inline-block;"></span>
-            Live Scan Cepat (0.6s)
+            Live Scan Instan (0.3s)
           </span>
           <span id="cam-detect-count" style="font-size:0.75rem;color:var(--text-secondary);font-weight:600;">0 detected</span>
-          <button type="button" class="btn btn-secondary-sheet" id="btn-cam-close" style="padding:8px 20px;font-weight:700;">
-            <i data-lucide="x" style="width:16px;height:16px;"></i> Stop
+
+          <button type="button" class="btn btn-primary btn-rounded" id="btn-cam-capture-now" style="padding:8px 22px;font-weight:800;font-size:0.8rem;background:linear-gradient(135deg,#2F6BFF,#1d4ed8);">
+            <i data-lucide="camera" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> Tangkap & Laporkan
+          </button>
+
+          <button type="button" class="btn btn-secondary-sheet" id="btn-cam-close" style="padding:8px 16px;font-weight:700;">
+            <i data-lucide="x" style="width:16px;height:16px;"></i> Batal
           </button>
         </div>
         <div id="camera-detection-result" style="margin-top:8px;display:none;font-size:0.75rem;font-weight:600;"></div>
@@ -324,6 +329,7 @@ export class UploadPage {
 
     const video = document.getElementById('camera-feed');
     const closeBtn = document.getElementById('btn-cam-close');
+    const captureBtn = document.getElementById('btn-cam-capture-now');
     const mirrorToggleBtn = document.getElementById('btn-cam-mirror-toggle');
     const overlayBoxes = document.getElementById('camera-detection-overlay');
     const detectCount = document.getElementById('cam-detect-count');
@@ -333,8 +339,8 @@ export class UploadPage {
     let detecting = false;
     let frameTimer = null;
     let totalDetected = 0;
-    let lastAutoUpload = 0;
     let isMirrored = false;
+    let isUploading = false;
 
     if (mirrorToggleBtn && video && overlayBoxes) {
       mirrorToggleBtn.addEventListener('click', () => {
@@ -355,15 +361,65 @@ export class UploadPage {
       return;
     }
 
-    // Tunggu video benar-benar siap
+    // Tunggu video siap
     await new Promise(r => { if (video.videoWidth) r(); else video.onloadedmetadata = r; });
 
-    // ── Optimized Live continuous detection (downscaled to 640px for ultra-fast scanning) ──
+    // Function to submit current frame immediately
+    const submitCurrentFrame = async () => {
+      if (isUploading || !video.videoWidth) return;
+      isUploading = true;
+      if (captureBtn) {
+        captureBtn.disabled = true;
+        captureBtn.innerHTML = '<span class="status-pulse-dot" style="width:8px;height:8px;background:white;border-radius:50%;display:inline-block;margin-right:6px;"></span> Mengirim...';
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) { isUploading = false; return; }
+        const formData = new FormData();
+        formData.append('file', blob, `cam_capture_${Date.now()}.jpg`);
+        formData.append('location', 'Lokasi tidak diketahui');
+        formData.append('sourceType', 'CCTV AI');
+        formData.append('additionalNotes', 'Tangkapan langsung dari Live AI camera');
+
+        try {
+          const uploadRes = await fetch('/api/detections', { method: 'POST', body: formData, credentials: 'include' });
+          if (uploadRes.ok) {
+            const newReport = await uploadRes.json();
+            if (frameTimer) clearInterval(frameTimer);
+            detecting = false;
+            if (stream) stream.getTracks().forEach(t => t.stop());
+            overlay.remove();
+            window.location.href = `/dashboard/detections/${newReport.id}`;
+          } else {
+            throw new Error('Gagal mengunggah laporan');
+          }
+        } catch (err) {
+          if (captureBtn) {
+            captureBtn.disabled = false;
+            captureBtn.innerHTML = '<i data-lucide="camera"></i> Tangkap & Laporkan';
+            if (window.lucide) window.lucide.createIcons();
+          }
+          isUploading = false;
+        }
+      }, 'image/jpeg', 0.85);
+    };
+
+    if (captureBtn) {
+      captureBtn.addEventListener('click', submitCurrentFrame);
+    }
+
+    // ── Optimized Live continuous detection (downscaled to 480px for ultra-fast scanning) ──
     const processFrame = async () => {
-      if (detecting || !stream || !video.videoWidth) return;
+      if (detecting || isUploading || !stream || !video.videoWidth) return;
       detecting = true;
 
-      const targetWidth = Math.min(640, video.videoWidth);
+      const targetWidth = Math.min(480, video.videoWidth);
       const targetHeight = Math.round(video.videoHeight * (targetWidth / video.videoWidth));
 
       const canvas = document.createElement('canvas');
@@ -399,28 +455,6 @@ export class UploadPage {
                 detectCount.textContent = `${totalDetected} detected`;
                 liveDot.style.background = '#EF4444';
                 liveDot.style.animation = 'pulse-dot 0.6s ease-in-out infinite';
-
-                // Auto-upload setiap 5 detik jika terdeteksi
-                const now = Date.now();
-                if (now - lastAutoUpload > 5_000) {
-                  lastAutoUpload = now;
-                  const formData2 = new FormData();
-                  formData2.append('file', blob, `auto_${Date.now()}.jpg`);
-                  formData2.append('location', 'Lokasi tidak diketahui');
-                  formData2.append('sourceType', 'AI_CCTV');
-                  formData2.append('additionalNotes', 'Auto-capture dari live AI detection');
-                  try {
-                    const uploadRes = await fetch('/api/detections', { method: 'POST', body: formData2, credentials: 'include' });
-                    if (uploadRes.ok) {
-                      const newReport = await uploadRes.json();
-                      if (frameTimer) clearInterval(frameTimer);
-                      detecting = false;
-                      if (stream) stream.getTracks().forEach(t => t.stop());
-                      overlay.remove();
-                      window.location.href = `/dashboard/detections/${newReport.id}`;
-                    }
-                  } catch (_) {}
-                }
               } else {
                 liveDot.style.background = '#10B981';
                 liveDot.style.animation = 'pulse-dot 0.8s ease-in-out infinite';
@@ -434,12 +468,12 @@ export class UploadPage {
         } catch (_) { /* skip frame on error */ }
 
         detecting = false;
-      }, 'image/jpeg', 0.6);
+      }, 'image/jpeg', 0.5);
     };
 
-    // Continuous detection setiap 600ms (0.6s) untuk pemindaian yang sangat cepat & responsif!
-    frameTimer = setInterval(processFrame, 600);
-    setTimeout(processFrame, 150);
+    // Continuous detection setiap 300ms (0.3s) untuk pemindaian instan real-time!
+    frameTimer = setInterval(processFrame, 300);
+    setTimeout(processFrame, 100);
 
     // Stop
     const doClose = () => {
