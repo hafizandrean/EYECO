@@ -67,11 +67,20 @@ router.get('/public/item/:slug', async (req, res) => {
 router.get('/public/:workspaceId', async (req, res) => {
     try {
         const workspaceId = parseInt(req.params.workspaceId);
-        const news = await News_1.NewsModel.find({ workspaceId, status: 'published' })
-            .sort({ publishedAt: -1 })
-            .limit(10)
+        let news = await News_1.NewsModel.find({ workspaceId, status: 'published' })
+            .sort({ publishedAt: -1, createdAt: -1 })
+            .limit(12)
             .lean()
             .exec();
+        // Fallback: If no or few news items for this workspace, fetch top published news overall
+        if (news.length < 6) {
+            const overallNews = await News_1.NewsModel.find({ status: 'published' })
+                .sort({ publishedAt: -1, createdAt: -1 })
+                .limit(12)
+                .lean()
+                .exec();
+            news = overallNews;
+        }
         res.json({ success: true, news });
     }
     catch (err) {

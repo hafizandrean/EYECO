@@ -137,7 +137,7 @@ const uploadsDir = path_1.default.join(__dirname, '../public/uploads');
 app.use('/uploads', (req, res, next) => {
     const relPath = req.path.replace(/^\/+/, '');
     const localPath = path_1.default.join(uploadsDir, relPath);
-    if (fs_1.default.existsSync(localPath) && fs_1.default.statSync(localPath).isFile()) {
+    if (fs_1.default.existsSync(localPath) && fs_1.default.statSync(localPath).isFile() && fs_1.default.statSync(localPath).size > 100) {
         return res.sendFile(localPath);
     }
     // File tidak ada di persis localPath — Cari di lokasi fallback disk lokal
@@ -145,7 +145,7 @@ app.use('/uploads', (req, res, next) => {
     let foundLocalPath = null;
     // 1. Cek langsung di uploads/<filename>
     const directPath = path_1.default.join(uploadsDir, filename);
-    if (fs_1.default.existsSync(directPath) && fs_1.default.statSync(directPath).isFile()) {
+    if (fs_1.default.existsSync(directPath) && fs_1.default.statSync(directPath).isFile() && fs_1.default.statSync(directPath).size > 100) {
         foundLocalPath = directPath;
     }
     else {
@@ -160,7 +160,7 @@ app.use('/uploads', (req, res, next) => {
                         if (match)
                             return match;
                     }
-                    else if (entry.isFile() && entry.name === filename) {
+                    else if (entry.isFile() && entry.name === filename && fs_1.default.statSync(full).size > 100) {
                         return full;
                     }
                 }

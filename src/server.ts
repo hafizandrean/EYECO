@@ -151,7 +151,7 @@ app.use('/uploads', (req, res, next) => {
   const relPath = req.path.replace(/^\/+/, '');
   const localPath = path.join(uploadsDir, relPath);
   
-  if (fs.existsSync(localPath) && fs.statSync(localPath).isFile()) {
+  if (fs.existsSync(localPath) && fs.statSync(localPath).isFile() && fs.statSync(localPath).size > 100) {
     return res.sendFile(localPath);
   }
 
@@ -161,7 +161,7 @@ app.use('/uploads', (req, res, next) => {
 
   // 1. Cek langsung di uploads/<filename>
   const directPath = path.join(uploadsDir, filename);
-  if (fs.existsSync(directPath) && fs.statSync(directPath).isFile()) {
+  if (fs.existsSync(directPath) && fs.statSync(directPath).isFile() && fs.statSync(directPath).size > 100) {
     foundLocalPath = directPath;
   } else {
     // 2. Cek pencarian rekursif di folder public/uploads
@@ -173,7 +173,7 @@ app.use('/uploads', (req, res, next) => {
           if (entry.isDirectory()) {
             const match = findRecursive(full);
             if (match) return match;
-          } else if (entry.isFile() && entry.name === filename) {
+          } else if (entry.isFile() && entry.name === filename && fs.statSync(full).size > 100) {
             return full;
           }
         }
