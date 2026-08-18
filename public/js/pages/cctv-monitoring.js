@@ -11,36 +11,36 @@ import { MacModal } from '../utils/macModal.js';
 // Expose EventBus globally for inline HTML onclick handlers
 window.EventBus = EventBus;
 
-// HLS.js configurations tuned by context
+// HLS.js ultra-lightweight max-speed configurations
 const GRID_HLS_CONFIG = {
   enableWorker: true,
   lowLatencyMode: true,
-  backBufferLength: 30,
-  maxBufferLength: 30,
-  maxMaxBufferLength: 60,
-  liveSyncDurationCount: 3,
-  liveMaxLatencyDurationCount: 10,
+  backBufferLength: 10,
+  maxBufferLength: 10,
+  maxMaxBufferLength: 20,
+  liveSyncDurationCount: 1,
+  liveMaxLatencyDurationCount: 3,
   liveDurationInfinity: true,
   highBufferWatchdogPeriod: 2,
   nudgeMaxRetry: 5,
-  capLevelToPlayerSize: false,
-  capLevelOnFPSDrop: false,
+  capLevelToPlayerSize: true,
+  capLevelOnFPSDrop: true,
   debug: false,
 };
 
 const FULLSCREEN_HLS_CONFIG = {
   enableWorker: true,
   lowLatencyMode: true,
-  backBufferLength: 45,
-  maxBufferLength: 45,
-  maxMaxBufferLength: 90,
-  liveSyncDurationCount: 3,
-  liveMaxLatencyDurationCount: 12,
+  backBufferLength: 15,
+  maxBufferLength: 15,
+  maxMaxBufferLength: 30,
+  liveSyncDurationCount: 1,
+  liveMaxLatencyDurationCount: 4,
   liveDurationInfinity: true,
   highBufferWatchdogPeriod: 2,
   nudgeMaxRetry: 5,
-  capLevelToPlayerSize: false,
-  capLevelOnFPSDrop: false,
+  capLevelToPlayerSize: true,
+  capLevelOnFPSDrop: true,
   debug: false,
 };
 
