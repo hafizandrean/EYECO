@@ -177,6 +177,9 @@ class ReportServiceClass {
     } catch (err) {
       console.error('=== [REPORT_SERVICE_EXTREME] ERROR ===', err.message);
       throw err;
+    }
+  }
+
   // Tambah komentar diskusi (dengan dukungan FormData untuk lampiran foto)
   async addComment(id, textOrFormData) {
     if (textOrFormData instanceof FormData) {
