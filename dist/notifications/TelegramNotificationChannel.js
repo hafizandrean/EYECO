@@ -12,9 +12,10 @@ class TelegramNotificationChannel {
     async send(report) {
         try {
             // 1. Ambil token bot dan chat ID dari environment / database
-            const botToken = process.env.TELEGRAM_BOT_TOKEN;
             const isEnabledSetting = await SystemSettings_1.SystemSettingsModel.findOne({ key: 'telegram.enabled' });
             const chatIdSetting = await SystemSettings_1.SystemSettingsModel.findOne({ key: 'telegram.chatId' });
+            const botTokenSetting = await SystemSettings_1.SystemSettingsModel.findOne({ key: 'telegram.botToken' });
+            const botToken = (botTokenSetting?.value ? String(botTokenSetting.value).trim() : '') || process.env.TELEGRAM_BOT_TOKEN;
             // Fix: handle both boolean true and string "true" from Mixed schema type
             const isEnabled = isEnabledSetting
                 ? (isEnabledSetting.value === true || isEnabledSetting.value === 'true')

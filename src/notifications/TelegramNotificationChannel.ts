@@ -10,9 +10,10 @@ export class TelegramNotificationChannel implements INotificationChannel {
   public async send(report: IReport): Promise<boolean> {
     try {
       // 1. Ambil token bot dan chat ID dari environment / database
-      const botToken = process.env.TELEGRAM_BOT_TOKEN;
       const isEnabledSetting = await SystemSettingsModel.findOne({ key: 'telegram.enabled' });
       const chatIdSetting = await SystemSettingsModel.findOne({ key: 'telegram.chatId' });
+      const botTokenSetting = await SystemSettingsModel.findOne({ key: 'telegram.botToken' });
+      const botToken = (botTokenSetting?.value ? String(botTokenSetting.value).trim() : '') || process.env.TELEGRAM_BOT_TOKEN;
 
       // Fix: handle both boolean true and string "true" from Mixed schema type
       const isEnabled = isEnabledSetting
