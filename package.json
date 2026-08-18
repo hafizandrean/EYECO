@@ -7,6 +7,7 @@
     "dev": "npm run build && node dist/server.js",
     "build": "tsc",
     "start": "node dist/server.js",
+    "migrate:r2": "tsx scripts/migrate-uploads-to-r2.ts",
     "repair:report-snapshots": "tsx scripts/repair-report-snapshots.ts"
   },
   "dependencies": {

@@ -204,10 +204,16 @@ app.use('/uploads', (req, res, next) => {
     r2Key = `eyecofiles/laporan_auto/${r2Key.replace(/^cctv-evidence\//, '')}`;
   } else if (r2Key.startsWith('berita/')) {
     r2Key = `eyecofiles/berita/${r2Key.replace(/^berita\//, '')}`;
+  } else if (r2Key.startsWith('avatars/')) {
+    r2Key = `eyecofiles/avatars/${r2Key.replace(/^avatars\//, '')}`;
   } else if (r2Key.startsWith('evidence_') || r2Key.startsWith('cctv_capture_')) {
     r2Key = `eyecofiles/laporan_auto/${r2Key}`;
   } else if (r2Key.startsWith('upload_')) {
     r2Key = `eyecofiles/laporan_manual/${r2Key}`;
+  } else if (r2Key.startsWith('news_')) {
+    r2Key = `eyecofiles/berita/${r2Key}`;
+  } else if (r2Key.startsWith('avatar_')) {
+    r2Key = `eyecofiles/avatars/${r2Key}`;
   }
 
   R2StorageService.getSignedUrl(r2Key, 900)

@@ -15,6 +15,7 @@ import { roleGuard } from '../auth/RoleMiddleware';
 import { SessionModel } from '../database/models/Session';
 import { SystemAuditLogModel } from '../database/models/SystemAuditLog';
 import { checkPasswordStrength } from '../utils/password';
+import { R2StorageService } from '../services/R2StorageService';
 
 const router = Router();
 
@@ -371,14 +372,23 @@ router.post('/avatar', authMiddleware, (req, res, next) => {
 
     if (!req.file) return res.status(400).json({ error: 'Tidak ada file yang diupload' });
 
-    // Hapus file avatar lama jika ada
+    // Hapus file avatar lama jika ada (lokal & R2)
     const existingUser = await UserModel.findOne({ id: userId }).lean().exec();
     if (existingUser && (existingUser as any).avatar) {
-      const oldPath = path.join(__dirname, '../../public', (existingUser as any).avatar);
+      const oldAvatarStr = (existingUser as any).avatar;
+      const oldPath = path.join(__dirname, '../../public', oldAvatarStr);
       try { if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath); } catch (_) {}
+      const oldR2Key = `eyecofiles/avatars/${path.basename(oldAvatarStr)}`;
+      R2StorageService.delete(oldR2Key).catch(() => {});
     }
 
     const avatarPath = `/uploads/avatars/${req.file.filename}`;
+
+    // Upload avatar ke Cloudflare R2 di background
+    const r2Key = `eyecofiles/avatars/${req.file.filename}`;
+    R2StorageService.uploadFile(req.file.path, r2Key, req.file.mimetype || 'image/jpeg', true)
+      .then(() => console.log(`[R2] Avatar uploaded to R2: ${r2Key}`))
+      .catch((r2Err) => console.warn('[R2] Avatar upload skipped:', r2Err.message));
 
     await UserModel.findOneAndUpdate(
       { id: userId },
@@ -405,6 +415,8 @@ router.delete('/avatar', authMiddleware, async (req, res) => {
     if (oldAvatar) {
       const oldPath = path.join(__dirname, '../../public', oldAvatar);
       try { if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath); } catch (_) {}
+      const oldR2Key = `eyecofiles/avatars/${path.basename(oldAvatar)}`;
+      R2StorageService.delete(oldR2Key).catch(() => {});
     }
 
     await UserModel.findOneAndUpdate(

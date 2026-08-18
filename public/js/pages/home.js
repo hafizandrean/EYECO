@@ -555,12 +555,14 @@ class HomePage {
         const card = document.createElement('div');
         card.className = 'news-mcard';
         card.dataset.slug = item.slug || '';
+        const fallbackIcon = icons[i % icons.length];
+        const fallbackBg = gradients[i % gradients.length];
         const thumbHtml = item.thumbnail
-          ? `<img src="${item.thumbnail}" alt="${item.title}" loading="lazy">`
-          : `<i data-lucide="${icons[i % icons.length]}"></i>`;
+          ? `<img src="${item.thumbnail}" alt="${item.title}" loading="lazy" onerror="this.onerror=null;this.parentElement.style.background='${fallbackBg}';this.parentElement.style.display='flex';this.parentElement.style.alignItems='center';this.parentElement.style.justifyContent='center';this.outerHTML='<i data-lucide=\\'${fallbackIcon}\\'></i>';if(window.lucide)window.lucide.createIcons();">`
+          : `<i data-lucide="${fallbackIcon}"></i>`;
         const thumbBg = item.thumbnail
           ? 'background:#0F172A;'
-          : `background: ${gradients[i % gradients.length]};display:flex;align-items:center;justify-content:center;`;
+          : `background: ${fallbackBg};display:flex;align-items:center;justify-content:center;`;
         card.innerHTML = `
           <div class="news-mcard-img" style="${thumbBg}">
             ${thumbHtml}

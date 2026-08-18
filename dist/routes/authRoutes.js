@@ -20,6 +20,7 @@ const RoleMiddleware_1 = require("../auth/RoleMiddleware");
 const Session_1 = require("../database/models/Session");
 const SystemAuditLog_1 = require("../database/models/SystemAuditLog");
 const password_1 = require("../utils/password");
+const R2StorageService_1 = require("../services/R2StorageService");
 const router = (0, express_1.Router)();
 const authLimiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000,
@@ -349,17 +350,25 @@ router.post('/avatar', authMiddleware_1.authMiddleware, (req, res, next) => {
             return res.status(401).json({ error: 'Belum masuk' });
         if (!req.file)
             return res.status(400).json({ error: 'Tidak ada file yang diupload' });
-        // Hapus file avatar lama jika ada
+        // Hapus file avatar lama jika ada (lokal & R2)
         const existingUser = await User_1.UserModel.findOne({ id: userId }).lean().exec();
         if (existingUser && existingUser.avatar) {
-            const oldPath = path_1.default.join(__dirname, '../../public', existingUser.avatar);
+            const oldAvatarStr = existingUser.avatar;
+            const oldPath = path_1.default.join(__dirname, '../../public', oldAvatarStr);
             try {
                 if (fs_1.default.existsSync(oldPath))
                     fs_1.default.unlinkSync(oldPath);
             }
             catch (_) { }
+            const oldR2Key = `eyecofiles/avatars/${path_1.default.basename(oldAvatarStr)}`;
+            R2StorageService_1.R2StorageService.delete(oldR2Key).catch(() => { });
         }
         const avatarPath = `/uploads/avatars/${req.file.filename}`;
+        // Upload avatar ke Cloudflare R2 di background
+        const r2Key = `eyecofiles/avatars/${req.file.filename}`;
+        R2StorageService_1.R2StorageService.uploadFile(req.file.path, r2Key, req.file.mimetype || 'image/jpeg', true)
+            .then(() => console.log(`[R2] Avatar uploaded to R2: ${r2Key}`))
+            .catch((r2Err) => console.warn('[R2] Avatar upload skipped:', r2Err.message));
         await User_1.UserModel.findOneAndUpdate({ id: userId }, { $set: { avatar: avatarPath } }).exec();
         res.json({ success: true, data: { avatar: avatarPath } });
     }
@@ -385,6 +394,8 @@ router.delete('/avatar', authMiddleware_1.authMiddleware, async (req, res) => {
                     fs_1.default.unlinkSync(oldPath);
             }
             catch (_) { }
+            const oldR2Key = `eyecofiles/avatars/${path_1.default.basename(oldAvatar)}`;
+            R2StorageService_1.R2StorageService.delete(oldR2Key).catch(() => { });
         }
         await User_1.UserModel.findOneAndUpdate({ id: userId }, { $set: { avatar: '' } }).exec();
         res.json({ success: true, data: { avatar: '' } });
