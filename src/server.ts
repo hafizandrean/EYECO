@@ -83,19 +83,18 @@ app.use((req, res, next) => {
   next();
 });
 
-// Fast static asset caching options for browser performance (1h max-age with ETag validation)
-const staticCacheOptions = {
-  maxAge: 3600000,
+// Fast static asset caching options for browser performance with instant updates
+const staticNoCacheOptions = {
   etag: true,
   setHeaders: (res: any) => {
-    res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
+    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
   }
 };
 
-// Serve static CSS, JS, and assets with fast browser caching
-app.use('/css', express.static(path.join(__dirname, '../public/css'), staticCacheOptions));
-app.use('/js', express.static(path.join(__dirname, '../public/js'), staticCacheOptions));
-app.use('/assets', express.static(path.join(__dirname, '../public/assets'), staticCacheOptions));
+// Serve static CSS, JS, and assets
+app.use('/css', express.static(path.join(__dirname, '../public/css'), staticNoCacheOptions));
+app.use('/js', express.static(path.join(__dirname, '../public/js'), staticNoCacheOptions));
+app.use('/assets', express.static(path.join(__dirname, '../public/assets'), staticNoCacheOptions));
 app.use('/hls', (req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', '*');

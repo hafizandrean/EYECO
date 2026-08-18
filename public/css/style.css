@@ -3331,31 +3331,17 @@ body.dark-mode .news-mcard-body p {
   background: #64748b;
 }
 
-/* ── Premium CCTV Stream Loading Overlay ── */
-.cctv-loading-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: rgba(8, 12, 20, 0.88);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  z-index: 4;
-  transition: opacity 0.3s ease;
-}
-
+/* ── Premium CCTV Stream Loading Overlay (Disabled for Max Speed) ── */
+.cctv-loading-overlay,
+.cctv-card-loading-overlay,
+#vms-fs-loading-overlay,
 .cctv-loading-spinner {
-  width: 44px;
-  height: 44px;
-  border: 3px solid rgba(255, 255, 255, 0.12);
-  border-top-color: var(--primary, #2f6bff);
-  border-right-color: var(--primary, #2f6bff);
-  border-radius: 50%;
-  animation: spin 0.75s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  margin-bottom: 12px;
-  box-shadow: 0 0 16px rgba(47, 107, 255, 0.25);
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .cctv-loading-text {
