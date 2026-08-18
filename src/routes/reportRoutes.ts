@@ -86,7 +86,7 @@ function sendError(res: import('express').Response, message: string, status = 40
 router.get('/detections', async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
-    const userContext = user ? { id: user.id, role: user.role } : { id: 1, role: 'admin' };
+    const userContext = user ? { id: user.id, role: user.role } : { id: 0, role: 'public', workspaceId: 9 };
 
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));

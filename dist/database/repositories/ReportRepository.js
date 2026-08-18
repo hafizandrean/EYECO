@@ -143,7 +143,10 @@ class ReportRepository {
     static async getFiltered(filters, userContext, page, limit) {
         try {
             const query = { deletedAt: null };
-            if (userContext.role === 'admin') {
+            if (userContext.role === 'public' || !userContext.role) {
+                query.workspaceId = userContext.workspaceId || 9;
+            }
+            else if (userContext.role === 'admin') {
                 const user = await User_1.UserModel.findOne({ id: userContext.id }).lean().exec();
                 const wsId = user?.workspaceId;
                 if (wsId) {

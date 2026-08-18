@@ -474,7 +474,9 @@ class HomePage {
         const isVideoImage = report.image && report.image.endsWith('.mp4');
         const imgHtml = isVideoImage
           ? `<div style="display:flex; width:100%; height:100%; align-items:center; justify-content:center; background:var(--surface-soft); color:var(--text-muted);"><i data-lucide="video" style="width:28px; height:28px;"></i></div>`
-          : `<img src="${report.image}" alt="Bukti" loading="lazy" onerror="this.style.display='none'">`;
+          : (report.image
+              ? `<img src="${report.image}" alt="Bukti" loading="lazy" onerror="this.onerror=null;this.parentElement.style.display='flex';this.parentElement.style.alignItems='center';this.parentElement.style.justifyContent='center';this.parentElement.style.background='var(--surface-soft)';this.outerHTML='<i data-lucide=\\'camera\\'></i>';if(window.lucide)window.lucide.createIcons();">`
+              : `<div style="display:flex; width:100%; height:100%; align-items:center; justify-content:center; background:var(--surface-soft); color:var(--text-muted);"><i data-lucide="camera" style="width:28px; height:28px;"></i></div>`);
 
         const card = document.createElement('div');
         card.className = 'report-card';

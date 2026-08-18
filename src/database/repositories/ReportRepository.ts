@@ -207,7 +207,9 @@ export class ReportRepository {
     try {
       const query: any = { deletedAt: null };
 
-      if (userContext.role === 'admin') {
+      if (userContext.role === 'public' || !userContext.role) {
+        query.workspaceId = (userContext as any).workspaceId || 9;
+      } else if (userContext.role === 'admin') {
         const user = await UserModel.findOne({ id: userContext.id }).lean().exec();
         const wsId = (user as any)?.workspaceId;
         if (wsId) {
