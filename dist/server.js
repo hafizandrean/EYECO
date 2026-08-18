@@ -1163,7 +1163,7 @@ let serverInstance;
         }
     }
     // CCTV Health Engine is started inside listenWithFallback
-    AiPipelineScheduler_1.AiPipelineScheduler.start(5000);
+    AiPipelineScheduler_1.AiPipelineScheduler.start(30000);
     OutboxWorker_1.OutboxWorker.start();
     // Start background video analysis worker as a separate process
     try {

@@ -1292,7 +1292,7 @@ connectDB().then(async () => {
   }
 
   // CCTV Health Engine is started inside listenWithFallback
-  AiPipelineScheduler.start(5000);
+  AiPipelineScheduler.start(30000);
   OutboxWorker.start();
   
   // Start background video analysis worker as a separate process
