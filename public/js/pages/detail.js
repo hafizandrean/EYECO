@@ -1,4 +1,5 @@
 // detail.js - Kontroler Halaman Detail Analisis Laporan Lingkungan (Collaborative Review Workflow)
+import { API } from '../services/api.js';
 import { ReportService } from '../services/reportService.js';
 import { Router } from '../core/router.js';
 import { Formatter } from '../utils/formatter.js';
