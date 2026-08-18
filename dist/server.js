@@ -17,6 +17,7 @@ const db_1 = require("./database/db");
 const Report_1 = require("./database/models/Report");
 const OutboxEvent_1 = require("./database/models/OutboxEvent");
 const User_1 = require("./database/models/User");
+const auth_service_1 = require("./auth/auth.service");
 const authMiddleware_2 = require("./auth/authMiddleware");
 const RoleMiddleware_1 = require("./auth/RoleMiddleware");
 const authRoutes_1 = __importDefault(require("./routes/authRoutes"));
@@ -77,24 +78,24 @@ app.use((req, res, next) => {
     }
     next();
 });
-// Options to disable browser caching for JS and CSS files to allow updates to apply immediately without Ctrl+F5
-const staticNoCacheOptions = {
+// Fast static asset caching options for browser performance (1h max-age with ETag validation)
+const staticCacheOptions = {
+    maxAge: 3600000,
+    etag: true,
     setHeaders: (res) => {
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
+        res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
     }
 };
-// Serve static CSS and JS files directly
-app.use('/css', express_1.default.static(path_1.default.join(__dirname, '../public/css'), staticNoCacheOptions));
-app.use('/js', express_1.default.static(path_1.default.join(__dirname, '../public/js'), staticNoCacheOptions));
+// Serve static CSS, JS, and assets with fast browser caching
+app.use('/css', express_1.default.static(path_1.default.join(__dirname, '../public/css'), staticCacheOptions));
+app.use('/js', express_1.default.static(path_1.default.join(__dirname, '../public/js'), staticCacheOptions));
+app.use('/assets', express_1.default.static(path_1.default.join(__dirname, '../public/assets'), staticCacheOptions));
 app.use('/hls', (req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', '*');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     express_1.default.static(path_1.default.join(process.cwd(), 'public', 'hls'))(req, res, next);
 });
-app.use('/assets', express_1.default.static(path_1.default.join(__dirname, '../public/assets')));
 // Serve Favicon (browser tab logo)
 app.get(['/favicon.ico', '/favicon.png'], (req, res) => {
     const icoPath = path_1.default.join(__dirname, '../public/favicon.ico');
@@ -106,7 +107,6 @@ app.get(['/favicon.ico', '/favicon.png'], (req, res) => {
 });
 // Global middleware to populate req.userContext from cookie/header
 app.use((req, res, next) => {
-    const { verifyToken } = require('./auth/auth.service');
     let token = '';
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -116,40 +116,37 @@ app.use((req, res, next) => {
         token = req.cookies?.session_token || '';
     }
     if (token) {
-        const payload = verifyToken(token);
+        const payload = (0, auth_service_1.verifyToken)(token);
         if (payload) {
             req.userContext = payload;
         }
     }
     next();
 });
-// --- STATIC FILES ---
-app.use('/css', express_1.default.static(path_1.default.join(__dirname, '../public/css'), staticNoCacheOptions));
-app.use('/hls', (req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', '*');
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    express_1.default.static(path_1.default.join(process.cwd(), 'public', 'hls'))(req, res, next);
-});
-// Uploads: local dulu, fallback ke R2 (proxy, bukan redirect)
 // Uploads: local dulu, fallback ke R2 (proxy, bukan redirect)
 const uploadsDir = path_1.default.join(__dirname, '../public/uploads');
+const localFileCache = new Map();
 app.use('/uploads', (req, res, next) => {
     const relPath = req.path.replace(/^\/+/, '');
     const localPath = path_1.default.join(uploadsDir, relPath);
     if (fs_1.default.existsSync(localPath) && fs_1.default.statSync(localPath).isFile() && fs_1.default.statSync(localPath).size > 100) {
         return res.sendFile(localPath);
     }
-    // File tidak ada di persis localPath — Cari di lokasi fallback disk lokal
+    // Check in-memory cache first to avoid recursive disk scan overhead
     const filename = path_1.default.basename(relPath);
+    if (localFileCache.has(filename)) {
+        const cachedPath = localFileCache.get(filename);
+        if (fs_1.default.existsSync(cachedPath)) {
+            return res.sendFile(cachedPath);
+        }
+        localFileCache.delete(filename);
+    }
     let foundLocalPath = null;
-    // 1. Cek langsung di uploads/<filename>
     const directPath = path_1.default.join(uploadsDir, filename);
     if (fs_1.default.existsSync(directPath) && fs_1.default.statSync(directPath).isFile() && fs_1.default.statSync(directPath).size > 100) {
         foundLocalPath = directPath;
     }
     else {
-        // 2. Cek pencarian rekursif di folder public/uploads
         const findRecursive = (dir) => {
             try {
                 const entries = fs_1.default.readdirSync(dir, { withFileTypes: true });
@@ -171,6 +168,7 @@ app.use('/uploads', (req, res, next) => {
         foundLocalPath = findRecursive(uploadsDir);
     }
     if (foundLocalPath) {
+        localFileCache.set(filename, foundLocalPath);
         return res.sendFile(foundLocalPath);
     }
     // 3. File tidak ada di lokal — proxy dari R2 jika R2 terkonfigurasi

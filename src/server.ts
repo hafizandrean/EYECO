@@ -13,6 +13,7 @@ import { DatabaseManager, Report, BoundingBox, User, connectDB, disconnectDB, Cc
 import { ReportModel } from './database/models/Report';
 import { OutboxEventModel } from './database/models/OutboxEvent';
 import { UserModel } from './database/models/User';
+import { verifyToken } from './auth/auth.service';
 import { authMiddleware } from './auth/authMiddleware';
 import { roleGuard } from './auth/RoleMiddleware';
 import authRouter from './routes/authRoutes';
@@ -82,25 +83,25 @@ app.use((req, res, next) => {
   next();
 });
 
-// Options to disable browser caching for JS and CSS files to allow updates to apply immediately without Ctrl+F5
-const staticNoCacheOptions = {
+// Fast static asset caching options for browser performance (1h max-age with ETag validation)
+const staticCacheOptions = {
+  maxAge: 3600000,
+  etag: true,
   setHeaders: (res: any) => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+    res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
   }
 };
 
-// Serve static CSS and JS files directly
-app.use('/css', express.static(path.join(__dirname, '../public/css'), staticNoCacheOptions));
-app.use('/js', express.static(path.join(__dirname, '../public/js'), staticNoCacheOptions));
+// Serve static CSS, JS, and assets with fast browser caching
+app.use('/css', express.static(path.join(__dirname, '../public/css'), staticCacheOptions));
+app.use('/js', express.static(path.join(__dirname, '../public/js'), staticCacheOptions));
+app.use('/assets', express.static(path.join(__dirname, '../public/assets'), staticCacheOptions));
 app.use('/hls', (req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', '*');
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   express.static(path.join(process.cwd(), 'public', 'hls'))(req, res, next);
 });
-app.use('/assets', express.static(path.join(__dirname, '../public/assets')));
 
 // Serve Favicon (browser tab logo)
 app.get(['/favicon.ico', '/favicon.png'], (req, res) => {
@@ -114,9 +115,7 @@ app.get(['/favicon.ico', '/favicon.png'], (req, res) => {
 
 // Global middleware to populate req.userContext from cookie/header
 app.use((req, res, next) => {
-  const { verifyToken } = require('./auth/auth.service');
   let token = '';
-
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.split(' ')[1];
@@ -134,19 +133,10 @@ app.use((req, res, next) => {
   next();
 });
 
-// --- STATIC FILES ---
-app.use('/css', express.static(path.join(__dirname, '../public/css'), staticNoCacheOptions));
-app.use('/hls', (req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', '*');
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  express.static(path.join(process.cwd(), 'public', 'hls'))(req, res, next);
-});
-
-
-// Uploads: local dulu, fallback ke R2 (proxy, bukan redirect)
 // Uploads: local dulu, fallback ke R2 (proxy, bukan redirect)
 const uploadsDir = path.join(__dirname, '../public/uploads');
+const localFileCache = new Map<string, string>();
+
 app.use('/uploads', (req, res, next) => {
   const relPath = req.path.replace(/^\/+/, '');
   const localPath = path.join(uploadsDir, relPath);
@@ -155,16 +145,21 @@ app.use('/uploads', (req, res, next) => {
     return res.sendFile(localPath);
   }
 
-  // File tidak ada di persis localPath — Cari di lokasi fallback disk lokal
+  // Check in-memory cache first to avoid recursive disk scan overhead
   const filename = path.basename(relPath);
-  let foundLocalPath: string | null = null;
+  if (localFileCache.has(filename)) {
+    const cachedPath = localFileCache.get(filename)!;
+    if (fs.existsSync(cachedPath)) {
+      return res.sendFile(cachedPath);
+    }
+    localFileCache.delete(filename);
+  }
 
-  // 1. Cek langsung di uploads/<filename>
+  let foundLocalPath: string | null = null;
   const directPath = path.join(uploadsDir, filename);
   if (fs.existsSync(directPath) && fs.statSync(directPath).isFile() && fs.statSync(directPath).size > 100) {
     foundLocalPath = directPath;
   } else {
-    // 2. Cek pencarian rekursif di folder public/uploads
     const findRecursive = (dir: string): string | null => {
       try {
         const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -184,6 +179,7 @@ app.use('/uploads', (req, res, next) => {
   }
 
   if (foundLocalPath) {
+    localFileCache.set(filename, foundLocalPath);
     return res.sendFile(foundLocalPath);
   }
 
