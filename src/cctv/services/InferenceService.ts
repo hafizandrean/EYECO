@@ -42,10 +42,8 @@ export class InferenceService {
       if (hasTrash) {
         severity = 'HIGH';
         if (hasPerson) severity = 'CRITICAL'; // Orang membuang sampah
-      } else if (hasPerson) {
-        severity = 'MEDIUM'; // Aktivitas manusia terdeteksi di area CCTV
       } else if (hasBoat) {
-        severity = 'MEDIUM';
+        severity = 'MEDIUM'; // Perahu terdeteksi di sungai
       }
 
       // 4. Dapatkan autoincrement ID berikutnya untuk AiDetection (Atomic)

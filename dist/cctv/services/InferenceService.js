@@ -41,11 +41,8 @@ class InferenceService {
                 if (hasPerson)
                     severity = 'CRITICAL'; // Orang membuang sampah
             }
-            else if (hasPerson) {
-                severity = 'MEDIUM'; // Aktivitas manusia terdeteksi di area CCTV
-            }
             else if (hasBoat) {
-                severity = 'MEDIUM';
+                severity = 'MEDIUM'; // Perahu terdeteksi di sungai
             }
             // 4. Dapatkan autoincrement ID berikutnya untuk AiDetection (Atomic)
             const nextId = await (0, Counter_1.getNextSequence)('detectionId', AiDetection_1.AiDetectionModel);
