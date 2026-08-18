@@ -297,15 +297,24 @@ router.get('/detections/:id/comments', async (req, res) => {
         return sendError(res, 'Internal Server Error', 500);
     }
 });
-router.post('/detections/:id/comments', commentLimiter, async (req, res) => {
+router.post('/detections/:id/comments', commentLimiter, upload.single('file'), async (req, res) => {
     try {
         const user = await (0, authMiddleware_1.getLoggedInUser)(req);
         if (!user)
             return sendError(res, 'Unauthorized', 401);
         const reportId = parseInt(req.params.id);
         const { text, parentCommentId } = req.body;
-        if (!text || typeof text !== 'string')
-            return sendError(res, 'Konten komentar harus diisi.', 400);
+        let imagePath = null;
+        if (req.file) {
+            imagePath = `/uploads/laporan_manual/${reportId}/${req.file.filename}`;
+            const r2Key = `eyecofiles/laporan_manual/${reportId}/${req.file.filename}`;
+            R2StorageService_1.R2StorageService.uploadFile(req.file.path, r2Key, req.file.mimetype || 'image/jpeg', true)
+                .then(() => console.log(`[R2] Comment image uploaded: ${r2Key}`))
+                .catch(r2Err => console.warn('[R2] Comment image upload skipped:', r2Err.message));
+        }
+        if ((!text || typeof text !== 'string' || !text.trim()) && !imagePath) {
+            return sendError(res, 'Komentar harus berisi teks atau foto.', 400);
+        }
         // Find the report to determine who owns it
         const report = await Report_1.ReportModel.findOne({ id: reportId, deletedAt: null })
             .select('userId workspaceId')
@@ -313,16 +322,15 @@ router.post('/detections/:id/comments', commentLimiter, async (req, res) => {
             .exec();
         if (!report)
             return sendError(res, 'Laporan tidak ditemukan', 404);
-        const comment = await ReportRepository_1.ReportRepository.addComment(reportId, user.id, text, user.workspaceId, parentCommentId || null);
+        const comment = await ReportRepository_1.ReportRepository.addComment(reportId, user.id, text || '', user.workspaceId, parentCommentId || null, imagePath);
         // Notify the report owner if someone else commented (don't notify on self-comment)
         if (report.userId && !report.userId.equals(user._id)) {
-            // Resolve the report owner's numeric legacy ID for the notification service
             const reportOwner = await User_1.UserModel.findById(report.userId).select('id').lean().exec();
             if (reportOwner) {
                 NotificationService_1.NotificationService.notifyComment(reportId, user.name || user.username, reportOwner.id, report.workspaceId);
             }
         }
-        return sendSuccess(res, { ...comment, username: user.username, role: user.role }, 201);
+        return sendSuccess(res, { ...comment, username: user.username, role: user.role, avatar: user.avatar || '' }, 201);
     }
     catch (err) {
         console.error('[SERVER ERROR] Create comment failed:', err);

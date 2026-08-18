@@ -458,13 +458,18 @@ export class ReportRepository {
     userId: number,
     text: string,
     workspaceId?: number,
-    parentCommentId?: string | null
+    parentCommentId?: string | null,
+    image?: string | null
   ): Promise<IComment> {
     try {
-      const sanitized = text.replace(/<[^>]*>/g, '').trim();
+      const sanitized = text ? text.replace(/<[^>]*>/g, '').trim() : '';
 
-      if (sanitized.length < 2 || sanitized.length > 500) {
-        throw new Error('Komentar harus terdiri dari 2 hingga 500 karakter.');
+      if (!sanitized && !image) {
+        throw new Error('Komentar harus berisi teks atau foto.');
+      }
+
+      if (sanitized && sanitized.length > 500) {
+        throw new Error('Komentar tidak boleh lebih dari 500 karakter.');
       }
 
       // If replying, validate parent comment exists first
@@ -497,6 +502,7 @@ export class ReportRepository {
       const commentData = {
         userId,
         text: sanitized,
+        image: image || null,
         likedBy: [],
         isDeleted: false,
         parentCommentId: parentCommentId || null

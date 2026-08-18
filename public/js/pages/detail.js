@@ -637,14 +637,6 @@ export class DetailPage {
                 <button class="btn btn-glass btn-sm btn-rounded btn-vote" data-vote="resolved" style="flex:1; font-size: 0.7rem; padding: 8px 0; justify-content:center; font-weight: 700; ${signals.voted ? 'opacity:0.5; pointer-events:none;' : ''}">Sudah Bersih</button>
               </div>
 
-              <!-- Upload extra update photo button -->
-              <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 6px;">
-                <span style="font-size: 0.72rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Tambahkan Foto Kondisi Terbaru</span>
-                <button class="btn btn-glass btn-sm btn-rounded" id="btn-update-photo-upload" style="border-color: rgba(47,107,255,0.2); color: var(--primary); font-size:0.75rem; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; padding: 8px 0;">
-                  <i data-lucide="camera" style="width: 14px; height: 14px;"></i> Unggah Foto
-                </button>
-                <input type="file" id="update-photo-input-file" accept="image/*" style="display:none;">
-              </div>
             </div>
           </div>
 
@@ -1108,7 +1100,7 @@ export class DetailPage {
 
       <!-- Input Form -->
       <form id="comment-post-form" style="display:flex; flex-direction:column; gap:8px; margin-top: 16px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 12px;">
-        <div style="display: flex; gap: 8px;">
+        <div style="display: flex; gap: 8px; align-items:center; justify-content:space-between;">
           <select class="filter-control select-rounded" id="comment-input-category" style="font-size:0.72rem; padding: 2px 6px; height: 28px; width:auto; background:var(--surface);" required>
             <option value="Umum" selected>Kategori: Umum</option>
             <option value="Informasi Tambahan">Kategori: Info Tambahan</option>
@@ -1117,13 +1109,29 @@ export class DetailPage {
             <option value="Saksi">Kategori: Saksi Mata</option>
           </select>
         </div>
-        <div style="position:relative;">
-          <textarea class="form-control textarea-rounded" id="comment-input-text" placeholder="Berikan info lapangan terbaru (gunakan @username jika perlu)..." style="height:62px; font-size:0.8rem; padding: 8px 12px; padding-bottom: 22px; resize:none; background:var(--surface);" required></textarea>
-          <span id="comment-char-counter" style="position:absolute; right:12px; bottom:6px; font-size:0.65rem; color:var(--text-muted); pointer-events:none;">0/500</span>
+
+        <!-- Image preview container -->
+        <div id="comment-image-preview-container" style="display:none; position:relative; width:fit-content; margin-top:2px; margin-bottom:2px;">
+          <img id="comment-image-preview-img" src="" alt="Preview Foto" style="max-height:100px; border-radius:10px; border:1px solid var(--border); object-fit:cover; display:block;">
+          <button type="button" id="btn-remove-comment-image" title="Hapus foto" style="position:absolute; top:-6px; right:-6px; background:#ef4444; color:#fff; border:none; border-radius:50%; width:20px; height:20px; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:bold; line-height:1;">×</button>
         </div>
-        <button type="submit" class="btn btn-primary btn-rounded btn-sm" id="btn-submit-comment" style="align-self: flex-end; height:30px; font-size:0.75rem; padding: 0 16px; font-weight:700;">
-          Kirim Diskusi
-        </button>
+
+        <div style="position:relative; display:flex; gap:8px; align-items:flex-end;">
+          <div style="position:relative; flex-grow:1;">
+            <textarea class="form-control textarea-rounded" id="comment-input-text" placeholder="Berikan info atau kirim foto kondisi terbaru..." style="height:56px; font-size:0.8rem; padding: 8px 12px; padding-bottom: 20px; resize:none; background:var(--surface);"></textarea>
+            <span id="comment-char-counter" style="position:absolute; right:12px; bottom:4px; font-size:0.65rem; color:var(--text-muted); pointer-events:none;">0/500</span>
+          </div>
+
+          <input type="file" id="comment-input-file" accept="image/*" style="display:none;">
+
+          <button type="button" class="btn btn-glass btn-rounded" id="btn-attach-comment-photo" title="Lampirkan Foto" style="height:36px; width:36px; min-width:36px; padding:0; display:flex; align-items:center; justify-content:center; border-color:rgba(47,107,255,0.3); color:var(--primary);">
+            <i data-lucide="image" style="width:18px; height:18px;"></i>
+          </button>
+
+          <button type="submit" class="btn btn-primary btn-rounded btn-sm" id="btn-submit-comment" style="height:36px; font-size:0.75rem; padding: 0 16px; font-weight:700; white-space:nowrap;">
+            Kirim
+          </button>
+        </div>
       </form>
     `;
     if (window.lucide) window.lucide.createIcons();
@@ -1266,7 +1274,12 @@ export class DetailPage {
               <span style="font-size:0.63rem; color:var(--text-muted); margin-left:auto; flex-shrink:0;">${Formatter.formatDate(comment.createdAt || comment.timestamp)}</span>
             </div>
             <div style="font-size:0.78rem; color:var(--text-secondary); line-height: 1.4; word-break: break-word; margin-top:2px;">
-              ${cleanText}
+              ${cleanText ? `<div>${cleanText}</div>` : ''}
+              ${comment.image ? `
+                <div style="margin-top:6px; border-radius:10px; overflow:hidden; max-width:240px; border:1px solid var(--border);" class="comment-image-wrapper">
+                  <img src="${comment.image}" alt="Foto Bukti Komentar" style="width:100%; max-height:200px; object-fit:cover; display:block; cursor:pointer;" loading="lazy" onclick="window.open('${comment.image}', '_blank')">
+                </div>
+              ` : ''}
             </div>
           </div>
         </div>
@@ -1546,6 +1559,42 @@ export class DetailPage {
       });
     }
 
+    // Comment photo attachment handlers
+    const attachPhotoBtn = document.getElementById('btn-attach-comment-photo');
+    const commentFileInput = document.getElementById('comment-input-file');
+    const previewContainer = document.getElementById('comment-image-preview-container');
+    const previewImg = document.getElementById('comment-image-preview-img');
+    const removePhotoBtn = document.getElementById('btn-remove-comment-image');
+
+    if (attachPhotoBtn && commentFileInput) {
+      attachPhotoBtn.addEventListener('click', () => commentFileInput.click());
+    }
+
+    if (commentFileInput && previewContainer && previewImg) {
+      commentFileInput.addEventListener('change', () => {
+        const file = commentFileInput.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            previewImg.src = e.target.result;
+            previewContainer.style.display = 'block';
+          };
+          reader.readAsDataURL(file);
+        } else {
+          previewContainer.style.display = 'none';
+          previewImg.src = '';
+        }
+      });
+    }
+
+    if (removePhotoBtn && commentFileInput && previewContainer) {
+      removePhotoBtn.addEventListener('click', () => {
+        commentFileInput.value = '';
+        previewContainer.style.display = 'none';
+        previewImg.src = '';
+      });
+    }
+
     // Characters counter validation
     if (commentInput && charCounter) {
       commentInput.addEventListener('input', () => {
@@ -1555,24 +1604,40 @@ export class DetailPage {
       });
     }
 
-    // Submit new comment with custom tags
-    if (commentForm && commentInput) {
+    // Submit new comment with custom tags & optional photo attachment
+    if (commentForm) {
       commentForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const text = commentInput.value.trim();
-        const category = document.getElementById('comment-input-category').value;
-        if (!text) return;
+        const text = (commentInput ? commentInput.value : '').trim();
+        const categoryEl = document.getElementById('comment-input-category');
+        const category = categoryEl ? categoryEl.value : 'Umum';
+        const file = commentFileInput ? commentFileInput.files[0] : null;
 
-        // Append category directly into comment body for structured rendering
-        const formattedText = `[${category}] ${text}`;
+        if (!text && !file) {
+          EventBus.emit('toast:show', { message: 'Tulis komentar atau pilih foto terlebih dahulu.', type: 'danger' });
+          return;
+        }
+
+        const formData = new FormData();
+        const formattedText = text ? `[${category}] ${text}` : `[${category}]`;
+        formData.append('text', formattedText);
+        if (file) {
+          formData.append('file', file);
+        }
 
         try {
-          await ReportService.addComment(this.reportId, formattedText);
-          commentInput.value = '';
-          charCounter.innerText = '0/500';
+          await API.post(`/api/detections/${this.reportId}/comments`, formData);
+          if (commentInput) commentInput.value = '';
+          if (commentFileInput) commentFileInput.value = '';
+          if (previewContainer) previewContainer.style.display = 'none';
+          if (previewImg) previewImg.src = '';
+          if (charCounter) charCounter.innerText = '0/500';
+
           EventBus.emit('toast:show', { message: 'Komentar diskusi terkirim!', type: 'success' });
           await this.loadComments(true);
-        } catch (err) {}
+        } catch (err) {
+          EventBus.emit('toast:show', { message: err.message || 'Gagal mengirim komentar.', type: 'danger' });
+        }
       });
     }
 

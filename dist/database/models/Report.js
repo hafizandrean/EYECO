@@ -48,7 +48,7 @@ const SourceMetadataSchema = new mongoose_1.Schema({
 }, { _id: false });
 const BoundingBoxSchema = new mongoose_1.Schema({
     label: { type: String, required: true, trim: true },
-    confidence: { type: Number, required: true, min: 0, max: 1 },
+    confidence: { type: Number, required: true, min: 0, max: 100 },
     x: { type: Number, required: true, min: 0, max: 100 },
     y: { type: Number, required: true, min: 0, max: 100 },
     w: { type: Number, required: true, min: 0, max: 100 },
@@ -56,7 +56,8 @@ const BoundingBoxSchema = new mongoose_1.Schema({
 });
 const CommentSchema = new mongoose_1.Schema({
     userId: { type: Number, required: true },
-    text: { type: String, required: true, trim: true },
+    text: { type: String, default: '', trim: true },
+    image: { type: String, default: null },
     likedBy: { type: [Number], default: [] },
     isDeleted: { type: Boolean, default: false },
     parentCommentId: { type: String, default: null }

@@ -13,6 +13,7 @@ export interface IComment {
   _id: mongoose.Types.ObjectId;
   userId: number;
   text: string;
+  image?: string | null;
   likedBy: number[];
   isDeleted: boolean;
   parentCommentId?: string | null;
@@ -135,7 +136,7 @@ const SourceMetadataSchema = new Schema<ISourceMetadata>({
 
 const BoundingBoxSchema = new Schema<IBoundingBox>({
   label: { type: String, required: true, trim: true },
-  confidence: { type: Number, required: true, min: 0, max: 1 },
+  confidence: { type: Number, required: true, min: 0, max: 100 },
   x: { type: Number, required: true, min: 0, max: 100 },
   y: { type: Number, required: true, min: 0, max: 100 },
   w: { type: Number, required: true, min: 0, max: 100 },
@@ -144,7 +145,8 @@ const BoundingBoxSchema = new Schema<IBoundingBox>({
 
 const CommentSchema = new Schema<IComment>({
   userId: { type: Number, required: true },
-  text: { type: String, required: true, trim: true },
+  text: { type: String, default: '', trim: true },
+  image: { type: String, default: null },
   likedBy: { type: [Number], default: [] },
   isDeleted: { type: Boolean, default: false },
   parentCommentId: { type: String, default: null }

@@ -376,11 +376,14 @@ class ReportRepository {
         }
     }
     // --- COMMENT METHODS ---
-    static async addComment(reportId, userId, text, workspaceId, parentCommentId) {
+    static async addComment(reportId, userId, text, workspaceId, parentCommentId, image) {
         try {
-            const sanitized = text.replace(/<[^>]*>/g, '').trim();
-            if (sanitized.length < 2 || sanitized.length > 500) {
-                throw new Error('Komentar harus terdiri dari 2 hingga 500 karakter.');
+            const sanitized = text ? text.replace(/<[^>]*>/g, '').trim() : '';
+            if (!sanitized && !image) {
+                throw new Error('Komentar harus berisi teks atau foto.');
+            }
+            if (sanitized && sanitized.length > 500) {
+                throw new Error('Komentar tidak boleh lebih dari 500 karakter.');
             }
             // If replying, validate parent comment exists first
             if (parentCommentId) {
@@ -405,6 +408,7 @@ class ReportRepository {
             const commentData = {
                 userId,
                 text: sanitized,
+                image: image || null,
                 likedBy: [],
                 isDeleted: false,
                 parentCommentId: parentCommentId || null
