@@ -175,7 +175,7 @@ class FAQPage {
         <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid var(--primary); display: inline-block;">${cat.category}</h3>
         <div class="faq-items">
           ${cat.questions.map((q, qi) => `
-            <details class="faq-item" style="background: rgba(255,255,255,0.5); border: 1px solid rgba(0,0,0,0.06); border-radius: 12px; margin-bottom: 12px; overflow: hidden;" open="${ci === 0 && qi === 0}">
+            <details class="faq-item" style="background: rgba(255,255,255,0.5); border: 1px solid rgba(0,0,0,0.06); border-radius: 12px; margin-bottom: 12px; overflow: hidden;">
               <summary style="padding: 18px 24px; cursor: pointer; font-weight: 600; font-size: 1rem; color: var(--text-primary); display: flex; justify-content: space-between; align-items: center; list-style: none;">
                 ${q.q}
                 <i data-lucide="chevron-down" style="width: 20px; height: 20px; color: var(--text-muted); flex-shrink: 0; transition: transform 0.2s;"></i>

@@ -71,34 +71,33 @@ const Profile = {
             </div>
           </div>
           <div class="profile-header-info">
-            <h2>${this.escapeHtml(u.name || u.username)}</h2>
-            <div class="profile-username">@${this.escapeHtml(u.username)}</div>
-            <div class="profile-badges">
-              <span class="badge badge-blue">${this.escapeHtml(u.role || 'USER')}</span>
-              <span class="badge ${u.status === 'APPROVED' ? 'badge-green' : 'badge-orange'}"}>${this.escapeHtml(u.status || 'PENDING')}</span>
-            </div>
-          </div>
+                      <h2>${this.escapeHtml(u.name || u.username)}</h2>
+                      <div class="profile-username">@${this.escapeHtml(u.username)}</div>
+                      <div class="profile-badges">
+                        <span class="badge badge-blue">${this.escapeHtml(u.role || 'USER')}</span>
+                      </div>
+                    </div>
         </div>
 
         <!-- Hidden file input for avatar upload -->
         <input type="file" id="avatar-file-input" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none;">
 
         <!-- Avatar Upload Modal (Camera / Galeri) -->
-        <div class="modal-overlay" id="modal-avatar-upload" style="display:none;">
-          <div class="glass-card modal-container" style="max-width:400px;">
+        <div class="modal-overlay" id="modal-avatar-upload" style="display:none; align-items:flex-start; padding-top:80px;">
+          <div class="glass-card modal-container" style="max-width:480px; width:90%; max-height: 85vh; overflow-y: auto; margin:0 auto;">
             <div class="modal-header">
               <h3><i data-lucide="camera"></i> Foto Profil</h3>
               <button class="btn-close-modal" id="btn-close-avatar-modal">&times;</button>
             </div>
-            <div class="modal-body" style="text-align:center;">
-              <div id="avatar-preview-container" style="width:160px;height:160px;border-radius:50%;margin:0 auto 20px;overflow:hidden;background:var(--bg-card);display:flex;align-items:center;justify-content:center;">
+            <div class="modal-body" style="text-align:center; padding: 24px 28px 28px;">
+              <div id="avatar-preview-container" style="width:280px;height:280px;border-radius:50%;margin:0 auto 28px;overflow:hidden;background:var(--bg-card);display:flex;align-items:center;justify-content:center;flex-shrink:0; box-shadow: 0 8px 32px rgba(0,0,0,0.12);">
                 ${u.avatar
                   ? `<img src="${u.avatar}" id="avatar-preview-img" style="width:100%;height:100%;object-fit:cover;">`
-                  : `<span id="avatar-preview-initials" style="font-size:3rem;font-weight:800;color:var(--text-muted);">${initials}</span>`
+                  : `<span id="avatar-preview-initials" style="font-size:6rem;font-weight:800;color:var(--text-muted);">${initials}</span>`
                 }
                 <img id="avatar-preview-new" style="display:none;width:100%;height:100%;object-fit:cover;">
               </div>
-              <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+              <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:16px;">
                 <button class="btn btn-glass btn-rounded" id="btn-avatar-gallery" style="flex:1;min-width:120px;">
                   <i data-lucide="image"></i> Galeri
                 </button>
@@ -107,14 +106,14 @@ const Profile = {
                 </button>
               </div>
               ${u.avatar ? `
-              <button class="btn btn-glass btn-rounded" id="btn-avatar-remove" style="width:100%;margin-top:8px;color:var(--danger);border-color:rgba(239,68,68,0.2);">
+              <button class="btn btn-glass btn-rounded" id="btn-avatar-remove" style="width:100%;margin-bottom:16px;color:var(--danger);border-color:rgba(239,68,68,0.2);">
                 <i data-lucide="trash-2" style="width:14px;height:14px;"></i> Hapus Foto
               </button>
               ` : ''}
-              <button class="btn btn-primary btn-rounded" id="btn-avatar-save" style="width:100%;margin-top:16px;display:none;">
+              <button class="btn btn-primary btn-rounded" id="btn-avatar-save" style="width:100%;display:none;">
                 <i data-lucide="check"></i> Simpan Foto
               </button>
-              <div id="avatar-upload-status" style="margin-top:12px;font-size:0.82rem;color:var(--text-muted);display:none;"></div>
+              <div id="avatar-upload-status" style="margin-top:16px;font-size:0.82rem;color:var(--text-muted);display:none;"></div>
             </div>
           </div>
         </div>
@@ -142,15 +141,6 @@ const Profile = {
             <div class="profile-info-item" id="profile-info-role" style="${u.role === 'user' ? 'display:none;' : ''}">
               <span class="profile-info-label">Role</span>
               <span class="profile-info-value"><span class="badge badge-blue">${this.escapeHtml(u.role || '—')}</span></span>
-            </div>
-            <div class="profile-info-item">
-              <span class="profile-info-label">Status Akun</span>
-              <span class="profile-info-value">
-                <span class="badge ${u.status === 'APPROVED' ? 'badge-green' : 'badge-orange'}">${this.escapeHtml(u.status || '—')}</span>
-                <span style="font-size:0.7rem;color:var(--text-muted);margin-left:6px;">
-                  ${u.status === 'APPROVED' ? 'Akun aktif dan terverifikasi' : u.status === 'PENDING' ? 'Menunggu verifikasi admin' : 'Akun ditolak'}
-                </span>
-              </span>
             </div>
             <div class="profile-info-item">
               <span class="profile-info-label">ID Akun</span>
@@ -186,6 +176,22 @@ const Profile = {
           <div class="language-selector-row" style="display:flex;gap:12px;flex-wrap:wrap;">
             <button class="btn btn-glass btn-rounded language-option active" data-lang="id" style="flex:1;min-width:140px;">Indonesia</button>
             <button class="btn btn-glass btn-rounded language-option" data-lang="en" style="flex:1;min-width:140px;">English</button>
+          </div>
+        </div>
+
+        <!-- Notifikasi Telegram -->
+        <div class="glass-card profile-telegram-card" id="profile-section-telegram">
+          <h3>Notifikasi Telegram</h3>
+          <p style="font-size:0.78rem;color:var(--text-muted);margin:0 0 16px 0;">Terima notifikasi laporan validasi dan sistem via Telegram.</p>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:16px;background:rgba(0,0,0,0.02);border-radius:12px;">
+            <div>
+              <div style="font-weight:700;font-size:0.9rem;color:var(--text-primary);">Notifikasi Telegram</div>
+              <div style="font-size:0.78rem;color:var(--text-secondary);margin-top:2px;">Kirim laporan valid, status verifikasi, dan update sistem ke Telegram</div>
+            </div>
+            <label class="toggle-switch" style="position:relative;display:inline-block;width:52px;height:28px;flex-shrink:0;">
+              <input type="checkbox" id="telegram-notif-toggle" ${u.telegramNotifications ? 'checked' : ''} style="opacity:0;width:0;height:0;">
+              <span class="toggle-slider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#ccc;transition:var(--anim-slow);border-radius:28px;"></span>
+            </label>
           </div>
         </div>
 

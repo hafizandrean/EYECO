@@ -57,7 +57,7 @@ export class DashboardPage {
           <div class="dash-kpi-icon yellow"><i data-lucide="folder-open"></i></div>
           <div class="dash-kpi-body">
             <span class="dash-kpi-label">Total Laporan</span>
-            <span class="dash-kpi-value tabular-nums" id="dashboard-stat-total">0</span>
+            <span class="dash-kpi-value tabular-nums" id="dashboard-stat-total" style="font-size: clamp(2rem, 3vw, 2.8rem); font-weight: 800;">0</span>
           </div>
         </div>
         <div class="glass-card dash-kpi glow-blue">

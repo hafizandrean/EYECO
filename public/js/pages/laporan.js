@@ -81,7 +81,7 @@ export class LaporanPage {
             <label class="filter-label">Cari</label>
             <div class="search-input-wrapper-laporan" style="position: relative;">
               <i data-lucide="search" class="search-input-icon-laporan" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; color: var(--text-muted);"></i>
-              <input type="text" class="filter-control input-rounded" id="search-location" placeholder="Lokasi..." value="${this.filters.location}" style="padding-left: 30px; width: 100%; font-size:0.78rem;">
+              <input type="text" class="filter-control input-rounded" id="search-location" placeholder="Cari lokasi, ID, reporter..." value="${this.filters.location}" style="padding-left: 30px; width: 100%; font-size:0.78rem;">
             </div>
           </div>
           <div class="filter-item-compact filter-my-reports-compact">
@@ -104,8 +104,8 @@ export class LaporanPage {
       <section class="glass-card card-table-section">
         <div class="card-header-clean">
           ${AppState.get('user')?.role === 'admin' || AppState.get('user')?.role === 'superadmin' ? `
-            <button class="btn btn-sm btn-rounded" id="btn-clear-all-reports" style="background: rgba(239,68,68,0.1); color: #DC2626; border: 1px solid rgba(239,68,68,0.4); font-weight: 700;">
-              <i data-lucide="trash-2" style="color:#DC2626;"></i> Hapus Semua Data
+            <button class="btn btn-sm btn-rounded" id="btn-clear-all-reports" style="background: var(--danger); color: #fff; border: 1px solid var(--danger); font-weight: 700;">
+              <i data-lucide="trash-2" style="color:#fff;"></i> Hapus Semua Data
             </button>
           ` : ''}
         </div>
