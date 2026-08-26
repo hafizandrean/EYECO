@@ -2,7 +2,8 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { ChildProcess, spawn } from 'child_process';
 
-const ffmpegPath: string = require('@ffmpeg-installer/ffmpeg').path;
+const ffmpegStaticPath = require('ffmpeg-static') as string;
+const ffmpegPath: string = ffmpegStaticPath || (require('@ffmpeg-installer/ffmpeg').path as string);
 
 interface TranscoderSession {
   process: ChildProcess;

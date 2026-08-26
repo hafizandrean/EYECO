@@ -243,15 +243,17 @@ export class TuyaClient {
           const isHlsUrl = url.startsWith('http://') || url.startsWith('https://');
           const isRtspUrl = url.startsWith('rtsp://') || url.startsWith('rtsps://');
           if ((protocol === 'HLS' && isHlsUrl) || (protocol === 'RTSP' && isRtspUrl)) {
-            TuyaClient.streamCache.set(cacheKey, { url, expiresAt: Date.now() + 25000 });
+            // Cache stream URL for 60 seconds to prevent rate limits while keeping session fresh
+            TuyaClient.streamCache.set(cacheKey, { url, expiresAt: Date.now() + 60000 });
             return url;
           }
           console.warn(`[TUYA] Allocation returned wrong protocol URL (expected ${protocol}): ${url.slice(0, 40)}`);
         }
 
-        // Rate limit hit (100003) — use stale cached URL if available rather than failing
-        if (data.code === 100003 && cached?.url) {
-          console.warn(`[TUYA CACHE FALLBACK] Rate limit hit for ${deviceId}, reusing stale stream URL`);
+        // On any Tuya error (100003 rate limit, 外部服务异常, etc.) — use stale cached URL if available
+        if (!data.success && cached?.url) {
+          console.warn(`[TUYA CACHE FALLBACK] Allocation failed (${data.msg || data.code}), reusing stale stream URL`);
+          TuyaClient.streamCache.set(cacheKey, { url: cached.url, expiresAt: Date.now() + 15000 });
           return cached.url;
         }
 
@@ -265,6 +267,7 @@ export class TuyaClient {
     // Last resort: return stale cached URL rather than throwing
     if (cached?.url) {
       console.warn(`[TUYA CACHE FALLBACK] All allocation attempts failed for ${deviceId}, falling back to stale cache`);
+      TuyaClient.streamCache.set(cacheKey, { url: cached.url, expiresAt: Date.now() + 15000 });
       return cached.url;
     }
 
