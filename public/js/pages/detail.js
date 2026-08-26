@@ -431,43 +431,70 @@ export class DetailPage {
                   { code: 'TRASH_NEAR_WRIST', label: 'Kedekatan objek dengan pergelangan tangan', value: false, source: 'POSE_ESTIMATION', scoreDelta: 0 }
                 ]);
                 const srcMap = {
-                  'YOLO_OBJECT': 'DETEKSI_OBJEK_YOLO',
-                  'POSE_ESTIMATION': 'ESTIMASI_POSE',
-                  'SPATIAL_ANALYZER': 'ANALISIS_SPASIAL',
-                  'SEMANTIC_ANALYZER': 'ANALISIS_SEMANTIK',
-                  'REGION_ANALYZER': 'ANALISIS_WILAYAH'
-                };
+                                  'YOLO_OBJECT': 'DETEKSI_OBJEK_YOLO',
+                                  'POSE_ESTIMATION': 'ESTIMASI_POSE',
+                                  'SPATIAL_ANALYZER': 'ANALISIS_SPASIAL',
+                                  'SEMANTIC_ANALYZER': 'ANALISIS_SEMANTIK',
+                                  'REGION_ANALYZER': 'ANALISIS_WILAYAH'
+                                };
                 
-                let sumDelta = 0;
-                let html = items.map(ev => {
-                  if (ev.value && typeof ev.scoreDelta === 'number') sumDelta += ev.scoreDelta;
-                  const cleanSource = srcMap[ev.source] || ev.source;
-                  return `
-                    <div style="display:flex; align-items:center; justify-content:space-between; background: rgba(0,0,0,0.02); padding: 8px 12px; border-radius: 8px; font-size: 0.8rem;">
-                      <div style="display:flex; align-items:center; gap:8px;">
-                        <i data-lucide="${ev.value ? 'check-circle' : 'minus-circle'}" style="color: ${ev.value ? 'var(--success)' : 'var(--text-muted)'}; width:16px; height:16px;"></i>
-                        <span>${ev.label}</span>
-                      </div>
-                      <div style="display:flex; align-items:center; gap:6px;">
-                        <span style="font-size: 0.65rem; background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; font-weight:700; color: var(--text-secondary);">${cleanSource}</span>
-                        <strong style="color: ${ev.scoreDelta > 0 ? 'var(--danger)' : (ev.scoreDelta < 0 ? 'var(--success)' : 'var(--text-muted)')};">+${ev.scoreDelta || 0}</strong>
-                      </div>
-                    </div>
-                  `;
-                }).join('');
+                                // Sum ALL scoreDeltas (positive and negative) to show actual contribution
+                                let sumDelta = 0;
+                                let html = items.map(ev => {
+                                  if (typeof ev.scoreDelta === 'number') sumDelta += ev.scoreDelta;
+                                  const cleanSource = srcMap[ev.source] || ev.source;
+                                  return `
+                                    <div style="display:flex; align-items:center; justify-content:space-between; background: rgba(0,0,0,0.02); padding: 8px 12px; border-radius: 8px; font-size: 0.8rem;">
+                                      <div style="display:flex; align-items:center; gap:8px;">
+                                        <i data-lucide="${ev.value ? 'check-circle' : 'minus-circle'}" style="color: ${ev.value ? 'var(--success)' : 'var(--text-muted)'}; width:16px; height:16px;"></i>
+                                        <span>${ev.label}</span>
+                                      </div>
+                                      <div style="display:flex; align-items:center; gap:6px;">
+                                        <span style="font-size: 0.65rem; background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; font-weight:700; color: var(--text-secondary);">${cleanSource}</span>
+                                        <strong style="color: ${ev.scoreDelta > 0 ? 'var(--danger)' : (ev.scoreDelta < 0 ? 'var(--success)' : 'var(--text-muted)')};">${ev.scoreDelta >= 0 ? '+' : ''}${ev.scoreDelta || 0}</strong>
+                                      </div>
+                                    </div>
+                                  `;
+                                }).join('');
 
-                if (typeof report.violationScore === 'number' && report.violationScore > sumDelta) {
-                  html += `
-                    <div style="display:flex; align-items:center; justify-content:space-between; background: rgba(0,0,0,0.02); border: 1px dashed rgba(0,0,0,0.1); padding: 8px 12px; border-radius: 8px; font-size: 0.75rem; color: var(--text-secondary);">
-                      <div style="display:flex; align-items:center; gap:8px;">
-                        <i data-lucide="info" style="color: var(--text-muted); width:14px; height:14px;"></i>
-                        <span>Komponen bukti terdaftar: +${sumDelta} poin (Skor Akhir AI: ${report.violationScore}/100)</span>
-                      </div>
-                      <span style="font-size:0.7rem; font-style:italic; color:var(--text-muted);">Rincian aturan lengkap tidak tersedia</span>
-                    </div>
-                  `;
-                }
-                return html;
+                                // Show base score if it exists
+                                const baseScore = (typeof report.baseScore === 'number') ? report.baseScore : 0;
+                                const calculatedTotal = baseScore + sumDelta;
+                                const finalScore = typeof report.violationScore === 'number' ? report.violationScore : calculatedTotal;
+                
+                                if (baseScore !== 0) {
+                                  html = `
+                                    <div style="display:flex; align-items:center; justify-content:space-between; background: rgba(37,99,235,0.08); padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; border: 1px solid rgba(37,99,235,0.2);">
+                                      <div style="display:flex; align-items:center; gap:8px;">
+                                        <i data-lucide="sliders-horizontal" style="color: var(--primary); width:16px; height:16px;"></i>
+                                        <span>Skor Dasar (Base Score)</span>
+                                      </div>
+                                      <strong style="color: var(--primary);">+${baseScore}</strong>
+                                    </div>
+                                  ` + html;
+                                }
+
+                                if (typeof report.violationScore === 'number' && report.violationScore !== calculatedTotal) {
+                                  html += `
+                                    <div style="display:flex; align-items:center; justify-content:space-between; background: rgba(239,68,68,0.08); border: 1px dashed rgba(239,68,68,0.3); padding: 8px 12px; border-radius: 8px; font-size: 0.75rem; color: var(--text-secondary);">
+                                      <div style="display:flex; align-items:center; gap:8px;">
+                                        <i data-lucide="info" style="color: var(--danger); width:14px; height:14px;"></i>
+                                        <span>Total dihitung: ${calculatedTotal} (Dasar ${baseScore} + Bukti ${sumDelta >= 0 ? '+' : ''}${sumDelta}) → Skor Akhir AI: ${report.violationScore}/100</span>
+                                      </div>
+                                      <span style="font-size:0.7rem; font-style:italic; color:var(--text-muted);">Penyesuaian model/aturan tambahan tidak ditampilkan</span>
+                                    </div>
+                                  `;
+                                } else if (typeof report.violationScore === 'number') {
+                                  html += `
+                                    <div style="display:flex; align-items:center; justify-content:space-between; background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); padding: 8px 12px; border-radius: 8px; font-size: 0.75rem; color: var(--text-secondary);">
+                                      <div style="display:flex; align-items:center; gap:8px;">
+                                        <i data-lucide="check-circle-2" style="color: var(--success); width:14px; height:14px;"></i>
+                                        <span>Total terverifikasi: ${calculatedTotal} = Skor Akhir AI ${report.violationScore}/100</span>
+                                      </div>
+                                    </div>
+                                  `;
+                                }
+                                return html;
               })()}
             </div>
             <div style="background: rgba(239, 68, 68, 0.04); border-left: 3px solid var(--warning); padding: 10px 14px; border-radius: 6px; margin-top: 6px;">

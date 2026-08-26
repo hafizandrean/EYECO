@@ -238,7 +238,7 @@ router.post('/login', async (req, res) => {
             secure: process.env.NODE_ENV === 'production',
             maxAge: 24 * 60 * 60 * 1000
         });
-        const redirect = user.role === 'superadmin' ? '/superadmin' : user.role === 'admin' ? '/dashboard' : '/select-workspace';
+        const redirect = user.role === 'superadmin' ? '/superadmin' : user.role === 'admin' ? '/dashboard/beranda' : '/select-workspace';
         res.json({ _id: user._id, id: user.id, username: user.username, role: user.role, status: user.status, redirect });
     }
     catch (err) {

@@ -419,7 +419,7 @@ export class UploadPage {
       if (detecting || isUploading || !stream || !video.videoWidth) return;
       detecting = true;
 
-      const targetWidth = Math.min(480, video.videoWidth);
+      const targetWidth = Math.min(320, video.videoWidth);
       const targetHeight = Math.round(video.videoHeight * (targetWidth / video.videoWidth));
 
       const canvas = document.createElement('canvas');
@@ -471,9 +471,9 @@ export class UploadPage {
       }, 'image/jpeg', 0.5);
     };
 
-    // Continuous detection setiap 300ms (0.3s) untuk pemindaian instan real-time!
-    frameTimer = setInterval(processFrame, 300);
-    setTimeout(processFrame, 100);
+    // Continuous detection setiap 200ms (0.2s) untuk pemindaian instan real-time!
+    frameTimer = setInterval(processFrame, 200);
+    setTimeout(processFrame, 50);
 
     // Stop
     const doClose = () => {

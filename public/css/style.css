@@ -1125,6 +1125,25 @@ input:checked + .slider { background: var(--primary); }
 input:checked + .slider:before { transform: translateX(16px); }
 .caption-label { font-size: 0.7rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px; }
 
+/* ── Toggle Switch (standalone label-based) ── */
+.toggle-switch { position: relative; display: inline-block; width: 52px; height: 28px; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-switch .toggle-slider {
+  position: absolute; cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: #ccc; transition: var(--anim-slow); border-radius: 28px;
+}
+.toggle-switch .toggle-slider:before {
+  position: absolute; content: "";
+  height: 22px; width: 22px;
+  left: 3px; top: 3px;
+  background: white; transition: var(--anim-slow); border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+.toggle-switch input:checked + .toggle-slider { background: var(--primary); }
+.toggle-switch input:checked + .toggle-slider:before { transform: translateX(24px); }
+body.dark-mode .toggle-switch input:checked + .toggle-slider { background: var(--primary); }
+
 /* ── Modal ── */
 .modal-overlay {
   display: none;
@@ -4350,11 +4369,18 @@ body.dark-mode .theme-option.active { background: var(--primary); color: #fff; b
   position: sticky;
   top: 24px;
   min-height: calc(100vh - 48px);
+  height: fit-content;
 }
 .settings-fullscreen .profile-sidebar .btn-back-route {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Ensure sidebar stays fixed during main content scroll */
+.profile-page-container {
+  height: 100%;
+  min-height: calc(100vh - 48px);
 }
 
 /* Search bar in navbar (settings page) */
@@ -5423,7 +5449,7 @@ body.dark-mode .impact-item { background: rgba(30,41,59,0.4); border-color: rgba
 .impact-item i { width: 26px; height: 26px; color: #2563EB; margin-bottom: 6px; }
 .impact-item strong {
   font-family: 'Outfit', sans-serif;
-  font-size: 1.6rem;
+  font-size: 2.2rem;
   font-weight: 800;
   color: var(--text-heading);
   line-height: 1.1;

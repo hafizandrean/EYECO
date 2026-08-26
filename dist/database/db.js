@@ -353,7 +353,10 @@ class DatabaseManager {
                 const regex = new RegExp(filters.location, 'i');
                 query.$or = [
                     { location: regex },
-                    { identity: regex }
+                    { identity: regex },
+                    { additionalNotes: regex },
+                    { 'uploaderInfo.username': regex },
+                    { 'uploaderInfo.name': regex }
                 ];
             }
             const q = Report_1.ReportModel.find(query).sort({ timestamp: -1 });

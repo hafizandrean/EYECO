@@ -206,7 +206,10 @@ class ReportRepository {
                 const regex = new RegExp(filters.location, 'i');
                 query.$or = [
                     { location: regex },
-                    { identity: regex }
+                    { identity: regex },
+                    { additionalNotes: regex },
+                    { 'uploaderInfo.username': regex },
+                    { 'uploaderInfo.name': regex }
                 ];
             }
             // ── Filter: Laporan Saya ──
