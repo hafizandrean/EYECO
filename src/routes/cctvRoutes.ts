@@ -20,18 +20,6 @@ const router = Router();
 
 router.get('/hls-proxy/:cameraId/stream.m3u8', async (req, res) => {
   const { cameraId } = req.params;
-  
-  // Reuse existing transcoding session if already active to prevent constant restarts
-  if (RtspHlsTranscoder.isRunning(cameraId)) {
-    console.log(`[RTSP→HLS] Transcoder for device ${cameraId} is already running. Reusing session.`);
-    const playlistPath = RtspHlsTranscoder.getPlaylistPath(cameraId);
-    if (fs.existsSync(playlistPath)) {
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-      res.setHeader('Cache-Control', 'no-cache');
-      return res.sendFile(playlistPath);
-    }
-  }
 
   try {
     const { TuyaClient } = require('../cctv/services/TuyaClient');
@@ -44,18 +32,43 @@ router.get('/hls-proxy/:cameraId/stream.m3u8', async (req, res) => {
       ]
     }).lean();
 
+    // --- Extract Virtual ID for Krisbow cameras ---
+    // Krisbow Sync 4G Solar cameras use Tuya P2P relay (NOT direct IP).
+    // The Virtual ID in the camera description is the actual Tuya device ID to call the Cloud API with.
+    let tuyaDeviceId = cameraId;
     if (camDoc?.vendor === 'KRISBOW' || (camDoc?.description && camDoc.description.includes('Virtual ID'))) {
-      const ipMatch = camDoc.description ? camDoc.description.match(/IP:\s*([0-9a-zA-Z.:_-]+)/) : null;
-      const ip = ipMatch ? ipMatch[1] : (camDoc.ip || '38.52.195.243');
-      const rtspUrl = camDoc.rtspUrl || (camDoc.streamUrl && camDoc.streamUrl.startsWith('rtsp://') ? camDoc.streamUrl : `rtsp://${ip}:554/live`);
-      console.log(`[KRISBOW STREAM PROXY] Starting RTSP transcoder for Krisbow camera ${cameraId} (IP: ${ip})...`);
-      await RtspHlsTranscoder.start(cameraId, rtspUrl);
-      const playlistPath = RtspHlsTranscoder.getPlaylistPath(cameraId);
+      const vidMatch = camDoc.description ? camDoc.description.match(/Virtual ID[:\s]+([a-zA-Z0-9]+)/) : null;
+      if (vidMatch && vidMatch[1]) {
+        tuyaDeviceId = vidMatch[1];
+        console.log(`[KRISBOW] Extracted Virtual ID from DB description: ${tuyaDeviceId}`);
+      } else if (camDoc.username && camDoc.username.length > 10) {
+        tuyaDeviceId = camDoc.username;
+        console.log(`[KRISBOW] Using username as Virtual ID: ${tuyaDeviceId}`);
+      } else {
+        // cameraId itself IS the virtual ID (e.g. a364596d73c1ec2a23elei)
+        tuyaDeviceId = cameraId;
+        console.log(`[KRISBOW] Using cameraId as Virtual ID: ${tuyaDeviceId}`);
+      }
+    }
+
+    // --- Reuse existing transcoding session if already active ---
+    if (RtspHlsTranscoder.isRunning(tuyaDeviceId)) {
+      const playlistPath = RtspHlsTranscoder.getPlaylistPath(tuyaDeviceId);
       if (fs.existsSync(playlistPath)) {
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-        res.setHeader('Cache-Control', 'no-cache');
-        return res.sendFile(playlistPath);
+        const content = fs.readFileSync(playlistPath, 'utf8');
+        // If playlist has valid TS segments, serve it; otherwise kill and restart
+        if (content.includes('.ts')) {
+          console.log(`[RTSP→HLS] Transcoder for device ${tuyaDeviceId} is running with valid segments. Reusing.`);
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+          res.setHeader('Cache-Control', 'no-cache');
+          return res.sendFile(playlistPath);
+        } else {
+          // Playlist exists but no segments — transcoder is stuck/broken, kill and restart
+          console.warn(`[RTSP→HLS] Transcoder for ${tuyaDeviceId} running but playlist has no segments. Killing and restarting...`);
+          RtspHlsTranscoder.stop(tuyaDeviceId);
+          TuyaClient.clearStreamCache(tuyaDeviceId);
+        }
       }
     }
 
@@ -68,10 +81,18 @@ router.get('/hls-proxy/:cameraId/stream.m3u8', async (req, res) => {
       process.env.TUYA_API_ENDPOINT || 'https://openapi-sg.iotbing.com'
     );
     await client.getAccessToken();
-    const streamUrl = await client.getStreamUrl(cameraId, 'HLS');
 
-    if (streamUrl.startsWith('http://') || streamUrl.startsWith('https://')) {
-      console.log(`[TUYA HLS PROXY] Proxying Tuya Native Cloud HLS URL for device ${cameraId}: ${streamUrl.slice(0, 60)}...`);
+    // Try Tuya Cloud native HLS first (fastest, no server transcoding needed)
+    let streamUrl: string;
+    try {
+      streamUrl = await client.getStreamUrl(tuyaDeviceId, 'HLS');
+    } catch (e: any) {
+      console.warn(`[TUYA] HLS allocation failed for ${tuyaDeviceId}: ${e.message}. Falling back to RTSP.`);
+      streamUrl = '';
+    }
+
+    if (streamUrl && (streamUrl.startsWith('http://') || streamUrl.startsWith('https://'))) {
+      console.log(`[TUYA HLS PROXY] Proxying Tuya Native Cloud HLS URL for device ${tuyaDeviceId}: ${streamUrl.slice(0, 70)}...`);
       const hlsRes = await fetch(streamUrl);
       const playlistText = await hlsRes.text();
 
@@ -105,14 +126,16 @@ router.get('/hls-proxy/:cameraId/stream.m3u8', async (req, res) => {
         res.setHeader('Cache-Control', 'no-cache');
         return res.send(rewrittenLines.join('\n'));
       }
-      console.warn(`[TUYA HLS PROXY] Native HLS session expired or invalid, clearing cache and falling back to RTSP transcoder...`);
-      TuyaClient.clearStreamCache(cameraId);
+      console.warn(`[TUYA HLS PROXY] Native HLS session expired or invalid, falling back to RTSP transcoder...`);
+      TuyaClient.clearStreamCache(tuyaDeviceId);
     }
 
-    // Allocate fresh RTSP stream as robust fallback
-    const rtspUrl = await client.getStreamUrl(cameraId, 'RTSP', true);
-    await RtspHlsTranscoder.start(cameraId, rtspUrl);
-    const playlistPath = RtspHlsTranscoder.getPlaylistPath(cameraId);
+    // Allocate fresh RTSP/RTSPS stream via Tuya Cloud relay (works for Krisbow 4G behind CGNAT)
+    console.log(`[TUYA RTSP TRANSCODER] Allocating fresh RTSP stream via Tuya Cloud relay for ${tuyaDeviceId}...`);
+    const rtspUrl = await client.getStreamUrl(tuyaDeviceId, 'RTSP', true);
+    console.log(`[TUYA RTSP TRANSCODER] Got relay URL: ${rtspUrl.slice(0, 60)}...`);
+    await RtspHlsTranscoder.start(tuyaDeviceId, rtspUrl);
+    const playlistPath = RtspHlsTranscoder.getPlaylistPath(tuyaDeviceId);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
     res.setHeader('Cache-Control', 'no-cache');
@@ -120,9 +143,10 @@ router.get('/hls-proxy/:cameraId/stream.m3u8', async (req, res) => {
   } catch (err: any) {
     TuyaClient.clearStreamCache(cameraId);
     console.error(`[HLS Proxy Error] Device ${cameraId}:`, err.message);
-    res.status(502).json({ error: `Tuya Real Stream Allocation Failed: ${err.message}` });
+    res.status(502).json({ error: `Stream Allocation Failed: ${err.message}` });
   }
 });
+
 
 // Proxy for subresources (.ts segment chunks and AES key files)
 router.get('/hls-proxy/subresource', async (req, res) => {
