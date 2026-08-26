@@ -11,9 +11,8 @@ export interface ICapturedFrame {
   imagePath: string;
 }
 
-// ponytail: cooldown allocate Tuya per device — pipeline tiap 20s bakar kuota stream
-// (error 28841002 "IoT Core expired" padahal subscription aktif). Naikkan/turunkan di sini.
-const TUYA_ALLOC_COOLDOWN_MS = 120 * 1000;
+// Cooldown to prevent hammering Tuya stream allocation API every 20s pipeline cycle
+const TUYA_ALLOC_COOLDOWN_MS = 25 * 1000; // 25 seconds — same as TuyaClient cache TTL
 const lastAllocAt = new Map<string, number>();
 
 function extractFfmpegFrame(input: string, output: string): Promise<boolean> {
@@ -80,8 +79,8 @@ export class FrameCaptureService {
 
   /**
    * Captures a frame from a camera stream.
-   * Uses the camera's playUrl or streamUrl for real streams,
-   * falls back to a static image if no stream URL is available.
+   * For Krisbow/Tuya cloud cameras, uses the TuyaClient stream cache directly.
+   * Falls back to generic RTSP/HLS for other cameras.
    */
   public static async captureFrame(camera: ICctv): Promise<ICapturedFrame> {
     const tempDir = path.join(os.tmpdir(), 'eyeco');
@@ -92,59 +91,67 @@ export class FrameCaptureService {
     const outputAbsolutePath = path.join(tempDir, `cctv_capture_${camera.id}.jpg`);
     const outputRelativePath = outputAbsolutePath;
 
+    // Extract Tuya device ID from camera config
     let deviceId = '';
     if (camera.playUrl && camera.playUrl.includes('/hls-proxy/')) {
       const match = camera.playUrl.match(/\/hls-proxy\/([a-zA-Z0-9_]+)\//);
       if (match) deviceId = match[1];
     } else if (camera.description && camera.description.includes('Tuya Device ID:')) {
       deviceId = camera.description.split('Tuya Device ID:')[1].trim();
+    } else if (camera.description && camera.description.includes('Virtual ID')) {
+      const vidMatch = camera.description.match(/Virtual ID[:\s]+([a-zA-Z0-9]+)/);
+      if (vidMatch) deviceId = vidMatch[1];
     }
 
     if (deviceId) {
-      // --- Cloud HLS Proxy (Krisbow/Tuya) ---
-      // First check if local RTSP-transcoded HLS file exists (legacy path)
+      // 1. Check for local RTSP-transcoded HLS file (legacy path, if transcoder was used)
       const hlsPlaylist = path.join(process.cwd(), 'public/hls', deviceId, 'stream.m3u8');
       if (fs.existsSync(hlsPlaylist)) {
         const content = fs.readFileSync(hlsPlaylist, 'utf8');
         if (content.includes('.ts')) {
-          console.log(`[FrameCapture] Extracting frame from local HLS playlist: ${hlsPlaylist}`);
+          console.log(`[FrameCapture] Extracting frame from local HLS: ${hlsPlaylist}`);
           const success = await extractFfmpegFrame(hlsPlaylist, outputAbsolutePath);
           if (success) {
-            lastAllocAt.set(deviceId, Date.now());
             return { cameraId: camera.id, location: camera.location, timestamp: new Date(), imagePath: outputRelativePath };
           }
         }
       }
 
-      // No local file → use the backend proxy URL directly (Cloud HLS)
-      // The server itself calls localhost to get the proxied HLS manifest
-      const proxyUrl = `http://127.0.0.1:${process.env.PORT || 8000}/api/cctv/hls-proxy/${deviceId}/stream.m3u8`;
+      // 2. Use Tuya Cloud stream URL directly (bypasses proxy loop and cooldown conflict)
       const last = lastAllocAt.get(deviceId) || 0;
-      if (Date.now() - last < TUYA_ALLOC_COOLDOWN_MS) {
-        // During cooldown, still try to capture from the already-allocated stream URL
-        const streamUrl = camera.playUrl || camera.streamUrl;
-        if (streamUrl && streamUrl.includes('/hls-proxy/')) {
-          console.log(`[FrameCapture] Cooldown active — trying frame grab from proxy URL: ${proxyUrl}`);
-          const success = await extractFfmpegFrame(proxyUrl, outputAbsolutePath);
+      const cooldownActive = Date.now() - last < TUYA_ALLOC_COOLDOWN_MS;
+
+      try {
+        const { TuyaClient } = require('./TuyaClient');
+        const accessId = process.env.TUYA_CLIENT_ID || 'vhxcdfe5q7d5vr4wsgs3';
+        const accessSecret = process.env.TUYA_CLIENT_SECRET || '0757b40d43884b83952b3b306814fba9';
+        const endpoint = process.env.TUYA_API_ENDPOINT || 'https://openapi-sg.iotbing.com';
+        const client = new TuyaClient(accessId, accessSecret, endpoint);
+
+        // Always use cached URL if cooldown active, allocate fresh only when cooldown expired
+        const tuyaStreamUrl = await client.getStreamUrl(deviceId, 'HLS', !cooldownActive);
+        if (!cooldownActive) lastAllocAt.set(deviceId, Date.now());
+
+        if (tuyaStreamUrl && tuyaStreamUrl.startsWith('http')) {
+          console.log(`[FrameCapture] Extracting frame from Tuya Cloud HLS stream for ${deviceId}...`);
+          const success = await extractFfmpegFrame(tuyaStreamUrl, outputAbsolutePath);
           if (success) {
             return { cameraId: camera.id, location: camera.location, timestamp: new Date(), imagePath: outputRelativePath };
           }
+          console.warn(`[FrameCapture] FFmpeg failed on Tuya Cloud HLS. Stream may be encrypted or expired.`);
         }
-        throw new Error(`Kamera #${camera.id} stream allocate dalam cooldown (${Math.ceil((TUYA_ALLOC_COOLDOWN_MS - (Date.now() - last)) / 1000)}s) — skip`);
+      } catch (e: any) {
+        console.warn(`[FrameCapture] Tuya stream fetch failed for ${deviceId}: ${e.message}`);
       }
-      lastAllocAt.set(deviceId, Date.now());
 
-      console.log(`[FrameCapture] Extracting frame from Cloud HLS proxy: ${proxyUrl}`);
-      const success = await extractFfmpegFrame(proxyUrl, outputAbsolutePath);
-      if (success) {
-        return { cameraId: camera.id, location: camera.location, timestamp: new Date(), imagePath: outputRelativePath };
-      }
+      // If all Tuya attempts fail, skip rather than fall through to playUrl
+      throw new Error(`Kamera #${camera.id} gagal menangkap frame dari Tuya Cloud stream.`);
     }
 
-    // Generic RTSP/HLS stream URL capture fallback
+    // 3. Generic RTSP/HLS fallback for non-Tuya cameras
     const streamUrl = camera.playUrl || camera.streamUrl;
     if (streamUrl && (streamUrl.startsWith('rtsp') || streamUrl.includes('m3u8') || streamUrl.startsWith('http'))) {
-      console.log(`[FrameCapture] Extracting frame from camera stream URL: ${streamUrl}`);
+      console.log(`[FrameCapture] Extracting frame from stream URL: ${streamUrl}`);
       const success = await extractFfmpegFrame(streamUrl, outputAbsolutePath);
       if (success) {
         return {
@@ -156,7 +163,6 @@ export class FrameCaptureService {
       }
     }
 
-    // Throw error if FFmpeg fails to capture frame to prevent running YOLO on old or dummy files
     throw new Error(`Kamera #${camera.id} offline atau gagal menangkap frame.`);
   }
 }
