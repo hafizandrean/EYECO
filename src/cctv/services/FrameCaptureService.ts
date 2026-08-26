@@ -1,5 +1,6 @@
 import { CctvModel, ICctv } from '../../database/models/Cctv';
 import { spawn } from 'child_process';
+import * as crypto from 'crypto';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -11,57 +12,114 @@ export interface ICapturedFrame {
   imagePath: string;
 }
 
-const TUYA_ALLOC_COOLDOWN_MS = 25 * 1000; // same as TuyaClient stream cache TTL
+const TUYA_ALLOC_COOLDOWN_MS = 25 * 1000;
 const lastAllocAt = new Map<string, number>();
 
-/**
- * Extract a single JPEG frame from any stream/file using FFmpeg.
- * Supports AES-128 encrypted HLS (with -protocol_whitelist and -allowed_extensions).
- */
-function extractFfmpegFrame(input: string, output: string, timeoutMs = 12000): Promise<boolean> {
+/** Run FFmpeg to extract one JPEG frame from a local file or plaintext URL. */
+function extractFfmpegFrame(input: string, output: string, timeoutMs = 10000): Promise<boolean> {
   return new Promise((resolve) => {
     const ffmpegPath = require('ffmpeg-static') as string;
-
-    const isHttp = input.startsWith('http://') || input.startsWith('https://');
-    const args = [
-      '-y',
-      '-loglevel', 'error',
-      // Allow all protocols needed for AES-encrypted HLS key fetching
-      ...(isHttp ? [
-        '-allowed_extensions', 'ALL',
-        '-protocol_whitelist', 'file,http,https,tcp,tls,crypto',
-      ] : []),
-      '-ss', '00:00:01',        // skip 1s to allow HLS buffer to fill
-      '-i', input,
-      '-vframes', '1',
-      '-q:v', '3',
-      '-f', 'image2',
-      output,
-    ];
-
+    const args = ['-y', '-loglevel', 'error', '-i', input, '-vframes', '1', '-q:v', '3', '-f', 'image2', output];
     const child = spawn(ffmpegPath || 'ffmpeg', args, { windowsHide: true });
-
-    const timer = setTimeout(() => {
-      child.kill('SIGTERM');
-      resolve(false);
-    }, timeoutMs);
-
-    child.on('close', (code) => {
-      clearTimeout(timer);
-      resolve(code === 0 && fs.existsSync(output));
-    });
-
-    child.on('error', () => {
-      clearTimeout(timer);
-      resolve(false);
-    });
+    const timer = setTimeout(() => { child.kill('SIGTERM'); resolve(false); }, timeoutMs);
+    child.on('close', (code) => { clearTimeout(timer); resolve(code === 0 && fs.existsSync(output)); });
+    child.on('error', () => { clearTimeout(timer); resolve(false); });
   });
 }
 
+/**
+ * Captures a frame from an AES-128 encrypted Tuya HLS stream.
+ * - Fetches the manifest from Tuya Cloud directly
+ * - Downloads the AES decryption key
+ * - Downloads the first .ts video segment
+ * - Decrypts the segment in-memory using Node.js crypto
+ * - Saves decrypted .ts to temp file
+ * - Extracts a JPEG frame with FFmpeg
+ */
+async function captureFrameFromTuyaEncryptedHLS(
+  manifestUrl: string,
+  outputPath: string,
+): Promise<boolean> {
+  try {
+    const tmpDir = path.join(os.tmpdir(), 'eyeco-hls');
+    fs.mkdirSync(tmpDir, { recursive: true });
+
+    // 1. Download the HLS manifest
+    const manifestResp = await fetch(manifestUrl, { signal: AbortSignal.timeout(8000) });
+    if (!manifestResp.ok) {
+      console.warn(`[FrameCapture] Manifest fetch failed: ${manifestResp.status}`);
+      return false;
+    }
+    const manifest = await manifestResp.text();
+
+    // 2. Parse #EXT-X-KEY to find AES key URL and IV
+    const keyLineMatch = manifest.match(/#EXT-X-KEY:([^\r\n]+)/);
+    const keyUriMatch = keyLineMatch ? keyLineMatch[1].match(/URI="([^"]+)"/) : null;
+    const ivMatch = keyLineMatch ? keyLineMatch[1].match(/IV=0x([0-9a-fA-F]+)/) : null;
+
+    // 3. Find first .ts segment line
+    const lines = manifest.split('\n').map(l => l.trim()).filter(Boolean);
+    const segLine = lines.find(l => !l.startsWith('#') && (l.includes('.ts') || l.includes('hls/')));
+    if (!segLine) {
+      console.warn('[FrameCapture] No .ts segment found in manifest');
+      return false;
+    }
+
+    // Resolve segment URL (may be relative or absolute)
+    const baseUrl = manifestUrl.includes('?') ? manifestUrl.substring(0, manifestUrl.lastIndexOf('/') + 1) : manifestUrl.substring(0, manifestUrl.lastIndexOf('/') + 1);
+    const segmentUrl = segLine.startsWith('http') ? segLine : `${baseUrl}${segLine}`;
+
+    // 4. Download and decrypt .ts segment
+    let segBuffer: Buffer;
+
+    if (keyUriMatch) {
+      // AES-128 encrypted segment
+      const keyUrl = keyUriMatch[1].startsWith('http') ? keyUriMatch[1] : `${baseUrl}${keyUriMatch[1]}`;
+      const iv = ivMatch ? Buffer.from(ivMatch[1].padStart(32, '0'), 'hex') : Buffer.alloc(16, 0);
+
+      console.log(`[FrameCapture] Fetching AES key from ${keyUrl.slice(0, 60)}...`);
+      const [keyResp, segResp] = await Promise.all([
+        fetch(keyUrl, { signal: AbortSignal.timeout(6000) }),
+        fetch(segmentUrl, { signal: AbortSignal.timeout(10000) }),
+      ]);
+
+      if (!keyResp.ok || !segResp.ok) {
+        console.warn(`[FrameCapture] Key or segment fetch failed: key=${keyResp.status} seg=${segResp.status}`);
+        return false;
+      }
+
+      const keyBytes = Buffer.from(await keyResp.arrayBuffer());
+      const encryptedSeg = Buffer.from(await segResp.arrayBuffer());
+
+      // Decrypt using AES-128-CBC
+      const decipher = crypto.createDecipheriv('aes-128-cbc', keyBytes, iv);
+      decipher.setAutoPadding(true);
+      segBuffer = Buffer.concat([decipher.update(encryptedSeg), decipher.final()]);
+      console.log(`[FrameCapture] Decrypted ${encryptedSeg.length} bytes → ${segBuffer.length} bytes`);
+    } else {
+      // Plain (unencrypted) segment
+      const segResp = await fetch(segmentUrl, { signal: AbortSignal.timeout(10000) });
+      if (!segResp.ok) return false;
+      segBuffer = Buffer.from(await segResp.arrayBuffer());
+    }
+
+    // 5. Save decrypted .ts to temp file and extract JPEG frame
+    const segFile = path.join(tmpDir, `seg_${Date.now()}.ts`);
+    fs.writeFileSync(segFile, segBuffer);
+    console.log(`[FrameCapture] Saved decrypted segment (${segBuffer.length} bytes) → ${segFile}`);
+
+    const ok = await extractFfmpegFrame(segFile, outputPath, 8000);
+
+    // Cleanup
+    try { fs.unlinkSync(segFile); } catch { /* ignore */ }
+    return ok;
+  } catch (err: any) {
+    console.warn(`[FrameCapture] captureFrameFromTuyaEncryptedHLS error: ${err.message}`);
+    return false;
+  }
+}
+
 export class FrameCaptureService {
-  /**
-   * Selects active cameras that are online and have monitoring enabled.
-   */
   public static async getActiveCamerasForMonitoring(workspaceId?: number): Promise<ICctv[]> {
     try {
       const query: any = {
@@ -69,17 +127,13 @@ export class FrameCaptureService {
         monitoringEnabled: true,
         status: { $in: ['ONLINE', 'MONITORING'] }
       };
-      if (workspaceId !== undefined) {
-        query.workspaceId = workspaceId;
-      }
+      if (workspaceId !== undefined) query.workspaceId = workspaceId;
 
       const cameras = await CctvModel.find(query);
-
       const now = new Date();
       for (const camera of cameras) {
         await CctvModel.updateOne({ id: camera.id }, { $set: { lastFrameAt: now } });
       }
-
       return cameras;
     } catch (err) {
       console.error('[FrameCaptureService] Failed to retrieve active cameras:', err);
@@ -88,74 +142,76 @@ export class FrameCaptureService {
   }
 
   /**
-   * Captures a frame from a camera stream.
+   * Captures a JPEG frame from a camera.
    *
-   * For Krisbow/Tuya Cloud cameras:
-   *   - Uses the local HLS proxy endpoint (http://127.0.0.1:{PORT}/api/cctv/hls-proxy/{deviceId}/stream.m3u8)
-   *   - The proxy handles AES key decryption transparently for FFmpeg
-   *   - Respects a 25-second cooldown so Tuya stream allocation isn't hammered
+   * Krisbow/Tuya Cloud cameras:
+   *   - Obtains the Tuya HLS stream URL via TuyaClient (from cache when cooldown active)
+   *   - Downloads the manifest, AES key, and first .ts segment via fetch()
+   *   - Decrypts in-memory with Node.js crypto (no FFmpeg AES handling needed)
+   *   - Extracts frame from decrypted .ts with FFmpeg
    *
-   * For generic cameras:
-   *   - Falls back to direct RTSP/HLS URL
+   * Generic cameras:
+   *   - Uses FFmpeg directly on RTSP/HLS URL
    */
   public static async captureFrame(camera: ICctv): Promise<ICapturedFrame> {
     const tempDir = path.join(os.tmpdir(), 'eyeco');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
+    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+    const outputPath = path.join(tempDir, `cctv_capture_${camera.id}.jpg`);
 
-    const outputAbsolutePath = path.join(tempDir, `cctv_capture_${camera.id}.jpg`);
-
-    // Extract Tuya device ID from camera config
+    // Detect Tuya/Krisbow device ID
     let deviceId = '';
-    if (camera.playUrl && camera.playUrl.includes('/hls-proxy/')) {
-      const match = camera.playUrl.match(/\/hls-proxy\/([a-zA-Z0-9]+)\//);
-      if (match) deviceId = match[1];
+    if (camera.playUrl?.includes('/hls-proxy/')) {
+      const m = camera.playUrl.match(/\/hls-proxy\/([a-zA-Z0-9]+)\//);
+      if (m) deviceId = m[1];
     }
     if (!deviceId && camera.description) {
-      const vidMatch = camera.description.match(/Virtual ID[:\s]+([a-zA-Z0-9]+)/);
-      if (vidMatch) deviceId = vidMatch[1];
-      else if (camera.description.includes('Tuya Device ID:')) {
+      const m = camera.description.match(/Virtual ID[:\s]+([a-zA-Z0-9]+)/);
+      if (m) deviceId = m[1];
+      else if (camera.description.includes('Tuya Device ID:'))
         deviceId = camera.description.split('Tuya Device ID:')[1].trim().split(/\s/)[0];
-      }
     }
 
     if (deviceId) {
-      // 1. Try local RTSP-transcoded HLS file first (legacy path, fast)
+      // 1. Try local RTSP-transcoded HLS (legacy/fast path)
       const hlsPlaylist = path.join(process.cwd(), 'public/hls', deviceId, 'stream.m3u8');
-      if (fs.existsSync(hlsPlaylist)) {
-        const content = fs.readFileSync(hlsPlaylist, 'utf8');
-        if (content.includes('.ts')) {
-          console.log(`[FrameCapture] Extracting frame from local HLS: ${hlsPlaylist}`);
-          const ok = await extractFfmpegFrame(hlsPlaylist, outputAbsolutePath);
-          if (ok) return { cameraId: camera.id, location: camera.location, timestamp: new Date(), imagePath: outputAbsolutePath };
-        }
+      if (fs.existsSync(hlsPlaylist) && fs.readFileSync(hlsPlaylist, 'utf8').includes('.ts')) {
+        const ok = await extractFfmpegFrame(hlsPlaylist, outputPath);
+        if (ok) return { cameraId: camera.id, location: camera.location, timestamp: new Date(), imagePath: outputPath };
       }
 
-      // 2. Use our own HLS proxy endpoint — it handles AES key decryption transparently.
-      //    FFmpeg follows the rewritten key/segment URLs through our subresource proxy on localhost.
-      const port = process.env.PORT || 8000;
-      const proxyUrl = `http://127.0.0.1:${port}/api/cctv/hls-proxy/${deviceId}/stream.m3u8`;
-
+      // 2. Get Tuya Cloud HLS URL and capture frame via native decryption
       const last = lastAllocAt.get(deviceId) || 0;
-      const isInCooldown = Date.now() - last < TUYA_ALLOC_COOLDOWN_MS;
+      const cooldownActive = Date.now() - last < TUYA_ALLOC_COOLDOWN_MS;
+      if (!cooldownActive) lastAllocAt.set(deviceId, Date.now());
 
-      if (!isInCooldown) lastAllocAt.set(deviceId, Date.now());
+      try {
+        const { TuyaClient } = require('./TuyaClient');
+        const client = new TuyaClient(
+          process.env.TUYA_CLIENT_ID || 'vhxcdfe5q7d5vr4wsgs3',
+          process.env.TUYA_CLIENT_SECRET || '0757b40d43884b83952b3b306814fba9',
+          process.env.TUYA_API_ENDPOINT || 'https://openapi-sg.iotbing.com',
+        );
 
-      console.log(`[FrameCapture] Extracting frame via HLS proxy (cooldown=${isInCooldown}): ${proxyUrl}`);
-      const ok = await extractFfmpegFrame(proxyUrl, outputAbsolutePath, 20000); // 20s for HLS buffer
-      if (ok) return { cameraId: camera.id, location: camera.location, timestamp: new Date(), imagePath: outputAbsolutePath };
+        // Use cached URL during cooldown; force fresh allocation otherwise
+        const tuyaHlsUrl = await client.getStreamUrl(deviceId, 'HLS', !cooldownActive);
+        if (tuyaHlsUrl?.startsWith('http')) {
+          console.log(`[FrameCapture] Capturing frame from Tuya Cloud HLS for ${deviceId}...`);
+          const ok = await captureFrameFromTuyaEncryptedHLS(tuyaHlsUrl, outputPath);
+          if (ok) return { cameraId: camera.id, location: camera.location, timestamp: new Date(), imagePath: outputPath };
+          console.warn(`[FrameCapture] Native HLS frame grab failed for ${deviceId}.`);
+        }
+      } catch (e: any) {
+        console.warn(`[FrameCapture] TuyaClient error for ${deviceId}: ${e.message}`);
+      }
 
-      console.warn(`[FrameCapture] Proxy HLS frame grab failed for ${deviceId}. Skipping AI cycle.`);
-      throw new Error(`Kamera #${camera.id} gagal menangkap frame (encrypted HLS timeout).`);
+      throw new Error(`Kamera #${camera.id} gagal menangkap frame dari Tuya Cloud stream.`);
     }
 
-    // 3. Generic fallback for non-Tuya cameras (RTSP or plain HLS)
+    // 3. Generic RTSP/HLS fallback
     const streamUrl = camera.playUrl || camera.streamUrl;
     if (streamUrl && (streamUrl.startsWith('rtsp') || streamUrl.includes('m3u8') || streamUrl.startsWith('http'))) {
-      console.log(`[FrameCapture] Extracting frame from stream URL: ${streamUrl}`);
-      const ok = await extractFfmpegFrame(streamUrl, outputAbsolutePath);
-      if (ok) return { cameraId: camera.id, location: camera.location, timestamp: new Date(), imagePath: outputAbsolutePath };
+      const ok = await extractFfmpegFrame(streamUrl, outputPath);
+      if (ok) return { cameraId: camera.id, location: camera.location, timestamp: new Date(), imagePath: outputPath };
     }
 
     throw new Error(`Kamera #${camera.id} offline atau gagal menangkap frame.`);
