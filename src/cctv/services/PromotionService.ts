@@ -2,6 +2,8 @@ import { AiDetectionModel, IAiDetection } from '../../database/models/AiDetectio
 import { AiEvidenceModel } from '../../database/models/AiEvidence';
 import { ReportModel } from '../../database/models/Report';
 import { UserModel } from '../../database/models/User';
+import path from 'path';
+import os from 'os';
 import { TimelineEventModel } from '../../database/models/TimelineEvent';
 import { SystemSettingsModel } from '../../database/models/SystemSettings';
 import { NotificationDispatcher } from '../../notifications/NotificationDispatcher';
@@ -13,7 +15,6 @@ import { DuplicateRule } from './DuplicateRule';
 import { aiEngine } from '../../services/ai/aiEngine';
 import { getNextSequence } from '../../database/models/Counter';
 import mongoose from 'mongoose';
-import path from 'path';
 import fs from 'fs';
 
 export class PromotionService {
@@ -67,7 +68,7 @@ export class PromotionService {
 
       // Cari berkas snapshot bukti
       const evidence = await AiEvidenceModel.findOne({ linkedDetectionId: detection._id });
-      const imagePath = evidence ? evidence.storageKey : `/uploads/cctv_capture_${detection.cameraId}.jpg`;
+      const imagePath = evidence ? (evidence.storageKey || evidence.storage?.key || '') : path.join(os.tmpdir(), 'eyeco', `cctv_capture_${detection.cameraId}.jpg`);
 
       // Cari admin utama untuk relasi pelapor default
       const adminUser = await UserModel.findOne({ id: 1 });
@@ -360,7 +361,7 @@ export class PromotionService {
         if (claimedReport) {
           processed++;
           const evidence = await AiEvidenceModel.findOne({ linkedDetectionId: detection._id });
-          const imagePath = evidence ? evidence.storageKey : `/uploads/cctv_capture_${detection.cameraId}.jpg`;
+          const imagePath = evidence ? (evidence.storageKey || evidence.storage?.key || '') : path.join(os.tmpdir(), 'eyeco', `cctv_capture_${detection.cameraId}.jpg`);
           console.log(`[PromotionService] Processing REANALYSIS_PENDING Report #${claimedReport.id} (attempt #${claimedReport.analysisAttemptCount})...`);
           await this.runAiAnalysisAndFinalize(claimedReport, claimToken, detection, imagePath);
         }

@@ -17,8 +17,13 @@ import { AiDetectionModel, IAiDetection } from '../../database/models/AiDetectio
 import { FrameCaptureService, ICapturedFrame } from './FrameCaptureService';
 import { detectFile } from '../../services/aiDetection.service';
 import { aiEngine } from '../../services/ai/aiEngine';
+import { EvidenceService } from './EvidenceService';
+import { SpoolRetryWorker } from '../../services/SpoolRetryWorker';
+import { R2StorageService } from '../../services/R2StorageService';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
+import crypto from 'crypto';
 
 interface CooldownEntry {
   cameraId: number;
@@ -80,11 +85,13 @@ export class CctvAutoReportService {
     }
   }
 
-  // Process a single camera snapshot
+  // Process a single camera snapshot using OS Temp directory & Private R2 Storage
   private static async processCameraSnapshot(camera: ICctv): Promise<void> {
     try {
-      const lastCapturePath = path.resolve(__dirname, `../../../public/uploads/cctv_capture_${camera.id}.jpg`);
-      if (!fs.existsSync(lastCapturePath)) return;
+      let lastCapturePath = path.join(os.tmpdir(), 'eyeco', `cctv_capture_${camera.id}.jpg`);
+      if (!fs.existsSync(lastCapturePath)) {
+        return;
+      }
 
       const detectionResult = await detectFile(lastCapturePath, { conf: 0.15 });
       if (!detectionResult || !detectionResult.boxes) return;
@@ -137,98 +144,68 @@ export class CctvAutoReportService {
         }
       }
 
-      // Only auto-report if it triggers a medium (SEDANG) or high (TINGGI) violation
       if (aiStatus !== 'TINGGI' && aiStatus !== 'SEDANG') {
         return;
       }
 
       const maxPersonConf = Math.max(...personDetections.map(d => d.confidence));
 
-      // Copy the captured image to a unique filepath to preserve evidence from being overwritten
+      // Save captured image to OS Temp directory first (out of repo)
+      const tempDir = path.join(os.tmpdir(), 'eyeco');
+      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
       const uniqueFilename = `evidence_${Date.now()}_${camera.id}.jpg`;
-      const uniqueRelativePath = `/uploads/${uniqueFilename}`;
-      const uniqueAbsolutePath = path.join(process.cwd(), 'public', uniqueRelativePath);
-      try {
-        if (fs.existsSync(lastCapturePath)) {
-          fs.copyFileSync(lastCapturePath, uniqueAbsolutePath);
-        }
-      } catch (copyErr) {
-        console.error('[CctvAutoReportService] Failed to copy standalone evidence image:', copyErr);
-      }
+      const tempAbsolutePath = path.join(tempDir, uniqueFilename);
+      fs.copyFileSync(lastCapturePath, tempAbsolutePath);
+
+      const fileBuffer = fs.readFileSync(tempAbsolutePath);
+      const fileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
 
       const newReport = await ReportRepository.create({
         location: camera.location || 'Lokasi CCTV',
         aiStatus,
         aiConfidence: decisionConfidence || Math.round(maxPersonConf * 100),
-        image: uniqueRelativePath,
+        image: `/uploads/laporan_auto/${uniqueFilename}`,
         identity: `CCTV-CAM-${String(camera.id).padStart(2, '0')}`,
         sourceType: 'AI_CCTV',
         additionalNotes: `Deteksi otomatis dari CCTV ${camera.name} di ${camera.location}. Terdeteksi ${personDetections.length} orang.`,
         boundingBoxes: detectionResult.boxes.map(b => {
           const labelMap: Record<string, string> = {
             'person': 'Orang', 'people': 'Orang', 'sitting': 'Orang', 'standing': 'Orang', 'orang': 'Orang', 'cctv persons': 'Orang',
-            'bicycle': 'Sepeda', 'car': 'Mobil', 'motorcycle': 'Sepeda Motor', 'airplane': 'Pesawat', 'bus': 'Bus', 'train': 'Kereta',
-            'truck': 'Truk', 'boat': 'Perahu', 'perahu': 'Perahu', 'traffic light': 'Lampu Lalu Lintas', 'fire hydrant': 'Hidran Pemadam',
-            'stop sign': 'Rambu Stop', 'parking meter': 'Meteran Parkir', 'bench': 'Bangku', 'bird': 'Burung', 'cat': 'Kucing',
-            'dog': 'Anjing', 'horse': 'Kuda', 'sheep': 'Domba', 'cow': 'Sapi', 'elephant': 'Gajah', 'bear': 'Beruang',
-            'zebra': 'Zebra', 'giraffe': 'Jerapah', 'backpack': 'Ransel', 'umbrella': 'Payung', 'handbag': 'Tas Tangan',
-            'tie': 'Dasi', 'suitcase': 'Koper', 'frisbee': 'Frisbee', 'skis': 'Ski', 'snowboard': 'Papan Seluncur Salju',
-            'sports ball': 'Bola Olahraga', 'kite': 'Layang-layang', 'baseball bat': 'Pemukul Bisbol', 'baseball glove': 'Sarung Tangan Bisbol',
-            'skateboard': 'Papan Seluncur', 'surfboard': 'Papan Selancar', 'tennis racket': 'Raket Tenis', 'bottle': 'Botol',
-            'plastic': 'Plastik', 'wine glass': 'Gelas Anggur', 'cup': 'Cangkir', 'fork': 'Garpu', 'knife': 'Pisau',
-            'spoon': 'Sendok', 'bowl': 'Mangkuk', 'banana': 'Pisang', 'apple': 'Apel', 'sandwich': 'Roti Lapis',
-            'orange': 'Jeruk', 'broccoli': 'Brokoli', 'carrot': 'Wortel', 'hot dog': 'Hot Dog', 'pizza': 'Pizza',
-            'donut': 'Donat', 'cake': 'Kue', 'chair': 'Kursi', 'couch': 'Sofa', 'potted plant': 'Tanaman Pot',
-            'bed': 'Tempat Tidur', 'dining table': 'Meja Makan', 'toilet': 'Toilet', 'tv': 'TV', 'laptop': 'Laptop',
-            'mouse': 'Mouse', 'remote': 'Remote', 'keyboard': 'Keyboard', 'cell phone': 'Ponsel', 'microwave': 'Microwave',
-            'oven': 'Oven', 'toaster': 'Pemanggang Roti', 'sink': 'Wastafel', 'refrigerator': 'Kulkas', 'book': 'Buku',
-            'clock': 'Jam', 'jam': 'Jam', 'vase': 'Vas', 'scissors': 'Gunting', 'teddy bear': 'Boneka Beruang',
-            'hair drier': 'Pengering Rambut', 'toothbrush': 'Sikat Gigi', 'trash': 'Sampah', 'sampah': 'Sampah',
-            'waste': 'Sampah', 'bag': 'Kantong', 'cardboard': 'Kardus', 'object': 'Objek'
+            'trash': 'Sampah', 'sampah': 'Sampah', 'boat': 'Perahu', 'perahu': 'Perahu'
           };
           const cleanLabel = labelMap[b.label.toLowerCase()] || b.label;
-          return {
-            label: cleanLabel,
-            confidence: b.confidence,
-            x: b.x,
-            y: b.y,
-            w: b.w,
-            h: b.h
-          };
+          return { label: cleanLabel, confidence: b.confidence, x: b.x, y: b.y, w: b.w, h: b.h };
         }),
       }, (adminUser as any).id);
 
       if (newReport) {
-        // Upload evidence ke R2 (laporan_auto) + update image/r2Key
-        const { R2StorageService } = await import('../../services/R2StorageService');
-        try {
-          if (fs.existsSync(uniqueAbsolutePath)) {
-            const r2Key = `eyecofiles/laporan_auto/${newReport.id}/${uniqueFilename}`;
-            await R2StorageService.uploadFile(uniqueAbsolutePath, r2Key, 'image/jpeg', true);
-            const r2Url = await R2StorageService.getPublicUrl(r2Key);
-            const imagePath = `/uploads/laporan_auto/${newReport.id}/${uniqueFilename}`;
-            await ReportModel.updateOne(
-              { _id: newReport._id },
-              { $set: { image: imagePath, r2Key, r2Url } }
-            ).exec();
-            // Keep local file for fallback serving & continuous AI pipeline
-            // try { fs.unlinkSync(uniqueAbsolutePath); } catch { /* ignore */ }
+        // Save evidence via EvidenceService (R2 Upload + Verification + DB Persist)
+        const evidence = await EvidenceService.saveEvidence(
+          camera.id,
+          tempAbsolutePath,
+          new Date(),
+          newReport._id,
+          newReport.id
+        );
 
-            console.log(`[CctvAutoReportService] Evidence #${newReport.id} uploaded to R2: ${r2Key}`);
-          }
-        } catch (r2Err) {
-          console.warn('[CctvAutoReportService] R2 auto-report evidence upload failed (local fallback):', (r2Err as Error).message);
+        if (evidence && evidence.storage && evidence.storage.key) {
+          await ReportModel.updateOne(
+            { _id: newReport._id },
+            {
+              $set: {
+                r2Key: evidence.storage.key,
+                primaryEvidenceId: evidence._id,
+                thumbnailEvidenceId: evidence._id,
+                evidenceIds: [evidence._id],
+                violationScore,
+                objectConfidence: Math.round(Math.max(...detectionResult.boxes.map(b => b.confidence)) * 100),
+                decisionConfidence: decisionConfidence || Math.round(maxPersonConf * 100),
+                priority: aiStatus === 'TINGGI' ? 'HIGH' : (aiStatus === 'SEDANG' ? 'MEDIUM' : 'LOW'),
+              }
+            }
+          ).exec();
         }
-
-        await ReportModel.updateOne(
-          { _id: newReport._id },
-          { $set: {
-            violationScore,
-            objectConfidence: Math.round(Math.max(...detectionResult.boxes.map(b => b.confidence)) * 100),
-            decisionConfidence: decisionConfidence || Math.round(maxPersonConf * 100),
-            priority: aiStatus === 'TINGGI' ? 'HIGH' : (aiStatus === 'SEDANG' ? 'MEDIUM' : 'LOW'),
-          }}
-        ).exec();
         console.log(`[CctvAutoReportService] ✅ Auto-report #${newReport.id} for camera #${camera.id}`);
       }
 
@@ -240,10 +217,6 @@ export class CctvAutoReportService {
 
   // ── Pipeline-integration mode (called from AiPipelineScheduler) ──
 
-  /**
-   * Process a detection from the AI pipeline.
-   * Called by AiPipelineScheduler when inference detects something.
-   */
   public static async processDetection(
     frame: ICapturedFrame,
     detection: IAiDetection
@@ -251,7 +224,6 @@ export class CctvAutoReportService {
     try {
       if (this.isOnCooldown(frame.cameraId)) return null;
 
-      // Only promote if it qualifies as a violation (MEDIUM, HIGH, or CRITICAL severity)
       const hasViolation = ['MEDIUM', 'HIGH', 'CRITICAL'].includes(detection.severity);
       if (!hasViolation) return null;
 
@@ -259,45 +231,12 @@ export class CctvAutoReportService {
       if (!camera) return null;
 
       const workspaceId = camera.workspaceId;
-      let admin = await UserModel.findOne({ workspaceId, role: 'admin' })
-        .sort({ createdAt: 1 }).lean().exec();
+      let admin = await UserModel.findOne({ workspaceId, role: 'admin' }).sort({ createdAt: 1 }).lean().exec();
       if (!admin) {
         admin = await UserModel.findOne({ role: 'admin' }).sort({ createdAt: 1 }).lean().exec();
       }
       const uploaderId = admin ? admin.id : 1;
 
-      const boundingBoxes = detection.detections.map(d => {
-        const labelMap: Record<string, string> = {
-          'person': 'Orang', 'people': 'Orang', 'sitting': 'Orang', 'standing': 'Orang', 'orang': 'Orang', 'cctv persons': 'Orang',
-          'bicycle': 'Sepeda', 'car': 'Mobil', 'motorcycle': 'Sepeda Motor', 'airplane': 'Pesawat', 'bus': 'Bus', 'train': 'Kereta',
-          'truck': 'Truk', 'boat': 'Perahu', 'perahu': 'Perahu', 'traffic light': 'Lampu Lalu Lintas', 'fire hydrant': 'Hidran Pemadam',
-          'stop sign': 'Rambu Stop', 'parking meter': 'Meteran Parkir', 'bench': 'Bangku', 'bird': 'Burung', 'cat': 'Kucing',
-          'dog': 'Anjing', 'horse': 'Kuda', 'sheep': 'Domba', 'cow': 'Sapi', 'elephant': 'Gajah', 'bear': 'Beruang',
-          'zebra': 'Zebra', 'giraffe': 'Jerapah', 'backpack': 'Ransel', 'umbrella': 'Payung', 'handbag': 'Tas Tangan',
-          'tie': 'Dasi', 'suitcase': 'Koper', 'frisbee': 'Frisbee', 'skis': 'Ski', 'snowboard': 'Papan Seluncur Salju',
-          'sports ball': 'Bola Olahraga', 'kite': 'Layang-layang', 'baseball bat': 'Pemukul Bisbol', 'baseball glove': 'Sarung Tangan Bisbol',
-          'skateboard': 'Papan Seluncur', 'surfboard': 'Papan Selancar', 'tennis racket': 'Raket Tenis', 'bottle': 'Botol',
-          'plastic': 'Plastik', 'wine glass': 'Gelas Anggur', 'cup': 'Cangkir', 'fork': 'Garpu', 'knife': 'Pisau',
-          'spoon': 'Sendok', 'bowl': 'Mangkuk', 'banana': 'Pisang', 'apple': 'Apel', 'sandwich': 'Roti Lapis',
-          'orange': 'Jeruk', 'broccoli': 'Brokoli', 'carrot': 'Wortel', 'hot dog': 'Hot Dog', 'pizza': 'Pizza',
-          'donut': 'Donat', 'cake': 'Kue', 'chair': 'Kursi', 'couch': 'Sofa', 'potted plant': 'Tanaman Pot',
-          'bed': 'Tempat Tidur', 'dining table': 'Meja Makan', 'toilet': 'Toilet', 'tv': 'TV', 'laptop': 'Laptop',
-          'mouse': 'Mouse', 'remote': 'Remote', 'keyboard': 'Keyboard', 'cell phone': 'Ponsel', 'microwave': 'Microwave',
-          'oven': 'Oven', 'toaster': 'Pemanggang Roti', 'sink': 'Wastafel', 'refrigerator': 'Kulkas', 'book': 'Buku',
-          'clock': 'Jam', 'jam': 'Jam', 'vase': 'Vas', 'scissors': 'Gunting', 'teddy bear': 'Boneka Beruang',
-          'hair drier': 'Pengering Rambut', 'toothbrush': 'Sikat Gigi', 'trash': 'Sampah', 'sampah': 'Sampah',
-          'waste': 'Sampah', 'bag': 'Kantong', 'cardboard': 'Kardus', 'object': 'Objek'
-        };
-        const cleanLabel = labelMap[d.class.toLowerCase()] || d.class;
-        return {
-          label: cleanLabel,
-          confidence: d.confidence,
-          x: d.bbox[0], y: d.bbox[1], w: d.bbox[2], h: d.bbox[3]
-        };
-      });
-
-      const maxConfidence = Math.max(...detection.detections.map(d => d.confidence), 0);
-      
       let aiStatus: 'TINGGI' | 'SEDANG' | 'RENDAH' | 'Tidak Terindikasi' = 'Tidak Terindikasi';
       if (detection.severity === 'CRITICAL' || detection.severity === 'HIGH') {
         aiStatus = 'TINGGI';
@@ -307,52 +246,68 @@ export class CctvAutoReportService {
         aiStatus = 'RENDAH';
       }
 
-      // Copy the captured frame image to a unique filepath to preserve evidence from being overwritten
+      // Save to OS Temp directory
+      const tempDir = path.join(os.tmpdir(), 'eyeco');
+      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
       const uniqueFilename = `evidence_${Date.now()}_${frame.cameraId}.jpg`;
-      const uniqueRelativePath = `/uploads/${uniqueFilename}`;
-      const uniqueAbsolutePath = path.join(process.cwd(), 'public', uniqueRelativePath);
-      
-      const sourceAbsolutePath = path.join(process.cwd(), 'public', frame.imagePath);
-      try {
-        if (fs.existsSync(sourceAbsolutePath)) {
-          fs.copyFileSync(sourceAbsolutePath, uniqueAbsolutePath);
-          console.log(`[CctvAutoReportService] Saved unique evidence image: ${uniqueRelativePath}`);
-        }
-      } catch (copyErr) {
-        console.error('[CctvAutoReportService] Failed to copy pipeline evidence image:', copyErr);
+      const tempAbsolutePath = path.join(tempDir, uniqueFilename);
+
+      let sourceAbsolutePath = path.isAbsolute(frame.imagePath) ? frame.imagePath : path.join(process.cwd(), 'public', frame.imagePath);
+      if (!fs.existsSync(sourceAbsolutePath)) {
+        const altTemp = path.join(tempDir, path.basename(frame.imagePath));
+        if (fs.existsSync(altTemp)) sourceAbsolutePath = altTemp;
+      }
+
+      if (fs.existsSync(sourceAbsolutePath)) {
+        fs.copyFileSync(sourceAbsolutePath, tempAbsolutePath);
       }
 
       const labelMap: Record<string, string> = {
-        'person': 'Orang',
-        'people': 'Orang',
-        'sitting': 'Orang',
-        'standing': 'Orang',
-        'orang': 'Orang',
-        'trash': 'Sampah',
-        'sampah': 'Sampah',
-        'boat': 'Perahu',
-        'perahu': 'Perahu',
-        'clock': 'Jam',
-        'jam': 'Jam',
-        'plastic': 'Plastik',
-        'bottle': 'Botol',
-        'bag': 'Kantong',
-        'waste': 'Sampah',
-        'cardboard': 'Kardus',
-        'object': 'Objek'
+        'person': 'Orang', 'people': 'Orang', 'sitting': 'Orang', 'standing': 'Orang', 'orang': 'Orang',
+        'trash': 'Sampah', 'sampah': 'Sampah', 'boat': 'Perahu', 'perahu': 'Perahu'
       };
       const indonesianClasses = detection.detections.map(d => labelMap[d.class.toLowerCase()] || d.class);
+      const maxConfidence = Math.max(...detection.detections.map(d => d.confidence), 0);
 
       const report = await ReportRepository.create({
         location: camera.location,
         aiStatus,
         aiConfidence: Math.round(maxConfidence * 100),
-        image: uniqueRelativePath,
+        image: `/uploads/laporan_auto/${uniqueFilename}`,
         identity: `AI Deteksi: ${camera.name}`,
         sourceType: 'AI_CCTV',
         additionalNotes: `Deteksi otomatis pelanggaran ${aiStatus} dari CCTV ${camera.name} di ${camera.location}. Objek: ${indonesianClasses.join(', ')}.`,
-        boundingBoxes
+        boundingBoxes: detection.detections.map(d => ({
+          label: labelMap[d.class.toLowerCase()] || d.class,
+          confidence: d.confidence,
+          x: d.bbox[0], y: d.bbox[1], w: d.bbox[2], h: d.bbox[3]
+        }))
       }, uploaderId);
+
+      if (report) {
+        const evidence = await EvidenceService.saveEvidence(
+          frame.cameraId,
+          tempAbsolutePath,
+          new Date(),
+          detection._id,
+          report.id
+        );
+
+        if (evidence && evidence.storage && evidence.storage.key) {
+          await ReportModel.updateOne(
+            { _id: report._id },
+            {
+              $set: {
+                r2Key: evidence.storage.key,
+                primaryEvidenceId: evidence._id,
+                thumbnailEvidenceId: evidence._id,
+                evidenceIds: [evidence._id]
+              }
+            }
+          ).exec();
+        }
+      }
 
       this.setCooldown(frame.cameraId);
 
@@ -396,8 +351,6 @@ export class CctvAutoReportService {
     this.cooldowns.push({ cameraId, cooldownUntil: Date.now() + this.COOLDOWN_MS });
   }
 }
-
-// ── Standalone helper ──
 
 function checkOverlap(
   personDets: Array<{ x: number; y: number; w: number; h: number }>,
