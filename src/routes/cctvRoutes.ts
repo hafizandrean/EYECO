@@ -110,13 +110,19 @@ router.get('/hls-proxy/:cameraId/stream.m3u8', async (req, res) => {
       forceRefresh = true;
     }
 
-    // Allocate fresh HLS session (NOTE: only HLS, never RTSP — RTSPS causes FFmpeg SIGSEGV)
+    // Allocate fresh HLS session with 3s retry for 4G solar camera wake-up
     console.log(`[TUYA HLS PROXY] Allocating fresh HLS session for ${tuyaDeviceId}...`);
     let freshUrl = '';
     try {
       freshUrl = await client.getStreamUrl(tuyaDeviceId, 'HLS', true);
     } catch (hlsErr: any) {
-      console.warn(`[TUYA HLS PROXY] HLS allocation failed for ${tuyaDeviceId}: ${hlsErr.message}. Falling back to RTSP transcoder.`);
+      console.warn(`[TUYA HLS PROXY] First HLS allocation attempt failed for ${tuyaDeviceId}: ${hlsErr.message}. Retrying in 3s for camera wake-up...`);
+      await new Promise(r => setTimeout(r, 3000));
+      try {
+        freshUrl = await client.getStreamUrl(tuyaDeviceId, 'HLS', true);
+      } catch (retryErr: any) {
+        console.warn(`[TUYA HLS PROXY] HLS allocation retry failed for ${tuyaDeviceId}: ${retryErr.message}. Falling back to RTSP transcoder.`);
+      }
     }
 
     if (freshUrl && freshUrl.startsWith('http')) {
