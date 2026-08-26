@@ -50,7 +50,13 @@ router.get('/stats', authMiddleware, roleGuard(['superadmin']), async (req, res)
       .sort({ timestamp: -1 }).limit(5).lean().exec() as any[];
     const recentNews = await NewsModel.find({ workspaceId: { $in: workspaceIds }, status: 'published' })
       .sort({ createdAt: -1 }).limit(3).lean().exec() as any[];
-    const recentAuditLogs = await SystemAuditLogModel.find({ action: 'CLEAR_ALL_REPORTS' })
+    const recentAuditLogs = await SystemAuditLogModel.find({
+      action: 'CLEAR_ALL_REPORTS',
+      $or: workspaceIds.flatMap(id => [
+        { 'details.workspaceId': id },
+        { 'details.workspaceId': String(id) }
+      ])
+    })
       .sort({ createdAt: -1 }).limit(5).lean().exec() as any[];
 
     // Enrich with usernames
@@ -728,7 +734,10 @@ router.get('/workspaces/:id/detail', authMiddleware, roleGuard(['superadmin']), 
     // Audit logs for this workspace
     const wsAuditLogs = await SystemAuditLogModel.find({
       action: 'CLEAR_ALL_REPORTS',
-      'details.workspaceId': workspaceId
+      $or: [
+        { 'details.workspaceId': workspaceId },
+        { 'details.workspaceId': String(workspaceId) }
+      ]
     }).sort({ createdAt: -1 }).limit(5).lean().exec() as any[];
     wsAuditLogs.forEach((a: any) => {
       const d = a.details || {};

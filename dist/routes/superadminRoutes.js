@@ -82,7 +82,13 @@ router.get('/stats', authMiddleware_1.authMiddleware, (0, RoleMiddleware_1.roleG
             .sort({ timestamp: -1 }).limit(5).lean().exec();
         const recentNews = await NewsModel.find({ workspaceId: { $in: workspaceIds }, status: 'published' })
             .sort({ createdAt: -1 }).limit(3).lean().exec();
-        const recentAuditLogs = await SystemAuditLog_1.SystemAuditLogModel.find({ action: 'CLEAR_ALL_REPORTS' })
+        const recentAuditLogs = await SystemAuditLog_1.SystemAuditLogModel.find({
+            action: 'CLEAR_ALL_REPORTS',
+            $or: workspaceIds.flatMap(id => [
+                { 'details.workspaceId': id },
+                { 'details.workspaceId': String(id) }
+            ])
+        })
             .sort({ createdAt: -1 }).limit(5).lean().exec();
         // Enrich with usernames
         const allUserIds = [];
@@ -700,7 +706,10 @@ router.get('/workspaces/:id/detail', authMiddleware_1.authMiddleware, (0, RoleMi
         // Audit logs for this workspace
         const wsAuditLogs = await SystemAuditLog_1.SystemAuditLogModel.find({
             action: 'CLEAR_ALL_REPORTS',
-            'details.workspaceId': workspaceId
+            $or: [
+                { 'details.workspaceId': workspaceId },
+                { 'details.workspaceId': String(workspaceId) }
+            ]
         }).sort({ createdAt: -1 }).limit(5).lean().exec();
         wsAuditLogs.forEach((a) => {
             const d = a.details || {};
