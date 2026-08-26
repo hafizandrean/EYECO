@@ -956,7 +956,7 @@ export class CctvMonitoringPage {
 
     cameras.forEach(ch => {
       const channelId = String(ch.id);
-      const isChActive = isMon && ch.isActive;
+      const isChActive = ch.isActive !== false;
       const matchReport = this.latestReports.find(r => r.location && (r.location.toLowerCase().includes(ch.name.toLowerCase()) || ch.name.toLowerCase().includes(r.location.toLowerCase())));
       const isAlert = matchReport ? (matchReport.aiStatus === 'TINGGI' || matchReport.aiStatus === 'SEDANG') : false;
       let imageSrc = (ch.snapshotUrl && !ch.snapshotUrl.includes('cctv_capture_')) ? ch.snapshotUrl : '';
@@ -987,7 +987,7 @@ export class CctvMonitoringPage {
             const entry = this.registerCardElement(cardEl, ch, isAdmin);
             if (this.cardObserver) this.cardObserver.observe(cardEl);
             if (window.lucide) window.lucide.createIcons({ root: cardEl });
-            this.reconcileCameraPlayer(entry, ch, isMon && ch.isActive);
+            this.reconcileCameraPlayer(entry, ch, ch.isActive !== false);
           }
         }
       });
