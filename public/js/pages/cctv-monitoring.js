@@ -959,8 +959,10 @@ export class CctvMonitoringPage {
       const isChActive = isMon && ch.isActive;
       const matchReport = this.latestReports.find(r => r.location && (r.location.toLowerCase().includes(ch.name.toLowerCase()) || ch.name.toLowerCase().includes(r.location.toLowerCase())));
       const isAlert = matchReport ? (matchReport.aiStatus === 'TINGGI' || matchReport.aiStatus === 'SEDANG') : false;
-      const defaultSnapshot = ch.snapshotUrl || ch.playUrl || ch.streamUrl || '';
-      const imageSrc = (matchReport && matchReport.image) ? matchReport.image : defaultSnapshot;
+      let defaultSnapshot = ch.snapshotUrl || '';
+      if (defaultSnapshot.includes('cctv_capture_')) defaultSnapshot = '';
+      let imageSrc = (matchReport && matchReport.image && !matchReport.image.includes('logo-eyeco')) ? matchReport.image : defaultSnapshot;
+      if (imageSrc.includes('cctv_capture_')) imageSrc = '';
 
       let cardEntry = this.cardRegistry.get(channelId);
 
@@ -1998,7 +2000,8 @@ export class CctvMonitoringPage {
 
     let isMuted = true;
     const matchReport = this.latestReports.find(r => r.location && r.location.toLowerCase().includes(ch.name.toLowerCase()));
-    const imageSrc = matchReport ? matchReport.image : (ch.isDefault ? ch.streamUrl : `/uploads/cctv_capture_${ch.id}.jpg`);
+    let imageSrc = (matchReport && matchReport.image && !matchReport.image.includes('logo-eyeco')) ? matchReport.image : (ch.snapshotUrl || '');
+    if (imageSrc.includes('cctv_capture_')) imageSrc = '';
     const isVideo = ch.mediaType === 'Video' || ch.mediaType === 'HLS' || ch.mediaType === 'RTSP_TUYA' || (ch.playUrl && ch.playUrl.includes('.m3u8'));
 
     let playerHtml = '';
