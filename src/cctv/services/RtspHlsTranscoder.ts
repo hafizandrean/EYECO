@@ -71,9 +71,6 @@ export class RtspHlsTranscoder {
     if (rtspUrl.startsWith('rtsp://') || rtspUrl.startsWith('rtsps://')) {
       args.push('-rtsp_transport', 'tcp');
     }
-    if (rtspUrl.startsWith('rtsps://')) {
-      args.push('-tls_verify', '0');
-    }
 
     args.push(
       '-i', rtspUrl,

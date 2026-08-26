@@ -112,44 +112,76 @@ router.get('/hls-proxy/:cameraId/stream.m3u8', async (req, res) => {
 
     // Allocate fresh HLS session (NOTE: only HLS, never RTSP — RTSPS causes FFmpeg SIGSEGV)
     console.log(`[TUYA HLS PROXY] Allocating fresh HLS session for ${tuyaDeviceId}...`);
-    const freshUrl = await client.getStreamUrl(tuyaDeviceId, 'HLS', true);
-    if (!freshUrl || !freshUrl.startsWith('http')) {
-      throw new Error(`Failed to allocate HLS stream for ${tuyaDeviceId}`);
+    let freshUrl = '';
+    try {
+      freshUrl = await client.getStreamUrl(tuyaDeviceId, 'HLS', true);
+    } catch (hlsErr: any) {
+      console.warn(`[TUYA HLS PROXY] HLS allocation failed for ${tuyaDeviceId}: ${hlsErr.message}. Falling back to RTSP transcoder.`);
     }
 
-    const freshRes = await fetch(freshUrl);
-    const freshPlaylist = await freshRes.text();
-    if (!freshRes.ok || !freshPlaylist.includes('#EXT')) {
-      throw new Error(`Fresh HLS stream invalid for ${tuyaDeviceId}`);
-    }
-
-    const baseUrl = new URL(freshUrl);
-    const lines = freshPlaylist.split('\n');
-    const rewrittenLines: string[] = [];
-    for (let i = 0; i < lines.length; i++) {
-      let line = lines[i].trim();
-      if (line.startsWith('#EXT-X-KEY:')) {
-        const idx = line.indexOf('URI="');
-        if (idx !== -1) {
-          const endIdx = line.indexOf('"', idx + 5);
-          if (endIdx !== -1) {
-            const origUri = line.substring(idx + 5, endIdx);
-            const absUri = new URL(origUri, baseUrl).toString();
-            line = line.substring(0, idx + 5) + `/api/cctv/hls-proxy/subresource?url=${encodeURIComponent(absUri)}` + line.substring(endIdx);
-          }
-        }
-      } else if (line.length > 0 && !line.startsWith('#')) {
-        const absUri = new URL(line, baseUrl).toString();
-        line = `/api/cctv/hls-proxy/subresource?url=${encodeURIComponent(absUri)}`;
+    if (freshUrl && freshUrl.startsWith('http')) {
+      const freshRes = await fetch(freshUrl);
+      const freshPlaylist = await freshRes.text();
+      if (!freshRes.ok || !freshPlaylist.includes('#EXT')) {
+        throw new Error(`Fresh HLS stream invalid for ${tuyaDeviceId}`);
       }
-      rewrittenLines.push(line);
+
+      const baseUrl = new URL(freshUrl);
+      const lines = freshPlaylist.split('\n');
+      const rewrittenLines: string[] = [];
+      for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+        if (line.startsWith('#EXT-X-KEY:')) {
+          const idx = line.indexOf('URI="');
+          if (idx !== -1) {
+            const endIdx = line.indexOf('"', idx + 5);
+            if (endIdx !== -1) {
+              const origUri = line.substring(idx + 5, endIdx);
+              const absUri = new URL(origUri, baseUrl).toString();
+              line = line.substring(0, idx + 5) + `/api/cctv/hls-proxy/subresource?url=${encodeURIComponent(absUri)}` + line.substring(endIdx);
+            }
+          }
+        } else if (line.length > 0 && !line.startsWith('#')) {
+          const absUri = new URL(line, baseUrl).toString();
+          line = `/api/cctv/hls-proxy/subresource?url=${encodeURIComponent(absUri)}`;
+        }
+        rewrittenLines.push(line);
+      }
+
+      console.log(`[TUYA HLS PROXY] Serving fresh HLS session for device ${tuyaDeviceId}`);
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+      res.setHeader('Cache-Control', 'no-cache');
+      return res.send(rewrittenLines.join('\n'));
     }
 
-    console.log(`[TUYA HLS PROXY] Serving fresh HLS session for device ${tuyaDeviceId}`);
+    // HLS failed entirely — fall back to RTSP transcoder (SIGSEGV fixed by removing -tls_verify 0)
+    console.log(`[TUYA RTSP FALLBACK] HLS unavailable, trying RTSP transcoder for ${tuyaDeviceId}...`);
+
+    // Reuse existing healthy transcoder session if available
+    if (RtspHlsTranscoder.isRunning(tuyaDeviceId)) {
+      const existingPlaylist = RtspHlsTranscoder.getPlaylistPath(tuyaDeviceId);
+      if (fs.existsSync(existingPlaylist)) {
+        const content = fs.readFileSync(existingPlaylist, 'utf8');
+        if (content.includes('.ts')) {
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+          res.setHeader('Cache-Control', 'no-cache');
+          return res.sendFile(existingPlaylist);
+        }
+        RtspHlsTranscoder.stop(tuyaDeviceId);
+      }
+    }
+
+    const rtspUrl = await client.getStreamUrl(tuyaDeviceId, 'RTSP', true);
+    if (!rtspUrl) throw new Error(`Could not allocate RTSP stream for ${tuyaDeviceId}`);
+    console.log(`[TUYA RTSP FALLBACK] Got relay URL: ${rtspUrl.slice(0, 60)}...`);
+    await RtspHlsTranscoder.start(tuyaDeviceId, rtspUrl);
+    const playlistPath = RtspHlsTranscoder.getPlaylistPath(tuyaDeviceId);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
     res.setHeader('Cache-Control', 'no-cache');
-    return res.send(rewrittenLines.join('\n'));
+    return res.sendFile(playlistPath);
 
   } catch (err: any) {
     const { TuyaClient } = require('../cctv/services/TuyaClient');
