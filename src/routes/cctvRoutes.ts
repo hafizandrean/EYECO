@@ -104,9 +104,8 @@ router.get('/hls-proxy/:cameraId/stream.m3u8', async (req, res) => {
         return res.send(rewrittenLines.join('\n'));
       }
 
-      // Session expired — clear cache and force fresh allocation
+      // Session expired — force fresh allocation
       console.warn(`[TUYA HLS PROXY] Session expired for ${tuyaDeviceId}, re-allocating HLS...`);
-      TuyaClient.clearStreamCache(tuyaDeviceId);
       forceRefresh = true;
     }
 
@@ -190,8 +189,6 @@ router.get('/hls-proxy/:cameraId/stream.m3u8', async (req, res) => {
     return res.sendFile(playlistPath);
 
   } catch (err: any) {
-    const { TuyaClient } = require('../cctv/services/TuyaClient');
-    TuyaClient.clearStreamCache(cameraId);
     console.error(`[HLS Proxy Error] Device ${cameraId}:`, err.message);
     res.status(502).json({ error: `Stream Allocation Failed: ${err.message}` });
   }

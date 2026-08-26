@@ -255,8 +255,8 @@ export class TuyaClient {
           const isHlsUrl = url.startsWith('http://') || url.startsWith('https://');
           const isRtspUrl = url.startsWith('rtsp://') || url.startsWith('rtsps://');
           if ((protocol === 'HLS' && isHlsUrl) || (protocol === 'RTSP' && isRtspUrl)) {
-            // Cache stream URL for 60 seconds to prevent rate limits while keeping session fresh
-            TuyaClient.streamCache.set(cacheKey, { url, expiresAt: Date.now() + 60000 });
+            // Cache stream URL for 5 minutes (300s) to prevent rate limits while keeping session fresh
+            TuyaClient.streamCache.set(cacheKey, { url, expiresAt: Date.now() + 300000 });
             return url;
           }
           console.warn(`[TUYA] Allocation returned wrong protocol URL (expected ${protocol}): ${url.slice(0, 40)}`);
