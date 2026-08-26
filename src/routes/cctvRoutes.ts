@@ -44,6 +44,21 @@ router.get('/hls-proxy/:cameraId/stream.m3u8', async (req, res) => {
       ]
     }).lean();
 
+    if (camDoc?.vendor === 'KRISBOW' || (camDoc?.description && camDoc.description.includes('Virtual ID'))) {
+      const ipMatch = camDoc.description ? camDoc.description.match(/IP:\s*([0-9a-zA-Z.:_-]+)/) : null;
+      const ip = ipMatch ? ipMatch[1] : (camDoc.ip || '38.52.195.243');
+      const rtspUrl = camDoc.rtspUrl || (camDoc.streamUrl && camDoc.streamUrl.startsWith('rtsp://') ? camDoc.streamUrl : `rtsp://${ip}:554/live`);
+      console.log(`[KRISBOW STREAM PROXY] Starting RTSP transcoder for Krisbow camera ${cameraId} (IP: ${ip})...`);
+      await RtspHlsTranscoder.start(cameraId, rtspUrl);
+      const playlistPath = RtspHlsTranscoder.getPlaylistPath(cameraId);
+      if (fs.existsSync(playlistPath)) {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+        res.setHeader('Cache-Control', 'no-cache');
+        return res.sendFile(playlistPath);
+      }
+    }
+
     const accessId = camDoc?.tuyaAccessId || camDoc?.username || process.env.TUYA_CLIENT_ID || 'vhxcdfe5q7d5vr4wsgs3';
     const accessSecret = camDoc?.tuyaAccessSecret || camDoc?.password || process.env.TUYA_CLIENT_SECRET || '0757b40d43884h83952b3b306814fba9';
 
