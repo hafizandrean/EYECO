@@ -192,8 +192,8 @@ export class FrameCaptureService {
           process.env.TUYA_API_ENDPOINT || 'https://openapi-sg.iotbing.com',
         );
 
-        // Use cached URL during cooldown; force fresh allocation otherwise
-        const tuyaHlsUrl = await client.getStreamUrl(deviceId, 'HLS', !cooldownActive);
+        // Always reuse active cached stream URL to prevent triggering new Tuya P2P allocations
+        const tuyaHlsUrl = await client.getStreamUrl(deviceId, 'HLS', false);
         if (tuyaHlsUrl?.startsWith('http')) {
           console.log(`[FrameCapture] Capturing frame from Tuya Cloud HLS for ${deviceId}...`);
           const ok = await captureFrameFromTuyaEncryptedHLS(tuyaHlsUrl, outputPath);
