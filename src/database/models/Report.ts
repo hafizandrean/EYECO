@@ -50,6 +50,9 @@ export interface IReport extends Document {
   uncertaintyScore?: number | null;
   priority?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE' | null;
   recommendedAction?: string | null;
+  primaryEvidenceId?: mongoose.Types.ObjectId | null;
+  thumbnailEvidenceId?: mongoose.Types.ObjectId | null;
+  evidenceIds?: mongoose.Types.ObjectId[];
   activeSnapshotId?: mongoose.Types.ObjectId | null;
   snapshotHistory?: mongoose.Types.ObjectId[];
   analysisState?: 'PROCESSING' | 'READY' | 'FAILED' | 'REANALYSIS_PENDING';
@@ -188,6 +191,9 @@ const ReportSchema = new Schema<IReport>({
   uncertaintyScore: { type: Number, default: null },
   priority: { type: String, enum: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'NONE'], default: null },
   recommendedAction: { type: String, default: null },
+  primaryEvidenceId: { type: Schema.Types.ObjectId, ref: 'AiEvidence', default: null, index: true },
+  thumbnailEvidenceId: { type: Schema.Types.ObjectId, ref: 'AiEvidence', default: null },
+  evidenceIds: [{ type: Schema.Types.ObjectId, ref: 'AiEvidence' }],
   activeSnapshotId: { type: Schema.Types.ObjectId, ref: 'AiSnapshot', default: null },
   snapshotHistory: [{ type: Schema.Types.ObjectId, ref: 'AiSnapshot' }],
   analysisState: { 

@@ -34,6 +34,8 @@ import { OutboxWorker } from './notifications/OutboxWorker';
 import { NotificationModel } from './database/models/Notification';
 import { TelegramNotificationChannel } from './notifications/TelegramNotificationChannel';
 import { warmupAI } from './services/aiDetection.service';
+import mediaRouter from './routes/mediaRoutes';
+import { SpoolRetryWorker } from './services/SpoolRetryWorker';
 import { R2StorageService } from './services/R2StorageService';
 import { ReportAiProjectionService } from './services/ai/ReportAiProjectionService';
 
@@ -268,6 +270,7 @@ app.use('/admin', adminRouter);
 app.use('/api/cctv', cctvRouter);
 app.use('/api/news', newsRouter);
 app.use('/api', reportRouter);
+app.use('/api', mediaRouter);
 app.use('/api/video-analysis', videoAnalysisRouter);
 app.use('/api/continual-learning', continualLearningRouter);
 

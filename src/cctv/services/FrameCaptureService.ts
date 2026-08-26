@@ -2,6 +2,7 @@ import { CctvModel, ICctv } from '../../database/models/Cctv';
 import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 
 export interface ICapturedFrame {
   cameraId: number;
@@ -83,14 +84,13 @@ export class FrameCaptureService {
    * falls back to a static image if no stream URL is available.
    */
   public static async captureFrame(camera: ICctv): Promise<ICapturedFrame> {
-    const outputRelativePath = `/uploads/cctv_capture_${camera.id}.jpg`;
-    const outputAbsolutePath = path.join(process.cwd(), 'public', outputRelativePath);
-
-    // Ensure uploads directory exists
-    const uploadsDir = path.dirname(outputAbsolutePath);
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
+    const tempDir = path.join(os.tmpdir(), 'eyeco');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
     }
+
+    const outputAbsolutePath = path.join(tempDir, `cctv_capture_${camera.id}.jpg`);
+    const outputRelativePath = outputAbsolutePath;
 
     let deviceId = '';
     if (camera.playUrl && camera.playUrl.includes('/hls-proxy/')) {

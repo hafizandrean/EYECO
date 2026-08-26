@@ -68,8 +68,11 @@ export class RtspHlsTranscoder {
       '-loglevel', 'warning'
     ];
 
-    if (rtspUrl.startsWith('rtsp://')) {
+    if (rtspUrl.startsWith('rtsp://') || rtspUrl.startsWith('rtsps://')) {
       args.push('-rtsp_transport', 'tcp');
+    }
+    if (rtspUrl.startsWith('rtsps://')) {
+      args.push('-tls_verify', '0');
     }
 
     args.push(

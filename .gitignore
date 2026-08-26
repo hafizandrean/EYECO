@@ -12,6 +12,26 @@ node_modules/
 .env
 .env.*
 !.env.example
-# Runtime-generated files
+mockup/
+ai/models/*.pt
+ai/uploads/*
+!ai/uploads/.gitkeep
+ai/output/*
+!ai/output/.gitkeep
+ai/__pycache__/
+ai/**/__pycache__/
+*.pyc
+
+node_modules/
+.env
+.env.*
+!.env.example
+# Runtime-generated files & uploads
 public/hls/
-public/uploads/cctv_capture_*
+public/uploads/*
+!public/uploads/logo-eyeco.png
+!public/uploads/favicon.*
+!public/uploads/.gitkeep
+eyeco-spool/
+*.spool
+

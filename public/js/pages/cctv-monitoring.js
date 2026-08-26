@@ -956,11 +956,10 @@ export class CctvMonitoringPage {
 
     cameras.forEach(ch => {
       const channelId = String(ch.id);
-      const isChActive = isMon && ch.isActive;
+      const isChActive = ch.isActive !== false;
       const matchReport = this.latestReports.find(r => r.location && (r.location.toLowerCase().includes(ch.name.toLowerCase()) || ch.name.toLowerCase().includes(r.location.toLowerCase())));
       const isAlert = matchReport ? (matchReport.aiStatus === 'TINGGI' || matchReport.aiStatus === 'SEDANG') : false;
-      const defaultSnapshot = ch.snapshotUrl || ch.playUrl || ch.streamUrl || '';
-      const imageSrc = (matchReport && matchReport.image) ? matchReport.image : defaultSnapshot;
+      let imageSrc = (ch.snapshotUrl && !ch.snapshotUrl.includes('cctv_capture_')) ? ch.snapshotUrl : '';
 
       let cardEntry = this.cardRegistry.get(channelId);
 
@@ -988,7 +987,7 @@ export class CctvMonitoringPage {
             const entry = this.registerCardElement(cardEl, ch, isAdmin);
             if (this.cardObserver) this.cardObserver.observe(cardEl);
             if (window.lucide) window.lucide.createIcons({ root: cardEl });
-            this.reconcileCameraPlayer(entry, ch, isMon && ch.isActive);
+            this.reconcileCameraPlayer(entry, ch, ch.isActive !== false);
           }
         }
       });
@@ -1998,7 +1997,7 @@ export class CctvMonitoringPage {
 
     let isMuted = true;
     const matchReport = this.latestReports.find(r => r.location && r.location.toLowerCase().includes(ch.name.toLowerCase()));
-    const imageSrc = matchReport ? matchReport.image : (ch.isDefault ? ch.streamUrl : `/uploads/cctv_capture_${ch.id}.jpg`);
+    let imageSrc = (ch.snapshotUrl && !ch.snapshotUrl.includes('cctv_capture_')) ? ch.snapshotUrl : '';
     const isVideo = ch.mediaType === 'Video' || ch.mediaType === 'HLS' || ch.mediaType === 'RTSP_TUYA' || (ch.playUrl && ch.playUrl.includes('.m3u8'));
 
     let playerHtml = '';

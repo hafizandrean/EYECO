@@ -147,6 +147,19 @@ router.get('/detections', async (req, res) => {
       }
     }
 
+    // Batch resolve Private R2 signed URLs for report images when R2 is configured
+    if (R2StorageService.isConfigured()) {
+      await Promise.all(
+        reportsWithFlags.map(async (r: any) => {
+          if (r.image && (r.image.startsWith('laporan_auto/') || r.image.startsWith('laporan_manual/') || r.image.startsWith('berita/'))) {
+            try {
+              r.image = await R2StorageService.getSignedUrl(r.image, 300);
+            } catch (_) {}
+          }
+        })
+      );
+    }
+
     const totalPages = Math.ceil(result.total / limit) || 1;
     res.json({
       reports: reportsWithFlags,
@@ -201,7 +214,11 @@ router.get('/detections/:id', async (req, res) => {
 
     if (responseReport.image && typeof responseReport.image === 'string') {
       let img = responseReport.image as string;
-      if (!img.startsWith('/') && !img.startsWith('http')) {
+      if (R2StorageService.isConfigured() && (img.startsWith('laporan_auto/') || img.startsWith('laporan_manual/') || img.startsWith('berita/'))) {
+        try {
+          img = await R2StorageService.getSignedUrl(img, 300);
+        } catch (_) {}
+      } else if (!img.startsWith('/') && !img.startsWith('http')) {
         img = '/' + img;
       }
       responseReport.image = img;
