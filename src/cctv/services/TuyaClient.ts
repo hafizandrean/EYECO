@@ -175,6 +175,18 @@ export class TuyaClient {
     return devices;
   }
 
+  public async getDeviceStatus(deviceId: string): Promise<{ online: boolean; name?: string; raw?: any }> {
+    try {
+      const data = await this.request('GET', `/v1.0/devices/${deviceId}`);
+      if (data.success && data.result) {
+        return { online: !!data.result.online, name: data.result.name, raw: data.result };
+      }
+    } catch (err: any) {
+      console.warn(`[TUYA] getDeviceStatus for ${deviceId} failed: ${err.message}`);
+    }
+    return { online: false };
+  }
+
   private static streamCache = new Map<string, { url: string; expiresAt: number }>();
   private static pendingAlloc = new Map<string, Promise<string>>();
 
@@ -271,7 +283,10 @@ export class TuyaClient {
       return cached.url;
     }
 
-    throw new Error(`Tuya Cloud Stream Allocation Error (${deviceId}): ${lastError}`);
+    const status = await this.getDeviceStatus(deviceId);
+    console.warn(`[TUYA WARN] Stream allocation failed for ${deviceId}. Tuya Cloud reports device is: ${status.online ? 'ONLINE (P2P stream busy or rate limited)' : 'OFFLINE (device disconnected or sleeping)'}`);
+
+    throw new Error(`Tuya Cloud Stream Allocation Error (${deviceId}): ${lastError} [Device is ${status.online ? 'ONLINE' : 'OFFLINE'}]`);
   }
 }
 
