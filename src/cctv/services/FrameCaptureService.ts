@@ -101,30 +101,44 @@ export class FrameCaptureService {
     }
 
     if (deviceId) {
-      // Tuya Camera - local HLS segment capture
+      // --- Cloud HLS Proxy (Krisbow/Tuya) ---
+      // First check if local RTSP-transcoded HLS file exists (legacy path)
       const hlsPlaylist = path.join(process.cwd(), 'public/hls', deviceId, 'stream.m3u8');
       if (fs.existsSync(hlsPlaylist)) {
-        console.log(`[FrameCapture] Extracting frame from local Tuya HLS playlist: ${hlsPlaylist}`);
-        const success = await extractFfmpegFrame(hlsPlaylist, outputAbsolutePath);
-        if (success) {
-          lastAllocAt.set(deviceId, Date.now()); // segment lokal ada → skip alloc berikutnya
-          return {
-            cameraId: camera.id,
-            location: camera.location,
-            timestamp: new Date(),
-            imagePath: outputRelativePath,
-          };
+        const content = fs.readFileSync(hlsPlaylist, 'utf8');
+        if (content.includes('.ts')) {
+          console.log(`[FrameCapture] Extracting frame from local HLS playlist: ${hlsPlaylist}`);
+          const success = await extractFfmpegFrame(hlsPlaylist, outputAbsolutePath);
+          if (success) {
+            lastAllocAt.set(deviceId, Date.now());
+            return { cameraId: camera.id, location: camera.location, timestamp: new Date(), imagePath: outputRelativePath };
+          }
         }
       }
-    }
 
-    // Tuya: jangan re-allocate kalau udah allocate < cooldown lalu gagal — hemat kuota stream
-    if (deviceId && (camera.playUrl?.includes('/hls-proxy/') || camera.description?.includes('Tuya Device ID:'))) {
+      // No local file → use the backend proxy URL directly (Cloud HLS)
+      // The server itself calls localhost to get the proxied HLS manifest
+      const proxyUrl = `http://127.0.0.1:${process.env.PORT || 8000}/api/cctv/hls-proxy/${deviceId}/stream.m3u8`;
       const last = lastAllocAt.get(deviceId) || 0;
       if (Date.now() - last < TUYA_ALLOC_COOLDOWN_MS) {
+        // During cooldown, still try to capture from the already-allocated stream URL
+        const streamUrl = camera.playUrl || camera.streamUrl;
+        if (streamUrl && streamUrl.includes('/hls-proxy/')) {
+          console.log(`[FrameCapture] Cooldown active — trying frame grab from proxy URL: ${proxyUrl}`);
+          const success = await extractFfmpegFrame(proxyUrl, outputAbsolutePath);
+          if (success) {
+            return { cameraId: camera.id, location: camera.location, timestamp: new Date(), imagePath: outputRelativePath };
+          }
+        }
         throw new Error(`Kamera #${camera.id} stream allocate dalam cooldown (${Math.ceil((TUYA_ALLOC_COOLDOWN_MS - (Date.now() - last)) / 1000)}s) — skip`);
       }
       lastAllocAt.set(deviceId, Date.now());
+
+      console.log(`[FrameCapture] Extracting frame from Cloud HLS proxy: ${proxyUrl}`);
+      const success = await extractFfmpegFrame(proxyUrl, outputAbsolutePath);
+      if (success) {
+        return { cameraId: camera.id, location: camera.location, timestamp: new Date(), imagePath: outputRelativePath };
+      }
     }
 
     // Generic RTSP/HLS stream URL capture fallback
