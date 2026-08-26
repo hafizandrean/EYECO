@@ -176,43 +176,83 @@ export class TuyaClient {
   }
 
   private static streamCache = new Map<string, { url: string; expiresAt: number }>();
+  private static pendingAlloc = new Map<string, Promise<string>>();
 
   public static clearStreamCache(deviceId: string): void {
     console.log(`[TUYA CACHE] Invalidating cached stream for device ${deviceId}`);
-    TuyaClient.streamCache.delete(deviceId);
+    TuyaClient.streamCache.delete(`hls:${deviceId}`);
+    TuyaClient.streamCache.delete(`rtsp:${deviceId}`);
   }
 
   public async getStreamUrl(deviceId: string, protocol: 'HLS' | 'RTSP' = 'HLS', forceFresh = false): Promise<string> {
+    const cacheKey = `${protocol.toLowerCase()}:${deviceId}`;
+
     if (forceFresh) {
-      TuyaClient.streamCache.delete(deviceId);
+      TuyaClient.streamCache.delete(cacheKey);
     }
-    const cached = TuyaClient.streamCache.get(deviceId);
+
+    // Return from cache if still valid
+    const cached = TuyaClient.streamCache.get(cacheKey);
     if (cached && Date.now() < cached.expiresAt) {
       console.log(`[TUYA CACHE] Returning active cached stream URL for ${deviceId}`);
       return cached.url;
     }
 
-    console.log(`[TUYA] Allocating fresh stream for device ${deviceId}...`);
+    // Deduplicate concurrent allocation requests for the same device+protocol
+    const pendingKey = cacheKey;
+    if (TuyaClient.pendingAlloc.has(pendingKey)) {
+      console.log(`[TUYA CACHE] Waiting for pending allocation for ${deviceId}...`);
+      return TuyaClient.pendingAlloc.get(pendingKey)!;
+    }
 
-    const endpoints: Array<{ method: string; path: string; body?: any }> = [
-      { method: 'POST', path: `/v1.0/devices/${deviceId}/stream/actions/allocate`, body: { type: 'hls' } },
-      { method: 'POST', path: `/v1.0/devices/${deviceId}/stream/actions/allocate`, body: { type: 'HLS' } },
-      { method: 'POST', path: `/v1.0/devices/${deviceId}/stream/actions/allocate`, body: { type: 'rtsp' } },
-      { method: 'POST', path: `/v1.0/devices/${deviceId}/stream/actions/allocate`, body: { type: 'RTSP' } }
-    ];
+    const allocPromise = this._doAllocate(deviceId, protocol, cached);
+    TuyaClient.pendingAlloc.set(pendingKey, allocPromise);
+
+    try {
+      const url = await allocPromise;
+      return url;
+    } finally {
+      TuyaClient.pendingAlloc.delete(pendingKey);
+    }
+  }
+
+  private async _doAllocate(deviceId: string, protocol: 'HLS' | 'RTSP', cached?: { url: string; expiresAt: number }): Promise<string> {
+    const cacheKey = `${protocol.toLowerCase()}:${deviceId}`;
+    console.log(`[TUYA] Allocating fresh ${protocol} stream for device ${deviceId}...`);
+
+    // Only try the endpoints matching the requested protocol
+    const types = protocol === 'HLS' ? ['hls', 'HLS'] : ['rtsp', 'RTSP'];
+    const endpoints = types.map(type => ({
+      method: 'POST',
+      path: `/v1.0/devices/${deviceId}/stream/actions/allocate`,
+      body: { type }
+    }));
 
     let lastError = '';
 
     for (const ep of endpoints) {
       try {
-        const data = await this.request(ep.method, ep.path, ep.body || null);
+        const data = await this.request(ep.method, ep.path, ep.body);
         console.log(`[TUYA STREAM LOG] ${ep.method} ${ep.path} -> success: ${data.success}, code: ${data.code}`);
-        
+
         if (data.success && data.result?.url) {
-          console.log(`[TUYA SUCCESS] Real stream allocated for ${deviceId}: ${data.result.url.slice(0, 60)}...`);
-          // Cache stream URL for 25 seconds to prevent rate limit while keeping session fresh
-          TuyaClient.streamCache.set(deviceId, { url: data.result.url, expiresAt: Date.now() + 25000 });
-          return data.result.url;
+          const url: string = data.result.url;
+          console.log(`[TUYA SUCCESS] Real stream allocated for ${deviceId}: ${url.slice(0, 60)}...`);
+
+          // Validate that the returned URL matches the requested protocol
+          const isHlsUrl = url.startsWith('http://') || url.startsWith('https://');
+          const isRtspUrl = url.startsWith('rtsp://') || url.startsWith('rtsps://');
+          if ((protocol === 'HLS' && isHlsUrl) || (protocol === 'RTSP' && isRtspUrl)) {
+            TuyaClient.streamCache.set(cacheKey, { url, expiresAt: Date.now() + 25000 });
+            return url;
+          }
+          console.warn(`[TUYA] Allocation returned wrong protocol URL (expected ${protocol}): ${url.slice(0, 40)}`);
+        }
+
+        // Rate limit hit (100003) — use stale cached URL if available rather than failing
+        if (data.code === 100003 && cached?.url) {
+          console.warn(`[TUYA CACHE FALLBACK] Rate limit hit for ${deviceId}, reusing stale stream URL`);
+          return cached.url;
         }
 
         lastError = data.msg || JSON.stringify(data);
@@ -222,13 +262,14 @@ export class TuyaClient {
       }
     }
 
-    // If frequency limit (100003), but we have an old cached URL, fallback to cached URL instead of throwing
-    if (cached && cached.url) {
-      console.warn(`[TUYA CACHE FALLBACK] Frequency limit hit for ${deviceId}, falling back to existing stream URL`);
+    // Last resort: return stale cached URL rather than throwing
+    if (cached?.url) {
+      console.warn(`[TUYA CACHE FALLBACK] All allocation attempts failed for ${deviceId}, falling back to stale cache`);
       return cached.url;
     }
 
     throw new Error(`Tuya Cloud Stream Allocation Error (${deviceId}): ${lastError}`);
   }
 }
+
 
