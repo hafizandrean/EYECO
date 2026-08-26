@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import fs from 'fs';
 import { CctvAdapter } from '../cctv/CctvAdapter';
 import { CctvHealthEngine } from '../cctv/CctvHealthEngine';
 import { CctvScanner } from '../cctv/CctvScanner';
@@ -23,7 +24,13 @@ router.get('/hls-proxy/:cameraId/stream.m3u8', async (req, res) => {
   // Reuse existing transcoding session if already active to prevent constant restarts
   if (RtspHlsTranscoder.isRunning(cameraId)) {
     console.log(`[RTSP→HLS] Transcoder for device ${cameraId} is already running. Reusing session.`);
-    return res.redirect(RtspHlsTranscoder.getPublicUrl(cameraId));
+    const playlistPath = RtspHlsTranscoder.getPlaylistPath(cameraId);
+    if (fs.existsSync(playlistPath)) {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+      res.setHeader('Cache-Control', 'no-cache');
+      return res.sendFile(playlistPath);
+    }
   }
 
   try {
@@ -37,14 +44,13 @@ router.get('/hls-proxy/:cameraId/stream.m3u8', async (req, res) => {
       ]
     }).lean();
 
-    const accessId = camDoc?.tuyaAccessId || camDoc?.username || process.env.TUYA_CLIENT_ID || 'vqy8kv443e5ef3vrxce8';
-    const accessSecret = camDoc?.tuyaAccessSecret || camDoc?.password || process.env.TUYA_CLIENT_SECRET || 'd6a294ee060747049fd683be64854c5c';
+    const accessId = camDoc?.tuyaAccessId || camDoc?.username || process.env.TUYA_CLIENT_ID || 'vhxcdfe5q7d5vr4wsgs3';
+    const accessSecret = camDoc?.tuyaAccessSecret || camDoc?.password || process.env.TUYA_CLIENT_SECRET || '0757b40d43884h83952b3b306814fba9';
 
     const client = new TuyaClient(
-
       accessId,
       accessSecret,
-      'https://openapi-sg.iotbing.com'
+      process.env.TUYA_API_ENDPOINT || 'https://openapi-sg.iotbing.com'
     );
     await client.getAccessToken();
     const streamUrl = await client.getStreamUrl(cameraId, 'HLS');
@@ -90,8 +96,12 @@ router.get('/hls-proxy/:cameraId/stream.m3u8', async (req, res) => {
 
     // Allocate fresh RTSP stream as robust fallback
     const rtspUrl = await client.getStreamUrl(cameraId, 'RTSP', true);
-    const publicUrl = await RtspHlsTranscoder.start(cameraId, rtspUrl);
-    res.redirect(publicUrl);
+    await RtspHlsTranscoder.start(cameraId, rtspUrl);
+    const playlistPath = RtspHlsTranscoder.getPlaylistPath(cameraId);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+    res.setHeader('Cache-Control', 'no-cache');
+    return res.sendFile(playlistPath);
   } catch (err: any) {
     TuyaClient.clearStreamCache(cameraId);
     console.error(`[HLS Proxy Error] Device ${cameraId}:`, err.message);
