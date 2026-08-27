@@ -40,37 +40,43 @@ export class TuyaClient {
   }
 
   public async getAccessToken(): Promise<string> {
-    const t = Date.now();
-    const nonce = crypto.randomUUID();
-    const pathAndQuery = '/v1.0/token?grant_type=1';
-    const method = 'GET';
-    const bodyStr = '';
+    const endpoints = Array.from(new Set([this.baseUrl, 'https://openapi.tuyasg.com', 'https://openapi-sg.iotbing.com']));
+    let lastErr = '';
 
-    const sign = this.getSign(method, pathAndQuery, bodyStr, t, nonce, false);
+    for (const ep of endpoints) {
+      try {
+        const t = Date.now();
+        const nonce = crypto.randomUUID();
+        const pathAndQuery = '/v1.0/token?grant_type=1';
+        const method = 'GET';
+        const bodyStr = '';
+        const sign = this.getSign(method, pathAndQuery, bodyStr, t, nonce, false);
 
-    const headers: Record<string, string> = {
-      'client_id': this.clientId,
-      'sign': sign,
-      't': String(t),
-      'sign_method': 'HMAC-SHA256',
-      'nonce': nonce
-    };
+        const headers: Record<string, string> = {
+          'client_id': this.clientId,
+          'sign': sign,
+          't': String(t),
+          'sign_method': 'HMAC-SHA256',
+          'nonce': nonce
+        };
 
-    console.log(`[TUYA] Requesting access token from ${this.baseUrl}${pathAndQuery}`);
-    
-    const res = await fetch(`${this.baseUrl}${pathAndQuery}`, {
-      method,
-      headers
-    });
+        console.log(`[TUYA] Requesting access token from ${ep}${pathAndQuery}`);
+        const res = await fetch(`${ep}${pathAndQuery}`, { method, headers });
+        const data = await res.json() as any;
 
-    const data = await res.json() as any;
-    if (!data.success) {
-      throw new Error(`Tuya token error: ${JSON.stringify(data)}`);
+        if (data.success && data.result?.access_token) {
+          this.baseUrl = ep; // Lock into working endpoint
+          this.accessToken = data.result.access_token;
+          console.log(`[TUYA] Successfully authenticated via ${ep}. Token: ${this.accessToken.substring(0, 8)}...`);
+          return this.accessToken;
+        }
+        lastErr = data.msg || JSON.stringify(data);
+      } catch (e: any) {
+        lastErr = e.message;
+      }
     }
 
-    this.accessToken = data.result.access_token;
-    console.log(`[TUYA] Successfully authenticated. Token: ${this.accessToken.substring(0, 8)}...`);
-    return this.accessToken;
+    throw new Error(`Tuya token error: ${lastErr}`);
   }
 
   public async request(method: string, pathAndQuery: string, body: any = null): Promise<any> {
@@ -95,14 +101,8 @@ export class TuyaClient {
     };
 
     const url = `${this.baseUrl}${pathAndQuery}`;
-    const options: RequestInit = {
-      method,
-      headers
-    };
-
-    if (body) {
-      options.body = bodyStr;
-    }
+    const options: RequestInit = { method, headers };
+    if (body) options.body = bodyStr;
 
     const res = await fetch(url, options);
     const data = await res.json() as any;
@@ -111,7 +111,6 @@ export class TuyaClient {
     if (!data.success && data.code === 1010) {
       console.log('[TUYA] Token expired. Refreshing token...');
       await this.getAccessToken();
-      // Retry request
       sign = this.getSign(method, pathAndQuery, bodyStr, t, nonce, true);
       headers['access_token'] = this.accessToken;
       headers['sign'] = sign;
