@@ -104,8 +104,9 @@ router.get('/hls-proxy/:cameraId/stream.m3u8', async (req, res) => {
         return res.send(rewrittenLines.join('\n'));
       }
 
-      // Session expired — force fresh allocation
+      // Session expired — clear cache and force fresh allocation
       console.warn(`[TUYA HLS PROXY] Session expired for ${tuyaDeviceId}, re-allocating HLS...`);
+      TuyaClient.clearStreamCache(tuyaDeviceId);
       forceRefresh = true;
     }
 

@@ -209,7 +209,7 @@ export class TuyaClient {
       return TuyaClient.pendingAlloc.get(pendingKey)!;
     }
 
-    const allocPromise = this._doAllocate(deviceId, protocol, cached);
+    const allocPromise = this._doAllocate(deviceId, protocol, forceFresh, cached);
     TuyaClient.pendingAlloc.set(pendingKey, allocPromise);
 
     try {
@@ -220,7 +220,7 @@ export class TuyaClient {
     }
   }
 
-  private async _doAllocate(deviceId: string, protocol: 'HLS' | 'RTSP', cached?: { url: string; expiresAt: number }): Promise<string> {
+  private async _doAllocate(deviceId: string, protocol: 'HLS' | 'RTSP', forceFresh: boolean, cached?: { url: string; expiresAt: number }): Promise<string> {
     const cacheKey = `${protocol.toLowerCase()}:${deviceId}`;
     console.log(`[TUYA] Allocating fresh ${protocol} stream for device ${deviceId}...`);
 
@@ -254,8 +254,8 @@ export class TuyaClient {
           console.warn(`[TUYA] Allocation returned wrong protocol URL (expected ${protocol}): ${url.slice(0, 40)}`);
         }
 
-        // On any Tuya error (100003 rate limit, 外部服务异常, etc.) — use stale cached URL if available
-        if (!data.success && cached?.url) {
+        // On any Tuya error (100003 rate limit, 外部服务异常, etc.) — use stale cached URL if NOT forceFresh
+        if (!forceFresh && !data.success && cached?.url) {
           console.warn(`[TUYA CACHE FALLBACK] Allocation failed (${data.msg || data.code}), reusing stale stream URL`);
           TuyaClient.streamCache.set(cacheKey, { url: cached.url, expiresAt: Date.now() + 15000 });
           return cached.url;
@@ -268,8 +268,8 @@ export class TuyaClient {
       }
     }
 
-    // Last resort: return stale cached URL rather than throwing
-    if (cached?.url) {
+    // Last resort: return stale cached URL rather than throwing (only if not forceFresh)
+    if (!forceFresh && cached?.url) {
       console.warn(`[TUYA CACHE FALLBACK] All allocation attempts failed for ${deviceId}, falling back to stale cache`);
       TuyaClient.streamCache.set(cacheKey, { url: cached.url, expiresAt: Date.now() + 15000 });
       return cached.url;
