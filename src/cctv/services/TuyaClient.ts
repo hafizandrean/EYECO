@@ -195,17 +195,10 @@ export class TuyaClient {
     TuyaClient.streamCache.delete(`hls:${deviceId}`);
     TuyaClient.streamCache.delete(`rtsp:${deviceId}`);
   }
-
   public async getStreamUrl(deviceId: string, protocol: 'HLS' | 'RTSP' = 'HLS', forceFresh = false): Promise<string> {
     const cacheKey = `${protocol.toLowerCase()}:${deviceId}`;
-
-    if (forceFresh) {
-      TuyaClient.streamCache.delete(cacheKey);
-    }
-
-    // Return from cache if still valid
     const cached = TuyaClient.streamCache.get(cacheKey);
-    if (cached && Date.now() < cached.expiresAt) {
+    if (!forceFresh && cached && Date.now() < cached.expiresAt) {
       console.log(`[TUYA CACHE] Returning active cached stream URL for ${deviceId}`);
       return cached.url;
     }
