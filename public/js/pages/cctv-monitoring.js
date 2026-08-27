@@ -302,50 +302,40 @@ export class CctvMonitoringPage {
                   <label class="form-label">Vendor / Brand</label>
                   <select id="cctv-input-vendor" class="filter-control select-rounded">
                     <option value="KRISBOW" selected>Krisbow Sync (4G Solar)</option>
-                    <option value="TUYA">Tuya Cloud (IoT)</option>
-                    <option value="GENERIC">Generic IP Cam (RTSP)</option>
-                    <option value="HIKVISION">Hikvision</option>
-                    <option value="DAHUA">Dahua</option>
-                    <option value="EZVIZ">Ezviz</option>
-                    <option value="SNAPSHOT">HTTP Image / Snapshot Periodik</option>
-                    <option value="CUSTOM">Lainnya (Stream Kustom / HLS)</option>
+                    <option value="TUYA">Tuya Cloud / Smart Life</option>
+                    <option value="GENERIC">Generic IP Cam (RTSP Stream)</option>
+                    <option value="HIKVISION">Hikvision (IP Cam / DVR)</option>
+                    <option value="DAHUA">Dahua (IP Cam / DVR)</option>
+                    <option value="EZVIZ">Ezviz (Smart IP Cam)</option>
+                    <option value="CUSTOM">Lainnya (Custom Stream HLS / .m3u8)</option>
                   </select>
+                  <div id="cctv-vendor-hint" style="font-size:0.75rem; color:var(--text-secondary); margin-top:6px; font-style:italic;">
+                    Virtual ID dari aplikasi Krisbow Sync di HP (Pengaturan Kamera ➔ Informasi Perangkat).
+                  </div>
                 </div>
               </div>
-              <div id="standard-cctv-fields">
+              <div id="standard-cctv-fields" style="display:none;">
                 <div class="form-grid">
                   <div class="form-group">
-                    <label class="form-label">IP Address / Host</label>
+                    <label class="form-label" id="cctv-label-host">IP Address / Host</label>
                     <input type="text" id="cctv-input-host" class="filter-control input-rounded" placeholder="Contoh: 192.168.1.100" value="">
                   </div>
-                  <div class="form-group">
-                    <label class="form-label">Port</label>
-                    <input type="number" id="cctv-input-port" class="filter-control input-rounded" value="554" placeholder="554, 80, dll">
+                  <div class="form-group" id="cctv-group-port">
+                    <label class="form-label">Port RTSP</label>
+                    <input type="number" id="cctv-input-port" class="filter-control input-rounded" value="554" placeholder="554">
                   </div>
                 </div>
                 <div class="form-grid">
-                  <div class="form-group">
-                    <label class="form-label">Protokol</label>
-                    <select id="cctv-input-mode" class="filter-control select-rounded">
-                      <option value="AUTO" selected>Auto Detect</option>
-                      <option value="RTSP">RTSP</option>
-                      <option value="HLS">HLS</option>
-                      <option value="MJPEG">MJPEG</option>
-                      <option value="SNAPSHOT">SNAPSHOT</option>
-                      <option value="CLOUD_VIEWER">CLOUD</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Username (opsional)</label>
+                  <div class="form-group" id="cctv-group-username">
+                    <label class="form-label" id="cctv-label-username">Username Kamera</label>
                     <input type="text" id="cctv-input-username" class="filter-control input-rounded" placeholder="Contoh: admin" value="">
                   </div>
-                </div>
-                <div class="form-grid">
-                  <div class="form-group">
-                    <label class="form-label">Password (opsional)</label>
+                  <div class="form-group" id="cctv-group-password">
+                    <label class="form-label" id="cctv-label-password">Password / Kode Verifikasi</label>
                     <input type="password" id="cctv-input-password" class="filter-control input-rounded" placeholder="Masukkan password kamera" value="">
                   </div>
                 </div>
+                <input type="hidden" id="cctv-input-mode" value="AUTO">
               </div>
               <div id="tuya-cctv-fields" style="display:none;">
                 <div class="form-grid">
@@ -2505,10 +2495,57 @@ export class CctvMonitoringPage {
         const stdFields = document.getElementById('standard-cctv-fields');
         const tuyaFields = document.getElementById('tuya-cctv-fields');
         const krisbowFields = document.getElementById('krisbow-cctv-fields');
+        const hintEl = document.getElementById('cctv-vendor-hint');
+
+        const hostLabel = document.getElementById('cctv-label-host');
+        const hostInput = document.getElementById('cctv-input-host');
+        const groupPort = document.getElementById('cctv-group-port');
+        const groupUsername = document.getElementById('cctv-group-username');
+        const groupPassword = document.getElementById('cctv-group-password');
+        const labelPassword = document.getElementById('cctv-label-password');
+        const passInput = document.getElementById('cctv-input-password');
 
         if (stdFields) stdFields.style.display = (val !== 'TUYA' && val !== 'KRISBOW') ? 'block' : 'none';
         if (tuyaFields) tuyaFields.style.display = (val === 'TUYA') ? 'block' : 'none';
         if (krisbowFields) krisbowFields.style.display = (val === 'KRISBOW') ? 'block' : 'none';
+
+        // Reset visibility
+        if (groupPort) groupPort.style.display = 'block';
+        if (groupUsername) groupUsername.style.display = 'block';
+        if (groupPassword) groupPassword.style.display = 'block';
+        if (labelPassword) labelPassword.textContent = 'Password Kamera';
+
+        if (val === 'KRISBOW') {
+          if (hintEl) hintEl.innerHTML = 'Virtual ID dari aplikasi <b>Krisbow Sync</b> di HP (Pengaturan Kamera ➔ Informasi Perangkat).';
+        } else if (val === 'TUYA') {
+          if (hintEl) hintEl.innerHTML = 'Virtual ID dari aplikasi <b>Tuya Smart / Smart Life</b> di HP (Informasi Perangkat).';
+        } else if (val === 'GENERIC') {
+          if (hintEl) hintEl.innerHTML = 'Format URL RTSP langsung (contoh: <code>rtsp://admin:password@192.168.1.100:554/live/ch0</code>) atau isi Host/IP.';
+          if (hostLabel) hostLabel.textContent = 'IP Address / URL RTSP';
+          if (hostInput) hostInput.placeholder = 'Contoh: 192.168.1.100 atau rtsp://admin:12345@192.168.1.100:554/live';
+        } else if (val === 'HIKVISION') {
+          if (hintEl) hintEl.innerHTML = 'Format RTSP Hikvision otomatis: <code>rtsp://username:password@IP:554/Streaming/Channels/101</code>';
+          if (hostLabel) hostLabel.textContent = 'IP Address Hikvision';
+          if (hostInput) hostInput.placeholder = 'Contoh: 192.168.1.100 atau cctv.domain.com';
+        } else if (val === 'DAHUA') {
+          if (hintEl) hintEl.innerHTML = 'Format RTSP Dahua otomatis: <code>rtsp://username:password@IP:554/cam/realmonitor?channel=1&subtype=0</code>';
+          if (hostLabel) hostLabel.textContent = 'IP Address Dahua';
+          if (hostInput) hostInput.placeholder = 'Contoh: 192.168.1.100';
+        } else if (val === 'EZVIZ') {
+          if (hintEl) hintEl.innerHTML = 'Format RTSP Ezviz otomatis: <code>rtsp://admin:KodeVerifikasi@IP:554/h264/ch1/main</code>';
+          if (hostLabel) hostLabel.textContent = 'IP Address Ezviz';
+          if (hostInput) hostInput.placeholder = 'Contoh: 192.168.1.100';
+          if (labelPassword) labelPassword.textContent = 'Kode Verifikasi Stiker Kamera';
+          if (passInput) passInput.placeholder = 'Contoh: ABCDEF (6 huruf di stiker kamera)';
+        } else if (val === 'CUSTOM') {
+          if (hintEl) hintEl.innerHTML = 'Format Stream HLS kustom (.m3u8) langsung dari server/CDN.';
+          if (hostLabel) hostLabel.textContent = 'URL Stream HLS (.m3u8)';
+          if (hostInput) hostInput.placeholder = 'Contoh: https://domain.com/hls/live/stream.m3u8';
+          if (groupPort) groupPort.style.display = 'none';
+          if (groupUsername) groupUsername.style.display = 'none';
+          if (groupPassword) groupPassword.style.display = 'none';
+        }
+
         if (btnSave) btnSave.disabled = false;
       };
     }
@@ -2763,15 +2800,29 @@ export class CctvMonitoringPage {
           payload.password = accessSecret;
           payload.description = rawDesc ? `${rawDesc} | Tuya Device ID: ${deviceId}` : `Tuya Device ID: ${deviceId}`;
         } else {
-          const host = document.getElementById('cctv-input-host')?.value || '127.0.0.1';
+          const host = document.getElementById('cctv-input-host')?.value.trim() || '127.0.0.1';
           const port = parseInt(document.getElementById('cctv-input-port')?.value || '554', 10);
-          const username = document.getElementById('cctv-input-username')?.value || '';
-          const password = document.getElementById('cctv-input-password')?.value || '';
-          const mode = document.getElementById('cctv-input-mode')?.value || 'AUTO';
+          const username = document.getElementById('cctv-input-username')?.value.trim() || '';
+          const password = document.getElementById('cctv-input-password')?.value.trim() || '';
 
-          const streamTarget = (host && host.includes('://')) ? host : `rtsp://${username ? username + ':' + password + '@' : ''}${host}:${port}/live`;
-          payload.protocol = mode;
-          payload.mediaType = mode === 'HLS' ? 'HLS' : 'Video';
+          let streamTarget = '';
+          if (host.includes('://')) {
+            streamTarget = host;
+          } else if (vendor === 'HIKVISION') {
+            streamTarget = `rtsp://${username || 'admin'}:${password}@${host}:${port}/Streaming/Channels/101`;
+          } else if (vendor === 'DAHUA') {
+            streamTarget = `rtsp://${username || 'admin'}:${password}@${host}:${port}/cam/realmonitor?channel=1&subtype=0`;
+          } else if (vendor === 'EZVIZ') {
+            streamTarget = `rtsp://admin:${password}@${host}:${port}/h264/ch1/main`;
+          } else if (vendor === 'CUSTOM') {
+            streamTarget = host;
+          } else {
+            // GENERIC
+            streamTarget = `rtsp://${username ? username + ':' + password + '@' : ''}${host}:${port}/live`;
+          }
+
+          payload.protocol = vendor === 'CUSTOM' ? 'HLS' : 'RTSP';
+          payload.mediaType = vendor === 'CUSTOM' ? 'HLS' : 'Video';
           payload.host = host;
           payload.port = port;
           payload.username = username;
