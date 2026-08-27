@@ -880,7 +880,7 @@ export class CctvMonitoringPage {
         if (camDets.length > 0) {
           const latestDet = camDets[0];
           const ageMs = now - new Date(latestDet.capturedAt).getTime();
-          if (Math.abs(ageMs) < 15000) {
+          if (Math.abs(ageMs) < 120000) {
             if (isReady) {
               this.updateBoundingBoxesOverlay(cardEntry.boundingBoxOverlay, latestDet.detections || []);
             } else if (cardEntry.boundingBoxOverlay) {
@@ -2101,7 +2101,7 @@ export class CctvMonitoringPage {
           if (camDets.length > 0) {
             const latestDet = camDets[0];
             const ageMs = Date.now() - new Date(latestDet.capturedAt).getTime();
-            if (Math.abs(ageMs) < 15000) {
+            if (Math.abs(ageMs) < 120000) {
               const yoloOverlay = document.getElementById('vms-fs-yolo-overlay');
 
               const detCount = latestDet.detections ? latestDet.detections.length : 0;
