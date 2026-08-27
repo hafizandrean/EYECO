@@ -676,19 +676,23 @@ router.get('/monitoring/detections', async (req, res) => {
     const limit = Math.min(50, parseInt(req.query.limit as string) || 20);
     const workspaceId = user.workspaceId;
     
-    // Get camera IDs in this workspace
+    // Get camera IDs in this workspace (or all cameras if workspaceId is not specified)
     const CctvModel = (await import('../database/models/Cctv')).CctvModel;
-    const camerasInWs = await CctvModel.find({ workspaceId }).select('id').lean().exec();
+    const cameraQuery: any = {};
+    if (workspaceId !== undefined && workspaceId !== null) {
+      cameraQuery.workspaceId = workspaceId;
+    }
+    const camerasInWs = await CctvModel.find(cameraQuery).select('id').lean().exec();
     const cameraIds = camerasInWs.map(c => c.id);
     
-    if (cameraIds.length === 0) {
-      return res.json({ success: true, data: [] });
+    const detectionQuery: any = { 
+      status: { $in: ['INFERENCED', 'PROMOTED', 'DUPLICATE', 'LOW_CONFIDENCE'] }
+    };
+    if (cameraIds.length > 0) {
+      detectionQuery.cameraId = { $in: cameraIds };
     }
 
-    const detections = await AiDetectionModel.find({ 
-      status: { $in: ['INFERENCED', 'PROMOTED', 'DUPLICATE', 'LOW_CONFIDENCE'] },
-      cameraId: { $in: cameraIds }
-    })
+    const detections = await AiDetectionModel.find(detectionQuery)
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean()
