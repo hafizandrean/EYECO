@@ -97,6 +97,9 @@ const ReportSchema = new mongoose_1.Schema({
     uncertaintyScore: { type: Number, default: null },
     priority: { type: String, enum: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'NONE'], default: null },
     recommendedAction: { type: String, default: null },
+    primaryEvidenceId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'AiEvidence', default: null, index: true },
+    thumbnailEvidenceId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'AiEvidence', default: null },
+    evidenceIds: [{ type: mongoose_1.Schema.Types.ObjectId, ref: 'AiEvidence' }],
     activeSnapshotId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'AiSnapshot', default: null },
     snapshotHistory: [{ type: mongoose_1.Schema.Types.ObjectId, ref: 'AiSnapshot' }],
     analysisState: {

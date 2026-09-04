@@ -37,7 +37,8 @@ exports.RtspHlsTranscoder = void 0;
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
 const child_process_1 = require("child_process");
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+const ffmpegStaticPath = require('ffmpeg-static');
+const ffmpegPath = ffmpegStaticPath || require('@ffmpeg-installer/ffmpeg').path;
 const sessions = new Map();
 const HLS_OUTPUT_BASE = path.join(process.cwd(), 'public', 'hls');
 class RtspHlsTranscoder {
@@ -90,7 +91,7 @@ class RtspHlsTranscoder {
         const args = [
             '-loglevel', 'warning'
         ];
-        if (rtspUrl.startsWith('rtsp://')) {
+        if (rtspUrl.startsWith('rtsp://') || rtspUrl.startsWith('rtsps://')) {
             args.push('-rtsp_transport', 'tcp');
         }
         args.push('-i', rtspUrl, '-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency', '-pix_fmt', 'yuv420p', '-an', '-f', 'hls', '-hls_time', '1', '-hls_list_size', '10', '-hls_flags', 'delete_segments+append_list+omit_endlist+temp_file', '-hls_segment_filename', segmentFilename, m3u8Path);

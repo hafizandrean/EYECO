@@ -8,6 +8,8 @@ const AiDetection_1 = require("../../database/models/AiDetection");
 const AiEvidence_1 = require("../../database/models/AiEvidence");
 const Report_1 = require("../../database/models/Report");
 const User_1 = require("../../database/models/User");
+const path_1 = __importDefault(require("path"));
+const os_1 = __importDefault(require("os"));
 const TimelineEvent_1 = require("../../database/models/TimelineEvent");
 const SystemSettings_1 = require("../../database/models/SystemSettings");
 const NotificationDispatcher_1 = require("../../notifications/NotificationDispatcher");
@@ -18,7 +20,6 @@ const DuplicateRule_1 = require("./DuplicateRule");
 const aiEngine_1 = require("../../services/ai/aiEngine");
 const Counter_1 = require("../../database/models/Counter");
 const mongoose_1 = __importDefault(require("mongoose"));
-const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
 class PromotionService {
     static cachedRules = null;
@@ -63,7 +64,7 @@ class PromotionService {
             detection.promotionReason = 'ALL_RULES_PASSED';
             // Cari berkas snapshot bukti
             const evidence = await AiEvidence_1.AiEvidenceModel.findOne({ linkedDetectionId: detection._id });
-            const imagePath = evidence ? evidence.storageKey : `/uploads/cctv_capture_${detection.cameraId}.jpg`;
+            const imagePath = evidence ? (evidence.storageKey || evidence.storage?.key || '') : path_1.default.join(os_1.default.tmpdir(), 'eyeco', `cctv_capture_${detection.cameraId}.jpg`);
             // Cari admin utama untuk relasi pelapor default
             const adminUser = await User_1.UserModel.findOne({ id: 1 });
             const adminObjectId = adminUser ? adminUser._id : new mongoose_1.default.Types.ObjectId('000000000000000000000001');
@@ -332,7 +333,7 @@ class PromotionService {
                 if (claimedReport) {
                     processed++;
                     const evidence = await AiEvidence_1.AiEvidenceModel.findOne({ linkedDetectionId: detection._id });
-                    const imagePath = evidence ? evidence.storageKey : `/uploads/cctv_capture_${detection.cameraId}.jpg`;
+                    const imagePath = evidence ? (evidence.storageKey || evidence.storage?.key || '') : path_1.default.join(os_1.default.tmpdir(), 'eyeco', `cctv_capture_${detection.cameraId}.jpg`);
                     console.log(`[PromotionService] Processing REANALYSIS_PENDING Report #${claimedReport.id} (attempt #${claimedReport.analysisAttemptCount})...`);
                     await this.runAiAnalysisAndFinalize(claimedReport, claimToken, detection, imagePath);
                 }

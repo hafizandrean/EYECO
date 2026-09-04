@@ -32,29 +32,39 @@ router.get('/hls-proxy/:cameraId/stream.m3u8', async (req, res) => {
       ]
     }).lean();
 
-    // --- Extract Virtual ID for Krisbow cameras ---
+    // --- Extract actual Tuya Device ID from description for ALL vendors ---
     let tuyaDeviceId = cameraId;
-    if (camDoc?.vendor === 'KRISBOW' || (camDoc?.description && camDoc.description.includes('Virtual ID'))) {
-      const vidMatch = camDoc.description ? camDoc.description.match(/Virtual ID[:\s]+([a-zA-Z0-9]+)/) : null;
-      if (vidMatch && vidMatch[1]) {
+    if (camDoc?.description) {
+      // Try 'Tuya Device ID: xxx' pattern (TUYA vendor)
+      const tuyaIdMatch = camDoc.description.match(/Tuya Device ID[:\s]+([a-zA-Z0-9]+)/);
+      // Try 'Virtual ID: xxx' pattern (KRISBOW vendor)
+      const vidMatch = camDoc.description.match(/Virtual ID[:\s]+([a-zA-Z0-9]+)/);
+      if (tuyaIdMatch && tuyaIdMatch[1]) {
+        tuyaDeviceId = tuyaIdMatch[1];
+        console.log(`[TUYA] Extracted Tuya Device ID from description: ${tuyaDeviceId}`);
+      } else if (vidMatch && vidMatch[1]) {
         tuyaDeviceId = vidMatch[1];
-        console.log(`[KRISBOW] Extracted Virtual ID from DB description: ${tuyaDeviceId}`);
+        console.log(`[TUYA] Extracted Virtual ID from description: ${tuyaDeviceId}`);
       } else if (camDoc.username && camDoc.username.length > 10) {
         tuyaDeviceId = camDoc.username;
-      } else {
-        tuyaDeviceId = cameraId;
-        console.log(`[KRISBOW] Using cameraId as Virtual ID: ${tuyaDeviceId}`);
+        console.log(`[TUYA] Using username as device ID: ${tuyaDeviceId}`);
+      }
+    }
+    // Also check streamUrl for embedded device ID pattern
+    if (tuyaDeviceId === cameraId && camDoc?.streamUrl) {
+      const streamIdMatch = camDoc.streamUrl.match(/\/hls-proxy\/([a-zA-Z0-9]+)\//);
+      if (streamIdMatch && streamIdMatch[1] && streamIdMatch[1].length > 10) {
+        tuyaDeviceId = streamIdMatch[1];
+        console.log(`[TUYA] Extracted device ID from streamUrl: ${tuyaDeviceId}`);
       }
     }
 
     const accessId = process.env.TUYA_CLIENT_ID || 'vhxcdfe5q7d5vr4wsgs3';
     const accessSecret = process.env.TUYA_CLIENT_SECRET || '0757b40d43884b83952b3b306814fba9';
 
-    const client = new TuyaClient(
-      accessId,
-      accessSecret,
-      process.env.TUYA_API_ENDPOINT || 'https://openapi-sg.iotbing.com'
-    );
+    // Try primary endpoint, then fallback to India endpoint
+    const primaryEndpoint = process.env.TUYA_API_ENDPOINT || 'https://openapi-sg.iotbing.com';
+    const client = new TuyaClient(accessId, accessSecret, primaryEndpoint);
     await client.getAccessToken();
 
     // Try Tuya Cloud native HLS (cached first, allocate fresh if expired)
@@ -179,9 +189,10 @@ router.get('/hls-proxy/:cameraId/stream.m3u8', async (req, res) => {
       }
     }
 
+    // Allocate fresh RTSP/RTSPS stream via Tuya Cloud relay (works for Krisbow 4G behind CGNAT)
+    console.log(`[TUYA RTSP TRANSCODER] Allocating fresh RTSP stream via Tuya Cloud relay for ${tuyaDeviceId}...`);
     const rtspUrl = await client.getStreamUrl(tuyaDeviceId, 'RTSP', true);
-    if (!rtspUrl) throw new Error(`Could not allocate RTSP stream for ${tuyaDeviceId}`);
-    console.log(`[TUYA RTSP FALLBACK] Got relay URL: ${rtspUrl.slice(0, 60)}...`);
+    console.log(`[TUYA RTSP TRANSCODER] Got relay URL: ${rtspUrl.slice(0, 60)}...`);
     await RtspHlsTranscoder.start(tuyaDeviceId, rtspUrl);
     const playlistPath = RtspHlsTranscoder.getPlaylistPath(tuyaDeviceId);
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -191,6 +202,17 @@ router.get('/hls-proxy/:cameraId/stream.m3u8', async (req, res) => {
 
   } catch (err: any) {
     console.error(`[HLS Proxy Error] Device ${cameraId}:`, err.message);
+    const isSubscriptionExpired = err.message?.includes('28841002') || err.message?.includes('subscription has expired');
+    const isNoPerm = err.message?.includes('28841107') || err.message?.includes('suspended');
+    if (isSubscriptionExpired || isNoPerm) {
+      // Return a special JSON error that the frontend can interpret
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(503).json({
+        error: 'TUYA_SUBSCRIPTION_EXPIRED',
+        message: 'Langganan IoT Core Video Streaming Tuya sudah kedaluwarsa.',
+        action: 'Perbarui subscription di iot.tuya.com → project Anda → Enable Service → Camera Management'
+      });
+    }
     res.status(502).json({ error: `Stream Allocation Failed: ${err.message}` });
   }
 });

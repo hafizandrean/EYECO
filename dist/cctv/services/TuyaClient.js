@@ -31,31 +31,39 @@ class TuyaClient {
         return this.hmacSHA256(str, this.secret);
     }
     async getAccessToken() {
-        const t = Date.now();
-        const nonce = crypto_1.default.randomUUID();
-        const pathAndQuery = '/v1.0/token?grant_type=1';
-        const method = 'GET';
-        const bodyStr = '';
-        const sign = this.getSign(method, pathAndQuery, bodyStr, t, nonce, false);
-        const headers = {
-            'client_id': this.clientId,
-            'sign': sign,
-            't': String(t),
-            'sign_method': 'HMAC-SHA256',
-            'nonce': nonce
-        };
-        console.log(`[TUYA] Requesting access token from ${this.baseUrl}${pathAndQuery}`);
-        const res = await fetch(`${this.baseUrl}${pathAndQuery}`, {
-            method,
-            headers
-        });
-        const data = await res.json();
-        if (!data.success) {
-            throw new Error(`Tuya token error: ${JSON.stringify(data)}`);
+        const endpoints = Array.from(new Set([this.baseUrl, 'https://openapi.tuyasg.com', 'https://openapi-sg.iotbing.com']));
+        let lastErr = '';
+        for (const ep of endpoints) {
+            try {
+                const t = Date.now();
+                const nonce = crypto_1.default.randomUUID();
+                const pathAndQuery = '/v1.0/token?grant_type=1';
+                const method = 'GET';
+                const bodyStr = '';
+                const sign = this.getSign(method, pathAndQuery, bodyStr, t, nonce, false);
+                const headers = {
+                    'client_id': this.clientId,
+                    'sign': sign,
+                    't': String(t),
+                    'sign_method': 'HMAC-SHA256',
+                    'nonce': nonce
+                };
+                console.log(`[TUYA] Requesting access token from ${ep}${pathAndQuery}`);
+                const res = await fetch(`${ep}${pathAndQuery}`, { method, headers });
+                const data = await res.json();
+                if (data.success && data.result?.access_token) {
+                    this.baseUrl = ep; // Lock into working endpoint
+                    this.accessToken = data.result.access_token;
+                    console.log(`[TUYA] Successfully authenticated via ${ep}. Token: ${this.accessToken.substring(0, 8)}...`);
+                    return this.accessToken;
+                }
+                lastErr = data.msg || JSON.stringify(data);
+            }
+            catch (e) {
+                lastErr = e.message;
+            }
         }
-        this.accessToken = data.result.access_token;
-        console.log(`[TUYA] Successfully authenticated. Token: ${this.accessToken.substring(0, 8)}...`);
-        return this.accessToken;
+        throw new Error(`Tuya token error: ${lastErr}`);
     }
     async request(method, pathAndQuery, body = null) {
         if (!this.accessToken) {
@@ -75,20 +83,15 @@ class TuyaClient {
             'Content-Type': 'application/json'
         };
         const url = `${this.baseUrl}${pathAndQuery}`;
-        const options = {
-            method,
-            headers
-        };
-        if (body) {
+        const options = { method, headers };
+        if (body)
             options.body = bodyStr;
-        }
         const res = await fetch(url, options);
         const data = await res.json();
         // Handle token expired (error code 1010)
         if (!data.success && data.code === 1010) {
             console.log('[TUYA] Token expired. Refreshing token...');
             await this.getAccessToken();
-            // Retry request
             sign = this.getSign(method, pathAndQuery, bodyStr, t, nonce, true);
             headers['access_token'] = this.accessToken;
             headers['sign'] = sign;
@@ -151,37 +154,81 @@ class TuyaClient {
         }
         return devices;
     }
+    async getDeviceStatus(deviceId) {
+        try {
+            const data = await this.request('GET', `/v1.0/devices/${deviceId}`);
+            if (data.success && data.result) {
+                return { online: !!data.result.online, name: data.result.name, raw: data.result };
+            }
+        }
+        catch (err) {
+            console.warn(`[TUYA] getDeviceStatus for ${deviceId} failed: ${err.message}`);
+        }
+        return { online: false };
+    }
     static streamCache = new Map();
+    static pendingAlloc = new Map();
     static clearStreamCache(deviceId) {
         console.log(`[TUYA CACHE] Invalidating cached stream for device ${deviceId}`);
-        TuyaClient.streamCache.delete(deviceId);
+        TuyaClient.streamCache.delete(`hls:${deviceId}`);
+        TuyaClient.streamCache.delete(`rtsp:${deviceId}`);
     }
     async getStreamUrl(deviceId, protocol = 'HLS', forceFresh = false) {
-        if (forceFresh) {
-            TuyaClient.streamCache.delete(deviceId);
-        }
-        const cached = TuyaClient.streamCache.get(deviceId);
-        if (cached && Date.now() < cached.expiresAt) {
+        const cacheKey = `${protocol.toLowerCase()}:${deviceId}`;
+        const cached = TuyaClient.streamCache.get(cacheKey);
+        if (!forceFresh && cached && Date.now() < cached.expiresAt) {
             console.log(`[TUYA CACHE] Returning active cached stream URL for ${deviceId}`);
             return cached.url;
         }
-        console.log(`[TUYA] Allocating fresh stream for device ${deviceId}...`);
-        const endpoints = [
-            { method: 'POST', path: `/v1.0/devices/${deviceId}/stream/actions/allocate`, body: { type: 'hls' } },
-            { method: 'POST', path: `/v1.0/devices/${deviceId}/stream/actions/allocate`, body: { type: 'HLS' } },
-            { method: 'POST', path: `/v1.0/devices/${deviceId}/stream/actions/allocate`, body: { type: 'rtsp' } },
-            { method: 'POST', path: `/v1.0/devices/${deviceId}/stream/actions/allocate`, body: { type: 'RTSP' } }
-        ];
+        // Deduplicate concurrent allocation requests for the same device+protocol
+        const pendingKey = cacheKey;
+        if (TuyaClient.pendingAlloc.has(pendingKey)) {
+            console.log(`[TUYA CACHE] Waiting for pending allocation for ${deviceId}...`);
+            return TuyaClient.pendingAlloc.get(pendingKey);
+        }
+        const allocPromise = this._doAllocate(deviceId, protocol, forceFresh, cached);
+        TuyaClient.pendingAlloc.set(pendingKey, allocPromise);
+        try {
+            const url = await allocPromise;
+            return url;
+        }
+        finally {
+            TuyaClient.pendingAlloc.delete(pendingKey);
+        }
+    }
+    async _doAllocate(deviceId, protocol, forceFresh, cached) {
+        const cacheKey = `${protocol.toLowerCase()}:${deviceId}`;
+        console.log(`[TUYA] Allocating fresh ${protocol} stream for device ${deviceId}...`);
+        // Only try the endpoints matching the requested protocol
+        const types = protocol === 'HLS' ? ['hls', 'HLS'] : ['rtsp', 'RTSP'];
+        const endpoints = types.map(type => ({
+            method: 'POST',
+            path: `/v1.0/devices/${deviceId}/stream/actions/allocate`,
+            body: { type }
+        }));
         let lastError = '';
         for (const ep of endpoints) {
             try {
-                const data = await this.request(ep.method, ep.path, ep.body || null);
+                const data = await this.request(ep.method, ep.path, ep.body);
                 console.log(`[TUYA STREAM LOG] ${ep.method} ${ep.path} -> success: ${data.success}, code: ${data.code}`);
                 if (data.success && data.result?.url) {
-                    console.log(`[TUYA SUCCESS] Real stream allocated for ${deviceId}: ${data.result.url.slice(0, 60)}...`);
-                    // Cache stream URL for 25 seconds to prevent rate limit while keeping session fresh
-                    TuyaClient.streamCache.set(deviceId, { url: data.result.url, expiresAt: Date.now() + 25000 });
-                    return data.result.url;
+                    const url = data.result.url;
+                    console.log(`[TUYA SUCCESS] Real stream allocated for ${deviceId}: ${url.slice(0, 60)}...`);
+                    // Validate that the returned URL matches the requested protocol
+                    const isHlsUrl = url.startsWith('http://') || url.startsWith('https://');
+                    const isRtspUrl = url.startsWith('rtsp://') || url.startsWith('rtsps://');
+                    if ((protocol === 'HLS' && isHlsUrl) || (protocol === 'RTSP' && isRtspUrl)) {
+                        // Cache stream URL for 5 minutes (300s) to prevent rate limits while keeping session fresh
+                        TuyaClient.streamCache.set(cacheKey, { url, expiresAt: Date.now() + 300000 });
+                        return url;
+                    }
+                    console.warn(`[TUYA] Allocation returned wrong protocol URL (expected ${protocol}): ${url.slice(0, 40)}`);
+                }
+                // On any Tuya error (100003 rate limit, 外部服务异常, etc.) — use stale cached URL if NOT forceFresh
+                if (!forceFresh && !data.success && cached?.url) {
+                    console.warn(`[TUYA CACHE FALLBACK] Allocation failed (${data.msg || data.code}), reusing stale stream URL`);
+                    TuyaClient.streamCache.set(cacheKey, { url: cached.url, expiresAt: Date.now() + 15000 });
+                    return cached.url;
                 }
                 lastError = data.msg || JSON.stringify(data);
             }
@@ -190,12 +237,15 @@ class TuyaClient {
                 lastError = err.message;
             }
         }
-        // If frequency limit (100003), but we have an old cached URL, fallback to cached URL instead of throwing
-        if (cached && cached.url) {
-            console.warn(`[TUYA CACHE FALLBACK] Frequency limit hit for ${deviceId}, falling back to existing stream URL`);
+        // Last resort: return stale cached URL rather than throwing (only if not forceFresh)
+        if (!forceFresh && cached?.url) {
+            console.warn(`[TUYA CACHE FALLBACK] All allocation attempts failed for ${deviceId}, falling back to stale cache`);
+            TuyaClient.streamCache.set(cacheKey, { url: cached.url, expiresAt: Date.now() + 15000 });
             return cached.url;
         }
-        throw new Error(`Tuya Cloud Stream Allocation Error (${deviceId}): ${lastError}`);
+        const status = await this.getDeviceStatus(deviceId);
+        console.warn(`[TUYA WARN] Stream allocation failed for ${deviceId}. Tuya Cloud reports device is: ${status.online ? 'ONLINE (P2P stream busy or rate limited)' : 'OFFLINE (device disconnected or sleeping)'}`);
+        throw new Error(`Tuya Cloud Stream Allocation Error (${deviceId}): ${lastError} [Device is ${status.online ? 'ONLINE' : 'OFFLINE'}]`);
     }
 }
 exports.TuyaClient = TuyaClient;

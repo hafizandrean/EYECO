@@ -32,8 +32,12 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
+const fs_1 = __importDefault(require("fs"));
 const CctvAdapter_1 = require("../cctv/CctvAdapter");
 const CctvHealthEngine_1 = require("../cctv/CctvHealthEngine");
 const CctvScanner_1 = require("../cctv/CctvScanner");
@@ -42,7 +46,6 @@ const AiPipelineScheduler_1 = require("../cctv/services/AiPipelineScheduler");
 const AiDetection_1 = require("../database/models/AiDetection");
 const authMiddleware_1 = require("../auth/authMiddleware");
 const RtspHlsTranscoder_1 = require("../cctv/services/RtspHlsTranscoder");
-const TuyaClient_1 = require("../cctv/services/TuyaClient");
 const router = (0, express_1.Router)();
 // ── RTSP→HLS Transcoder endpoint ─────────────────────────────────────────────
 // Browser calls GET /api/cctv/hls-proxy/:cameraId/stream.m3u8
@@ -50,11 +53,6 @@ const router = (0, express_1.Router)();
 // and redirects browser to the local /hls/:cameraId/stream.m3u8 static file.
 router.get('/hls-proxy/:cameraId/stream.m3u8', async (req, res) => {
     const { cameraId } = req.params;
-    // Reuse existing transcoding session if already active to prevent constant restarts
-    if (RtspHlsTranscoder_1.RtspHlsTranscoder.isRunning(cameraId)) {
-        console.log(`[RTSP→HLS] Transcoder for device ${cameraId} is already running. Reusing session.`);
-        return res.redirect(RtspHlsTranscoder_1.RtspHlsTranscoder.getPublicUrl(cameraId));
-    }
     try {
         const { TuyaClient } = require('../cctv/services/TuyaClient');
         const { CctvModel } = require('../database/models/Cctv');
@@ -65,16 +63,54 @@ router.get('/hls-proxy/:cameraId/stream.m3u8', async (req, res) => {
                 { description: { $regex: cameraId } }
             ]
         }).lean();
-        const accessId = camDoc?.tuyaAccessId || camDoc?.username || process.env.TUYA_CLIENT_ID || 'vqy8kv443e5ef3vrxce8';
-        const accessSecret = camDoc?.tuyaAccessSecret || camDoc?.password || process.env.TUYA_CLIENT_SECRET || 'd6a294ee060747049fd683be64854c5c';
-        const client = new TuyaClient(accessId, accessSecret, 'https://openapi-sg.iotbing.com');
+        // --- Extract actual Tuya Device ID from description for ALL vendors ---
+        let tuyaDeviceId = cameraId;
+        if (camDoc?.description) {
+            // Try 'Tuya Device ID: xxx' pattern (TUYA vendor)
+            const tuyaIdMatch = camDoc.description.match(/Tuya Device ID[:\s]+([a-zA-Z0-9]+)/);
+            // Try 'Virtual ID: xxx' pattern (KRISBOW vendor)
+            const vidMatch = camDoc.description.match(/Virtual ID[:\s]+([a-zA-Z0-9]+)/);
+            if (tuyaIdMatch && tuyaIdMatch[1]) {
+                tuyaDeviceId = tuyaIdMatch[1];
+                console.log(`[TUYA] Extracted Tuya Device ID from description: ${tuyaDeviceId}`);
+            }
+            else if (vidMatch && vidMatch[1]) {
+                tuyaDeviceId = vidMatch[1];
+                console.log(`[TUYA] Extracted Virtual ID from description: ${tuyaDeviceId}`);
+            }
+            else if (camDoc.username && camDoc.username.length > 10) {
+                tuyaDeviceId = camDoc.username;
+                console.log(`[TUYA] Using username as device ID: ${tuyaDeviceId}`);
+            }
+        }
+        // Also check streamUrl for embedded device ID pattern
+        if (tuyaDeviceId === cameraId && camDoc?.streamUrl) {
+            const streamIdMatch = camDoc.streamUrl.match(/\/hls-proxy\/([a-zA-Z0-9]+)\//);
+            if (streamIdMatch && streamIdMatch[1] && streamIdMatch[1].length > 10) {
+                tuyaDeviceId = streamIdMatch[1];
+                console.log(`[TUYA] Extracted device ID from streamUrl: ${tuyaDeviceId}`);
+            }
+        }
+        const accessId = process.env.TUYA_CLIENT_ID || 'vhxcdfe5q7d5vr4wsgs3';
+        const accessSecret = process.env.TUYA_CLIENT_SECRET || '0757b40d43884b83952b3b306814fba9';
+        // Try primary endpoint, then fallback to India endpoint
+        const primaryEndpoint = process.env.TUYA_API_ENDPOINT || 'https://openapi-sg.iotbing.com';
+        const client = new TuyaClient(accessId, accessSecret, primaryEndpoint);
         await client.getAccessToken();
-        const streamUrl = await client.getStreamUrl(cameraId, 'HLS');
-        if (streamUrl.startsWith('http://') || streamUrl.startsWith('https://')) {
-            console.log(`[TUYA HLS PROXY] Proxying Tuya Native Cloud HLS URL for device ${cameraId}: ${streamUrl.slice(0, 60)}...`);
-            const hlsRes = await fetch(streamUrl);
-            const playlistText = await hlsRes.text();
-            if (hlsRes.ok && playlistText.includes('#EXT') && !playlistText.includes('session not found')) {
+        // Try Tuya Cloud native HLS (cached first, allocate fresh if expired)
+        let streamUrl = '';
+        let forceRefresh = false;
+        try {
+            streamUrl = await client.getStreamUrl(tuyaDeviceId, 'HLS');
+        }
+        catch (e) {
+            console.warn(`[TUYA] HLS cache miss for ${tuyaDeviceId}: ${e.message}`);
+        }
+        // Fetch the manifest and check validity
+        if (streamUrl) {
+            const hlsRes = await fetch(streamUrl).catch(() => null);
+            const playlistText = hlsRes ? await hlsRes.text().catch(() => '') : '';
+            if (hlsRes?.ok && playlistText.includes('#EXT') && !playlistText.includes('session not found')) {
                 const baseUrl = new URL(streamUrl);
                 const lines = playlistText.split('\n');
                 const rewrittenLines = [];
@@ -98,23 +134,108 @@ router.get('/hls-proxy/:cameraId/stream.m3u8', async (req, res) => {
                     }
                     rewrittenLines.push(line);
                 }
+                console.log(`[TUYA HLS PROXY] Serving native HLS for device ${tuyaDeviceId}`);
                 res.setHeader('Access-Control-Allow-Origin', '*');
                 res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
                 res.setHeader('Cache-Control', 'no-cache');
                 return res.send(rewrittenLines.join('\n'));
             }
-            console.warn(`[TUYA HLS PROXY] Native HLS session expired or invalid, clearing cache and falling back to RTSP transcoder...`);
-            TuyaClient.clearStreamCache(cameraId);
+            // Session expired — clear cache and force fresh allocation
+            console.warn(`[TUYA HLS PROXY] Session expired for ${tuyaDeviceId}, re-allocating HLS...`);
+            TuyaClient.clearStreamCache(tuyaDeviceId);
+            forceRefresh = true;
         }
-        // Allocate fresh RTSP stream as robust fallback
-        const rtspUrl = await client.getStreamUrl(cameraId, 'RTSP', true);
-        const publicUrl = await RtspHlsTranscoder_1.RtspHlsTranscoder.start(cameraId, rtspUrl);
-        res.redirect(publicUrl);
+        // Allocate fresh HLS session with 3s retry for 4G solar camera wake-up
+        console.log(`[TUYA HLS PROXY] Allocating fresh HLS session for ${tuyaDeviceId}...`);
+        let freshUrl = '';
+        try {
+            freshUrl = await client.getStreamUrl(tuyaDeviceId, 'HLS', true);
+        }
+        catch (hlsErr) {
+            console.warn(`[TUYA HLS PROXY] First HLS allocation attempt failed for ${tuyaDeviceId}: ${hlsErr.message}. Retrying in 3s for camera wake-up...`);
+            await new Promise(r => setTimeout(r, 3000));
+            try {
+                freshUrl = await client.getStreamUrl(tuyaDeviceId, 'HLS', true);
+            }
+            catch (retryErr) {
+                console.warn(`[TUYA HLS PROXY] HLS allocation retry failed for ${tuyaDeviceId}: ${retryErr.message}. Falling back to RTSP transcoder.`);
+            }
+        }
+        if (freshUrl && freshUrl.startsWith('http')) {
+            const freshRes = await fetch(freshUrl);
+            const freshPlaylist = await freshRes.text();
+            if (!freshRes.ok || !freshPlaylist.includes('#EXT')) {
+                throw new Error(`Fresh HLS stream invalid for ${tuyaDeviceId}`);
+            }
+            const baseUrl = new URL(freshUrl);
+            const lines = freshPlaylist.split('\n');
+            const rewrittenLines = [];
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i].trim();
+                if (line.startsWith('#EXT-X-KEY:')) {
+                    const idx = line.indexOf('URI="');
+                    if (idx !== -1) {
+                        const endIdx = line.indexOf('"', idx + 5);
+                        if (endIdx !== -1) {
+                            const origUri = line.substring(idx + 5, endIdx);
+                            const absUri = new URL(origUri, baseUrl).toString();
+                            line = line.substring(0, idx + 5) + `/api/cctv/hls-proxy/subresource?url=${encodeURIComponent(absUri)}` + line.substring(endIdx);
+                        }
+                    }
+                }
+                else if (line.length > 0 && !line.startsWith('#')) {
+                    const absUri = new URL(line, baseUrl).toString();
+                    line = `/api/cctv/hls-proxy/subresource?url=${encodeURIComponent(absUri)}`;
+                }
+                rewrittenLines.push(line);
+            }
+            console.log(`[TUYA HLS PROXY] Serving fresh HLS session for device ${tuyaDeviceId}`);
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+            res.setHeader('Cache-Control', 'no-cache');
+            return res.send(rewrittenLines.join('\n'));
+        }
+        // HLS failed entirely — fall back to RTSP transcoder (SIGSEGV fixed by removing -tls_verify 0)
+        console.log(`[TUYA RTSP FALLBACK] HLS unavailable, trying RTSP transcoder for ${tuyaDeviceId}...`);
+        // Reuse existing healthy transcoder session if available
+        if (RtspHlsTranscoder_1.RtspHlsTranscoder.isRunning(tuyaDeviceId)) {
+            const existingPlaylist = RtspHlsTranscoder_1.RtspHlsTranscoder.getPlaylistPath(tuyaDeviceId);
+            if (fs_1.default.existsSync(existingPlaylist)) {
+                const content = fs_1.default.readFileSync(existingPlaylist, 'utf8');
+                if (content.includes('.ts')) {
+                    res.setHeader('Access-Control-Allow-Origin', '*');
+                    res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+                    res.setHeader('Cache-Control', 'no-cache');
+                    return res.sendFile(existingPlaylist);
+                }
+                RtspHlsTranscoder_1.RtspHlsTranscoder.stop(tuyaDeviceId);
+            }
+        }
+        // Allocate fresh RTSP/RTSPS stream via Tuya Cloud relay (works for Krisbow 4G behind CGNAT)
+        console.log(`[TUYA RTSP TRANSCODER] Allocating fresh RTSP stream via Tuya Cloud relay for ${tuyaDeviceId}...`);
+        const rtspUrl = await client.getStreamUrl(tuyaDeviceId, 'RTSP', true);
+        console.log(`[TUYA RTSP TRANSCODER] Got relay URL: ${rtspUrl.slice(0, 60)}...`);
+        await RtspHlsTranscoder_1.RtspHlsTranscoder.start(tuyaDeviceId, rtspUrl);
+        const playlistPath = RtspHlsTranscoder_1.RtspHlsTranscoder.getPlaylistPath(tuyaDeviceId);
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+        res.setHeader('Cache-Control', 'no-cache');
+        return res.sendFile(playlistPath);
     }
     catch (err) {
-        TuyaClient_1.TuyaClient.clearStreamCache(cameraId);
         console.error(`[HLS Proxy Error] Device ${cameraId}:`, err.message);
-        res.status(502).json({ error: `Tuya Real Stream Allocation Failed: ${err.message}` });
+        const isSubscriptionExpired = err.message?.includes('28841002') || err.message?.includes('subscription has expired');
+        const isNoPerm = err.message?.includes('28841107') || err.message?.includes('suspended');
+        if (isSubscriptionExpired || isNoPerm) {
+            // Return a special JSON error that the frontend can interpret
+            res.setHeader('Content-Type', 'application/json');
+            return res.status(503).json({
+                error: 'TUYA_SUBSCRIPTION_EXPIRED',
+                message: 'Langganan IoT Core Video Streaming Tuya sudah kedaluwarsa.',
+                action: 'Perbarui subscription di iot.tuya.com → project Anda → Enable Service → Camera Management'
+            });
+        }
+        res.status(502).json({ error: `Stream Allocation Failed: ${err.message}` });
     }
 });
 // Proxy for subresources (.ts segment chunks and AES key files)
@@ -577,17 +698,21 @@ router.get('/monitoring/detections', async (req, res) => {
             return res.status(401).json({ error: 'Belum masuk' });
         const limit = Math.min(50, parseInt(req.query.limit) || 20);
         const workspaceId = user.workspaceId;
-        // Get camera IDs in this workspace
+        // Get camera IDs in this workspace (or all cameras if workspaceId is not specified)
         const CctvModel = (await Promise.resolve().then(() => __importStar(require('../database/models/Cctv')))).CctvModel;
-        const camerasInWs = await CctvModel.find({ workspaceId }).select('id').lean().exec();
-        const cameraIds = camerasInWs.map(c => c.id);
-        if (cameraIds.length === 0) {
-            return res.json({ success: true, data: [] });
+        const cameraQuery = {};
+        if (workspaceId !== undefined && workspaceId !== null) {
+            cameraQuery.workspaceId = workspaceId;
         }
-        const detections = await AiDetection_1.AiDetectionModel.find({
-            status: { $in: ['INFERENCED', 'PROMOTED', 'DUPLICATE', 'LOW_CONFIDENCE'] },
-            cameraId: { $in: cameraIds }
-        })
+        const camerasInWs = await CctvModel.find(cameraQuery).select('id').lean().exec();
+        const cameraIds = camerasInWs.map(c => c.id);
+        const detectionQuery = {
+            status: { $in: ['INFERENCED', 'PROMOTED', 'DUPLICATE', 'LOW_CONFIDENCE'] }
+        };
+        if (cameraIds.length > 0) {
+            detectionQuery.cameraId = { $in: cameraIds };
+        }
+        const detections = await AiDetection_1.AiDetectionModel.find(detectionQuery)
             .sort({ createdAt: -1 })
             .limit(limit)
             .lean()

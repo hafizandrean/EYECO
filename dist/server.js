@@ -37,6 +37,7 @@ const AiEngineHealthMonitor_1 = require("./cctv/services/AiEngineHealthMonitor")
 const OutboxWorker_1 = require("./notifications/OutboxWorker");
 const Notification_1 = require("./database/models/Notification");
 const aiDetection_service_1 = require("./services/aiDetection.service");
+const mediaRoutes_1 = __importDefault(require("./routes/mediaRoutes"));
 const R2StorageService_1 = require("./services/R2StorageService");
 const ReportAiProjectionService_1 = require("./services/ai/ReportAiProjectionService");
 dotenv_1.default.config();
@@ -265,6 +266,7 @@ app.use('/admin', adminRoutes_1.default);
 app.use('/api/cctv', cctvRoutes_1.default);
 app.use('/api/news', newsRoutes_1.default);
 app.use('/api', reportRoutes_1.default);
+app.use('/api', mediaRoutes_1.default);
 app.use('/api/video-analysis', videoAnalysisRoutes_1.default);
 app.use('/api/continual-learning', continualLearningRoutes_1.default);
 // --- HEALTH CHECK ENDPOINTS ---

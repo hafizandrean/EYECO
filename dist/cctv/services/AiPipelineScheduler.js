@@ -108,9 +108,8 @@ class AiPipelineScheduler {
             // 1. Ambil kamera aktif yang online dan memiliki monitoringEnabled = true
             // Filter by workspace if specified
             const filter = {
-                isActive: true,
-                monitoringEnabled: true,
-                status: { $in: ['ONLINE', 'MONITORING'] }
+                isActive: { $ne: false },
+                status: { $ne: 'OFFLINE' }
             };
             if (this.workspaceId !== null) {
                 filter.workspaceId = this.workspaceId;
