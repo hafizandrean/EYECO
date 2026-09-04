@@ -1089,7 +1089,7 @@ export class CctvMonitoringPage {
       return;
     }
 
-    const isHls = ch.mediaType === 'HLS' || ch.mediaType === 'RTSP_TUYA' || (ch.playUrl && ch.playUrl.includes('.m3u8'));
+    const isHls = ch.mediaType === 'HLS' || ch.mediaType === 'RTSP_TUYA' || (ch.playUrl && ch.playUrl.includes('.m3u8')) || (ch.streamUrl && ch.streamUrl.includes('hls-proxy'));
     const isMp4 = ch.mediaType === 'Video' && ch.playUrl && ch.playUrl.endsWith('.mp4');
 
     if (existingPlayer) {
@@ -1157,6 +1157,61 @@ export class CctvMonitoringPage {
   createHlsPlayer(channelId, videoEl, url, signature, config) {
     if (!url) return;
 
+    // Pre-flight: check if server returns subscription-expired error before giving to HLS.js
+    fetch(url, { method: 'GET', headers: { 'Accept': 'application/vnd.apple.mpegurl, application/json' } })
+      .then(res => {
+        const ct = res.headers.get('content-type') || '';
+        if (res.status === 503 || (ct.includes('json') && res.status !== 200)) {
+          return res.json().then(body => {
+            if (body.error === 'TUYA_SUBSCRIPTION_EXPIRED') {
+              this._showSubscriptionExpiredOverlay(channelId, videoEl);
+              return 'EXPIRED';
+            }
+            return 'OK';
+          }).catch(() => 'OK');
+        }
+        return 'OK';
+      })
+      .then(state => {
+        if (state === 'EXPIRED') return; // don't proceed to HLS.js
+        this._initHlsPlayer(channelId, videoEl, url, signature, config);
+      })
+      .catch(() => {
+        // Network error - proceed normally and let HLS.js handle it
+        this._initHlsPlayer(channelId, videoEl, url, signature, config);
+      });
+  }
+
+  _showSubscriptionExpiredOverlay(channelId, videoEl) {
+    const container = videoEl.parentElement;
+    if (!container) return;
+    // Hide the video element
+    videoEl.style.display = 'none';
+    // Remove existing error overlay if any
+    const existing = container.querySelector('.cctv-sub-expired-overlay');
+    if (existing) existing.remove();
+    // Create informative overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'cctv-sub-expired-overlay';
+    overlay.style.cssText = `
+      position:absolute; top:0; left:0; width:100%; height:100%;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);
+      border-radius:12px 12px 0 0; gap:10px; padding:16px; text-align:center;
+    `;
+    overlay.innerHTML = `
+      <div style="width:44px;height:44px;border-radius:50%;background:rgba(245,158,11,0.15);display:flex;align-items:center;justify-content:center;border:1.5px solid rgba(245,158,11,0.4);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+      </div>
+      <p style="font-size:0.75rem;font-weight:700;color:#f59e0b;margin:0;letter-spacing:0.04em;">LANGGANAN TUYA EXPIRED</p>
+      <p style="font-size:0.65rem;color:rgba(255,255,255,0.5);margin:0;line-height:1.5;max-width:200px;">Subscription IoT Core Video Streaming habis. Perbarui di <strong style="color:rgba(255,255,255,0.7);">iot.tuya.com</strong></p>
+      <a href="https://iot.tuya.com" target="_blank" onclick="event.stopPropagation()" style="font-size:0.65rem;padding:5px 12px;background:rgba(245,158,11,0.2);border:1px solid rgba(245,158,11,0.4);border-radius:20px;color:#f59e0b;text-decoration:none;font-weight:700;margin-top:4px;">Buka Tuya Console →</a>
+    `;
+    container.appendChild(overlay);
+    console.warn(`[CCTV] Subscription expired overlay shown for camera #${channelId}`);
+  }
+
+  _initHlsPlayer(channelId, videoEl, url, signature, config) {
     if (typeof window.Hls !== 'undefined' && window.Hls.isSupported()) {
       const hls = new window.Hls(config);
       const playerEntry = {
@@ -1461,7 +1516,7 @@ export class CctvMonitoringPage {
     if (isChActive) {
       if (ch.status === 'OFFLINE' || ch.status === 'ERROR' || ch.status === 'DISCONNECTED') {
         mediaHtml = `<div class="cctv-static-screen"><div class="static-noise"></div><div class="static-label text-danger">${ch.status}</div></div>`;
-      } else if (ch.mediaType === 'HLS' || ch.mediaType === 'RTSP_TUYA' || (ch.playUrl && ch.playUrl.includes('.m3u8'))) {
+      } else if (ch.mediaType === 'HLS' || ch.mediaType === 'RTSP_TUYA' || (ch.playUrl && ch.playUrl.includes('.m3u8')) || (ch.streamUrl && ch.streamUrl.includes('hls-proxy'))) {
         mediaHtml = `
           <video id="${hlsVideoId}" class="cctv-feed-img" poster="${imageSrc}" autoplay muted playsinline crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;background:#000;display:block;"></video>
           <div class="cctv-overlay-gradient"></div>
