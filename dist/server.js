@@ -1100,6 +1100,45 @@ app.get('/api/ai-evidences', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+// GET /api/debug/pipeline-test?cameraId=X — Trigger manual capture+inference+report for testing
+app.get('/api/debug/pipeline-test', async (req, res) => {
+    try {
+        const { FrameCaptureService } = require('./cctv/services/FrameCaptureService');
+        const { InferenceService } = require('./cctv/services/InferenceService');
+        const { CctvAutoReportService } = require('./cctv/services/CctvAutoReportService');
+        const cameraIdParam = parseInt(req.query.cameraId) || 0;
+        const filter = { isActive: { $ne: false }, status: { $ne: 'OFFLINE' } };
+        if (cameraIdParam > 0)
+            filter.id = cameraIdParam;
+        const cameras = await db_1.CctvModel.find(filter).lean().exec();
+        if (cameras.length === 0)
+            return res.status(404).json({ error: 'No cameras found' });
+        const results = [];
+        for (const camera of cameras) {
+            try {
+                console.log(`[DebugPipeline] Testing camera #${camera.id}...`);
+                const frame = await FrameCaptureService.captureFrame(camera);
+                console.log(`[DebugPipeline] Frame captured: ${frame.imagePath}`);
+                const detection = await InferenceService.executeInference(frame);
+                console.log(`[DebugPipeline] Inference result: ${detection ? `severity=${detection.severity}, detections=${detection.detections.length}` : 'null (no detection)'}`);
+                let reportResult = null;
+                if (detection) {
+                    CctvAutoReportService.clearCooldown(camera.id);
+                    reportResult = await CctvAutoReportService.processDetection(frame, detection);
+                }
+                results.push({ cameraId: camera.id, location: camera.location, frame: frame.imagePath, detection: detection ? { severity: detection.severity, count: detection.detections.length, classes: detection.detections.map((d) => d.class) } : null, report: reportResult });
+            }
+            catch (camErr) {
+                results.push({ cameraId: camera.id, error: camErr.message });
+            }
+        }
+        return res.json({ success: true, results });
+    }
+    catch (err) {
+        console.error('[DebugPipeline] Error:', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+});
 // GET /api/system-settings - Retrieve configuration settings
 app.get('/api/system-settings', async (req, res) => {
     try {
@@ -1191,7 +1230,7 @@ let serverInstance;
         }
     }
     // CCTV Health Engine is started inside listenWithFallback
-    AiPipelineScheduler_1.AiPipelineScheduler.start(30000);
+    AiPipelineScheduler_1.AiPipelineScheduler.start(3000);
     OutboxWorker_1.OutboxWorker.start();
     // Start background video analysis worker as a separate process
     try {

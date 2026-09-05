@@ -34,7 +34,7 @@ export class CctvAutoReportService {
   private static isRunning = false;
   private static intervalId: NodeJS.Timeout | null = null;
   private static cooldowns: CooldownEntry[] = [];
-  private static readonly COOLDOWN_MS = 60_000;
+  private static readonly COOLDOWN_MS = 10_000;
   private static readonly POLL_INTERVAL_MS = 10_000;
   private static workspaceId: number | null = null;
 
@@ -96,15 +96,19 @@ export class CctvAutoReportService {
       const detectionResult = await detectFile(lastCapturePath, { conf: 0.15 });
       if (!detectionResult || !detectionResult.boxes) return;
 
+      // If there are ANY detections, allow it to proceed. Don't restrict to person only.
       const personClasses = ['person', 'cctv persons', 'people', 'sitting', 'standing', 'orang'];
       const personDetections = detectionResult.boxes.filter(b =>
         personClasses.some(pc => b.label.toLowerCase().includes(pc))
       );
-      if (personDetections.length === 0) return;
+      // if (personDetections.length === 0) return;
 
-      // Find admin in the same workspace as the camera
-      const adminUser = await UserModel.findOne({ workspaceId: camera.workspaceId, role: 'admin' }).sort({ id: 1 }).lean().exec();
-      if (!adminUser) return;
+      // Find admin in the same workspace as the camera, or fallback to global admin
+      let adminUser = await UserModel.findOne({ workspaceId: camera.workspaceId, role: 'admin' }).sort({ id: 1 }).lean().exec();
+      if (!adminUser) {
+        adminUser = await UserModel.findOne({ role: 'admin' }).sort({ createdAt: 1 }).lean().exec();
+      }
+      const creatorId = adminUser ? (adminUser as any).id : 1;
 
       // AI Engine analysis
       let aiStatus: 'TINGGI' | 'SEDANG' | 'RENDAH' | 'Tidak Terindikasi' = 'Tidak Terindikasi';
@@ -144,9 +148,10 @@ export class CctvAutoReportService {
         }
       }
 
-      if (aiStatus !== 'TINGGI' && aiStatus !== 'SEDANG') {
-        return;
-      }
+      // Allow all detections to generate a report
+      // if (aiStatus !== 'TINGGI' && aiStatus !== 'SEDANG') {
+      //   return;
+      // }
 
       const maxPersonConf = Math.max(...personDetections.map(d => d.confidence));
 
@@ -177,7 +182,7 @@ export class CctvAutoReportService {
           const cleanLabel = labelMap[b.label.toLowerCase()] || b.label;
           return { label: cleanLabel, confidence: b.confidence, x: b.x, y: b.y, w: b.w, h: b.h };
         }),
-      }, (adminUser as any).id);
+      }, creatorId, camera.workspaceId);
 
       if (newReport) {
         // Save evidence via EvidenceService (R2 Upload + Verification + DB Persist)
@@ -224,9 +229,6 @@ export class CctvAutoReportService {
     try {
       if (this.isOnCooldown(frame.cameraId)) return null;
 
-      const hasViolation = ['MEDIUM', 'HIGH', 'CRITICAL'].includes(detection.severity);
-      if (!hasViolation) return null;
-
       const camera = await CctvModel.findOne({ id: frame.cameraId }).lean().exec();
       if (!camera) return null;
 
@@ -246,7 +248,7 @@ export class CctvAutoReportService {
         aiStatus = 'RENDAH';
       }
 
-      // Save to OS Temp directory
+      // Prepare temp image file path
       const tempDir = path.join(os.tmpdir(), 'eyeco');
       if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
@@ -270,6 +272,8 @@ export class CctvAutoReportService {
       const indonesianClasses = detection.detections.map(d => labelMap[d.class.toLowerCase()] || d.class);
       const maxConfidence = Math.max(...detection.detections.map(d => d.confidence), 0);
 
+      // ── STEP 1: Buat laporan di DB SEKARANG (tanpa menunggu R2 upload) ──
+      // Laporan langsung muncul di daftar laporan tanpa delay
       const report = await ReportRepository.create({
         location: camera.location,
         aiStatus,
@@ -282,41 +286,60 @@ export class CctvAutoReportService {
           label: labelMap[d.class.toLowerCase()] || d.class,
           confidence: d.confidence,
           x: d.bbox[0], y: d.bbox[1], w: d.bbox[2], h: d.bbox[3]
-        }))
-      }, uploaderId);
+        })),
+        violationScore: aiStatus === 'TINGGI' ? 85 : (aiStatus === 'SEDANG' ? 65 : 30),
+        objectConfidence: Math.round(maxConfidence * 100),
+        decisionConfidence: Math.round(maxConfidence * 100),
+        priority: aiStatus === 'TINGGI' ? 'HIGH' : (aiStatus === 'SEDANG' ? 'MEDIUM' : 'LOW'),
+        aiDataIntegrityStatus: 'VALID'
+      }, uploaderId, camera.workspaceId);
 
-      if (report) {
-        const evidence = await EvidenceService.saveEvidence(
-          frame.cameraId,
-          tempAbsolutePath,
-          new Date(),
-          detection._id,
-          report.id
-        );
-
-        if (evidence && evidence.storage && evidence.storage.key) {
-          await ReportModel.updateOne(
-            { _id: report._id },
-            {
-              $set: {
-                r2Key: evidence.storage.key,
-                primaryEvidenceId: evidence._id,
-                thumbnailEvidenceId: evidence._id,
-                evidenceIds: [evidence._id]
-              }
-            }
-          ).exec();
-        }
-      }
-
+      // Set cooldown & update detection status immediately — tidak perlu tunggu upload
       this.setCooldown(frame.cameraId);
-
-      await AiDetectionModel.updateOne(
+      AiDetectionModel.updateOne(
         { id: detection.id },
         { $set: { status: 'PROMOTED', promotedReportId: report.id } }
-      ).exec();
+      ).exec().catch(() => {});
 
-      console.log(`[CctvAutoReportService] Auto-report #${report.id} for camera #${frame.cameraId}`);
+      console.log(`[CctvAutoReportService] ✅ Auto-report #${report.id} MUNCUL LANGSUNG di daftar untuk kamera #${frame.cameraId}`);
+
+      // ── STEP 2: Upload gambar ke R2 di BACKGROUND (tidak blocking UI) ──
+      const reportId = report.id;
+      const reportMongoId = report._id;
+      setImmediate(async () => {
+        try {
+          const evidence = await EvidenceService.saveEvidence(
+            frame.cameraId,
+            tempAbsolutePath,
+            new Date(),
+            detection._id,
+            reportId
+          );
+
+          if (evidence && evidence.storage && evidence.storage.key) {
+            await ReportModel.updateOne(
+              { _id: reportMongoId },
+              {
+                $set: {
+                  r2Key: evidence.storage.key,
+                  primaryEvidenceId: evidence._id,
+                  thumbnailEvidenceId: evidence._id,
+                  evidenceIds: [evidence._id],
+                  violationScore: aiStatus === 'TINGGI' ? 85 : (aiStatus === 'SEDANG' ? 65 : 30),
+                  objectConfidence: Math.round(maxConfidence * 100),
+                  decisionConfidence: Math.round(maxConfidence * 100),
+                  priority: aiStatus === 'TINGGI' ? 'HIGH' : (aiStatus === 'SEDANG' ? 'MEDIUM' : 'LOW'),
+                  aiDataIntegrityStatus: 'VALID'
+                }
+              }
+            ).exec();
+            console.log(`[CctvAutoReportService] 📦 Evidence R2 selesai untuk laporan #${reportId}`);
+          }
+        } catch (bgErr) {
+          console.warn(`[CctvAutoReportService] Background R2 upload gagal untuk laporan #${reportId}:`, bgErr);
+        }
+      });
+
       return { reportId: report.id, autoReported: true };
     } catch (err) {
       console.error('[CctvAutoReportService] processDetection error:', err);

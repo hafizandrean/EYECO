@@ -14,10 +14,16 @@ export class LocalPythonAIEngine implements IAIEngine {
 
   public async detect(frame: ICapturedFrame): Promise<IDetectionResult[]> {
     try {
-      const absoluteImagePath = path.join(process.cwd(), 'public', frame.imagePath);
+      // frame.imagePath bisa berupa path absolut (OS temp) atau relatif ke public/
+      let absoluteImagePath: string;
+      if (path.isAbsolute(frame.imagePath)) {
+        absoluteImagePath = frame.imagePath;
+      } else {
+        absoluteImagePath = path.join(process.cwd(), 'public', frame.imagePath);
+      }
       const result = await detectFile(absoluteImagePath);
       
-      console.log(`[LocalPythonAIEngine] Raw boxes for ${frame.imagePath}:`, JSON.stringify(result.boxes));
+      console.log(`[LocalPythonAIEngine] Camera #${frame.cameraId} | Path: ${absoluteImagePath} | Boxes: ${JSON.stringify(result.boxes?.length ?? 0)}`);
       
       // Map AiStatusResult boxes: { label: string, confidence: number, x: number, y: number, w: number, h: number }
       // to IDetectionResult: { class: string, confidence: number, bbox: [number, number, number, number] }
