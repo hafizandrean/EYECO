@@ -243,13 +243,7 @@ export class CctvMonitoringPage {
           <button id="btn-mon-refresh" class="btn btn-glass btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;">
             <i data-lucide="refresh-cw" style="width:13px;height:13px;"></i> Refresh
           </button>
-          <div style="display:flex;align-items:center;gap:4px;border-left:1px solid var(--border);padding-left:10px;">
-            <span style="font-size:0.65rem;font-weight:700;color:var(--text-secondary);">Telegram</span>
-            <label class="switch" style="margin:0;">
-              <input type="checkbox" id="toggle-telegram-alerts" ${AppState.get('telegramAlerts') ? 'checked' : ''}>
-              <span class="slider round" style="width:28px;height:16px;"></span>
-            </label>
-          </div>
+
           <button id="btn-connect-cctv" class="btn btn-glass btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;border-color: rgba(47, 107, 255, 0.3); color: var(--primary);">
             <i data-lucide="plus-circle" style="width:13px;height:13px;"></i> CCTV Baru
           </button>

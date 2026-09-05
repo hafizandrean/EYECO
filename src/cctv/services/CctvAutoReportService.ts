@@ -101,7 +101,8 @@ export class CctvAutoReportService {
       const personDetections = detectionResult.boxes.filter(b =>
         personClasses.some(pc => b.label.toLowerCase().includes(pc))
       );
-      // if (personDetections.length === 0) return;
+      if (personDetections.length === 0) return; // Only process if there's a person
+
 
       // Find admin in the same workspace as the camera, or fallback to global admin
       let adminUser = await UserModel.findOne({ workspaceId: camera.workspaceId, role: 'admin' }).sort({ id: 1 }).lean().exec();

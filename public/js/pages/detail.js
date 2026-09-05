@@ -536,9 +536,9 @@ export class DetailPage {
                   : report.uploaderInfo.username.substring(0, 2).toUpperCase()}
               </div>
               <div style="flex:1; min-width:0;">
-                <div style="font-size:0.82rem; font-weight:700; color:var(--text-primary);">${report.uploaderInfo.name || report.uploaderInfo.username}</div>
-                <div style="font-size:0.68rem; color:var(--text-secondary);">@${report.uploaderInfo.username}</div>
-                ${report.uploaderInfo.email ? `<div style="font-size:0.68rem; color:var(--text-muted);">${report.uploaderInfo.email}</div>` : ''}
+                <div style="font-size:0.82rem; font-weight:700; color:var(--text-primary);">${report.sourceType === 'AI_CCTV' ? 'Live Detection' : (report.uploaderInfo.name || report.uploaderInfo.username)}</div>
+                <div style="font-size:0.68rem; color:var(--text-secondary);">${report.sourceType === 'AI_CCTV' ? 'Sistem Otomatis' : '@' + report.uploaderInfo.username}</div>
+                ${!report.sourceType || report.sourceType !== 'AI_CCTV' ? (report.uploaderInfo.email ? `<div style="font-size:0.68rem; color:var(--text-muted);">${report.uploaderInfo.email}</div>` : '') : ''}
                 ${report.uploaderInfo.phone ? `<div style="font-size:0.68rem; color:var(--text-muted);">${report.uploaderInfo.phone}</div>` : ''}
               </div>
             </div>

@@ -252,7 +252,12 @@ class CctvAutoReportService {
                     label: labelMap[d.class.toLowerCase()] || d.class,
                     confidence: d.confidence,
                     x: d.bbox[0], y: d.bbox[1], w: d.bbox[2], h: d.bbox[3]
-                }))
+                })),
+                violationScore: aiStatus === 'TINGGI' ? 85 : (aiStatus === 'SEDANG' ? 65 : 30),
+                objectConfidence: Math.round(maxConfidence * 100),
+                decisionConfidence: Math.round(maxConfidence * 100),
+                priority: aiStatus === 'TINGGI' ? 'HIGH' : (aiStatus === 'SEDANG' ? 'MEDIUM' : 'LOW'),
+                aiDataIntegrityStatus: 'VALID'
             }, uploaderId, camera.workspaceId);
             // Set cooldown & update detection status immediately — tidak perlu tunggu upload
             this.setCooldown(frame.cameraId);
