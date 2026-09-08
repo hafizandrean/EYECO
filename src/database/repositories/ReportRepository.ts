@@ -97,8 +97,14 @@ export class ReportRepository {
       sourceType: string;
       additionalNotes?: string;
       boundingBoxes?: IBoundingBox[];
+      violationScore?: number;
+      objectConfidence?: number;
+      decisionConfidence?: number;
+      priority?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE';
+      aiDataIntegrityStatus?: 'VALID' | 'PENDING' | 'LEGACY' | 'SNAPSHOT_MISSING' | 'INCONSISTENT';
     },
-    creatorId: number
+    creatorId: number,
+    workspaceIdOverride?: number
   ): Promise<IReport> {
     try {
       const lastReport = await ReportModel.findOne().sort({ id: -1 }).exec();
@@ -107,7 +113,7 @@ export class ReportRepository {
       // Use the workspaceId from the user's active session
       const user = await UserModel.findOne({ id: creatorId }).lean().exec();
       const userObjectId = user ? (user._id as mongoose.Types.ObjectId) : new mongoose.Types.ObjectId();
-      const workspaceId = (user as any)?.workspaceId;
+      const workspaceId = workspaceIdOverride ?? (user as any)?.workspaceId;
 
       if (!workspaceId) {
         throw new Error('User has no active workspace selected');

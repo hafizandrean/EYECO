@@ -20,6 +20,7 @@ class AiPipelineScheduler {
     static workspaceId = null;
     static bootTimeoutId = null;
     static isStopping = false;
+    static _lastRecoveryAt = 0;
     static getStatus() {
         return this.intervalId !== null && !this.isStopping;
     }
@@ -65,12 +66,13 @@ class AiPipelineScheduler {
         if (this.isStopping || this.isRunning)
             return; // Cegah tumpang tindih proses lokal jika kueri lambat
         this.isRunning = true;
-        // Run single-flight stale lease recovery & pending re-analysis job
-        try {
-            await PromotionService_1.PromotionService.runPeriodicRecoveryJob();
-        }
-        catch (recErr) {
-            console.error('[AiPipelineScheduler] Promotion recovery failed:', recErr.message);
+        // Run single-flight stale lease recovery periodically (not every 3s cycle)
+        const now3 = Date.now();
+        if (!AiPipelineScheduler._lastRecoveryAt || now3 - AiPipelineScheduler._lastRecoveryAt > 60000) {
+            AiPipelineScheduler._lastRecoveryAt = now3;
+            PromotionService_1.PromotionService.runPeriodicRecoveryJob().catch((recErr) => {
+                console.error('[AiPipelineScheduler] Promotion recovery failed:', recErr.message);
+            });
         }
         // 0. Coba dapatkan Distributed Lock untuk kluster horizontal (Leader Election)
         try {
@@ -86,7 +88,7 @@ class AiPipelineScheduler {
                     value: {
                         locked: true,
                         lockedBy: this.instanceId,
-                        expiresAt: new Date(Date.now() + 60000) // Sewa lock 60 detik
+                        expiresAt: new Date(Date.now() + 5000) // Sewa lock 5 detik
                     }
                 }
             }, { returnDocument: 'after' }).exec();

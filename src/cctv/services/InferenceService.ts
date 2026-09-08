@@ -26,7 +26,8 @@ export class InferenceService {
 
       // Pre-Filtering: Lewati penyimpanan jika tidak ada deteksi atau confidence sangat rendah
       const maxConfidence = rawResults.length > 0 ? Math.max(...rawResults.map(r => r.confidence)) : 0;
-      if (rawResults.length === 0 || maxConfidence < 0.45) {
+      if (rawResults.length === 0 || maxConfidence < 0.25) {
+        console.log(`[InferenceService] Camera #${frame.cameraId} skipped: no results or low confidence (${maxConfidence.toFixed(2)} < 0.25)`);
         return null;
       }
 
@@ -87,13 +88,17 @@ export class InferenceService {
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
       });
 
-      // 5. Simpan berkas bukti visual snapshot dan hash SHA-256 via EvidenceService
-      await EvidenceService.saveEvidence(
-        frame.cameraId,
-        frame.imagePath,
-        frame.timestamp,
-        aiDetection._id
-      );
+      // 5. Simpan berkas bukti visual snapshot secara async (tidak blocking inference pipeline)
+      setImmediate(() => {
+        EvidenceService.saveEvidence(
+          frame.cameraId,
+          frame.imagePath,
+          frame.timestamp,
+          aiDetection._id
+        ).catch((evidErr: any) => {
+          console.warn(`[InferenceService] Evidence save failed (non-critical) for camera #${frame.cameraId}:`, evidErr.message);
+        });
+      });
 
       return aiDetection;
     } catch (err: any) {

@@ -16,9 +16,16 @@ class LocalPythonAIEngine {
     }
     async detect(frame) {
         try {
-            const absoluteImagePath = path_1.default.join(process.cwd(), 'public', frame.imagePath);
+            // frame.imagePath bisa berupa path absolut (OS temp) atau relatif ke public/
+            let absoluteImagePath;
+            if (path_1.default.isAbsolute(frame.imagePath)) {
+                absoluteImagePath = frame.imagePath;
+            }
+            else {
+                absoluteImagePath = path_1.default.join(process.cwd(), 'public', frame.imagePath);
+            }
             const result = await (0, aiDetection_service_1.detectFile)(absoluteImagePath);
-            console.log(`[LocalPythonAIEngine] Raw boxes for ${frame.imagePath}:`, JSON.stringify(result.boxes));
+            console.log(`[LocalPythonAIEngine] Camera #${frame.cameraId} | Path: ${absoluteImagePath} | Boxes: ${JSON.stringify(result.boxes?.length ?? 0)}`);
             // Map AiStatusResult boxes: { label: string, confidence: number, x: number, y: number, w: number, h: number }
             // to IDetectionResult: { class: string, confidence: number, bbox: [number, number, number, number] }
             return (result.boxes || []).map(b => ({

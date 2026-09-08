@@ -91,7 +91,7 @@ class PromotionService {
                 }
                 // Atomic claim attempt with MAX_ANALYSIS_ATTEMPTS check
                 const claimToken = crypto.randomUUID();
-                const leaseExpiresAt = new Date(now.getTime() + 5 * 60 * 1000); // 5 minute lease
+                const leaseExpiresAt = new Date(now.getTime() + 30_000); // 30 second lease
                 const claimedReport = await Report_1.ReportModel.findOneAndUpdate({
                     _id: existingReport._id,
                     $or: [
@@ -132,7 +132,7 @@ class PromotionService {
                 initialAiStatus = 'Indikasi Rendah';
             const initialClaimToken = crypto.randomUUID();
             const now = new Date();
-            const leaseExpiresAt = new Date(now.getTime() + 5 * 60 * 1000);
+            const leaseExpiresAt = new Date(now.getTime() + 30_000); // 30 second lease
             // 1. Create Report in PROCESSING state first with duplicate key E11000 protection
             let newReportDoc = null;
             try {
@@ -313,7 +313,7 @@ class PromotionService {
                 if (!detection)
                     continue;
                 const claimToken = crypto.randomUUID();
-                const leaseExpiresAt = new Date(now.getTime() + 5 * 60 * 1000);
+                const leaseExpiresAt = new Date(now.getTime() + 30_000); // 30 second lease
                 const claimedReport = await Report_1.ReportModel.findOneAndUpdate({
                     _id: report._id,
                     analysisState: 'REANALYSIS_PENDING',
@@ -384,7 +384,7 @@ class PromotionService {
                 analysisErrorCode: isSuccess ? null : (maxExhausted ? 'MAX_ANALYSIS_ATTEMPTS' : 'ANALYSIS_FAILED_RETRY_PENDING'),
                 analysisLeaseExpiresAt: null,
                 analysisClaimToken: null,
-                analysisNextRetryAt: isSuccess || maxExhausted ? null : new Date(Date.now() + Math.pow(2, nextAttemptCount) * 15000)
+                analysisNextRetryAt: isSuccess || maxExhausted ? null : new Date(Date.now() + Math.pow(2, nextAttemptCount) * 5000)
             }
         }, { new: true }).exec();
         if (!updatedReport) {

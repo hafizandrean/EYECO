@@ -62,14 +62,14 @@ class ReportRepository {
         return report;
     }
     // --- CRUD/CRUD-Like Methods originally in DatabaseManager ---
-    static async create(report, creatorId) {
+    static async create(report, creatorId, workspaceIdOverride) {
         try {
             const lastReport = await Report_1.ReportModel.findOne().sort({ id: -1 }).exec();
             const nextId = lastReport ? lastReport.id + 1 : 1;
             // Use the workspaceId from the user's active session
             const user = await User_1.UserModel.findOne({ id: creatorId }).lean().exec();
             const userObjectId = user ? user._id : new mongoose_1.default.Types.ObjectId();
-            const workspaceId = user?.workspaceId;
+            const workspaceId = workspaceIdOverride ?? user?.workspaceId;
             if (!workspaceId) {
                 throw new Error('User has no active workspace selected');
             }

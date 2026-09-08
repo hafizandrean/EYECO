@@ -95,9 +95,8 @@ class AppInitializer {
           this.currentPageInstance = Home;
           try { await Home.render(this.viewport); } catch (e) { console.error('[Home Render Error]', e); }
         } else {
-          // Admin login redirect to beranda first
-          Router.navigate('/dashboard/beranda');
-          return;
+          this.currentPageInstance = Dashboard;
+          try { await Dashboard.render(this.viewport); } catch (e) { console.error('[Dashboard Render Error]', e); }
         }
 
       } else if (path === '/dashboard/cctv-monitoring') {
