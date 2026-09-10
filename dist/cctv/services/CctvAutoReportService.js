@@ -84,13 +84,26 @@ class CctvAutoReportService {
             if (!fs_1.default.existsSync(lastCapturePath)) {
                 return;
             }
+            // ── FRESHNESS GUARD ──
+            // Tolak file yang lebih tua dari 30 detik — berarti CCTV offline dan ini adalah gambar usang
+            const fileAge = Date.now() - fs_1.default.statSync(lastCapturePath).mtimeMs;
+            if (fileAge > 30000) {
+                console.warn(`[CctvAutoReportService] Skipping stale capture for camera #${camera.id} (${Math.round(fileAge / 1000)}s old). CCTV likely offline.`);
+                // Hapus file usang supaya tidak muncul lagi di siklus berikutnya
+                try {
+                    fs_1.default.unlinkSync(lastCapturePath);
+                }
+                catch { }
+                return;
+            }
             const detectionResult = await (0, aiDetection_service_1.detectFile)(lastCapturePath, { conf: 0.15 });
             if (!detectionResult || !detectionResult.boxes)
                 return;
-            // If there are ANY detections, allow it to proceed. Don't restrict to person only.
+            // Hanya buat laporan jika ada deteksi orang
             const personClasses = ['person', 'cctv persons', 'people', 'sitting', 'standing', 'orang'];
             const personDetections = detectionResult.boxes.filter(b => personClasses.some(pc => b.label.toLowerCase().includes(pc)));
-            // if (personDetections.length === 0) return;
+            if (personDetections.length === 0)
+                return; // Only process if there's a person
             // Find admin in the same workspace as the camera, or fallback to global admin
             let adminUser = await User_1.UserModel.findOne({ workspaceId: camera.workspaceId, role: 'admin' }).sort({ id: 1 }).lean().exec();
             if (!adminUser) {

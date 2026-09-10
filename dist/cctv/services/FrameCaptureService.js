@@ -176,6 +176,11 @@ class FrameCaptureService {
         if (!fs_1.default.existsSync(tempDir))
             fs_1.default.mkdirSync(tempDir, { recursive: true });
         const outputPath = path_1.default.join(tempDir, `cctv_capture_${camera.id}.jpg`);
+        let prevHash = '';
+        if (fs_1.default.existsSync(outputPath)) {
+            prevHash = crypto.createHash('md5').update(fs_1.default.readFileSync(outputPath)).digest('hex');
+        }
+        let extracted = false;
         // Detect Tuya/Krisbow device ID
         let deviceId = '';
         if (camera.playUrl?.includes('/hls-proxy/')) {
@@ -194,9 +199,13 @@ class FrameCaptureService {
             // 1. Try local RTSP-transcoded HLS (legacy/fast path)
             const hlsPlaylist = path_1.default.join(process.cwd(), 'public/hls', deviceId, 'stream.m3u8');
             if (fs_1.default.existsSync(hlsPlaylist) && fs_1.default.readFileSync(hlsPlaylist, 'utf8').includes('.ts')) {
-                const ok = await extractFfmpegFrame(hlsPlaylist, outputPath);
-                if (ok)
-                    return { cameraId: camera.id, location: camera.location, timestamp: new Date(), imagePath: outputPath };
+                const mtime = fs_1.default.statSync(hlsPlaylist).mtimeMs;
+                if (Date.now() - mtime < 60000) {
+                    extracted = await extractFfmpegFrame(hlsPlaylist, outputPath);
+                }
+                else {
+                    console.warn(`[FrameCapture] Local HLS playlist for ${deviceId} is stale (${Date.now() - mtime}ms old).`);
+                }
             }
             // 2. Get Tuya Cloud HLS URL and capture frame via native decryption
             const last = lastAllocAt.get(deviceId) || 0;
@@ -208,12 +217,11 @@ class FrameCaptureService {
                 const client = new TuyaClient(process.env.TUYA_CLIENT_ID || 'vhxcdfe5q7d5vr4wsgs3', process.env.TUYA_CLIENT_SECRET || '0757b40d43884b83952b3b306814fba9', process.env.TUYA_API_ENDPOINT || 'https://openapi-sg.iotbing.com');
                 // Always reuse active cached stream URL to prevent triggering new Tuya P2P allocations
                 const tuyaHlsUrl = await client.getStreamUrl(deviceId, 'HLS', false);
-                if (tuyaHlsUrl?.startsWith('http')) {
+                if (tuyaHlsUrl?.startsWith('http') && !extracted) {
                     console.log(`[FrameCapture] Capturing frame from Tuya Cloud HLS for ${deviceId}...`);
-                    const ok = await captureFrameFromTuyaEncryptedHLS(tuyaHlsUrl, outputPath);
-                    if (ok)
-                        return { cameraId: camera.id, location: camera.location, timestamp: new Date(), imagePath: outputPath };
-                    console.warn(`[FrameCapture] Native HLS frame grab failed for ${deviceId}.`);
+                    extracted = await captureFrameFromTuyaEncryptedHLS(tuyaHlsUrl, outputPath);
+                    if (!extracted)
+                        console.warn(`[FrameCapture] Native HLS frame grab failed for ${deviceId}.`);
                 }
             }
             catch (e) {
@@ -222,11 +230,19 @@ class FrameCaptureService {
             throw new Error(`Kamera #${camera.id} gagal menangkap frame dari Tuya Cloud stream.`);
         }
         // 3. Generic RTSP/HLS fallback
-        const streamUrl = camera.playUrl || camera.streamUrl;
-        if (streamUrl && (streamUrl.startsWith('rtsp') || streamUrl.includes('m3u8') || streamUrl.startsWith('http'))) {
-            const ok = await extractFfmpegFrame(streamUrl, outputPath);
-            if (ok)
-                return { cameraId: camera.id, location: camera.location, timestamp: new Date(), imagePath: outputPath };
+        if (!extracted) {
+            const streamUrl = camera.playUrl || camera.streamUrl;
+            if (streamUrl && (streamUrl.startsWith('rtsp') || streamUrl.includes('m3u8') || streamUrl.startsWith('http'))) {
+                extracted = await extractFfmpegFrame(streamUrl, outputPath);
+            }
+        }
+        if (extracted && fs_1.default.existsSync(outputPath)) {
+            const newHash = crypto.createHash('md5').update(fs_1.default.readFileSync(outputPath)).digest('hex');
+            if (prevHash === newHash && prevHash !== '') {
+                console.warn(`[FrameCapture] Kamera #${camera.id} stream frozen (identical frame).`);
+                throw new Error(`Kamera #${camera.id} stream frozen (identical frame).`);
+            }
+            return { cameraId: camera.id, location: camera.location, timestamp: new Date(), imagePath: outputPath };
         }
         throw new Error(`Kamera #${camera.id} offline atau gagal menangkap frame.`);
     }

@@ -123,7 +123,8 @@ export class AiPipelineScheduler {
       // Filter by workspace if specified
       const filter: any = {
         isActive: { $ne: false },
-        status: { $ne: 'OFFLINE' }
+        monitoringEnabled: true,
+        status: { $in: ['ONLINE', 'MONITORING'] }
       };
       if (this.workspaceId !== null) {
         filter.workspaceId = this.workspaceId;
@@ -132,18 +133,19 @@ export class AiPipelineScheduler {
       framesProcessed = cameras.length;
 
       for (const camera of cameras) {
-        const captureStartTime = Date.now();
+        try {
+          const captureStartTime = Date.now();
 
-        // 2. Capture Frame
-        const frame = await FrameCaptureService.captureFrame(camera);
-        const captureTime = Date.now() - captureStartTime;
+          // 2. Capture Frame
+          const frame = await FrameCaptureService.captureFrame(camera);
+          const captureTime = Date.now() - captureStartTime;
 
-        // Tentukan prioritas deteksi (HIGH untuk CCTV area kali/kritis)
-        const priority = (camera as any).priority || (camera.location.toLowerCase().includes('kali') ? 'HIGH' : 'NORMAL');
-        const customWeight = (camera as any).priorityWeight;
+          // Tentukan prioritas deteksi (HIGH untuk CCTV area kali/kritis)
+          const priority = (camera as any).priority || (camera.location.toLowerCase().includes('kali') ? 'HIGH' : 'NORMAL');
+          const customWeight = (camera as any).priorityWeight;
 
-        // 3. Enqueue ke antrean prioritas asinkronus
-        InferenceQueue.enqueue(frame, priority, customWeight)
+          // 3. Enqueue ke antrean prioritas asinkronus
+          InferenceQueue.enqueue(frame, priority, customWeight)
           .then(async (detection) => {
             const inferenceTime = Date.now() - captureStartTime - captureTime;
             const promotionStartTime = Date.now();
@@ -196,9 +198,10 @@ export class AiPipelineScheduler {
           .catch(err => {
             console.warn(`[AiPipelineScheduler] Frame dari kamera #${camera.id} dilewati: ${err.message}`);
           });
-      }
-
-    } catch (err) {
+        } catch (cameraErr: any) {
+          console.warn(`[AiPipelineScheduler] Kamera #${camera.id} dilewati karena error capture: ${cameraErr.message}`);
+        }
+      }    } catch (err) {
       console.error('[AiPipelineScheduler] AI pipeline cycle failed:', err);
     } finally {
       // Lepaskan Distributed Lock secara aman

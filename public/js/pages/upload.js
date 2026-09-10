@@ -111,10 +111,10 @@ export class UploadPage {
         <div class="modal-content" style="background:var(--card-bg); border-radius:var(--radius-card); padding:var(--space-32); max-width:400px; width:90%; text-align:center; border:1px solid var(--border); box-shadow:var(--shadow-xl);">
           <div id="upload-modal-state">
             <!-- Processing State -->
-            <div id="modal-processing">
+            <div id="modal-processing" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
               <div class="upload-spinner" style="width:56px; height:56px; border:4px solid var(--surface-soft); border-top-color:var(--primary); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 20px;"></div>
-              <h3 style="font-family:'Outfit',sans-serif; font-weight:700; font-size:1.2rem; margin:0 0 8px; color:var(--text-primary); text-align:center;">Memproses Laporan</h3>
-              <p style="font-size:0.85rem; color:var(--text-secondary); margin:0; text-align:center;">AI sedang memverifikasi dan menyimpan laporan Anda...</p>
+              <h3 style="font-family:'Outfit',sans-serif; font-weight:700; font-size:1.2rem; margin:0 0 8px; color:var(--text-primary);">Memproses Laporan</h3>
+              <p style="font-size:0.85rem; color:var(--text-secondary); margin:0;">AI sedang memverifikasi dan menyimpan laporan Anda...</p>
             </div>
             <!-- Success State -->
             <div id="modal-success" style="display:none;">

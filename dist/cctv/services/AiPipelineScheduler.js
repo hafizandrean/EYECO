@@ -111,7 +111,8 @@ class AiPipelineScheduler {
             // Filter by workspace if specified
             const filter = {
                 isActive: { $ne: false },
-                status: { $ne: 'OFFLINE' }
+                monitoringEnabled: true,
+                status: { $in: ['ONLINE', 'MONITORING'] }
             };
             if (this.workspaceId !== null) {
                 filter.workspaceId = this.workspaceId;
@@ -119,62 +120,67 @@ class AiPipelineScheduler {
             const cameras = await Cctv_1.CctvModel.find(filter).lean().exec();
             framesProcessed = cameras.length;
             for (const camera of cameras) {
-                const captureStartTime = Date.now();
-                // 2. Capture Frame
-                const frame = await FrameCaptureService_1.FrameCaptureService.captureFrame(camera);
-                const captureTime = Date.now() - captureStartTime;
-                // Tentukan prioritas deteksi (HIGH untuk CCTV area kali/kritis)
-                const priority = camera.priority || (camera.location.toLowerCase().includes('kali') ? 'HIGH' : 'NORMAL');
-                const customWeight = camera.priorityWeight;
-                // 3. Enqueue ke antrean prioritas asinkronus
-                InferenceQueue_1.InferenceQueue.enqueue(frame, priority, customWeight)
-                    .then(async (detection) => {
-                    const inferenceTime = Date.now() - captureStartTime - captureTime;
-                    const promotionStartTime = Date.now();
-                    // 4. Jika terdeteksi objek potensial, jalankan auto-report dan promotion
-                    if (detection) {
-                        // Auto-create report if person detected
-                        const autoReportResult = await CctvAutoReportService_1.CctvAutoReportService.processDetection(frame, detection);
-                        if (autoReportResult) {
-                            console.log(`[AiPipelineTrace] Auto-report #${autoReportResult.reportId} created for camera #${camera.id}`);
+                try {
+                    const captureStartTime = Date.now();
+                    // 2. Capture Frame
+                    const frame = await FrameCaptureService_1.FrameCaptureService.captureFrame(camera);
+                    const captureTime = Date.now() - captureStartTime;
+                    // Tentukan prioritas deteksi (HIGH untuk CCTV area kali/kritis)
+                    const priority = camera.priority || (camera.location.toLowerCase().includes('kali') ? 'HIGH' : 'NORMAL');
+                    const customWeight = camera.priorityWeight;
+                    // 3. Enqueue ke antrean prioritas asinkronus
+                    InferenceQueue_1.InferenceQueue.enqueue(frame, priority, customWeight)
+                        .then(async (detection) => {
+                        const inferenceTime = Date.now() - captureStartTime - captureTime;
+                        const promotionStartTime = Date.now();
+                        // 4. Jika terdeteksi objek potensial, jalankan auto-report dan promotion
+                        if (detection) {
+                            // Auto-create report if person detected
+                            const autoReportResult = await CctvAutoReportService_1.CctvAutoReportService.processDetection(frame, detection);
+                            if (autoReportResult) {
+                                console.log(`[AiPipelineTrace] Auto-report #${autoReportResult.reportId} created for camera #${camera.id}`);
+                            }
+                            // Legacy promotion check (disabled by default)
+                            console.log(`[AiPipelineTrace] Detection found.${autoReportResult ? ' Auto-report created.' : ' No person detected.'}`);
                         }
-                        // Legacy promotion check (disabled by default)
-                        console.log(`[AiPipelineTrace] Detection found.${autoReportResult ? ' Auto-report created.' : ' No person detected.'}`);
-                    }
-                    const promotionTime = Date.now() - promotionStartTime;
-                    const totalTime = captureTime + inferenceTime + promotionTime;
-                    // Cetak trace audit log asinkronus
-                    console.log(`[AiPipelineTrace] Camera #${camera.id} (${camera.location}) | Priority: ${priority} | Capture: ${captureTime}ms | Inference: ${inferenceTime}ms | Promotion: ${promotionTime}ms | Total: ${totalTime}ms`);
-                    // 5. Catat AI Metrics per kamera (Time-Series Bucket)
-                    const cycleIntervalLimit = new Date(Date.now() - 20000);
-                    const promotionCount = await AiDetection_1.AiDetectionModel.countDocuments({
-                        cameraId: camera.id,
-                        status: 'PROMOTED',
-                        createdAt: { $gte: cycleIntervalLimit }
+                        const promotionTime = Date.now() - promotionStartTime;
+                        const totalTime = captureTime + inferenceTime + promotionTime;
+                        // Cetak trace audit log asinkronus
+                        console.log(`[AiPipelineTrace] Camera #${camera.id} (${camera.location}) | Priority: ${priority} | Capture: ${captureTime}ms | Inference: ${inferenceTime}ms | Promotion: ${promotionTime}ms | Total: ${totalTime}ms`);
+                        // 5. Catat AI Metrics per kamera (Time-Series Bucket)
+                        const cycleIntervalLimit = new Date(Date.now() - 20000);
+                        const promotionCount = await AiDetection_1.AiDetectionModel.countDocuments({
+                            cameraId: camera.id,
+                            status: 'PROMOTED',
+                            createdAt: { $gte: cycleIntervalLimit }
+                        });
+                        const duplicateCount = await AiDetection_1.AiDetectionModel.countDocuments({
+                            cameraId: camera.id,
+                            status: 'DUPLICATE',
+                            createdAt: { $gte: cycleIntervalLimit }
+                        });
+                        const falsePositiveCount = await AiDetection_1.AiDetectionModel.countDocuments({
+                            cameraId: camera.id,
+                            status: 'LOW_CONFIDENCE',
+                            createdAt: { $gte: cycleIntervalLimit }
+                        });
+                        await AiMetric_1.AiMetricModel.create({
+                            timestamp: new Date(),
+                            cameraId: camera.id,
+                            framesProcessed: 1,
+                            averageInferenceTimeMs: inferenceTime,
+                            promotionCount,
+                            duplicateCount,
+                            falsePositiveCount
+                        });
+                    })
+                        .catch(err => {
+                        console.warn(`[AiPipelineScheduler] Frame dari kamera #${camera.id} dilewati: ${err.message}`);
                     });
-                    const duplicateCount = await AiDetection_1.AiDetectionModel.countDocuments({
-                        cameraId: camera.id,
-                        status: 'DUPLICATE',
-                        createdAt: { $gte: cycleIntervalLimit }
-                    });
-                    const falsePositiveCount = await AiDetection_1.AiDetectionModel.countDocuments({
-                        cameraId: camera.id,
-                        status: 'LOW_CONFIDENCE',
-                        createdAt: { $gte: cycleIntervalLimit }
-                    });
-                    await AiMetric_1.AiMetricModel.create({
-                        timestamp: new Date(),
-                        cameraId: camera.id,
-                        framesProcessed: 1,
-                        averageInferenceTimeMs: inferenceTime,
-                        promotionCount,
-                        duplicateCount,
-                        falsePositiveCount
-                    });
-                })
-                    .catch(err => {
-                    console.warn(`[AiPipelineScheduler] Frame dari kamera #${camera.id} dilewati: ${err.message}`);
-                });
+                }
+                catch (cameraErr) {
+                    console.warn(`[AiPipelineScheduler] Kamera #${camera.id} dilewati karena error capture: ${cameraErr.message}`);
+                }
             }
         }
         catch (err) {

@@ -93,10 +93,20 @@ export class CctvAutoReportService {
         return;
       }
 
+      // ── FRESHNESS GUARD ──
+      // Tolak file yang lebih tua dari 30 detik — berarti CCTV offline dan ini adalah gambar usang
+      const fileAge = Date.now() - fs.statSync(lastCapturePath).mtimeMs;
+      if (fileAge > 30000) {
+        console.warn(`[CctvAutoReportService] Skipping stale capture for camera #${camera.id} (${Math.round(fileAge/1000)}s old). CCTV likely offline.`);
+        // Hapus file usang supaya tidak muncul lagi di siklus berikutnya
+        try { fs.unlinkSync(lastCapturePath); } catch {}
+        return;
+      }
+
       const detectionResult = await detectFile(lastCapturePath, { conf: 0.15 });
       if (!detectionResult || !detectionResult.boxes) return;
 
-      // If there are ANY detections, allow it to proceed. Don't restrict to person only.
+      // Hanya buat laporan jika ada deteksi orang
       const personClasses = ['person', 'cctv persons', 'people', 'sitting', 'standing', 'orang'];
       const personDetections = detectionResult.boxes.filter(b =>
         personClasses.some(pc => b.label.toLowerCase().includes(pc))
