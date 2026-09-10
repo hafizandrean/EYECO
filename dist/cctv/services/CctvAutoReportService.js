@@ -90,7 +90,8 @@ class CctvAutoReportService {
             // If there are ANY detections, allow it to proceed. Don't restrict to person only.
             const personClasses = ['person', 'cctv persons', 'people', 'sitting', 'standing', 'orang'];
             const personDetections = detectionResult.boxes.filter(b => personClasses.some(pc => b.label.toLowerCase().includes(pc)));
-            // if (personDetections.length === 0) return;
+            if (personDetections.length === 0)
+                return; // Only process if there's a person
             // Find admin in the same workspace as the camera, or fallback to global admin
             let adminUser = await User_1.UserModel.findOne({ workspaceId: camera.workspaceId, role: 'admin' }).sort({ id: 1 }).lean().exec();
             if (!adminUser) {
@@ -137,8 +138,10 @@ class CctvAutoReportService {
                     }
                 }
             }
-            // Allow all detections to generate a report.
-            // Low, medium, and high detections all create a report; priority is set below.
+            // Allow all detections to generate a report
+            // if (aiStatus !== 'TINGGI' && aiStatus !== 'SEDANG') {
+            //   return;
+            // }
             const maxPersonConf = Math.max(...personDetections.map(d => d.confidence));
             // Save captured image to OS Temp directory first (out of repo)
             const tempDir = path_1.default.join(os_1.default.tmpdir(), 'eyeco');
@@ -196,7 +199,6 @@ class CctvAutoReportService {
         try {
             if (this.isOnCooldown(frame.cameraId))
                 return null;
-            // Allow all severities to create reports; low severity still becomes a low-priority report.
             const camera = await Cctv_1.CctvModel.findOne({ id: frame.cameraId }).lean().exec();
             if (!camera)
                 return null;
@@ -216,7 +218,6 @@ class CctvAutoReportService {
             else if (detection.severity === 'LOW') {
                 aiStatus = 'RENDAH';
             }
-            // Save to OS Temp directory
             // Prepare temp image file path
             const tempDir = path_1.default.join(os_1.default.tmpdir(), 'eyeco');
             if (!fs_1.default.existsSync(tempDir))
@@ -260,22 +261,6 @@ class CctvAutoReportService {
                 aiDataIntegrityStatus: 'VALID'
             }, uploaderId, camera.workspaceId);
             // Set cooldown & update detection status immediately — tidak perlu tunggu upload
-            this.setCooldown(frame.cameraId);
-            AiDetection_1.AiDetectionModel.updateOne({ id: detection.id }, { $set: { status: 'PROMOTED', promotedReportId: report.id } }).exec().catch(() => { });
-            console.log(`[CctvAutoReportService] ✅ Auto-report #${report.id} MUNCUL LANGSUNG di daftar untuk kamera #${frame.cameraId}`);
-            if (report) {
-                const evidence = await EvidenceService_1.EvidenceService.saveEvidence(frame.cameraId, tempAbsolutePath, new Date(), detection._id, report.id);
-                if (evidence && evidence.storage && evidence.storage.key) {
-                    await Report_1.ReportModel.updateOne({ _id: report._id }, {
-                        $set: {
-                            r2Key: evidence.storage.key,
-                            primaryEvidenceId: evidence._id,
-                            thumbnailEvidenceId: evidence._id,
-                            evidenceIds: [evidence._id]
-                        }
-                    }).exec();
-                }
-            }
             this.setCooldown(frame.cameraId);
             AiDetection_1.AiDetectionModel.updateOne({ id: detection.id }, { $set: { status: 'PROMOTED', promotedReportId: report.id } }).exec().catch(() => { });
             console.log(`[CctvAutoReportService] ✅ Auto-report #${report.id} MUNCUL LANGSUNG di daftar untuk kamera #${frame.cameraId}`);

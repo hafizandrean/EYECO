@@ -85,6 +85,10 @@ export class CctvMonitoringPage {
     this.filterCamera = 'semua';
     this.latestReports = [];
     this.lastConnectedCctvId = null;
+    this.activeHeatmaps = new Set();
+    this.alarmSoundEnabled = false;
+    this.lastAlarmPlayedAt = 0;
+    this.roiVirtualFenceEnabled = false;
 
     // Fullscreen VMS Controller Lifecycle State
     this.fsHls = null;
@@ -242,6 +246,18 @@ export class CctvMonitoringPage {
           </button>
           <button id="btn-mon-refresh" class="btn btn-glass btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;">
             <i data-lucide="refresh-cw" style="width:13px;height:13px;"></i> Refresh
+          </button>
+          <button id="btn-export-detection-csv" class="btn btn-glass btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;border-color: rgba(16, 185, 129, 0.35); color: var(--success);" title="Download Log Riwayat Deteksi AI (CSV)">
+            <i data-lucide="download" style="width:13px;height:13px;"></i> Ekspor Log CSV
+          </button>
+          <button id="btn-toggle-alarm-sound" class="btn btn-glass btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;border-color: rgba(234, 179, 8, 0.35); color: #d97706;" title="Aktifkan/Nonaktifkan Alarm Audio">
+            <i data-lucide="volume-x" style="width:13px;height:13px;"></i> Alarm: OFF
+          </button>
+          <button id="btn-view-cctv-stats" class="btn btn-glass btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;border-color: rgba(147, 51, 234, 0.35); color: #9333ea;" title="Lihat Ringkasan Statistik AI">
+            <i data-lucide="bar-chart-2" style="width:13px;height:13px;"></i> Statistik
+          </button>
+          <button id="btn-toggle-roi-fence" class="btn btn-glass btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;border-color: rgba(59, 130, 246, 0.35); color: #2563eb;" title="Tampilkan Batas Zona Pantau Sungai (ROI)">
+            <i data-lucide="shield" style="width:13px;height:13px;"></i> ROI: OFF
           </button>
 
           <button id="btn-connect-cctv" class="btn btn-glass btn-rounded" style="font-size:0.72rem;font-weight:700;height:32px;padding:0 12px;border-color: rgba(47, 107, 255, 0.3); color: var(--primary);">
@@ -684,6 +700,9 @@ export class CctvMonitoringPage {
       case 'toggle-mon':
         this.toggleCameraMonitoring(ch);
         break;
+      case 'toggle-heatmap':
+        this.toggleCameraHeatmap(ch.id);
+        break;
       case 'detail':
         this.openCCTVDetailDrawer(ch.id);
         break;
@@ -694,6 +713,246 @@ export class CctvMonitoringPage {
         this.deleteCctv(ch);
         break;
     }
+  }
+
+  toggleCameraHeatmap(channelId) {
+    const cardEl = document.querySelector(`.cctv-card[data-channel-id="${channelId}"]`);
+    if (!cardEl) return;
+    const canvas = cardEl.querySelector('.cctv-heatmap-canvas');
+    if (!canvas) return;
+
+    const btn = cardEl.querySelector('.hover-action-btn.toggle-heatmap');
+
+    if (this.activeHeatmaps.has(String(channelId))) {
+      this.activeHeatmaps.delete(String(channelId));
+      canvas.style.display = 'none';
+      const ctx = canvas.getContext('2d');
+      if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (btn) btn.style.background = 'rgba(255,255,255,0.9)';
+      console.log(`[CCTV] Heatmap disabled for CH ${channelId}`);
+    } else {
+      this.activeHeatmaps.add(String(channelId));
+      canvas.style.display = 'block';
+      if (btn) btn.style.background = '#ea580c';
+      console.log(`[CCTV] Heatmap enabled for CH ${channelId}`);
+    }
+  }
+
+  renderHeatmapOnCanvas(canvasEl, boxes) {
+    if (!canvasEl || !boxes || boxes.length === 0) return;
+    const parent = canvasEl.parentElement;
+    if (!parent) return;
+    const rect = parent.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+
+    if (canvasEl.width !== Math.floor(rect.width) || canvasEl.height !== Math.floor(rect.height)) {
+      canvasEl.width = Math.floor(rect.width);
+      canvasEl.height = Math.floor(rect.height);
+    }
+
+    const ctx = canvasEl.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+
+    boxes.forEach(box => {
+      let x = box.x !== undefined ? box.x : (box.bbox ? box.bbox[0] : 0);
+      let y = box.y !== undefined ? box.y : (box.bbox ? box.bbox[1] : 0);
+      let w = box.w !== undefined ? box.w : (box.bbox ? box.bbox[2] : 0);
+      let h = box.h !== undefined ? box.h : (box.bbox ? box.bbox[3] : 0);
+
+      if (w <= 1 && h <= 1) {
+        x *= 100; y *= 100; w *= 100; h *= 100;
+      }
+
+      const cx = (x + w / 2) * (canvasEl.width / 100);
+      const cy = (y + h / 2) * (canvasEl.height / 100);
+      const radius = Math.max(35, Math.min(85, (w + h) / 2 * (canvasEl.width / 100)));
+
+      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+      const rawLabel = (box.label || box.class || '').toLowerCase();
+      const isTrash = rawLabel.includes('trash') || rawLabel.includes('sampah') || rawLabel.includes('plastic') || rawLabel.includes('bottle');
+
+      if (isTrash) {
+        grad.addColorStop(0, 'rgba(239, 68, 68, 0.85)');
+        grad.addColorStop(0.35, 'rgba(249, 115, 22, 0.55)');
+        grad.addColorStop(0.75, 'rgba(234, 179, 8, 0.25)');
+        grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+      } else {
+        grad.addColorStop(0, 'rgba(59, 130, 246, 0.75)');
+        grad.addColorStop(0.45, 'rgba(6, 182, 212, 0.4)');
+        grad.addColorStop(1, 'rgba(59, 130, 246, 0)');
+      }
+
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  exportDetectionLogCsv(channelId = null) {
+    let logs = this.detectionLog || [];
+    if (channelId) {
+      logs = logs.filter(l => String(l.cameraId || l.cctvId) === String(channelId));
+    }
+    if (logs.length === 0) {
+      logs = (this.latestReports || []).map(r => ({
+        timestamp: r.timestamp || new Date().toISOString(),
+        channel: r.location || 'CH-01',
+        class: r.detectedObjects ? r.detectedObjects.join(', ') : (r.objectLabel || 'Sampah'),
+        confidence: r.confidence ? `${Math.round(r.confidence > 1 ? r.confidence : r.confidence * 100)}%` : '92%',
+        status: r.status || 'VERIFIED',
+        severity: r.severity || 'HIGH'
+      }));
+    }
+
+    if (logs.length === 0) {
+      EventBus.emit('toast:show', { message: 'Belum ada data deteksi untuk diekspor ke CSV.', type: 'warning' });
+      return;
+    }
+
+    let csvContent = '\uFEFFWaktu,Kamera/Lokasi,Objek Terdeteksi,Keyakinan,Status,Tingkat Bahaya\n';
+    logs.forEach(row => {
+      const time = row.timestamp ? new Date(row.timestamp).toLocaleString('id-ID') : new Date().toLocaleString('id-ID');
+      const loc = `"${(row.channel || row.location || 'CH-01').replace(/"/g, '""')}"`;
+      const cls = `"${(row.class || (row.detectedObjects ? row.detectedObjects.join(', ') : 'Sampah')).replace(/"/g, '""')}"`;
+      const conf = row.confidence || '90%';
+      const stat = row.status || 'NORMAL';
+      const sev = row.severity || 'MEDIUM';
+      csvContent += `${time},${loc},${cls},${conf},${stat},${sev}\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `EYECO_Detection_Log_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    EventBus.emit('toast:show', { message: 'File CSV riwayat deteksi berhasil diunduh.', type: 'success' });
+  }
+
+  toggleAlarmSound() {
+    this.alarmSoundEnabled = !this.alarmSoundEnabled;
+    const btn = document.getElementById('btn-toggle-alarm-sound');
+    if (btn) {
+      if (this.alarmSoundEnabled) {
+        btn.innerHTML = '<i data-lucide="volume-2" style="width:13px;height:13px;"></i> Alarm: ON';
+        btn.style.color = '#16a34a';
+        btn.style.borderColor = 'rgba(22, 163, 74, 0.4)';
+        this.playAlarmChime();
+        EventBus.emit('toast:show', { message: 'Alarm audio deteksi diaktifkan.', type: 'success' });
+      } else {
+        btn.innerHTML = '<i data-lucide="volume-x" style="width:13px;height:13px;"></i> Alarm: OFF';
+        btn.style.color = '#d97706';
+        btn.style.borderColor = 'rgba(234, 179, 8, 0.35)';
+        EventBus.emit('toast:show', { message: 'Alarm audio dinonaktifkan.', type: 'info' });
+      }
+      if (window.lucide) window.lucide.createIcons();
+    }
+  }
+
+  playAlarmChime() {
+    const now = Date.now();
+    if (now - this.lastAlarmPlayedAt < 4000) return;
+    this.lastAlarmPlayedAt = now;
+
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.3);
+
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start();
+      osc.stop(ctx.currentTime + 0.3);
+    } catch (e) {
+      // Audio context restricted before user interaction
+    }
+  }
+
+  openAnalyticsSummaryModal() {
+    const totalCctv = this.cctvList.length;
+    const activeCctv = this.cctvList.filter(c => c.status === 'ONLINE' || c.status === 'MONITORING').length;
+    const reports = this.latestReports || [];
+    const totalIncidents = reports.length;
+    const verifiedIncidents = reports.filter(r => r.status === 'VERIFIED').length;
+    const violationRate = totalIncidents > 0 ? Math.round((verifiedIncidents / totalIncidents) * 100) : 0;
+
+    let modalHtml = `
+      <div class="cctv-stats-modal-body" style="padding: 10px 0;">
+        <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px;">
+          <div style="background: rgba(47, 107, 255, 0.06); border: 1px solid rgba(47, 107, 255, 0.2); border-radius: 10px; padding: 14px; text-align: center;">
+            <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Saluran Aktif</div>
+            <div style="font-size: 1.6rem; font-weight: 900; color: var(--primary); margin-top: 4px;">${activeCctv} <span style="font-size:0.85rem; font-weight:600; color:var(--text-muted);">/ ${totalCctv}</span></div>
+          </div>
+          <div style="background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 10px; padding: 14px; text-align: center;">
+            <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Tingkat Pelanggaran</div>
+            <div style="font-size: 1.6rem; font-weight: 900; color: var(--danger); margin-top: 4px;">${violationRate}%</div>
+          </div>
+        </div>
+
+        <div style="background: var(--surface-soft); border-radius: 10px; padding: 16px; border: 1px solid rgba(0,0,0,0.06);">
+          <h5 style="margin: 0 0 12px 0; font-size: 0.85rem; font-weight: 800; color: var(--text-primary);">📊 Rangkuman Deteksi AI Real-time</h5>
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.8rem;">
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--text-secondary);">Total Laporan Masuk:</span>
+              <strong style="color: var(--text-primary);">${totalIncidents} Insiden</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--text-secondary);">Deteksi Terverifikasi:</span>
+              <strong style="color: var(--success);">${verifiedIncidents} Laporan</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--text-secondary);">Algoritma AI:</span>
+              <strong style="color: var(--primary);">YOLOv8 River + Dual Model</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--text-secondary);">Heatmap Analytics:</span>
+              <strong style="color: #ea580c;">Tersedia (Real-time Overlay)</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    MacModal.alert({
+      title: 'Statistik & Ringkasan Analitik CCTV',
+      message: modalHtml,
+      confirmText: 'Tutup'
+    });
+  }
+
+  toggleRoiVirtualFence() {
+    this.roiVirtualFenceEnabled = !this.roiVirtualFenceEnabled;
+    const btn = document.getElementById('btn-toggle-roi-fence');
+    if (btn) {
+      if (this.roiVirtualFenceEnabled) {
+        btn.innerHTML = '<i data-lucide="shield-check" style="width:13px;height:13px;"></i> ROI: ON';
+        btn.style.color = '#16a34a';
+        btn.style.borderColor = 'rgba(22, 163, 74, 0.4)';
+        EventBus.emit('toast:show', { message: 'Batas Zona Pantau Sungai (ROI) diaktifkan.', type: 'success' });
+      } else {
+        btn.innerHTML = '<i data-lucide="shield" style="width:13px;height:13px;"></i> ROI: OFF';
+        btn.style.color = '#2563eb';
+        btn.style.borderColor = 'rgba(59, 130, 246, 0.35)';
+        EventBus.emit('toast:show', { message: 'Batas Zona Pantau Sungai (ROI) dinonaktifkan.', type: 'info' });
+      }
+      if (window.lucide) window.lucide.createIcons();
+    }
+    this.refreshImmediately();
   }
 
   // ── IntersectionObserver for Viewport Visibility ──
@@ -1514,6 +1773,7 @@ export class CctvMonitoringPage {
         mediaHtml = `
           <video id="${hlsVideoId}" class="cctv-feed-img" poster="${imageSrc}" autoplay muted playsinline crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;background:#000;display:block;"></video>
           <div class="cctv-overlay-gradient"></div>
+          <canvas class="cctv-heatmap-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;display:none;z-index:9;opacity:0.65;"></canvas>
           <div class="cctv-bbox-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></div>`;
       } else if (ch.mediaType === 'Cloud') {
         const isCloudTuya = ch.vendor === 'TUYA' || (ch.streamUrl && ch.streamUrl.startsWith('tuya://'));
@@ -1529,6 +1789,7 @@ export class CctvMonitoringPage {
         mediaHtml = `
           <video src="${ch.playUrl}" data-current-src="${ch.playUrl}" autoplay loop muted playsinline crossorigin="anonymous" class="cctv-feed-img"></video>
           <div class="cctv-overlay-gradient"></div>
+          <canvas class="cctv-heatmap-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;display:none;z-index:9;opacity:0.65;"></canvas>
           <div class="cctv-bbox-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></div>
         `;
       } else {
@@ -1539,6 +1800,7 @@ export class CctvMonitoringPage {
             <span style="font-size:0.65rem; color:rgba(255,255,255,0.4); font-weight:700; text-transform:uppercase;">Stream Terputus</span>
           </div>
           <div class="cctv-overlay-gradient"></div>
+          <canvas class="cctv-heatmap-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;display:none;z-index:9;opacity:0.65;"></canvas>
           <div class="cctv-bbox-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></div>
         `;
       }
@@ -1565,9 +1827,12 @@ export class CctvMonitoringPage {
     }
 
     const hoverOverlayHtml = `
-      <div class="cctv-hover-overlay" style="position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; gap: 10px; opacity: 0; transition: opacity 0.15s ease; border-radius: 12px; z-index: 10;">
+      <div class="cctv-hover-overlay" style="position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; gap: 8px; opacity: 0; transition: opacity 0.15s ease; border-radius: 12px; z-index: 10;">
         <button class="hover-action-btn fs" data-action="fullscreen" style="width:36px; height:36px; border-radius:50%; border:none; background: rgba(255,255,255,0.9); color: var(--text-primary); display:flex; align-items:center; justify-content:center; cursor:pointer; transition: transform 0.1s;" title="Fullscreen Player">
           <i data-lucide="maximize-2" style="width: 16px; height: 16px;"></i>
+        </button>
+        <button class="hover-action-btn toggle-heatmap" data-action="toggle-heatmap" style="width:36px; height:36px; border-radius:50%; border:none; background: rgba(255,255,255,0.9); color: #ea580c; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: transform 0.1s;" title="Toggle Heatmap Kepadatan Sampah">
+          <i data-lucide="flame" style="width: 16px; height: 16px;"></i>
         </button>
         <button class="hover-action-btn reconnect" data-action="reconnect" style="width:36px; height:36px; border-radius:50%; border:none; background: rgba(255,255,255,0.9); color: var(--text-primary); display:flex; align-items:center; justify-content:center; cursor:pointer; transition: transform 0.1s;" title="Reconnect Stream">
           <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
@@ -1733,30 +1998,96 @@ export class CctvMonitoringPage {
     const labelMap = {
       'person': 'Orang', 'people': 'Orang', 'sitting': 'Orang', 'standing': 'Orang', 'orang': 'Orang', 'cctv persons': 'Orang',
       'trash': 'Sampah', 'sampah': 'Sampah', 'waste': 'Sampah', 'bag': 'Kantong', 'boat': 'Perahu', 'perahu': 'Perahu',
-      'bottle': 'Botol', 'plastic': 'Plastik', 'cardboard': 'Kardus', 'object': 'Objek'
+      'bottle': 'Botol', 'plastic': 'Plastik', 'cardboard': 'Kardus', 'object': 'Objek', 'trash_pile': 'Tumpukan Sampah'
     };
 
+    let personCount = 0;
+    let trashCount = 0;
     let boxesHtml = '';
+
     boxes.forEach(box => {
-      let label = box.label || box.class || 'object';
+      let rawLabel = (box.label || box.class || 'object').toLowerCase();
       let x = box.x !== undefined ? box.x : (box.bbox ? box.bbox[0] : 0);
       let y = box.y !== undefined ? box.y : (box.bbox ? box.bbox[1] : 0);
       let w = box.w !== undefined ? box.w : (box.bbox ? box.bbox[2] : 0);
       let h = box.h !== undefined ? box.h : (box.bbox ? box.bbox[3] : 0);
 
-      const indonesianLabel = labelMap[label.toLowerCase()] || label;
+      // Normalisasi jika koordinat pecahan 0-1
+      if (w <= 1 && h <= 1) {
+        x *= 100; y *= 100; w *= 100; h *= 100;
+      }
+
+      // Confidence parsing
+      let confNum = 0.90;
+      if (typeof box.confidence === 'number') {
+        confNum = box.confidence > 1 ? box.confidence / 100 : box.confidence;
+      } else if (typeof box.conf === 'number') {
+        confNum = box.conf > 1 ? box.conf / 100 : box.conf;
+      }
+      const confPct = Math.round(confNum * 100);
+
+      const indonesianLabel = labelMap[rawLabel] || box.label || box.class || 'Objek';
       let boxColorClass = 'yolo-default';
-      if (label === 'person') boxColorClass = 'yolo-person';
-      if (label === 'trash') boxColorClass = 'yolo-trash';
-      if (label === 'boat') boxColorClass = 'yolo-boat';
+      let icon = '🎯';
+
+      if (rawLabel.includes('person') || rawLabel.includes('orang') || rawLabel.includes('people')) {
+        boxColorClass = 'yolo-person';
+        icon = '👤';
+        personCount++;
+      } else if (rawLabel.includes('trash') || rawLabel.includes('sampah') || rawLabel.includes('bottle') || rawLabel.includes('plastic') || rawLabel.includes('waste')) {
+        boxColorClass = 'yolo-trash';
+        icon = '🗑️';
+        trashCount++;
+      } else if (rawLabel.includes('boat') || rawLabel.includes('perahu')) {
+        boxColorClass = 'yolo-boat';
+        icon = '🚤';
+      }
+
+      const trackBadge = (box.track_id !== undefined && box.track_id !== null) ? `<span class="yolo-track-badge">#${box.track_id}</span>` : '';
+      const inDangerZone = this.roiVirtualFenceEnabled && (y > 45);
+      const zoneBadge = inDangerZone ? `<span class="yolo-zone-badge">⚠️ ZONA AIR</span>` : '';
 
       boxesHtml += `
-        <div class="yolo-preview-box ${boxColorClass}" style="position:absolute; top:${y}%; left:${x}%; width:${w}%; height:${h}%;">
-          <span class="yolo-preview-label">${indonesianLabel}</span>
+        <div class="yolo-preview-box ${boxColorClass}" style="position:absolute; top:${Math.max(0, y)}%; left:${Math.max(0, x)}%; width:${Math.min(100, w)}%; height:${Math.min(100, h)}%;">
+          <span class="yolo-preview-label">
+            <span class="yolo-pill-dot"></span>
+            ${icon} ${indonesianLabel}
+            <span class="yolo-conf-badge">${confPct}%</span>
+            ${trackBadge}
+            ${zoneBadge}
+          </span>
         </div>
       `;
     });
-    overlayEl.innerHTML = boxesHtml;
+
+    // Live HUD chip summary on top of the stream
+    let hudHtml = '';
+    if (boxes.length > 0) {
+      hudHtml = `
+        <div class="cctv-video-hud">
+          <span class="cctv-hud-chip ${trashCount > 0 ? 'chip-danger' : 'chip-info'}">
+            ⚡ AI: ${boxes.length} Objek ${trashCount > 0 ? `• 🗑️ ${trashCount} Sampah` : (personCount > 0 ? `• 👤 ${personCount} Orang` : '')}
+          </span>
+        </div>
+      `;
+    }
+
+    const roiFenceHtml = this.roiVirtualFenceEnabled ? '<div class="cctv-roi-fence"><span class="cctv-roi-fence-label">🛡️ ZONA AIR DIPANTAU</span></div>' : '';
+
+    overlayEl.innerHTML = roiFenceHtml + hudHtml + boxesHtml;
+
+    // Render client-side Heatmap if active for this channel
+    if (parentContainer) {
+      const heatmapCanvas = parentContainer.querySelector('.cctv-heatmap-canvas');
+      if (heatmapCanvas && heatmapCanvas.style.display !== 'none') {
+        this.renderHeatmapOnCanvas(heatmapCanvas, boxes);
+      }
+    }
+
+    // Trigger alarm sound chime if trash is detected and sound is enabled
+    if (trashCount > 0 && this.alarmSoundEnabled) {
+      this.playAlarmChime();
+    }
   }
 
   // ── Select Options Helper ──
@@ -1782,6 +2113,27 @@ export class CctvMonitoringPage {
     const selectCam = document.getElementById('cctv-select-camera');
     const toggleTelegram = document.getElementById('toggle-telegram-alerts');
     const btnClearAll = document.getElementById('btn-clear-all-cctv');
+
+    const btnToggleAlarm = document.getElementById('btn-toggle-alarm-sound');
+    if (btnToggleAlarm) {
+      btnToggleAlarm.addEventListener('click', () => {
+        this.toggleAlarmSound();
+      });
+    }
+
+    const btnViewStats = document.getElementById('btn-view-cctv-stats');
+    if (btnViewStats) {
+      btnViewStats.addEventListener('click', () => {
+        this.openAnalyticsSummaryModal();
+      });
+    }
+
+    const btnToggleRoi = document.getElementById('btn-toggle-roi-fence');
+    if (btnToggleRoi) {
+      btnToggleRoi.addEventListener('click', () => {
+        this.toggleRoiVirtualFence();
+      });
+    }
 
     if (btnStart) {
       btnStart.addEventListener('click', async () => {
@@ -1841,6 +2193,13 @@ export class CctvMonitoringPage {
           btnRefresh.innerHTML = origText;
           if (window.lucide) window.lucide.createIcons();
         }
+      });
+    }
+
+    const btnExportCsv = document.getElementById('btn-export-detection-csv');
+    if (btnExportCsv) {
+      btnExportCsv.addEventListener('click', () => {
+        this.exportDetectionLogCsv();
       });
     }
 

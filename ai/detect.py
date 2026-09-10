@@ -645,7 +645,7 @@ def infer_image(
         elapsed = round((time.time() - start) * 1000, 2)
 
         # Scale balik bbox dari koordinat processed ke dimensi asli (img_w, img_h)
-        # karena preprocessing (upscale/resize) mengubah ukuran gambar
+        # dan hitung titik centroid (cx, cy) untuk visualisasi spasial & heatmap
         scale_x = img_w / proc_w
         scale_y = img_h / proc_h
         for d in final:
@@ -653,14 +653,38 @@ def infer_image(
             d['bbox'][1] = round(d['bbox'][1] * scale_y, 2)
             d['bbox'][2] = round(d['bbox'][2] * scale_x, 2)
             d['bbox'][3] = round(d['bbox'][3] * scale_y, 2)
+            d['centroid'] = [
+                round((d['bbox'][0] + d['bbox'][2]) / 2, 2),
+                round((d['bbox'][1] + d['bbox'][3]) / 2, 2),
+            ]
 
-        # Dimensi & blur score sudah di-capture dari awal (sebelum preprocessing)
-        # img_h, img_w, blur_score, img_quality (quality_status) udah dihitung di atas
+        # ── Contextual Incident Semantic Tagging (Adopsi File Referensi 3) ──
+        persons = [d for d in final if is_person(d["class"])]
+        trashes = [d for d in final if is_trash_class(d["class"])]
+        boats = [d for d in final if "boat" in d["class"].lower() or "perahu" in d["class"].lower()]
+
+        context_activity = "PEMANTAUAN_NORMAL"
+        if len(boats) > 0 and len(persons) > 0:
+            context_activity = "AKTIVITAS_PEMBERSIHAN_SUNGAI"
+        elif len(persons) > 0 and len(trashes) > 0:
+            close_to_trash = False
+            for p in persons:
+                for t in trashes:
+                    dist = ((p['centroid'][0] - t['centroid'][0])**2 + (p['centroid'][1] - t['centroid'][1])**2)**0.5
+                    if dist < (img_w * 0.25):
+                        close_to_trash = True
+                        break
+            context_activity = "POTENSI_MEMBUANG_SAMPAH" if close_to_trash else "TUMPUKAN_SAMPAH_DI_AREA"
+        elif len(trashes) > 0:
+            context_activity = "TUMPUKAN_SAMPAH_TERDETEKSI"
 
         return make_result(
             success=True,
             detections=final,
             total_detections=len(final),
+            contextActivity=context_activity,
+            personCount=len(persons),
+            trashCount=len(trashes),
             processingTimeMs=elapsed,
             imageWidth=img_w,
             imageHeight=img_h,

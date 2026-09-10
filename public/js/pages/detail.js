@@ -225,14 +225,22 @@ export class DetailPage {
           boxColorClass = 'yolo-trash';
         }
 
-        const confVal = typeof box.confidence === 'number' ? (box.confidence > 1 ? (box.confidence / 100).toFixed(2) : box.confidence.toFixed(2)) : '0.92';
+        const confPct = typeof box.confidence === 'number' ? Math.round(box.confidence > 1 ? box.confidence : box.confidence * 100) : 92;
+        let icon = '🎯';
+        if (lbl.includes('person') || lbl.includes('orang')) icon = '👤';
+        else if (isTrash) icon = '🗑️';
+        else if (lbl.includes('boat') || lbl.includes('perahu')) icon = '🚤';
 
         // Normalisasi koordinat ke persen (0-100) — YOLO asli kadang 0-1
         let bx = box.x, by = box.y, bw = box.w, bh = box.h;
         if (bw <= 1 && bh <= 1) { bx *= 100; by *= 100; bw *= 100; bh *= 100; }
         initialBoxesHtml += `
           <div class="yolo-preview-box ${boxColorClass}" style="position: absolute; top: ${by}%; left: ${bx}%; width: ${bw}%; height: ${bh}%;">
-            <span class="yolo-preview-label">${box.label.toUpperCase()} ${confVal}</span>
+            <span class="yolo-preview-label">
+              <span class="yolo-pill-dot"></span>
+              ${icon} ${box.label.toUpperCase()}
+              <span class="yolo-conf-badge">${confPct}%</span>
+            </span>
           </div>
         `;
       });
@@ -897,7 +905,11 @@ export class DetailPage {
           let bx = box.x, by = box.y, bw = box.w, bh = box.h;
           if (bw <= 1 && bh <= 1) { bx *= 100; by *= 100; bw *= 100; bh *= 100; }
 
-          const confVal = typeof box.confidence === 'number' ? (box.confidence > 1 ? (box.confidence / 100).toFixed(2) : box.confidence.toFixed(2)) : '0.92';
+          const confPct = typeof box.confidence === 'number' ? Math.round(box.confidence > 1 ? box.confidence : box.confidence * 100) : 92;
+          let icon = '🎯';
+          if (lbl.includes('person') || lbl.includes('orang')) icon = '👤';
+          else if (boxColorClass === 'yolo-trash') icon = '🗑️';
+          else if (lbl.includes('boat') || lbl.includes('perahu')) icon = '🚤';
 
           const leftPx = offsetX + (bx / 100) * rw;
           const topPx = offsetY + (by / 100) * rh;
@@ -908,7 +920,11 @@ export class DetailPage {
 
           calibratedHtml += `
             <div class="yolo-preview-box ${boxColorClass}" style="position: absolute; top: ${topPx}px; left: ${leftPx}px; width: ${widthPx}px; height: ${heightPx}px;">
-              <span class="yolo-preview-label">${indonesianLabel.toUpperCase()} ${confVal}</span>
+              <span class="yolo-preview-label">
+                <span class="yolo-pill-dot"></span>
+                ${icon} ${indonesianLabel.toUpperCase()}
+                <span class="yolo-conf-badge">${confPct}%</span>
+              </span>
             </div>
           `;
         });
